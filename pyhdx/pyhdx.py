@@ -5,6 +5,8 @@
 import numpy as np
 import itertools
 
+from .math import solve_nnls
+
 CSV_DTYPE = [
     ('Protein', 'U2'),
     ('start', 'i'),
@@ -115,6 +117,12 @@ class PeptideMeasurements(object):
     def scores_lstsq(self):
         x, res, rank, s = np.linalg.lstsq(self.X_norm, self.scores)
         return np.repeat(x, self.counts)
+
+    @property
+    def scores_nnls_tikonov(self):
+        x = solve_nnls(self.X_norm.T, self.scores)
+        return np.repeat(x, self.counts)
+
 
     def calc_scores(self, residue_scores):
         return self.big_X.dot(residue_scores)
