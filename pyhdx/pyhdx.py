@@ -118,11 +118,9 @@ class PeptideMeasurements(object):
         x, res, rank, s = np.linalg.lstsq(self.X_norm, self.scores)
         return np.repeat(x, self.counts)
 
-    @property
-    def scores_nnls_tikonov(self):
-        x = solve_nnls(self.X_norm.T, self.scores)
+    def scores_nnls_tikonov(self, reg):
+        x = solve_nnls(self.X_norm.T, self.scores, reg=reg)
         return np.repeat(x, self.counts)
-
 
     def calc_scores(self, residue_scores):
         return self.big_X.dot(residue_scores)

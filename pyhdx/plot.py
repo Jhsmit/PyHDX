@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', **kwargs):
+def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs):
     img = (pm.big_X > 0).astype(float)
     if scores is not None:
         img *= scores[:, np.newaxis]
@@ -17,8 +17,10 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', **kwargs):
     ax = plt.gca() if ax is None else ax
     ax.set_facecolor(bad)
 
-    im = ax.imshow(ma, cmap=cmap)
-    cbar = plt.colorbar(im, ax=ax)
+    im = ax.imshow(ma, cmap=cmap, **kwargs)
+    if cbar:
+        cbar = plt.colorbar(im, ax=ax)
+        cbar.set_label('Uptake (%)')
 
     ax.set_xlabel('Residue number')
     ax.set_ylabel('Peptide index')
