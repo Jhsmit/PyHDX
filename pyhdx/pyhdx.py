@@ -16,7 +16,7 @@ CSV_DTYPE = [
     ('fragment', 'U'),
     ('max_uptake', 'i'),
     ('MHP', 'f'),
-    ('state', 'U12'),
+    ('state', 'U24'),
     ('exposure', 'f'),
     ('center', 'f'),
     ('center_sd', 'f'),
@@ -28,19 +28,40 @@ CSV_DTYPE = [
 
 
 class PeptideCSVFile(object):
-    def __init__(self, file_path, i_control, i_max):
+    def __init__(self, file_path):
         self.data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=CSV_DTYPE)
-        self.i_control = i_control
-        self.i_max = i_max
 
-    def return_measurements(self):
-        others = [i for i in range(self.i_max) if i != self.i_control]
+    def return_by_name(self, control_state, control_exposure):
+        bc1 = self.data['state'] == control_state
+        bc2 = self.data['exposure'] == control_exposure
 
-        control = self.data[self.i_control::self.i_max]['uptake']
+        control = self.data[np.logical_and(bc1, bc2)]['uptake']
+        st = np.unique(self.data['state'])
+        exp = np.unique(self.data['exposure'])
 
         out = {}
+        for s, e in itertools.product(st, exp):
+            b1 = self.data['state'] == s
+            b2 = self.data['exposure'] == e
+            bf = np.logical_and(b1, b2)
+            name = s + '_' + str(round(e, 3))
+            if np.any(bf) and np.sum(bf) == len(control):
+                d = self.data[bf]
+                score = 100 * d['uptake'] / control
+                #TODO check sequences
+                #bs = score < 100
+                #out[name] = PeptideMeasurements(d[bs], score[bs])
+                out[name] = PeptideMeasurements(d, score)
+
+        return out
+
+    def return_measurements(self, i_control, i_max):
+        others = [i for i in range(i_max) if i != i_control]
+
+        control = self.data[i_control::i_max]['uptake']
+        out = {}
         for i in others:
-            d = self.data[i::self.i_max]
+            d = self.data[i::i_max]
             score = 100*d['uptake'] / control
             name = d['state'][0] + '_' + str(d['exposure'][0])
             out[name] = PeptideMeasurements(d, score)
@@ -68,16 +89,15 @@ class PeptideMeasurements(object):
             assert len(entry['sequence']) == pep_len
             self.big_X[row][i0:i1 + 1] = 1/pep_len
 
-
         abc = 'abcdefghijklmnopqrstuvwxyz'
         num_letters = int(np.ceil(np.log(len(data)) / np.log(len(abc))))
         combinations = list([''.join(letters) for letters in itertools.combinations(abc, num_letters)])
 
-        uid_mx = np.zeros((len(data), self.prot_len), dtype='U2')
+        uid_mx = np.zeros((len(data), self.prot_len), dtype='U' + str(num_letters))
         for c, (row, entry) in zip(combinations, enumerate(data)):
             i0 = entry['start'] - self.start
             i1 = entry['end'] - self.start
-            pep_len = i1 - i0 + 1
+            # pep_len = i1 - i0 + 1
             uid_mx[row][i0:i1 + 1] = c
 
         big_sum = np.array([''.join(row) for row in uid_mx.T])
@@ -87,7 +107,6 @@ class PeptideMeasurements(object):
         cs = np.cumsum(self.counts)
 
         if min_len > 0:
-
             merged_counts = np.array([], dtype=int)
             rr_prev = 0
             for rl, rr in contiguous_regions(self.counts <= 2):
@@ -110,12 +129,10 @@ class PeptideMeasurements(object):
                         final_counts[i - 1] += e
             final_counts = final_counts[final_counts > 0]
             assert final_counts.sum() == self.counts.sum()
-            print(final_counts)
             self.counts = final_counts
             cs = np.cumsum(self.counts)
 
 
-        print(cs)
         # Matrix of N columns with N equal to sections of identical residues.
         # Values are the number of residues in the blocks
         self.X = np.zeros((len(data), len(self.counts)), dtype=float)
@@ -123,7 +140,6 @@ class PeptideMeasurements(object):
             i0 = entry['start'] - self.start
             i1 = entry['end'] - self.start + 1
             p = np.searchsorted(cs, [i0, i1], side='right')
-            print(row, p, i0, i1)
 
             self.X[row][p[0]:p[1]] = self.counts[p[0]:p[1]]
 
