@@ -70,6 +70,7 @@ class PeptideCSVFile(object):
         return out
 
     def return_measurements(self, i_control, i_max):
+        # Deprecated
         others = [i for i in range(i_max) if i != i_control]
 
         control = self.data[i_control::i_max]['uptake']
@@ -113,14 +114,10 @@ class PeptideMeasurements(object):
             assert len(entry['sequence']) == pep_len
             self.big_X[row][i0:i1 + 1] = 1/pep_len
 
-
-
         ## sectioning
-        abc = 'abcdefghijklmnopqrstuvwxyz'
-        num_letters = int(np.ceil(np.log(len(data)) / np.log(len(abc))))
-        combinations = list([''.join(letters) for letters in itertools.combinations(abc, num_letters)])
+        combinations, num_letters = self.get_combinations(len(data))
 
-        uid_mx = np.zeros((len(data), self.prot_len), dtype='U' + str(num_letters))
+        uid_mx = np.zeros((len(data), self.prot_len), dtype='U' + str(num_letters + 4))
         for c, (row, entry) in zip(combinations, enumerate(data)):
             i0 = entry['start'] - self.start
             i1 = entry['end'] - self.start
@@ -128,13 +125,23 @@ class PeptideMeasurements(object):
             uid_mx[row][i0:i1 + 1] = c
 
         big_sum = np.array([''.join(row) for row in uid_mx.T])
+        print(big_sum.dtype)
+        b = big_sum == '' # Booleans where there is a gap
+        regions = contiguous_regions(b)
+        combinations, n = self.get_combinations(len(regions), prefix='gap_')
+        for r, c in zip(regions, combinations):
+            big_sum[r[0]:r[1]] = c
+        #big_sum[b] = combinations
+
         vals, idx, counts = np.unique(big_sum, return_index=True, return_counts=True)
         vals = vals[np.argsort(idx)]  #
         self.counts = counts[np.argsort(idx)]
-        cs = np.cumsum(self.counts)
+        self.cs = np.cumsum(self.counts)
 
-
-
+        #states is one if coverage, 0 if not
+        self.states = np.ones_like(self.counts)
+        gaps = vals.astype('<U4') == 'gap_'
+        self.states[gaps] = 0
 
         # dont use this, doesnt work
         if min_len > 0:
@@ -170,9 +177,18 @@ class PeptideMeasurements(object):
         for row, entry in enumerate(data):
             i0 = entry['start'] - self.start
             i1 = entry['end'] - self.start + 1
-            p = np.searchsorted(cs, [i0, i1], side='right')
+            p = np.searchsorted(self.cs, [i0, i1], side='right')
 
             self.X[row][p[0]:p[1]] = self.counts[p[0]:p[1]]
+
+    @staticmethod
+    def get_combinations(num, prefix=''):
+        """returns unique combinations of letters"""
+        abc = 'abcdefghijklmnopqrstuvwxyz'
+        num_letters = int(np.ceil(np.log(num) / np.log(len(abc))))
+        combinations = list([prefix + ''.join(letters) for letters in itertools.combinations(abc, num_letters)])
+
+        return combinations[:num], num_letters
 
     @property
     def name(self):
