@@ -35,7 +35,7 @@ class PeptideCSVFile(object):
         bc1 = self.data['state'] == control_state
         bc2 = self.data['exposure'] == control_exposure
 
-        control = self.data[np.logical_and(bc1, bc2)]['uptake']
+        control = self.data[np.logical_and(bc1, bc2)]
         st = np.unique(self.data['state'])
         exp = np.unique(self.data['exposure'])
 
@@ -45,13 +45,27 @@ class PeptideCSVFile(object):
             b2 = self.data['exposure'] == e
             bf = np.logical_and(b1, b2)
             name = s + '_' + str(round(e, 3))
-            if np.any(bf) and np.sum(bf) == len(control):
-                d = self.data[bf]
-                score = 100 * d['uptake'] / control
-                #TODO check sequences
-                #bs = score < 100
-                #out[name] = PeptideMeasurements(d[bs], score[bs])
-                out[name] = PeptideMeasurements(d, score)
+
+            d = self.data[bf]
+            b_data = np.isin(d['sequence'], control['sequence'])  # find the sequences in the measurement that are in control
+            d_selected = d[b_data]
+            b_control = np.isin(control['sequence'], d_selected['sequence']) # find the control entries corresponding to these sequences
+            control_selected = control[b_control]
+
+            #sort both datasets by starting index then by sequence
+            data_final = np.sort(d_selected, order=['start', 'sequence'])
+            control_final = np.sort(control_selected, order=['start', 'sequence'])
+
+            assert np.all(data_final['sequence'] == control_final['sequence'])
+            assert np.all(data_final['start'] == control_final['start'])
+            assert np.all(data_final['end'] == control_final['end'])
+            score = 100 * data_final['uptake'] / control_final['uptake']
+
+            #TODO finalize name
+            #bs = score < 100
+            #out[name] = PeptideMeasurements(d[bs], score[bs])
+            if len(score) > 0:
+                out[name] = PeptideMeasurements(data_final, score)
 
         return out
 
@@ -71,13 +85,23 @@ class PeptideCSVFile(object):
 
 class PeptideMeasurements(object):
     def __init__(self, data, scores=None, min_len=0):
-        """data: structured array with at least the fields 'start', 'end', 'sequence'
+        """data: structured array with at least the fields 'start', 'end', 'sequence' 'exposure'
 
         """
         self.data = data
         self.start = np.min(self.data['start'])
         self.stop = np.max(self.data['end'])
         self.prot_len = self.stop - self.start + 1
+
+        if len(np.unique(self.data['exposure'])) == 1:
+            self.exposure = self.data['exposure'][0]
+        else:
+            self.exposure = None
+
+        if len(np.unique(self.data['state'])) == 1:
+            self.state = self.data['state'][0]
+        else:
+            self.state = None
 
         self.scores = scores if scores is not None else None  # TODO currently needs scores for len
 
@@ -89,6 +113,9 @@ class PeptideMeasurements(object):
             assert len(entry['sequence']) == pep_len
             self.big_X[row][i0:i1 + 1] = 1/pep_len
 
+
+
+        ## sectioning
         abc = 'abcdefghijklmnopqrstuvwxyz'
         num_letters = int(np.ceil(np.log(len(data)) / np.log(len(abc))))
         combinations = list([''.join(letters) for letters in itertools.combinations(abc, num_letters)])
@@ -106,6 +133,10 @@ class PeptideMeasurements(object):
         self.counts = counts[np.argsort(idx)]
         cs = np.cumsum(self.counts)
 
+
+
+
+        # dont use this, doesnt work
         if min_len > 0:
             merged_counts = np.array([], dtype=int)
             rr_prev = 0
@@ -142,6 +173,10 @@ class PeptideMeasurements(object):
             p = np.searchsorted(cs, [i0, i1], side='right')
 
             self.X[row][p[0]:p[1]] = self.counts[p[0]:p[1]]
+
+    @property
+    def name(self):
+        return self.state + '_' + str(self.exposure)
 
     @property
     def X_norm(self):
