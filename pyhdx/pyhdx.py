@@ -127,9 +127,10 @@ class PeptideMeasurements(object):
         big_sum = np.array([''.join(row) for row in uid_mx.T])
         b = big_sum == '' # Booleans where there is a gap
         regions = contiguous_regions(b)
-        combinations, n = self.get_combinations(len(regions), prefix='gap_')
-        for r, c in zip(regions, combinations):
-            big_sum[r[0]:r[1]] = c
+        if len(regions) > 0:
+            combinations, n = self.get_combinations(len(regions), prefix='gap_')
+            for r, c in zip(regions, combinations):
+                big_sum[r[0]:r[1]] = c
         #big_sum[b] = combinations
 
         vals, idx, counts = np.unique(big_sum, return_index=True, return_counts=True)
