@@ -202,6 +202,10 @@ class PeptideMeasurements(object):
     def big_X_norm(self):
         return self.big_X / np.sum(self.big_X, axis=0)[np.newaxis, :]
 
+    @property
+    def big_X_sq_norm(self):
+        return self.big_X**2 / np.sum(self.big_X**2, axis=0)[np.newaxis, :]
+
     def get_scores(self, method):
         if method == 'avg':
             return self.scores_average
@@ -209,6 +213,10 @@ class PeptideMeasurements(object):
     @property
     def scores_average(self):
         return self.big_X_norm.T.dot(self.scores)
+
+    @property
+    def scores_average_sq(self):
+        return self.big_X_sq_norm.T.dot(self.scores)
 
     @property
     def scores_lstsq(self):
