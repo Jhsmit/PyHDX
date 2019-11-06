@@ -28,8 +28,13 @@ CSV_DTYPE = [
 
 
 class PeptideCSVFile(object):
-    def __init__(self, file_path):
+    def __init__(self, file_path, drop_first=1):
         self.data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=CSV_DTYPE)
+        if drop_first:
+            self.data['start'] += drop_first
+            size = np.max([len(s) for s in self.data['sequence']])
+            new_seq = np.array([s[drop_first:] for s in self.data['sequence']], dtype='<U' + str(size - drop_first))
+            self.data['sequence'] = new_seq
 
     def return_by_name(self, control_state, control_exposure):
         bc1 = self.data['state'] == control_state
@@ -144,6 +149,7 @@ class PeptideMeasurements(object):
         self.states[gaps] = 0
 
         # dont use this, doesnt work
+        # this is an attempt at removing small regions
         if min_len > 0:
             merged_counts = np.array([], dtype=int)
             rr_prev = 0
