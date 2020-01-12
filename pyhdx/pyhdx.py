@@ -192,6 +192,9 @@ class PeptideMeasurements(object):
 
             self.X[row][p[0]:p[1]] = self.counts[p[0]:p[1]]
 
+    def __len__(self):
+        return len(self.data)
+
     @staticmethod
     def get_combinations(num, prefix=''):
         """returns unique combinations of letters"""
@@ -247,7 +250,14 @@ class PeptideMeasurements(object):
     def calc_scores(self, residue_scores):
         return self.big_X.dot(residue_scores)
 
-
+    @property
+    def sequence(self):
+        seq = np.full(self.stop, 'P', dtype='U')
+        for d in self.data:
+            i = d['start'] - 1
+            j = d['end']
+            seq[i:j] = [s for s in d['sequence']]
+        return ''.join(seq)
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
