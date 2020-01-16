@@ -30,6 +30,11 @@ HEADER = 'Protein,Start,End,Sequence,Modification,Fragment,MaxUptake,MHP,State,E
 
 class PeptideCSVFile(object):
     def __init__(self, file_path, drop_first=1):
+        """
+
+        :param file_path: filename or generator to read (StringIO)
+        :param drop_first: number of N-terminal amino acids to ignore
+        """
         names = names = [t[0] for t in CSV_DTYPE]
         self.data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
         if drop_first:
