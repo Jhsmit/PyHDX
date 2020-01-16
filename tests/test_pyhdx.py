@@ -1,38 +1,21 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""Tests for `pyhdx` package."""
-
 import pytest
+import os
+from pyhdx import PeptideMeasurements, PeptideCSVFile
 
-from click.testing import CliRunner
-
-from pyhdx import pyhdx
-from pyhdx import cli
-
-
-@pytest.fixture
-def response():
-    """Sample pytest fixture.
-
-    See more at: http://doc.pytest.org/en/latest/fixture.html
-    """
-    # import requests
-    # return requests.get('https://github.com/audreyr/cookiecutter-pypackage')
+directory = os.path.dirname(__file__)
 
 
-def test_content(response):
-    """Sample pytest test function with the pytest fixture as an argument."""
-    # from bs4 import BeautifulSoup
-    # assert 'GitHub' in BeautifulSoup(response.content).title.string
+class TestUptakeFileModels(object):
 
+    @classmethod
+    def setup_class(cls):
+        fpath = os.path.join(directory, 'test_data', 'ds1.csv')
+        cls.pf = PeptideCSVFile(fpath)
 
-def test_command_line_interface():
-    """Test the CLI."""
-    runner = CliRunner()
-    result = runner.invoke(cli.main)
-    assert result.exit_code == 0
-    assert 'pyhdx.cli.main' in result.output
-    help_result = runner.invoke(cli.main, ['--help'])
-    assert help_result.exit_code == 0
-    assert '--help  Show this message and exit.' in help_result.output
+    def test_peptidecsvfile(self):
+        assert isinstance(self.pf, PeptideCSVFile)
+
+        p_dict = self.pf.return_by_name('PpiA-FD', 0.167)
+
+        pm = p_dict['PpiANative_0.167']
+        assert isinstance(pm, PeptideMeasurements)

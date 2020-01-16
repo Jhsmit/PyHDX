@@ -8,28 +8,30 @@ import scipy
 from .math import solve_nnls
 
 CSV_DTYPE = [
-    ('Protein', 'U2'),
-    ('start', 'i'),
-    ('end', 'i'),
-    ('sequence', 'U64'),
-    ('modification', 'U12'),
-    ('fragment', 'U'),
-    ('max_uptake', 'i'),
-    ('MHP', 'f'),
-    ('state', 'U24'),
-    ('exposure', 'f'),
-    ('center', 'f'),
-    ('center_sd', 'f'),
-    ('uptake', 'f'),
-    ('uptake_sd', 'f'),
-    ('RT', 'f'),
-    ('RT_sd', 'f')
+    ('Protein', 'U', 'c'),
+    ('start', 'i', 'i'),
+    ('end', 'i', 'i'),
+    ('sequence', 'U', 'c'),
+    ('modification', 'U', 'c'),
+    ('fragment', 'U', 'c'),
+    ('max_uptake', 'i', 'i'),
+    ('MHP', 'f', 'f'),
+    ('state', 'U', 'c'),
+    ('exposure', 'f', 'f'),
+    ('center', 'f', 'f'),
+    ('center_sd', 'f', 'f'),
+    ('uptake', 'f', 'f'),
+    ('uptake_sd', 'f', 'f'),
+    ('RT', 'f', 'f'),
+    ('RT_sd', 'f', 'f')
 ]
 
+HEADER = 'Protein,Start,End,Sequence,Modification,Fragment,MaxUptake,MHP,State,Exposure,Center,Center SD,Uptake,Uptake SD,RT,RT SD'
 
 class PeptideCSVFile(object):
     def __init__(self, file_path, drop_first=1):
-        self.data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=CSV_DTYPE)
+        names = names = [t[0] for t in CSV_DTYPE]
+        self.data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
         if drop_first:
             self.data['start'] += drop_first
             size = np.max([len(s) for s in self.data['sequence']])
@@ -74,6 +76,9 @@ class PeptideCSVFile(object):
 
         return out
 
+    def get_data(self, state, exposure):
+        return self.data[np.logical_and(self.data['state'] == state, self.data['exposure'] == exposure)]
+
     def return_measurements(self, i_control, i_max):
         # Deprecated
         others = [i for i in range(i_max) if i != i_control]
@@ -99,6 +104,8 @@ class PeptideMeasurements(object):
         self.stop = np.max(self.data['end'])
         self.prot_len = self.stop - self.start + 1
 
+
+        #todo properties
         if len(np.unique(self.data['exposure'])) == 1:
             self.exposure = self.data['exposure'][0]
         else:
@@ -240,7 +247,7 @@ class PeptideMeasurements(object):
         print(np.any(np.isnan(self.X_norm)))
         print(np.any(np.isinf(self.X_norm)))
         x = scipy.optimize.nnls(self.X_norm, self.scores,)[0]
-        return x
+        return np.repeat(x, self.counts)
 
     def calc_scores(self, residue_scores):
         return self.big_X.dot(residue_scores)
