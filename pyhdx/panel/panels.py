@@ -5,9 +5,16 @@ from bokeh.models.widgets import Button as BKButton
 from bokeh.models import CustomJS, ColumnDataSource
 from io import StringIO
 from pyhdx import PeptideCSVFile
+import param
+
+class HDXPanel(param.Parameterized):
+
+    control_state = param.Selector(doc='State for the control condition')
+    control_exposure = param.Number(bounds=(0, None), doc='Exposure for control condition')
+    exp_state = param.Selector(doc='State for selected experiment')
+    exp_times = param.List()
 
 
-class HDXPanel(object):
     def __init__(self):
         self.pm_dict = {}
         self.source = ColumnDataSource(data=dict())
