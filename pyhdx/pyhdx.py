@@ -104,6 +104,8 @@ class PeptideMeasurements(object):
         self.stop = np.max(self.data['end'])
         self.prot_len = self.stop - self.start + 1
 
+
+        #todo properties
         if len(np.unique(self.data['exposure'])) == 1:
             self.exposure = self.data['exposure'][0]
         else:
