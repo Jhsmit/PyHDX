@@ -28,22 +28,22 @@ import os
 import sys
 import getopt
 
-from calc_dpred import calculate_dpred
+from pyhdx.exPfact.calc_dpred import calculate_dpred
 
-from calculate import cost_function,\
+from pyhdx.exPfact.calculate import cost_function,\
     do_random_search, \
     fit_pfact
 
-from kint import calculate_kint_for_sequence
+from pyhdx.exPfact.kint import calculate_kint_for_sequence
 
-from read import read_assignments, \
+from pyhdx.exPfact.read import read_assignments, \
     read_configuration, \
     read_dexp, \
     read_pfact, \
     read_seq
 
 
-from write import write_diff, \
+from pyhdx.exPfact.write import write_diff, \
     write_dpred, \
     write_pfact
 
@@ -53,7 +53,7 @@ def run(base_dir, dexp, assignments, pfact, random_steps, time_points, harmonic_
 
     :param base_dir: base directory for all input files.
     :param dexp: file containing dexp values.
-    :param assignments: file containing assignments of kints to dexp values.
+    :param assignments: ndarray with 3 columns; index, start, end
     :param pfact: file containing pfactor values.
     :param random_steps: number of steps for random search.
     :param time_points: a list of experiment time points.
@@ -96,6 +96,7 @@ def run(base_dir, dexp, assignments, pfact, random_steps, time_points, harmonic_
             init_array = [1 if ii not in prolines or ii == 0 or ii+1 in pfactor_filter else -1 for ii in range(max(pfactor_filter))]
 
     else:
+        print('init')
         init_array = read_pfact(pfact)
 
     bounds = [(0.001, 20) if x >= 0 else (-1, -1) if x == -1 else (0, 0) for x in init_array]
@@ -215,6 +216,7 @@ def main(argv):
 
 
     run_config(config)
+
 
 def run_config(config):
     run(

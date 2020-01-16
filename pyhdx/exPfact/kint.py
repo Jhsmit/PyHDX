@@ -9,7 +9,7 @@
 
 
 from math import *
-from constants import *
+from pyhdx.exPfact.constants import *
 import numpy as np
 
 

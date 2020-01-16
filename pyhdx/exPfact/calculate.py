@@ -57,6 +57,12 @@ def do_random_search(kint, search_steps, pfactor_filter, dexp, time_points, assi
 
         score = cost_function(init_array, dexp, time_points,
                               assignments, harmonic_term, kint, weights)
+
+        #my run:
+        # init_array: list
+        # dexp:tuple with arrays (len(2)
+        # time_points: array
+
         score_array[score] = init_array
 
     return score_array
