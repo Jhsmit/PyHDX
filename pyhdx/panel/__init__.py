@@ -1,1 +1,1 @@
-from .panels import HDXPanel
+from .panels import *

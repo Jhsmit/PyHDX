@@ -5,7 +5,244 @@ from bokeh.models.widgets import Button as BKButton
 from bokeh.models import CustomJS, ColumnDataSource
 from io import StringIO
 from pyhdx import PeptideCSVFile
+from pyhdx.fitting import fit_kinetics
 import param
+from collections import namedtuple
+
+class HDXBase(param.Parameterized):
+    file = param.FileSelector()
+    drop_first = param.Integer(default=1, bounds=(0, None))
+    load_button = param.Action(lambda self: self._action_load(), doc='Load')
+
+    control_state = param.Selector(doc='State for the control condition', label='Control State')
+    control_exposure = param.Selector(doc='Exposure for control condition', label='Control exposure')
+
+    parse_button = param.Action(lambda self: self._action_parse(), doc="Parse")
+
+    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
+    exp_times = param.ListSelector(default=[], objects=[''])
+
+    def __init__(self, **params):
+        super(HDXBase, self).__init__(**params)
+        self.peptide_file = None  # PeptideCSVFile object
+        self.pm_dict = {}  # Dictionary of PeptideMeasurements object
+
+    def _action_load(self):
+        s = StringIO(self.file.decode('UTF-8'))
+        self.peptide_file = PeptideCSVFile(s, drop_first=self.drop_first)
+
+        states = list(np.unique(self.peptide_file.data['state']))
+        self.param['control_state'].objects = states
+        self.control_state = states[0]
+
+    def _action_parse(self):
+        self.pm_dict = self.peptide_file.return_by_name(self.control_state, self.control_exposure)
+
+        states = list(np.unique([v.state for v in self.pm_dict.values()]))
+        self.param['exp_state'].objects = states
+        self.exp_state = states[0]
+
+    @param.depends('exp_state', watch=True)
+    def _update_exp_exposure(self):
+        exposures = list([v.exposure for v in self.pm_dict.values() if v.state == self.exp_state])
+        self.param['exp_times'].objects = exposures
+        self.exp_times = exposures
+
+    @param.depends('control_state', watch=True)
+    def _update_control_exposure(self):
+        b = self.peptide_file.data['state'] == self.control_state
+        data = self.peptide_file.data[b]
+        exposures = list(np.unique(data['exposure']))
+        self.param['control_exposure'].objects = exposures
+        self.control_exposure = exposures[0]
+
+    @param.output(pm_dict=param.Dict)
+    def output(self):
+        d_states = {k: v for k, v in self.pm_dict.items() if v.state == self.exp_state and v.exposure in self.exp_times}
+        return d_states
+
+    @property
+    def choose_state_box(self):
+        return None
+
+    def panel(self):
+        p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput})
+        return p
+
+
+EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
+
+
+class HDXKinetics(param.Parameterized):
+    pm_dict = param.Dict(precedence=-1)
+    chi_squared_max = param.Number(default=20, bounds=(0, None), label='Maximum chi squared',
+                                   doc='Maximum value of chi squared below which DifferentialEvolution is used')
+    fitting_button = param.Action(lambda self: self._action_fitting(), doc='Fit', label='Do Fitting')
+    fitting_progress = param.Number(default=0, bounds=(0, 100))
+
+    #  download_button = param.Action(lambda self: self._action_download(), doc='Download', label='Download', constant=True)
+
+    def __init__(self, **params):
+        super(HDXKinetics, self).__init__(**params)
+        s = self.pm_dict[next(iter(self.pm_dict))]  # First element in dictionary
+        for v in self.pm_dict.values():
+            assert np.all(s.cs == v.cs), 'Not all entries in the selected data series are equal'
+            assert np.all(s.state == v.state), 'Not all entries in the selected data series are equal'
+            assert np.all(
+                s.data['sequence'] == v.data['sequence']), 'Not all entries in the selected data series are equal'
+
+        sorted_dict = {k: v for k, v in sorted(self.pm_dict.items(), key=lambda item: item[1].exposure)}
+        self.times = np.array([v.exposure for v in sorted_dict.values()])
+
+        # Array of weighted avarage scores with rows equal to numer of time points
+        scores_2d = np.stack([v.scores_average for v in sorted_dict.values()])
+
+        # Normalized to 100 array of scores
+        self.scores_norm = 100 * (scores_2d / scores_2d[-1, :][np.newaxis, :])
+
+        # Cumalitive sum of residue number for blocks of unique residues
+        self.cumsum = s.cs
+
+        # Number of residues per unique block (np.cumsum to get cumsum)
+        self.counts = s.counts
+
+        # residue number of start of first peptide
+        self.start = s.start
+
+        self.results = []  # List of final results param?
+
+        # reimplement with download widget coming in panel 0.8.0
+        self.save_btn = BKButton(label='Save', button_type='success')
+        self.source = ColumnDataSource(data=dict())
+        self.save_btn.js_on_click(
+            CustomJS(args=dict(source=self.source), code=open(os.path.join(os.path.abspath(''), "download.js")).read()))
+
+    #         m = np.mean(scores_2d, axis=0)
+    #         n = np.sum(np.isnan(m))
+    #         print("Total of {} residues do not have coverage".format(n))
+
+    def _action_fitting(self):
+        # print('fitting')
+
+        self.param['fitting_button'].constant = True
+        i = 0
+        results = []
+        # todo this needs to be threaded
+
+        for n, j in enumerate(self.cumsum):
+            arr = self.scores_norm[:, i:j]
+            i = j
+            print(n)
+            if np.all(np.isnan(arr)):
+                result = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
+            else:
+                assert np.all(np.std(arr, axis=1) < 1e-10)
+                d = arr[:, 0]
+                result = fit_kinetics(self.times, d, self.chi_squared_max)
+
+            progress = int(100 * (n / len(self.cumsum)))
+            self.fitting_progress = progress
+            results.append(result)
+
+        self.results = np.repeat(results, self.counts)
+        self.fitting_progress = 100
+
+        export_data = self.export_data
+        data_dict = {name: export_data[name] for name in export_data.dtype.names}
+
+        self.source.data = data_dict
+
+        self.param['fitting_button'].constant = False
+        # self.param['download_button'].constant = False
+
+    @property
+    def export_data(self):
+        """returns data for saving/export"""
+        dtype = [('position', int), ('tau', float), ('rate', float), ('chi_squared', float)]
+        data = np.empty(len(self.tau), dtype=dtype)
+        data['position'] = self.r_number
+        data['tau'] = self.tau
+        data['rate'] = self.rate
+        data['chi_squared'] = self.chi_squared
+
+        return data
+
+    @property
+    def tau(self):
+        return np.array(
+            [res.params['r'] * res.params['tau1'] + (1 - res.params['r']) * res.params['tau2'] for res in self.results])
+
+    @property
+    def rate(self):
+        return 1 / self.tau
+
+    @property
+    def chi_squared(self):
+        return np.array([res.chi_squared for res in self.results])
+
+    @property
+    def r_number(self):
+        """residue number array"""
+        # TODO check +1 or not
+        return np.arange(len(self.tau)) + self.start
+
+    def panel(self):
+        par = pn.Param(self.param, widgets={
+            'fitting_progress': {'type': pn.widgets.Progress, 'sizing_mode': 'stretch_both'}})
+        return pn.Column(par, self.save_btn)
+
+
+class HDXBaseDep(param.Parameterized):
+    file = param.FileSelector()
+    drop_first = param.Integer(default=1, bounds=(0, None))
+    load_button = param.Action(lambda self: self._action_load(), doc='Load')
+
+    control_state = param.Selector(doc='State for the control condition', label='Control State')
+    control_exposure = param.Selector(doc='Exposure for control condition', label='Control exposure')
+
+    parse_button = param.Action(lambda self: self._action_parse(), doc="Parse")
+
+    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
+    exp_times = param.ListSelector(default=[], objects=[''])
+
+    def __init__(self, **params):
+        super(HDXBaseDep, self).__init__(**params)
+        self.peptide_file = None
+        self.pm_dict = {}  # Dictionary of PeptideMeasurements object
+
+    def _action_load(self):
+        s = StringIO(self.file.decode('UTF-8'))
+        self.peptide_file = PeptideCSVFile(s, drop_first=self.drop_first)
+
+        states = list(np.unique(self.peptide_file.data['state']))
+        self.param['control_state'].objects = states
+        self.control_state = states[0]
+
+    def _action_parse(self):
+        self.pm_dict = self.peptide_file.return_by_name(self.control_state, self.control_exposure)
+        states = list(np.unique([v.state for v in self.pm_dict.values()]))
+        self.param['exp_state'].objects = states
+        self.exp_state = states[0]
+
+    @param.depends('exp_state', watch=True)
+    def _update_exp_exposure(self):
+        exposures = list([v.exposure for v in self.pm_dict.values() if v.state == self.exp_state])
+        self.param['exp_times'].objects = exposures
+        self.exp_times = exposures
+
+    @param.depends('control_state', watch=True)
+    def _update_control_exposure(self):
+        b = self.peptide_file.data['state'] == self.control_state
+        data = self.peptide_file.data[b]
+        exposures = list(np.unique(data['exposure']))
+        self.param['control_exposure'].objects = exposures
+        self.control_exposure = exposures[0]
+
+    def panel(self):
+        p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput},
+                     expand_layout=pn.Row, expand_button=True, expand=True)
+        return p
+
 
 class HDXPanel(param.Parameterized):
 
@@ -13,7 +250,6 @@ class HDXPanel(param.Parameterized):
     control_exposure = param.Number(bounds=(0, None), doc='Exposure for control condition')
     exp_state = param.Selector(doc='State for selected experiment')
     exp_times = param.List()
-
 
     def __init__(self):
         self.pm_dict = {}
@@ -38,6 +274,7 @@ class HDXPanel(param.Parameterized):
         self.save_btn = BKButton(label='Save', button_type='success')
         self.save_btn.js_on_click(
             CustomJS(args=dict(source=self.source), code=open(os.path.join(os.path.abspath(''), "download.js")).read()))
+
 
     def process(self, event):
         home = os.path.expanduser('~')
