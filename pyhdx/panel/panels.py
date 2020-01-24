@@ -9,6 +9,11 @@ from pyhdx.fitting import fit_kinetics
 import param
 from collections import namedtuple
 
+import matplotlib.pyplot as plt
+import matplotlib as mpl
+#matplotlib.use('agg')
+
+
 class HDXBase(param.Parameterized):
     file = param.FileSelector()
     drop_first = param.Integer(default=1, bounds=(0, None))
@@ -61,10 +66,6 @@ class HDXBase(param.Parameterized):
         d_states = {k: v for k, v in self.pm_dict.items() if v.state == self.exp_state and v.exposure in self.exp_times}
         return d_states
 
-    @property
-    def choose_state_box(self):
-        return None
-
     def panel(self):
         p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput})
         return p
@@ -77,10 +78,10 @@ class HDXKinetics(param.Parameterized):
     pm_dict = param.Dict(precedence=-1)
     chi_squared_max = param.Number(default=20, bounds=(0, None), label='Maximum chi squared',
                                    doc='Maximum value of chi squared below which DifferentialEvolution is used')
+    rate_max = param.Number(default=100, bounds=(0, None), label='Maximum rate',
+                            doc='Maximum rate for fitted rate constants (1/min')
     fitting_button = param.Action(lambda self: self._action_fitting(), doc='Fit', label='Do Fitting')
     fitting_progress = param.Number(default=0, bounds=(0, 100))
-
-    #  download_button = param.Action(lambda self: self._action_download(), doc='Download', label='Download', constant=True)
 
     def __init__(self, **params):
         super(HDXKinetics, self).__init__(**params)
@@ -92,7 +93,8 @@ class HDXKinetics(param.Parameterized):
                 s.data['sequence'] == v.data['sequence']), 'Not all entries in the selected data series are equal'
 
         sorted_dict = {k: v for k, v in sorted(self.pm_dict.items(), key=lambda item: item[1].exposure)}
-        self.times = np.array([v.exposure for v in sorted_dict.values()])
+        self.times = np.array([v.exposure for v in sorted_dict.values()])  #units minutes
+        self.rate_max = - ( np.log(1 - 0.95) / self.times[1])  # assuming first timepoint is zero (try/except?)
 
         # Array of weighted avarage scores with rows equal to numer of time points
         scores_2d = np.stack([v.scores_average for v in sorted_dict.values()])
@@ -109,13 +111,19 @@ class HDXKinetics(param.Parameterized):
         # residue number of start of first peptide
         self.start = s.start
 
+        # residue index
+        self.r_number = np.arange(s.start, s.stop + 1)
+
         self.results = []  # List of final results param?
+
+        self.fig, self.axes = self.get_figure()
 
         # reimplement with download widget coming in panel 0.8.0
         self.save_btn = BKButton(label='Save', button_type='success')
         self.source = ColumnDataSource(data=dict())
         self.save_btn.js_on_click(
-            CustomJS(args=dict(source=self.source), code=open(os.path.join(os.path.abspath(''), "download.js")).read()))
+            CustomJS(args=dict(source=self.source),
+                     code=open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "download.js")).read()))
 
     #         m = np.mean(scores_2d, axis=0)
     #         n = np.sum(np.isnan(m))
@@ -153,6 +161,8 @@ class HDXKinetics(param.Parameterized):
         self.source.data = data_dict
 
         self.param['fitting_button'].constant = False
+        self.update_figure()
+
         # self.param['download_button'].constant = False
 
     @property
@@ -161,8 +171,10 @@ class HDXKinetics(param.Parameterized):
         dtype = [('position', int), ('tau', float), ('rate', float), ('chi_squared', float)]
         data = np.empty(len(self.tau), dtype=dtype)
         data['position'] = self.r_number
-        data['tau'] = self.tau
-        data['rate'] = self.rate
+
+        rate = np.clip(self.rate, None, self.rate_max)
+        data['tau'] = 1/rate
+        data['rate'] = rate
         data['chi_squared'] = self.chi_squared
 
         return data
@@ -180,16 +192,59 @@ class HDXKinetics(param.Parameterized):
     def chi_squared(self):
         return np.array([res.chi_squared for res in self.results])
 
-    @property
-    def r_number(self):
-        """residue number array"""
-        # TODO check +1 or not
-        return np.arange(len(self.tau)) + self.start
+    # @property
+    # def r_number(self):
+    #     """residue number array"""
+    #     # TODO check +1 or not
+    #     return np.arange(len(self.tau)) + self.start
 
     def panel(self):
         par = pn.Param(self.param, widgets={
             'fitting_progress': {'type': pn.widgets.Progress, 'sizing_mode': 'stretch_both'}})
-        return pn.Column(par, self.save_btn)
+
+        col = pn.Column(par, self.save_btn)
+        row = pn.Row(col, self.view)
+
+        return row
+
+    @param.depends('rate_max')
+    def view(self):
+        print('view trigger')
+        return pn.pane.Matplotlib(self.fig, dpi=500)
+
+    def get_figure(self):
+        """returns matplotlib figure for visualization of kinetics"""
+
+        fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 4), sharex=True, gridspec_kw={'hspace': 0})
+        colors = mpl.cm.get_cmap('cool', len(self.times))(range(len(self.times)))
+
+        for c, (k, v) in zip(colors, self.pm_dict.items()):
+            ax1.plot(self.r_number, v.scores_average, color=c, marker='.', linestyle='')
+
+        ax1.set_ylabel('Score (%)')
+        ax2.set_yscale('log')
+        ax2.set_xlabel('Residue number')
+        ax2.set_ylabel('Rate constant\n (min$^{-1})$')
+        fig.subplots_adjust(right=0.85)
+        fig.align_ylabels()
+
+        cbar_ax = fig.add_axes([0.87, 0.05, 0.02, 0.9])
+        norm = mpl.colors.Normalize(vmin=0, vmax=np.max(self.times))
+
+        cb1 = mpl.colorbar.ColorbarBase(cbar_ax, cmap=mpl.cm.get_cmap('cool'),
+                                        norm=norm,
+                                        orientation='vertical')
+        cb1.set_label('Time (min)')
+
+        return fig, (ax1, ax2, cbar_ax)
+
+    def update_figure(self):
+        """add rates to figure"""
+
+        print('figure updated')
+        ax = self.axes[1]
+        ax.plot(self.r_number, self.export_data['rate'], marker='.', linestyle='', color='k')
+
 
 
 class HDXBaseDep(param.Parameterized):
@@ -245,6 +300,8 @@ class HDXBaseDep(param.Parameterized):
 
 
 class HDXPanel(param.Parameterized):
+    """deprecated"""
+
 
     control_state = param.Selector(doc='State for the control condition')
     control_exposure = param.Number(bounds=(0, None), doc='Exposure for control condition')
@@ -274,7 +331,6 @@ class HDXPanel(param.Parameterized):
         self.save_btn = BKButton(label='Save', button_type='success')
         self.save_btn.js_on_click(
             CustomJS(args=dict(source=self.source), code=open(os.path.join(os.path.abspath(''), "download.js")).read()))
-
 
     def process(self, event):
         home = os.path.expanduser('~')
