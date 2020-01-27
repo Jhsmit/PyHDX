@@ -11,6 +11,7 @@ from collections import namedtuple
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.collections import LineCollection
 #matplotlib.use('agg')
 
 
@@ -94,7 +95,7 @@ class HDXKinetics(param.Parameterized):
 
         sorted_dict = {k: v for k, v in sorted(self.pm_dict.items(), key=lambda item: item[1].exposure)}
         self.times = np.array([v.exposure for v in sorted_dict.values()])  #units minutes
-        self.rate_max = - ( np.log(1 - 0.95) / self.times[1])  # assuming first timepoint is zero (try/except?)
+
 
         # Array of weighted avarage scores with rows equal to numer of time points
         scores_2d = np.stack([v.scores_average for v in sorted_dict.values()])
@@ -114,9 +115,12 @@ class HDXKinetics(param.Parameterized):
         # residue index
         self.r_number = np.arange(s.start, s.stop + 1)
 
-        self.results = []  # List of final results param?
+        er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
+        self.results = [er for i in self.r_number]  # List of final results param?
 
+        # move plotting logic to mixin / module?
         self.fig, self.axes = self.get_figure()
+        self.mpl = pn.pane.Matplotlib(self.fig)
 
         # reimplement with download widget coming in panel 0.8.0
         self.save_btn = BKButton(label='Save', button_type='success')
@@ -128,6 +132,9 @@ class HDXKinetics(param.Parameterized):
     #         m = np.mean(scores_2d, axis=0)
     #         n = np.sum(np.isnan(m))
     #         print("Total of {} residues do not have coverage".format(n))
+
+        # do this because of thep aram trigger
+        self.rate_max = - (np.log(1 - 0.95) / self.times[1])  # assuming first timepoint is zero (try/except?)
 
     def _action_fitting(self):
         # print('fitting')
@@ -169,7 +176,7 @@ class HDXKinetics(param.Parameterized):
     def export_data(self):
         """returns data for saving/export"""
         dtype = [('position', int), ('tau', float), ('rate', float), ('chi_squared', float)]
-        data = np.empty(len(self.tau), dtype=dtype)
+        data = np.empty(len(self.r_number), dtype=dtype)
         data['position'] = self.r_number
 
         rate = np.clip(self.rate, None, self.rate_max)
@@ -203,14 +210,18 @@ class HDXKinetics(param.Parameterized):
             'fitting_progress': {'type': pn.widgets.Progress, 'sizing_mode': 'stretch_both'}})
 
         col = pn.Column(par, self.save_btn)
-        row = pn.Row(col, self.view)
+        row = pn.Row(col, self.mpl)
 
         return row
 
-    @param.depends('rate_max')
-    def view(self):
-        print('view trigger')
-        return pn.pane.Matplotlib(self.fig, dpi=500)
+    # @param.depends('rate_max')
+    # def view(self):
+    #     print('view trigger')
+    #     return pn.pane.Matplotlib(self.fig, dpi=500)
+
+    @property
+    def _lc_data(self):
+        return [np.column_stack([self.r_number, self.rate_max*np.ones_like(self.r_number)])]
 
     def get_figure(self):
         """returns matplotlib figure for visualization of kinetics"""
@@ -222,11 +233,19 @@ class HDXKinetics(param.Parameterized):
             ax1.plot(self.r_number, v.scores_average, color=c, marker='.', linestyle='')
 
         ax1.set_ylabel('Score (%)')
+
+        ax2.plot(self.r_number, np.ones_like(self.r_number), marker='.', linestyle='', color='k')
+
+        lc = LineCollection(self._lc_data, colors='r')
+        ax2.add_collection(lc)
+#        ax2.axhline(self.rate_max, color='r', autolim=False)
         ax2.set_yscale('log')
         ax2.set_xlabel('Residue number')
         ax2.set_ylabel('Rate constant\n (min$^{-1})$')
+
+        fig.align_ylabels()  # todo doesnt seem to work
+
         fig.subplots_adjust(right=0.85)
-        fig.align_ylabels()
 
         cbar_ax = fig.add_axes([0.87, 0.05, 0.02, 0.9])
         norm = mpl.colors.Normalize(vmin=0, vmax=np.max(self.times))
@@ -235,15 +254,32 @@ class HDXKinetics(param.Parameterized):
                                         norm=norm,
                                         orientation='vertical')
         cb1.set_label('Time (min)')
+     #   plt.tight_layout()
 
         return fig, (ax1, ax2, cbar_ax)
 
+    @param.depends('rate_max', watch=True)
+    def update_rate_max(self):
+        print('rate max')
+
+        lc = self.axes[1].collections[0]
+        lc.set_segments(self._lc_data)
+        self.update_figure()
+
+       #
+
     def update_figure(self):
         """add rates to figure"""
-
-        print('figure updated')
         ax = self.axes[1]
-        ax.plot(self.r_number, self.export_data['rate'], marker='.', linestyle='', color='k')
+        line = ax.lines[0]
+        line.set_ydata(self.export_data['rate'])
+        #ax.update_datalim(line.get_datalim(ax.transData))
+        ax.relim()
+
+
+        ax.autoscale_view()
+        #ax.plot(self.r_number, self.export_data['rate'], marker='.', linestyle='', color='k')
+        self.mpl.param.trigger('object')
 
 
 
