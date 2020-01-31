@@ -84,6 +84,11 @@ class HDXKinetics(param.Parameterized):
     fitting_button = param.Action(lambda self: self._action_fitting(), doc='Fit', label='Do Fitting')
     fitting_progress = param.Number(default=0, bounds=(0, 100))
 
+    modeling_type = param.ObjectSelector(default='Otsu', objects=['Otsu', 'HMM'])
+    num_classes = param.Integer(default=3, bounds=(2, 10))
+
+    update = param.Action()
+
     def __init__(self, **params):
         super(HDXKinetics, self).__init__(**params)
         s = self.pm_dict[next(iter(self.pm_dict))]  # First element in dictionary
@@ -95,7 +100,6 @@ class HDXKinetics(param.Parameterized):
 
         sorted_dict = {k: v for k, v in sorted(self.pm_dict.items(), key=lambda item: item[1].exposure)}
         self.times = np.array([v.exposure for v in sorted_dict.values()])  #units minutes
-
 
         # Array of weighted avarage scores with rows equal to numer of time points
         scores_2d = np.stack([v.scores_average for v in sorted_dict.values()])
@@ -129,11 +133,11 @@ class HDXKinetics(param.Parameterized):
             CustomJS(args=dict(source=self.source),
                      code=open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "download.js")).read()))
 
-    #         m = np.mean(scores_2d, axis=0)
-    #         n = np.sum(np.isnan(m))
-    #         print("Total of {} residues do not have coverage".format(n))
+        self.hdx_viewer_btn = BKButton(label='HDX Viewer export', button_type='success')
+        self.hdx_source = ColumnDataSource(data=dict())
+        self.hdx_viewer_btn.js_on_click(CustomJS(args=dict(source=self.hdx_source, filename='HDX_export.csv'),
+                        code=open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "txt_download.js")).read()))
 
-        # do this because of thep aram trigger
         self.rate_max = - (np.log(1 - 0.95) / self.times[1])  # assuming first timepoint is zero (try/except?)
 
     def _action_fitting(self):
@@ -162,15 +166,31 @@ class HDXKinetics(param.Parameterized):
         self.results = np.repeat(results, self.counts)
         self.fitting_progress = 100
 
-        export_data = self.export_data
-        data_dict = {name: export_data[name] for name in export_data.dtype.names}
-
-        self.source.data = data_dict
+        self._update_hdx_viewer_export()
 
         self.param['fitting_button'].constant = False
-        self.update_figure()
+        self.param.trigger('update')
 
         # self.param['download_button'].constant = False
+
+    @param.depends('update', watch=True)
+    def _update_export_data(self):
+        export_data = self.export_data
+        data_dict = {name: export_data[name] for name in export_data.dtype.names}
+        self.source.data = data_dict
+
+    @param.depends('update', watch=True)
+    def _update_hdx_viewer_export(self):
+        s = 'Residues,k,Ln(k)\n'
+        rates = np.clip(self.rate, None, self.rate_max)
+        for r, rate in zip(self.r_number, rates):
+            if np.isnan(rate):
+                continue
+            line = '{},{:.3},{:.3}'.format(r, rate, np.log10(rate))
+            s += line
+            s += '\n'
+
+        self.hdx_source.data = {'text': [s]}
 
     @property
     def export_data(self):
@@ -209,15 +229,17 @@ class HDXKinetics(param.Parameterized):
         par = pn.Param(self.param, widgets={
             'fitting_progress': {'type': pn.widgets.Progress, 'sizing_mode': 'stretch_both'}})
 
-        col = pn.Column(par, self.save_btn)
+        col = pn.Column(par, self.save_btn, self.hdx_viewer_btn)
         row = pn.Row(col, self.mpl)
 
         return row
 
-    # @param.depends('rate_max')
-    # def view(self):
-    #     print('view trigger')
-    #     return pn.pane.Matplotlib(self.fig, dpi=500)
+    @param.depends('modeling_type', 'num_classes', watch=True)
+    def _do_modeling(self):
+        if self.modeling_type == 'Otsu':
+            pass
+        elif self.modeling_type == 'HMM':
+            pass
 
     @property
     def _lc_data(self):
@@ -227,50 +249,20 @@ class HDXKinetics(param.Parameterized):
     def get_figure(self):
         """returns matplotlib figure for visualization of kinetics"""
 
-        fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 4), sharex=True, gridspec_kw={'hspace': 0})
-        norm = mpl.colors.Normalize(vmin=0, vmax=np.max(self.times))
-        normed_times = norm(self.times)
-
-        colors = mpl.cm.get_cmap('cool', len(self.pm_dict))(normed_times)
-
-        for c, (k, v) in zip(colors, self.pm_dict.items()):
-            ax1.plot(self.r_number, v.scores_average, color=c, marker='.', linestyle='')
-
-        ax1.set_ylabel('Score (%)')
-
-        ax2.plot(self.r_number, np.ones_like(self.r_number), marker='.', linestyle='', color='k')
+        fig, (ax1, ax2, cbar_ax) = make_kinetics_figure(self.pm_dict)
 
         lc = LineCollection(self._lc_data, colors='r')
         ax2.add_collection(lc)
-#        ax2.axhline(self.rate_max, color='r', autolim=False)
-        ax2.set_yscale('log')
-        ax2.set_xlabel('Residue number')
-        ax2.set_ylabel('Rate constant\n (min$^{-1})$')
-
-        fig.align_ylabels()  # todo doesnt seem to work
-
-        fig.subplots_adjust(right=0.85)
-
-        cbar_ax = fig.add_axes([0.87, 0.05, 0.02, 0.9])
-
-        cb1 = mpl.colorbar.ColorbarBase(cbar_ax, cmap=mpl.cm.get_cmap('cool'),
-                                        norm=norm,
-                                        orientation='vertical')
-        cb1.set_label('Time (min)')
-     #   plt.tight_layout()
 
         return fig, (ax1, ax2, cbar_ax)
 
     @param.depends('rate_max', watch=True)
     def update_rate_max(self):
-        print('rate max')
-
         lc = self.axes[1].collections[0]
         lc.set_segments(self._lc_data)
         self.update_figure()
 
-       #
-
+    @param.depends('update', watch=True)
     def update_figure(self):
         """add rates to figure"""
         ax = self.axes[1]
