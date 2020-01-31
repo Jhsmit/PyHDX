@@ -3,14 +3,14 @@ import panel as pn
 import numpy as np
 from bokeh.models.widgets import Button as BKButton
 from bokeh.models import CustomJS, ColumnDataSource
+
 from io import StringIO
 from pyhdx import PeptideCSVFile
 from pyhdx.fitting import fit_kinetics
+from pyhdx.plot import make_kinetics_figure
 import param
 from collections import namedtuple
 
-import matplotlib.pyplot as plt
-import matplotlib as mpl
 from matplotlib.collections import LineCollection
 #matplotlib.use('agg')
 
