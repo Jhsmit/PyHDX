@@ -221,13 +221,17 @@ class HDXKinetics(param.Parameterized):
 
     @property
     def _lc_data(self):
+        """data for linecollection at max rate"""
         return [np.column_stack([self.r_number, self.rate_max*np.ones_like(self.r_number)])]
 
     def get_figure(self):
         """returns matplotlib figure for visualization of kinetics"""
 
         fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 4), sharex=True, gridspec_kw={'hspace': 0})
-        colors = mpl.cm.get_cmap('cool', len(self.times))(range(len(self.times)))
+        norm = mpl.colors.Normalize(vmin=0, vmax=np.max(self.times))
+        normed_times = norm(self.times)
+
+        colors = mpl.cm.get_cmap('cool', len(self.pm_dict))(normed_times)
 
         for c, (k, v) in zip(colors, self.pm_dict.items()):
             ax1.plot(self.r_number, v.scores_average, color=c, marker='.', linestyle='')
@@ -248,7 +252,6 @@ class HDXKinetics(param.Parameterized):
         fig.subplots_adjust(right=0.85)
 
         cbar_ax = fig.add_axes([0.87, 0.05, 0.02, 0.9])
-        norm = mpl.colors.Normalize(vmin=0, vmax=np.max(self.times))
 
         cb1 = mpl.colorbar.ColorbarBase(cbar_ax, cmap=mpl.cm.get_cmap('cool'),
                                         norm=norm,
