@@ -1,5 +1,6 @@
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
 import numpy as np
 
 
@@ -11,7 +12,7 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, *
         img *= pm.scores[:, np.newaxis]
 
     ma = np.ma.masked_where(img == 0, img)
-    cmap = matplotlib.cm.get_cmap(cmap)
+    cmap = mpl.cm.get_cmap(cmap)
     cmap.set_bad(color=bad)
 
     ax = plt.gca() if ax is None else ax
@@ -74,3 +75,33 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
     #   plt.tight_layout()
 
     return fig, (ax1, ax2, cbar_ax)
+
+
+def make_coverage_figure(pm, wrap, aa_per_subplot, figsize=(10, 8), **kwargs):
+
+    rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k', 'facecolor': '#313695'}
+    rect_kwargs.update(kwargs)
+
+    num_axes = pm.stop // aa_per_subplot + 1
+
+    fig, axes = plt.subplots(num_axes, figsize=figsize)
+    i = -1
+    for j, ax in enumerate(axes):
+        for e in pm.data:
+            if i < -wrap:
+                i = -1
+
+            width = e['end'] - e['start'] + 1
+            rect = Rectangle((e['start'] - 0.5, i), width, 1, **rect_kwargs)
+            ax.add_patch(rect)
+
+            i -= 1
+
+        ax.set_ylim(-wrap, 0)
+        ax.set_xlim(j * aa_per_subplot, (j + 1) * aa_per_subplot)
+        ax.set_yticks([])
+
+    axes[-1].set_xlabel('Residue number')
+    plt.tight_layout()
+
+    return fig, axes
