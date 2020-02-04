@@ -85,6 +85,7 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, figsize=(10, 8), **kwargs):
     num_axes = pm.stop // aa_per_subplot + 1
 
     fig, axes = plt.subplots(num_axes, figsize=figsize)
+    axes = [axes] if num_axes == 1 else axes
     for j, ax in enumerate(axes):
         i = -1
 
