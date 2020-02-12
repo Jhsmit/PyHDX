@@ -426,6 +426,18 @@ class PeptideMeasurements(object):
         return ''.join(seq)
 
 
+
+class Coverage(object):
+    """
+    object describing layout and coverage of peptides and generating the corresponding matrices
+
+    """
+    def __init__(self, data):
+        assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
+        assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
+
+        #todo insert and update coverage logic
+
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
 def contiguous_regions(condition):
     """Finds contiguous True regions of the boolean array "condition". Returns
