@@ -234,15 +234,16 @@ class PeptideMeasurements(object):
     scores nnls
     scores lsq
 
-
-
     """
 
     def __init__(self, data, scores=None):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
-        assert len(np.unique(self.data['state'])) == 1, 'State entries are not unique'
+        assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
         if scores is not None:
             assert len(scores) == len(data), 'Length of scores must match the length of the data (number of peptides)'
+        else:
+            scores = data['uptake']
+
         self.data = data
         self.start = np.min(self.data['start'])
         self.stop = np.max(self.data['end'])  #todo refactor to end
@@ -299,6 +300,55 @@ class PeptideMeasurements(object):
 
     def __len__(self):
         return len(self.data)
+
+
+    def set_control(self, control_100, control_0=None):
+        """
+        Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
+        value with respect to the control uptake value to 100%. Entires which are in the measurement and not in the
+        control or vice versa are deleted.
+        Optionally, ``control_zero`` can be specified which is a datasets whose uptake value will be set to zero.
+
+        Parameters
+        ----------
+        control_100 : :obj:`numpy.ndarray`
+            Numpy structured array with control peptides to use for normalization to 100%
+        control_zero : :obj:`numpy.ndarray`
+            Numpy structured array with control peptides to use for normalization to 0%
+
+        Returns
+        -------
+
+        """
+        # peptides in measurements that are also in the control
+
+        if control_0 is None:
+            control_0 = np.copy(control_100)
+            control_0['uptake'] = 0
+
+        b_100 = np.isin(self.data['sequence'], control_100['sequence'])
+        b_0 = np.isin(self.data['sequence'], control_0['sequence'])
+        data_selected = self.data[np.logical_and(b_100, b_0)]
+
+        # Control peptides corresponding to those peptides in measurement
+        c_100_selected = control_100[np.isin(control_100['sequence'], data_selected['sequence'])]
+        c_0_selected = control_0[np.isin(control_0['sequence'], data_selected['sequence'])]
+
+        # Sort both datasets by starting index and then by sequence to make sure they are both equal
+        data_final = np.sort(data_selected, order=['start', 'sequence'])
+        control_100_final = np.sort(c_100_selected, order=['start', 'sequence'])
+        control_0_final = np.sort(c_0_selected, order=['start', 'sequence'])
+
+        #todo move assert to testing
+        assert np.all(data_final['sequence'] == control_100_final['sequence'])
+        assert np.all(data_final['start'] == control_100_final['start'])
+        assert np.all(data_final['end'] == control_100_final['end'])
+
+        score = 100 * (data_final['uptake'] - control_0_final['uptake']) / \
+                (control_100_final['uptake'] - control_0_final['uptake'])
+
+        #update this when changing to Coverage objects
+        self.__init__(data_final, score)
 
     @staticmethod
     def get_combinations(num, prefix=''):
