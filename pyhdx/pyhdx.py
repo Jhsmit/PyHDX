@@ -40,15 +40,30 @@ class PeptideCSVFile(object):
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
     """
-    def __init__(self, file_path, drop_first=1):
+    def __init__(self, file_path, drop_first=1, sort=True):
 
         names = [t[0] for t in CSV_DTYPE]
         self.data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
+        if sort:
+            self.data = np.sort(self.data, order=['start', 'sequence'])
+
         if drop_first:
             self.data['start'] += drop_first
             size = np.max([len(s) for s in self.data['sequence']])
             new_seq = np.array([s[drop_first:] for s in self.data['sequence']], dtype='<U' + str(size - drop_first))
             self.data['sequence'] = new_seq
+
+    def groupby_state(self):
+        """
+        Groups measurements in the dataset by state and returns them in a dictionary as a :class:`pyhdx.KineticSeries`
+        Returns
+        -------
+        out : :obj:`dict`
+            Dictionary where keys are state names and values are :class:`pyhdx.KineticSeries`
+        """
+
+        states = np.unique(self.data['state'])
+        return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
 
     def return_by_name(self, control_state, control_exposure):
         #todo return dictionary of kinetic series instead
@@ -125,6 +140,64 @@ class PeptideCSVFile(object):
 
         output_data = self.data[np.logical_and(self.data['state'] == state, self.data['exposure'] == exposure)]
         return output_data
+
+
+class KineticsSeries(object):
+    """
+    Object with a kinetic series of PeptideMeasurements belonging to the same state with different exposure times.
+
+    Parameters
+    ----------
+    data : :calss:`~numpy.ndarray`
+        Numpy array with peptide entries corresponding to a single state
+
+
+    Attributes
+    ----------
+    state : :obj:`str`
+        State of the kinetic series
+    times : :class:`~numpy.ndarray`
+        Array with time points
+
+    """
+    def __init__(self, data):
+        assert len(np.unique(data['state'])) == 1
+        self.state = data['state'][0]
+        self.times = np.sort(np.unique(data['exposure']))
+
+        #todo establish naming
+        self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
+
+    def __len__(self):
+        return len(self.times)
+
+    def __iter__(self):
+        return self.peptidesets.__iter__()
+
+    def __getitem__(self, item):
+        return self.peptidesets.__getitem__(item)
+
+    def set_control(self, control_100, control_zero=None):
+        """
+        Apply a control dataset to the underlying PeptideMeasurements of this object. A `scores` attribute is added to
+        the PeptideMeasurement by normalizing its uptake value with respect to the control uptake value to 100%. Entires
+        which are in the measurement and not in the control or vice versa are deleted.
+        Optionally, ``control_zero`` can be specified which is a datasets whose uptake value will be set to zero.
+
+        Parameters
+        ----------
+        control_100 : :obj:`numpy.ndarray`
+            Numpy structured array with control peptides to use for normalization to 100%
+        control_zero : :obj:`numpy.ndarray`
+            Numpy structured array with control peptides to use for normalization to 0%
+
+        Returns
+        -------
+
+        """
+
+        for pm in self:
+            pm.set_control(control_100, control_zero)
 
 
 class PeptideMeasurements(object):
