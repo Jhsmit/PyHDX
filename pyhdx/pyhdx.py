@@ -186,9 +186,9 @@ class KineticsSeries(object):
 
         Parameters
         ----------
-        control_100 : :obj:`numpy.ndarray`
+        control_100 : :class:`~numpy.ndarray`
             Numpy structured array with control peptides to use for normalization to 100%
-        control_zero : :obj:`numpy.ndarray`
+        control_zero : :class:`~numpy.ndarray`
             Numpy structured array with control peptides to use for normalization to 0%
 
         Returns
