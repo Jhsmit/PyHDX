@@ -317,7 +317,7 @@ class PeptideMeasurements(object):
 
         self.exposure = self.data['exposure'][0]
         self.state = self.data['state'][0]
-        self.scores = scores #if scores is not None else None  # TODO currently needs scores for len
+        self.scores = scores  # if scores is not None else None  # TODO currently needs scores for len
 
         self.big_X = np.zeros((len(data), self.prot_len), dtype=float)
         for row, entry in enumerate(self.data):
@@ -327,7 +327,7 @@ class PeptideMeasurements(object):
             assert len(entry['sequence']) == pep_len
             self.big_X[row][i0:i1 + 1] = 1/pep_len
 
-        ## sectioning
+        ## Sectioning
         combinations, num_letters = self.get_combinations(len(data))
         uid_mx = np.zeros((len(data), self.prot_len), dtype='U' + str(num_letters + 4))
         for c, (row, entry) in zip(combinations, enumerate(data)):
@@ -366,7 +366,6 @@ class PeptideMeasurements(object):
 
     def __len__(self):
         return len(self.data)
-
 
     def set_control(self, control_100, control_0=None):
         """
@@ -436,10 +435,6 @@ class PeptideMeasurements(object):
     @property
     def big_X_norm(self):
         return self.big_X / np.sum(self.big_X, axis=0)[np.newaxis, :]
-
-    @property
-    def big_X_sq_norm(self):
-        return self.big_X**2 / np.sum(self.big_X**2, axis=0)[np.newaxis, :]
 
     @property
     def scores_average(self):
