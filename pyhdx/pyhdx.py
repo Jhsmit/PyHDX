@@ -200,6 +200,72 @@ class KineticsSeries(object):
             pm.set_control(control_100, control_zero)
 
 
+class Coverage(object):
+    """
+    object describing layout and coverage of peptides and generating the corresponding matrices
+
+    Parameters
+    ----------
+    data : ~class:`~numpy.ndarray`
+        Numpy structured array with input data
+
+    Attributes
+    ----------
+        start : :obj:`int`
+            Index of residue first appearing in the peptides (first residue is 1)
+        end : :obj:`int`
+            Index of last residue appearing in the peptides (inclusive)
+        prot_len : :obj:`int`
+            Total number of residues the peptides are spanning
+        X : :class:`~numpy.ndarray`
+            N x M matrix where N is the number of peptides and M equal to `prot_len`.
+            Values are 1 where there is coverage, 0 otherwise
+        X_red : :class:`~numpy.ndarray`
+            REDUCED VERSION OF big_X
+        block_length : :class:`~numpy.ndarray`
+            Array with lengths of blocks of residues which are uniquely represented in the peptides
+        coverage : :class:`~numpy.ndarray`
+            Values are `True` when the corresponding residues are in at least one peptide, otherwise `False`
+    """
+
+    def __init__(self, data):
+        assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
+        assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
+
+        # todo insert and update coverage logic
+
+        self.data = data
+        self.start = np.min(self.data['start'])
+        self.end = np.max(self.data['end'])  # todo refactor to end
+        self.prot_len = self.end - self.start + 1  # Total number of amino acids described by these measurments
+
+        # Create and fill coefficient matrix X
+        self.X = np.zeros((len(data), self.prot_len), dtype=float)
+        for row, entry in enumerate(data):
+            i0 = entry['start'] - self.start
+            i1 = entry['end'] - self.start
+            pep_len = i1 - i0 + 1
+            assert len(entry['sequence']) == pep_len, "Length of the sequence doesnt correspond to start and end values"
+            self.X[row][i0:i1 + 1] = 1 / pep_len
+
+        # Find the lengths of unique blocks of residues in the peptides
+        indices = np.sort(np.concatenate([self.data['start'], self.data['end'] + 1]))
+        diffs = np.diff(indices)
+        self.block_length = diffs[diffs != 0]
+        #self.cs = np.cumsum(self.counts)
+
+        self.coverage = np.sum(self.X, axis=0) > 0
+
+        cs = np.cumsum(self.coverage)
+        self.X_red = np.zeros((len(data), len(self.block_length)), dtype=float)
+        for row, entry in enumerate(data):
+            i0 = entry['start'] - self.start
+            i1 = entry['end'] - self.start + 1
+            p = np.searchsorted(cs, [i0, i1], side='right')
+
+            self.X_red[row][p[0]:p[1]] = self.block_length[p[0]:p[1]]
+
+
 class PeptideMeasurements(object):
     """
     Class with subset of peptides corresponding to only one state and exposure
@@ -207,7 +273,7 @@ class PeptideMeasurements(object):
     Parameters
     ----------
     data : :class`~numpy.ndarray`
-        Numpy structured array with in put data
+        Numpy structured array with input data
     scores : :class:`~numpy.ndarray`
         Array with D/H uptake scores, typically in percentages or absolute uptake numbers.
 
@@ -427,16 +493,8 @@ class PeptideMeasurements(object):
 
 
 
-class Coverage(object):
-    """
-    object describing layout and coverage of peptides and generating the corresponding matrices
 
-    """
-    def __init__(self, data):
-        assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
-        assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
-        #todo insert and update coverage logic
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
 def contiguous_regions(condition):
