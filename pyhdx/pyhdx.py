@@ -379,7 +379,7 @@ class PeptideMeasurements(object):
         ----------
         control_100 : :obj:`numpy.ndarray`
             Numpy structured array with control peptides to use for normalization to 100%
-        control_zero : :obj:`numpy.ndarray`
+        control_0 : :obj:`numpy.ndarray`
             Numpy structured array with control peptides to use for normalization to 0%
 
         Returns
