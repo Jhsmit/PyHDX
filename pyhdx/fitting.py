@@ -1,3 +1,5 @@
+from pyhdx import Coverage
+
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model
@@ -5,7 +7,7 @@ from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
 
 
-#module level parameters are likely to cause all sorts of problems
+#module level (non dummy) parameters are likely to cause all sorts of problems
 r = Parameter('r', value=0.5, min=0, max=1)
 tau1 = Parameter('tau1', min=0, max=5)
 tau2 = Parameter('tau2', min=0, max=100)
@@ -121,7 +123,80 @@ def fit_kinetics(t, d, chisq_thd):
     rp = res.params['r'] * res.params['tau1'] + (1 - res.params['r']) * res.params['tau2']
 
     if np.isnan(rp) or res.chi_squared > chisq_thd or res.params['r'] > 1 or res.params['r'] < 0:
+
+        #TODO add thread lock here
         fit = Fit(model, t, d, minimizer=DifferentialEvolution)
         res = fit.execute(workers=-1)
 
     return res
+
+
+class KineticsFitting(object):
+
+    def __init__(self, k_series):
+        #todo check if coverage
+        self.k_series = k_series
+
+
+      #  self.coverage = Coverage(k_series[0].data)
+
+
+    @property
+    def scores_stack(self):
+        """uptake scores to fit in a 2d stack"""
+        scores_2d = np.stack([v.scores_average for v in self.k_series])
+        return scores_2d
+
+    @property
+    def scores_norm(self):
+    # Normalized to 100 array of scores
+        scores_norm = 100 * (self.scores_stack / self.scores_stack[-1, :][np.newaxis, :])
+        return scores_norm
+
+    def global_fitting(self):
+        """
+        fit (per section) in time
+
+        Returns
+        -------
+
+        """
+
+    def do_fitting(self, chisq_thd=20):
+        """
+        Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
+        is the same
+
+        Parameters
+        ----------
+        chisq_max
+
+        Returns
+        -------
+
+        """
+
+        arr = self.scores_norm.T
+        block_length = []
+        results = []
+        i = 0
+        for j, d in enumerate(arr):
+            i += 1
+            if j == len(arr) - 1:  # End of array
+                block_length.append(i)
+                continue
+            elif np.all(d == arr[j + 1]):  # Next element is the same
+                continue
+            else:
+                block_length.append(i)
+                i = 0
+
+                res = fit_kinetics(self.k_series.times, d, chisq_thd=chisq_thd)
+                results.append(res)
+
+        return results, block_length
+
+
+
+
+
