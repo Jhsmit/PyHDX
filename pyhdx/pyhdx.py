@@ -65,6 +65,28 @@ class PeptideCSVFile(object):
         states = np.unique(self.data['state'])
         return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
 
+    def groupby_state_control(self, control_100, control_0=None):
+        """
+        Groups measurements in the dataset by state and returns them in a dictionary as a :class:`pyhdx.KineticSeries`.
+        Score values are calculated and normalzied according to the controls specified
+
+
+        Returns
+        -------
+        out : :obj:`dict`
+            Dictionary where keys are state names and values are :class:`pyhdx.KineticSeries`
+        """
+
+
+        #todo does this affect underlying data?
+        out_dict = self.groupby_state()
+        control_100 = self.get_data(*control_100) # Get the subset of data for 100% control
+        control_0 = self.get_data(*control_0) if control_0 is not None else control_0
+
+        [v.set_control(control_100, control_0) for v in out_dict.values()]
+
+        return out_dict
+
     def return_by_name(self, control_state, control_exposure):
         #todo return dictionary of kinetic series instead
 
