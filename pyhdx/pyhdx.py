@@ -139,7 +139,7 @@ class PeptideCSVFile(object):
             score = 100 * data_final['uptake'] / control_final['uptake']
 
             if len(score) > 0:
-                out[name] = PeptideMeasurements(data_final, score)
+                out[name] = PeptideMeasurements(data_final)
 
         return out
 
@@ -287,8 +287,17 @@ class Coverage(object):
 
             self.X_red[row][p[0]:p[1]] = self.block_length[p[0]:p[1]]
 
+    @property
+    def X_red_norm(self):
+        return self.X_red / np.sum(self.X_red, axis=1)[:, np.newaxis]
 
-class PeptideMeasurements(object):
+    @property
+    def X_norm(self):
+        return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
+
+
+
+class PeptideMeasurements(Coverage):
     """
     Class with subset of peptides corresponding to only one state and exposure
 
@@ -324,67 +333,15 @@ class PeptideMeasurements(object):
 
     """
 
-    def __init__(self, data, scores=None):
+    def __init__(self, data):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
-        if scores is not None:
-            assert len(scores) == len(data), 'Length of scores must match the length of the data (number of peptides)'
-        else:
-            scores = data['uptake']
 
-        self.data = data
-        self.start = np.min(self.data['start'])
-        self.stop = np.max(self.data['end'])  #todo refactor to end
-        self.prot_len = self.stop - self.start + 1  # Total number of amino acids described by these measurments
+        super(PeptideMeasurements, self).__init__(data)
 
-        self.exposure = self.data['exposure'][0]
-        self.state = self.data['state'][0]
-        self.scores = scores  # if scores is not None else None  # TODO currently needs scores for len
-
-        self.big_X = np.zeros((len(data), self.prot_len), dtype=float)
-        for row, entry in enumerate(self.data):
-            i0 = entry['start'] - self.start
-            i1 = entry['end'] - self.start
-            pep_len = i1 - i0 + 1
-            assert len(entry['sequence']) == pep_len
-            self.big_X[row][i0:i1 + 1] = 1/pep_len
-
-        ## Sectioning
-        combinations, num_letters = self.get_combinations(len(data))
-        uid_mx = np.zeros((len(data), self.prot_len), dtype='U' + str(num_letters + 4))
-        for c, (row, entry) in zip(combinations, enumerate(data)):
-            i0 = entry['start'] - self.start
-            i1 = entry['end'] - self.start
-            # pep_len = i1 - i0 + 1
-            uid_mx[row][i0:i1 + 1] = c
-
-        big_sum = np.array([''.join(row) for row in uid_mx.T])
-        b = big_sum == '' # Booleans where there is a gap
-        regions = contiguous_regions(b)
-        if len(regions) > 0:
-            combinations, n = self.get_combinations(len(regions), prefix='gap_')
-            for r, c in zip(regions, combinations):
-                big_sum[r[0]:r[1]] = c
-
-        vals, idx, counts = np.unique(big_sum, return_index=True, return_counts=True)
-        vals = vals[np.argsort(idx)]  #
-        self.counts = counts[np.argsort(idx)]
-        self.cs = np.cumsum(self.counts)
-
-        #states is one if coverage, 0 if not
-        self.states = np.ones_like(self.counts)
-        gaps = vals.astype('<U4') == 'gap_'
-        self.states[gaps] = 0
-
-        # Matrix of N columns with N equal to sections of identical residues.
-        # Values are the number of residues in the blocks
-        self.X = np.zeros((len(data), len(self.counts)), dtype=float)
-        for row, entry in enumerate(data):
-            i0 = entry['start'] - self.start
-            i1 = entry['end'] - self.start + 1
-            p = np.searchsorted(self.cs, [i0, i1], side='right')
-
-            self.X[row][p[0]:p[1]] = self.counts[p[0]:p[1]]
+        self.state = data['state'][0]
+        self.exposure = data['exposure'][0]
+        self.scores = data['uptake']
 
     def __len__(self):
         return len(self.data)
@@ -431,53 +388,37 @@ class PeptideMeasurements(object):
         assert np.all(data_final['start'] == control_100_final['start'])
         assert np.all(data_final['end'] == control_100_final['end'])
 
-        score = 100 * (data_final['uptake'] - control_0_final['uptake']) / \
+        scores = 100 * (data_final['uptake'] - control_0_final['uptake']) / \
                 (control_100_final['uptake'] - control_0_final['uptake'])
 
         #update this when changing to Coverage objects
-        self.__init__(data_final, score)
 
-    @staticmethod
-    def get_combinations(num, prefix=''):
-        """returns unique combinations of letters"""
-        abc = 'abcdefghijklmnopqrstuvwxyz'
-        num_letters = int(np.ceil(np.log(num) / np.log(len(abc))))
-        combinations = list([prefix + ''.join(letters) for letters in itertools.combinations(abc, num_letters)])
-
-        return combinations[:num], num_letters
+        super(PeptideMeasurements, self).__init__(data_final)
+        self.scores = scores
 
     @property
     def name(self):
         return self.state + '_' + str(self.exposure)
 
     @property
-    def X_norm(self):
-        return self.X / np.sum(self.X, axis=1)[:, np.newaxis]
-
-    @property
-    def big_X_norm(self):
-        return self.big_X / np.sum(self.big_X, axis=0)[np.newaxis, :]
-
-    @property
     def scores_average(self):
-        return self.big_X_norm.T.dot(self.scores)
-
-    @property
-    def scores_average_sq(self):
-        return self.big_X_sq_norm.T.dot(self.scores)
+        return self.X.T.dot(self.scores)
 
     @property
     def scores_lstsq(self):
+        """DEPRECATED"""
         x, res, rank, s = np.linalg.lstsq(self.X_norm, self.scores)
-        return np.repeat(x, self.counts)
+        return np.repeat(x, self.block_length)
 
     def scores_nnls_tikonov(self, reg):
+        """DEPRECATED"""
         x = solve_nnls(self.X_norm.T, self.scores, reg=reg)
-        return np.repeat(x, self.counts)
+        return np.repeat(x, self.block_length)
 
     def scores_nnls(self):
+        """DEPRECATED"""
         x = scipy.optimize.nnls(self.X_norm, self.scores,)[0]
-        return np.repeat(x, self.counts)
+        return np.repeat(x, self.block_length)
 
     def calc_scores(self, residue_scores):
         """
@@ -495,7 +436,7 @@ class PeptideMeasurements(object):
             Array of scores per peptide
         """
 
-        scores = self.big_X.dot(residue_scores)
+        scores = self.X.dot(residue_scores)
         return scores
 
     @property
@@ -507,9 +448,6 @@ class PeptideMeasurements(object):
             j = d['end']
             seq[i:j] = [s for s in d['sequence']]
         return ''.join(seq)
-
-
-
 
 
 
