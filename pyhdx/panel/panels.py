@@ -146,7 +146,7 @@ class HDXKinetics(param.Parameterized):
         self.param['fitting_button'].constant = True
         i = 0
         results = []
-        # todo this needs to be threaded
+        # todo this needs to be threaded (dummy parameters)?
 
         for n, j in enumerate(self.cumsum):
             arr = self.scores_norm[:, i:j]

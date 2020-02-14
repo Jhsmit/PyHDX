@@ -170,7 +170,7 @@ class KineticsSeries(object):
 
     Parameters
     ----------
-    data : :calss:`~numpy.ndarray`
+    data : :class:`~numpy.ndarray`
         Numpy array with peptide entries corresponding to a single state
 
 
@@ -183,6 +183,7 @@ class KineticsSeries(object):
 
     """
     def __init__(self, data):
+        # todo check or assert if all coverages of time points are equal?
         assert len(np.unique(data['state'])) == 1
         self.state = data['state'][0]
         self.times = np.sort(np.unique(data['exposure']))
@@ -346,6 +347,10 @@ class PeptideMeasurements(Coverage):
     def __len__(self):
         return len(self.data)
 
+    def __eq__(self, other):
+        assert isinstance(other, Coverage), "Other must be an instance of Coverage"
+        return np.all(self.data['start'] == other.data['start']) & np.all(self.data['end'] == other.data['end'])
+
     def set_control(self, control_100, control_0=None):
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
@@ -388,8 +393,8 @@ class PeptideMeasurements(Coverage):
         assert np.all(data_final['start'] == control_100_final['start'])
         assert np.all(data_final['end'] == control_100_final['end'])
 
-        scores = 100 * (data_final['uptake'] - control_0_final['uptake']) / \
-                (control_100_final['uptake'] - control_0_final['uptake'])
+        scores = 100 * ( (data_final['uptake'] - control_0_final['uptake']) / 
+                (control_100_final['uptake'] - control_0_final['uptake']) )
 
         #update this when changing to Coverage objects
 

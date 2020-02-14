@@ -82,7 +82,7 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, figsize=(10, 8), **kwargs):
     rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k', 'facecolor': '#313695'}
     rect_kwargs.update(kwargs)
 
-    num_axes = pm.stop // aa_per_subplot + 1
+    num_axes = pm.end // aa_per_subplot + 1
 
     fig, axes = plt.subplots(num_axes, figsize=figsize)
     axes = [axes] if num_axes == 1 else axes
@@ -107,3 +107,28 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, figsize=(10, 8), **kwargs):
     plt.tight_layout()
 
     return fig, axes
+
+
+"""
+coverage = np.sum(s.big_X  >0,axis=0)
+tiled = np.tile(coverage, (100, 1))
+
+cmap = mpl.cm.get_cmap('Blues')
+cmap.set_under('grey')
+
+def truncate_colormap(cmap, minval=0.5, maxval=1.0, n=100):
+    new_cmap = colors.LinearSegmentedColormap.from_list(
+        'trunc({n},{a:.2f},{b:.2f})'.format(n=cmap.name, a=minval, b=maxval),
+        cmap(np.linspace(minval, maxval, n)))
+    return new_cmap
+
+
+new_cmap = truncate_colormap(cmap, 0.5, 1)
+new_cmap.set_under('grey')
+norm = mpl.colors.Normalize(vmin=0.25, vmax = tiled.max())
+fig, ax = plt.subplots(figsize=(8, 2))
+ax.imshow(tiled, cmap=new_cmap, norm=norm)
+ax.set_yticks([])
+ax.set_xlabel('Residue number')
+plt.savefig('Coverage_bar.png', dpi=600)
+"""
