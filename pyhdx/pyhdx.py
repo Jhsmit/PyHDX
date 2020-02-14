@@ -370,6 +370,8 @@ class PeptideMeasurements(Coverage):
 
         """
         # peptides in measurements that are also in the control
+        #todo check for NaNs with lilys file
+
 
         if control_0 is None:
             control_0 = np.copy(control_100)
@@ -393,7 +395,7 @@ class PeptideMeasurements(Coverage):
         assert np.all(data_final['start'] == control_100_final['start'])
         assert np.all(data_final['end'] == control_100_final['end'])
 
-        scores = 100 * ( (data_final['uptake'] - control_0_final['uptake']) / 
+        scores = 100 * ( (data_final['uptake'] - control_0_final['uptake']) /
                 (control_100_final['uptake'] - control_0_final['uptake']) )
 
         #update this when changing to Coverage objects
