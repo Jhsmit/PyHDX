@@ -230,6 +230,7 @@ def fit_kinetics(t, d, model, chisq_thd):
         Symfit fitresults object.
     """
     if np.any(np.isnan(d)):  # states!
+        er = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
         return er
 
     model.initial_guess(t, d)
@@ -240,6 +241,7 @@ def fit_kinetics(t, d, model, chisq_thd):
         r = res.params[model.names['r']]
     except KeyError:
         r = 1
+
     if np.isnan(rate) or res.chi_squared > chisq_thd or r > 1 or r < 0:
         print(res.chi_squared)
         #TODO add thread lock here
@@ -307,7 +309,7 @@ class KineticsFitting(object):
                 results.append(res)
                 models.append(model)
 
-        return results, models, block_length
+        return KineticsFitResult(results, models, block_length)
 
 
 class KineticsFitResult(object):
