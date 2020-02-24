@@ -9,10 +9,6 @@ directory = os.path.dirname(__file__)
 
 class TestFitting(object):
 
-    # @classmethod
-    # def setup_class(cls):
-
-
     def test_fit_section(self):
         fpath = os.path.join(directory, 'test_data', 'ds1.csv')
         control_100 = ('PpiA-FD', 0.167)
@@ -26,8 +22,7 @@ class TestFitting(object):
         series = states[state]
 
         kf = KineticsFitting(series)
-        r, m, b = kf.do_fitting()
-        fr = KineticsFitResult(r, m, b)
+        fr = kf.do_fitting()
 
         rate = fr.rate
         expected = np.array([1.00335533, 1.00335533, 1.00335533, 1.00335533, 1.00335533, 1.00335533,
