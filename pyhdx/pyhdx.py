@@ -192,6 +192,7 @@ class KineticsSeries(object):
     """
     def __init__(self, data):
         # todo check or assert if all coverages of time points are equal?
+        # todo add function to make all time points have the same peptides
         assert len(np.unique(data['state'])) == 1
         self.state = data['state'][0]
         self.times = np.sort(np.unique(data['exposure']))
