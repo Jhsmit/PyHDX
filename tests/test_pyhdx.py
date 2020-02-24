@@ -41,3 +41,18 @@ class TestUptakeFileModels(object):
         series1.set_control(control_100)
         for pm in series1:
             assert len(pm) == 78
+
+    def test_ds2(self):
+        fpath = os.path.join(directory, 'test_data', 'ds2.csv')
+        self.pf2 = PeptideCSVFile(fpath)
+
+        states = self.pf2.groupby_state_control(('FD', 0.001), ('Native folded', 60.000004), remove_nan=False)
+        series = states['folding_4C_10secLabelling']
+        assert len(series[0]) == 80
+        assert np.all(np.isnan(series[0].scores_average))
+
+        states = self.pf2.groupby_state_control(('FD', 0.001), ('Native folded', 60.000004), remove_nan=True)
+        series = states['folding_4C_10secLabelling']
+        assert ~np.all(np.isnan(series[0].scores_average))
+        assert len(series[0]) == 79
+        

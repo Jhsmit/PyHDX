@@ -59,22 +59,30 @@ class PeptideCSVFile(object):
         Returns
         -------
         out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`pyhdx.KineticSeries`
+            Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`
         """
 
         states = np.unique(self.data['state'])
         return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
 
-    def groupby_state_control(self, control_100, control_0=None):
+    def groupby_state_control(self, control_100, control_0=None, remove_nan=True):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a :class:`pyhdx.KineticSeries`.
-        Score values are calculated and normalzied according to the controls specified
+        Score values are calculated and normalized according to the controls specified.
 
+        Parameters
+        ----------
+        control_100 : :obj:`tuple`
+            Tuple of (:obj:`str`, :obj:`float`) with the state, exposure of the 100% control entry
+        control_0 : :obj:`tuple`, optional
+            Tuple of (:obj:`str`, :obj:`float`) with the state, exposure of the 0% control entry
+        remove_nan : :obj:`Bool`
+            Boolean to set removal of `Nan` entries (#todo currently only in controls)
 
         Returns
         -------
         out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`pyhdx.KineticSeries`
+            Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`
         """
 
 
@@ -83,7 +91,7 @@ class PeptideCSVFile(object):
         control_100 = self.get_data(*control_100) # Get the subset of data for 100% control
         control_0 = self.get_data(*control_0) if control_0 is not None else control_0
 
-        [v.set_control(control_100, control_0) for v in out_dict.values()]
+        [v.set_control(control_100, control_0, remove_nan=remove_nan) for v in out_dict.values()]
 
         return out_dict
 
@@ -200,7 +208,7 @@ class KineticsSeries(object):
     def __getitem__(self, item):
         return self.peptidesets.__getitem__(item)
 
-    def set_control(self, control_100, control_zero=None):
+    def set_control(self, control_100, control_zero=None, remove_nan=True):
         """
         Apply a control dataset to the underlying PeptideMeasurements of this object. A `scores` attribute is added to
         the PeptideMeasurement by normalizing its uptake value with respect to the control uptake value to 100%. Entires
@@ -213,14 +221,15 @@ class KineticsSeries(object):
             Numpy structured array with control peptides to use for normalization to 100%
         control_zero : :class:`~numpy.ndarray`
             Numpy structured array with control peptides to use for normalization to 0%
-
+        remove_nan : :obj:`Bool`
+            If `True`, `NaN` entries are removed from the controls
         Returns
         -------
 
         """
 
         for pm in self:
-            pm.set_control(control_100, control_zero)
+            pm.set_control(control_100, control_zero, remove_nan=remove_nan)
 
 
 class Coverage(object):
@@ -351,7 +360,7 @@ class PeptideMeasurements(Coverage):
         assert isinstance(other, Coverage), "Other must be an instance of Coverage"
         return np.all(self.data['start'] == other.data['start']) & np.all(self.data['end'] == other.data['end'])
 
-    def set_control(self, control_100, control_0=None):
+    def set_control(self, control_100, control_0=None, remove_nan=True):
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
         value with respect to the control uptake value to 100%. Entires which are in the measurement and not in the
@@ -360,10 +369,12 @@ class PeptideMeasurements(Coverage):
 
         Parameters
         ----------
-        control_100 : :obj:`numpy.ndarray`
+        control_100 : :class:`~numpy.ndarray`
             Numpy structured array with control peptides to use for normalization to 100%
-        control_0 : :obj:`numpy.ndarray`
+        control_0 : :class:`~numpy.ndarray`
             Numpy structured array with control peptides to use for normalization to 0%
+        remove_nan : :obj:`Bool`
+            If `True`, `NaN` entries are removed from the controls
 
         Returns
         -------
@@ -372,10 +383,14 @@ class PeptideMeasurements(Coverage):
         # peptides in measurements that are also in the control
         #todo check for NaNs with lilys file
 
-
         if control_0 is None:
             control_0 = np.copy(control_100)
             control_0['uptake'] = 0
+
+        # Remove NaN entries from controls
+        if remove_nan:
+            control_100 = control_100[~np.isnan(control_100['uptake'])]
+            control_0 = control_0[~np.isnan(control_0['uptake'])]
 
         b_100 = np.isin(self.data['sequence'], control_100['sequence'])
         b_0 = np.isin(self.data['sequence'], control_0['sequence'])
