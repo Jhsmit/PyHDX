@@ -5,7 +5,7 @@ import numpy as np
 
 
 def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs):
-    img = (pm.big_X > 0).astype(float)
+    img = (pm.X > 0).astype(float)
     if scores is not None:
         img *= scores[:, np.newaxis]
     elif pm.scores is not None:
