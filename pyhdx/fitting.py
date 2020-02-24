@@ -6,14 +6,157 @@ from symfit import Fit, Variable, Parameter, exp, Model
 from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
 
+#
+# #module level (non dummy) parameters are likely to cause all sorts of problems
+# r = Parameter('r', value=0.5, min=0, max=1)
+# tau1 = Parameter('tau1', min=0, max=5)
+# tau2 = Parameter('tau2', min=0, max=100)
+# t = Variable('t')
+# y = Variable('y')
+# model = Model({y: 100 *(1 - (r*exp(-t/tau1) + (1-r)*exp(-t/tau2)))})
+#
 
-#module level (non dummy) parameters are likely to cause all sorts of problems
-r = Parameter('r', value=0.5, min=0, max=1)
-tau1 = Parameter('tau1', min=0, max=5)
-tau2 = Parameter('tau2', min=0, max=100)
-t = Variable('t')
-y = Variable('y')
-model = Model({y: 100 *(1 - (r*exp(-t/tau1) + (1-r)*exp(-t/tau2)))})
+class KineticsModel(object):
+    par_index = 0
+    var_index = 0
+
+    def __init__(self):
+        self.names = {}
+        self.sf_model = None
+
+    def make_parameter(self, name, value=1., min=None, max=None):
+        dummy_name = 'pyhdx_par_{}'.format(self.par_index)
+        KineticsModel.par_index += 1
+        p = Parameter(dummy_name, value=value, min=min, max=max)
+        self.names[name] = dummy_name
+        return p
+
+    def make_variable(self, name):
+        dummy_name = 'pyhdx_var_{}'.format(self.var_index)
+        KineticsModel.var_index += 1
+        v = Variable(dummy_name)
+        self.names[name] = dummy_name
+        return v
+
+    @property
+    def r_names(self):
+        """ dictionary of dummy_name: name"""
+        return {v: k for k, v in self.names.items()}
+
+    def get_parameter(self, name):
+        """returns the parameter object with human-readable name name"""
+        dummy_name = self.names[name]
+        par_names = list([p.name for p in self.sf_model.params])
+        idx = par_names.index(dummy_name)
+        return self.sf_model.params[idx]
+
+
+class BiexpIncreaseModel(KineticsModel):
+    def __init__(self):
+        super(BiexpIncreaseModel, self).__init__()
+
+        r = self.make_parameter('r', value=0.5, min=0, max=1)
+        tau1 = self.make_parameter('tau1', min=0, max=5)
+        tau2 = self.make_parameter('tau2', min=0, max=100)
+        t = self.make_variable('t')
+        y = self.make_variable('y')
+
+        self.sf_model = Model({y: 100 * (1 - (r * exp(-t / tau1) + (1 - r) * exp(-t / tau2)))})
+
+    def initial_guess(self, t, d):
+        """
+        Calculates initial guesses for fitting of two-component kinetic uptake reaction
+
+        Parameters
+        ----------
+        t : :class:~`numpy.ndarray`
+            Array with time points
+        d : :class:~`numpy.ndarray`
+            Array with uptake values
+
+        """
+        tau1_v = fsolve(func_short, 2, args=(t[2], d[2]))[0]
+        tau2_v = fsolve(func_long, 20, args=(t[-2], d[-2], tau1_v))[0]
+
+        tau1_p = self.get_parameter('tau1')
+        tau1_p.value = tau1_v
+        tau2_p = self.get_parameter('tau2')
+        tau2_p.value = tau2_v
+        r_p = self.get_parameter('r')
+        r_p.value = 0.5
+
+    def get_tau(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+
+        r = params[self.names['r']]
+        tau1 = params[self.names['tau1']]
+        tau2 = params[self.names['tau2']]
+
+        tau = r * tau1 + (1 - r) * tau2
+
+        return tau
+
+    def get_rate(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+        tau = self.get_tau(**params)
+        return 1/tau
+
+
+class MonoexpIncreaseModel(KineticsModel):
+    def __init__(self):
+        super(MonoexpIncreaseModel, self).__init__()
+        tau1 = self.make_parameter('tau1', min=0, max=100)
+        t = self.make_variable('t')
+        y = self.make_variable('y')
+
+        self.sf_model = Model({y: 100 * (1 - exp(-t / tau1))})
+
+    def initial_guess(self, t, d):
+        """
+        Calculates initial guesses for fitting of two-component kinetic uptake reaction
+
+        Parameters
+        ----------
+        t : :class:~`numpy.ndarray`
+            Array with time points
+        d : :class:~`numpy.ndarray`
+            Array with uptake values
+
+        """
+        tau1_v = fsolve(func_short, 2, args=(t[3], d[3]))[0]
+
+        tau1_p = self.get_parameter('tau1')
+        tau1_p.value = tau1_v
+
+    def get_tau(self, **params):
+        tau1 = params[self.names['tau1']]
+        return tau1
+
+    def get_rate(self, **params):
+        tau = self.get_tau(**params)
+        return 1/tau
 
 
 def func_short(tau, tt, A):
@@ -62,36 +205,11 @@ def func_long(tau, tt, A, tau1):
     return 100 * (1 - (0.5 * np.exp(-tt / tau1) + 0.5 * np.exp(-tt / tau))) - A
 
 
-def initial_guess(t, d):
-    """
-    Calculates initial guesses for fitting of two-component kinetic uptake reaction
-
-    Parameters
-    ----------
-    t : :class:~`numpy.ndarray`
-        Array with time points
-    d : :class:~`numpy.ndarray`
-        Array with uptake values
-
-    Returns
-    -------
-    tau1 : :obj:`float`
-        Initial guess for short time component
-    tau2 : :obj:`float`
-        Initial guess for long time component
-
-    """
-    tau1 = fsolve(func_short, 2, args=(t[2], d[2]))[0]
-    tau2 = fsolve(func_long, 20, args=(t[-2], d[-2], tau1))[0]
-
-    return tau1, tau2
-
-
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
 er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
 
 
-def fit_kinetics(t, d, chisq_thd):
+def fit_kinetics(t, d, model, chisq_thd):
     """
     Fit time kinetics with two time components and corresponding relative amplitude.
 
@@ -112,20 +230,18 @@ def fit_kinetics(t, d, chisq_thd):
     if np.any(np.isnan(d)):  # states!
         return er
 
-    t1, t2 = initial_guess(t, d)
-
-    tau1.value = t1
-    tau2.value = min(t2, 200)
-    r.value = 0.5
-
-    fit = Fit(model, t, d, minimizer=Powell)
+    model.initial_guess(t, d)
+    fit = Fit(model.sf_model, t, d, minimizer=Powell)
     res = fit.execute()
-    rp = res.params['r'] * res.params['tau1'] + (1 - res.params['r']) * res.params['tau2']
-
-    if np.isnan(rp) or res.chi_squared > chisq_thd or res.params['r'] > 1 or res.params['r'] < 0:
-
+    rate = model.get_rate(**res.params)
+    try:
+        r = res.params[model.names['r']]
+    except KeyError:
+        r = 1
+    if np.isnan(rate) or res.chi_squared > chisq_thd or r > 1 or r < 0:
+        print(res.chi_squared)
         #TODO add thread lock here
-        fit = Fit(model, t, d, minimizer=DifferentialEvolution)
+        fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
         res = fit.execute(workers=-1)
 
     return res
@@ -134,11 +250,8 @@ def fit_kinetics(t, d, chisq_thd):
 class KineticsFitting(object):
 
     def __init__(self, k_series):
-        #todo check if coverage
+        #todo check if coverage is the same!
         self.k_series = k_series
-
-
-      #  self.coverage = Coverage(k_series[0].data)
 
 
     @property
@@ -179,23 +292,58 @@ class KineticsFitting(object):
         arr = self.scores_norm.T
         block_length = []
         results = []
+        models = []
         i = 0
         for j, d in enumerate(arr):
             i += 1
-            if j == len(arr) - 1:  # End of array
-                block_length.append(i)
-                continue
-            elif np.all(d == arr[j + 1]):  # Next element is the same
-                continue
-            else:
+            if j == len(arr) - 1 or ~np.all(d == arr[j + 1]):  # End of array or new block approaching
                 block_length.append(i)
                 i = 0
 
-                res = fit_kinetics(self.k_series.times, d, chisq_thd=chisq_thd)
+                model = BiexpIncreaseModel()
+                res = fit_kinetics(self.k_series.times, d, model, chisq_thd=chisq_thd)
                 results.append(res)
+                models.append(model)
 
-        return results, block_length
+        return results, models, block_length
 
+
+class KineticsFitResult(object):
+    def __init__(self, results, models, block_length):
+        assert len(results) == len(models)
+        assert len(models) == len(block_length)
+
+        self.results = results
+        self.block_length = block_length
+        self.models = models
+
+    def get_param(self, name):
+        """
+        Get an array of parameter with name `name` from the fit result. The lenght of the array is equal to the
+        number of amino acids.
+
+        Parameters
+        ----------
+        name : :obj:`str`
+            Name of the parameter to extract
+
+        Returns
+        -------
+        par_arr : :class:`~numpy.ndarray`
+            Array with parameter values
+
+        """
+
+        names = [model.names[name] for model in self.models]
+        arr = np.array([res.params[name] for res, name in zip(self.results, names)])
+        par_arr = np.repeat(arr, self.block_length)
+        return par_arr
+
+    @property
+    def rate(self):
+        """Returns an array with the exchange rates"""
+        rates = np.array([model.get_rate(**res.params) for model, res in zip(self.models, self.results)])
+        return np.repeat(rates, self.block_length)
 
 
 
