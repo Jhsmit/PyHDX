@@ -52,6 +52,7 @@ class KineticsModel(object):
 
 
 class BiexpIncreaseModel(KineticsModel):
+    """Two Phase Association"""
     def __init__(self):
         super(BiexpIncreaseModel, self).__init__()
 
@@ -125,6 +126,7 @@ class BiexpIncreaseModel(KineticsModel):
 
 
 class MonoexpIncreaseModel(KineticsModel):
+    """One Phase Association"""
     def __init__(self):
         super(MonoexpIncreaseModel, self).__init__()
         tau1 = self.make_parameter('tau1', min=0, max=100)
