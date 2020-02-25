@@ -70,10 +70,15 @@ class TestUptakeFileModels(object):
         series = states[series_name]
 
         assert ~series.uniform
-        new_series = series.make_uniform(in_place=False)
-        assert new_series.uniform
+        # new_series = series.make_uniform(in_place=False)
+        # assert new_series.uniform
         series.make_uniform()
         assert series.uniform
+
+        l1 = len(series[0])
+        series.make_uniform()
+        l2 = len(series[0])
+        assert l1 == l2
 
     def test_ds2(self):
         states = self.pf2.groupby_state_control(('FD', 0.001), ('Native folded', 60.000004), remove_nan=False)
