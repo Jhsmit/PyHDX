@@ -212,7 +212,7 @@ class KineticsSeries(object):
         -------
 
         """
-
+        #todo perhaps move to a function
 
         sets = [{(s, e, seq) for s, e, seq in zip(pm.data['start'], pm.data['end'], pm.data['sequence'])} for pm in self]
         intersection = set.intersection(*sets)
@@ -220,17 +220,9 @@ class KineticsSeries(object):
         inter_arr = np.array([tup for tup in intersection], dtype=dtype)
 
         if in_place:
-            for pm in self:
-                b = np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)
-                pm.data = pm.data[b]
+            self.peptidesets = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
         else:
-            datasets = []
-            for pm in self:
-                b = np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)
-                data = pm.data[b]
-                datasets.append(data)
-            new_data = np.concatenate(datasets)
-            return KineticsSeries(new_data)
+            raise NotImplementedError('Only making peptidesets uniform in place is implemented')
 
     @property
     def uniform(self):
@@ -435,7 +427,7 @@ class PeptideMeasurements(Coverage):
     def set_control(self, control_100, control_0=None, remove_nan=True):
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
-        value with respect to the control uptake value to 100%. Entires which are in the measurement and not in the
+        value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
         control or vice versa are deleted.
         Optionally, ``control_zero`` can be specified which is a datasets whose uptake value will be set to zero.
 
