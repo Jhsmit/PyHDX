@@ -5,7 +5,10 @@
 import numpy as np
 import itertools
 import scipy
+from functools import reduce
+from operator import add
 from .math import solve_nnls
+from .support import reduce_inter
 
 CSV_DTYPE = [
     ('Protein', 'U', 'c'),
@@ -200,6 +203,45 @@ class KineticsSeries(object):
         #todo establish naming
         self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
 
+    @property
+    def uniform(self):
+        """Returns ``True`` if for all time point coverages are equal"""
+        is_uniform = np.all([self[0] == elem for elem in self])
+        return is_uniform
+
+    @property
+    def full_data(self):
+        """returns the full dataset of all timepoints"""
+        full_data = np.concatenate([pm.data for pm in self])
+        return full_data
+
+    def split(self):
+        """
+        Splits the dataset into independent parts which have no overlapping peptides between them
+
+        Returns
+        -------
+        output : :obj:`dict`
+            Output dictionary with individual kinetic series. Keys are '{start}_{stop}', values are
+            :class:`~pyhdx.pyhdx.KineticSeries` objects.
+
+        """
+        if self.uniform:
+            intervals = [(s, e) for s, e in zip(self[0].data['start'], self[0].data['end'])]
+        else:
+            intervals = reduce(add, [[(s, e) for s, e in zip(pm.data['start'], pm.data['end'])] for pm in self])
+
+        sections = reduce_inter(intervals)
+
+        output = {}
+        full_ds = self.full_data
+        for section in sections:
+            s, e = section
+            b = np.logical_and(full_ds['start'] >= s, full_ds['end'] <= e)
+            output['{}_{}'.format(s, e)] = KineticsSeries(full_ds[b])
+
+        return output
+
     def __len__(self):
         return len(self.times)
 
@@ -306,6 +348,10 @@ class Coverage(object):
     def X_norm(self):
         return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
 
+    def __eq__(self, other):
+        assert isinstance(other, Coverage), "Other must be an instance of Coverage"
+        return len(self.data) == len(other.data) and np.all(self.data['start'] == other.data['start']) and \
+               np.all(self.data['end'] == other.data['end']) and np.all(self.data['sequence'] == other.data['sequence'])
 
 
 class PeptideMeasurements(Coverage):
@@ -356,10 +402,6 @@ class PeptideMeasurements(Coverage):
 
     def __len__(self):
         return len(self.data)
-
-    def __eq__(self, other):
-        assert isinstance(other, Coverage), "Other must be an instance of Coverage"
-        return np.all(self.data['start'] == other.data['start']) & np.all(self.data['end'] == other.data['end'])
 
     def set_control(self, control_100, control_0=None, remove_nan=True):
         """
