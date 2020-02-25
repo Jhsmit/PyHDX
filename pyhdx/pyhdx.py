@@ -490,13 +490,25 @@ class PeptideMeasurements(Coverage):
         super(PeptideMeasurements, self).__init__(data_final)
         self.scores = scores
 
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return None
+        else:
+            data = self.data[item]
+            scores = self.scores[item]
+
+            pm = PeptideMeasurements(data)
+            pm.scores = scores
+            return pm
+
+
     @property
     def name(self):
         return self.state + '_' + str(self.exposure)
 
     @property
     def scores_average(self):
-        return self.X.T.dot(self.scores)
+        return self.X_norm.T.dot(self.scores)
 
     @property
     def scores_lstsq(self):
