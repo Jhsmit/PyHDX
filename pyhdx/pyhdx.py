@@ -203,6 +203,35 @@ class KineticsSeries(object):
         #todo establish naming
         self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
 
+    def make_uniform(self, in_place=True):
+        """
+        Removes entries from time points, ensuring that all time points have equal coverage
+
+
+        Returns
+        -------
+
+        """
+
+
+        sets = [{(s, e, seq) for s, e, seq in zip(pm.data['start'], pm.data['end'], pm.data['sequence'])} for pm in self]
+        intersection = set.intersection(*sets)
+        dtype = [('start', int), ('end', int), ('sequence', self.full_data['sequence'].dtype)]
+        inter_arr = np.array([tup for tup in intersection], dtype=dtype)
+
+        if in_place:
+            for pm in self:
+                b = np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)
+                pm.data = pm.data[b]
+        else:
+            datasets = []
+            for pm in self:
+                b = np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)
+                data = pm.data[b]
+                datasets.append(data)
+            new_data = np.concatenate(datasets)
+            return KineticsSeries(new_data)
+
     @property
     def uniform(self):
         """Returns ``True`` if for all time point coverages are equal"""

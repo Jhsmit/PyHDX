@@ -62,6 +62,19 @@ class TestUptakeFileModels(object):
 
         assert len(series.full_data) == new_len
 
+    def test_uniform(self):
+        control_100 = ("Full Deuteration control", 0.167)
+        series_name = 'SecA-monomer'
+
+        states = self.pf3.groupby_state_control(control_100)
+        series = states[series_name]
+
+        assert ~series.uniform
+        new_series = series.make_uniform(in_place=False)
+        assert new_series.uniform
+        series.make_uniform()
+        assert series.uniform
+
     def test_ds2(self):
         states = self.pf2.groupby_state_control(('FD', 0.001), ('Native folded', 60.000004), remove_nan=False)
         series = states['folding_4C_10secLabelling']
