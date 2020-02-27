@@ -298,9 +298,10 @@ class KineticsFitting(object):
         results = []
         models = []
         i = 0
-        for j, d in enumerate(arr):
+        for j, d in enumerate(tqdm(arr)):
             i += 1
-            if j == len(arr) - 1 or ~np.all(d == arr[j + 1]):  # End of array or new block approaching
+            # End of array, or new block approaching,
+            if j == len(arr) - 1 or not np.allclose(d, arr[j + 1], equal_nan=True):
                 block_length.append(i)
                 i = 0
 
