@@ -6,6 +6,7 @@ from symfit import Fit, Variable, Parameter, exp, Model
 from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
 
+from tqdm.auto import tqdm
 #
 # #module level (non dummy) parameters are likely to cause all sorts of problems
 # r = Parameter('r', value=0.5, min=0, max=1)
