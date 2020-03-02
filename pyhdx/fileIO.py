@@ -1,5 +1,43 @@
 import numpy as np
 
+CSV_DTYPE = [
+    ('Protein', 'U', 'c'),
+    ('start', 'i', 'i'),
+    ('end', 'i', 'i'),
+    ('sequence', 'U', 'c'),
+    ('modification', 'U', 'c'),
+    ('fragment', 'U', 'c'),
+    ('max_uptake', 'i', 'i'),
+    ('MHP', 'f', 'f'),
+    ('state', 'U', 'c'),
+    ('exposure', 'f', 'f'),
+    ('center', 'f', 'f'),
+    ('center_sd', 'f', 'f'),
+    ('uptake', 'f', 'f'),
+    ('uptake_sd', 'f', 'f'),
+    ('RT', 'f', 'f'),
+    ('RT_sd', 'f', 'f')
+]
+
+def read_dynamx(file_path):
+    """
+    Reads a dynamX .csv file and returns the data as a numpy structured array
+
+    Parameters
+    ----------
+    file_path: :obj:`str`
+        File path of the .csv file
+
+    Returns
+    -------
+    data : :class:`~numpy.ndarray`
+        numpy structured array with
+
+    """
+    names = [t[0] for t in CSV_DTYPE]
+    data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
+    return data
+
 
 def write_expfact(data_list, name):
     keyfunc = lambda x: x.exposure
