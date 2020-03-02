@@ -17,6 +17,7 @@ from tqdm.auto import tqdm
 # model = Model({y: 100 *(1 - (r*exp(-t/tau1) + (1-r)*exp(-t/tau2)))})
 #
 
+
 class KineticsModel(object):
     par_index = 0
     var_index = 0
@@ -257,7 +258,7 @@ class KineticsFitting(object):
     def __init__(self, k_series):
         #todo check if coverage is the same!
         self.k_series = k_series
-
+        self.result = None
 
     @property
     def scores_stack(self):
@@ -311,10 +312,14 @@ class KineticsFitting(object):
                 results.append(res)
                 models.append(model)
 
-        return KineticsFitResult(results, models, block_length)
+        self.result = KineticsFitResult(results, models, block_length)
+        return self.result
 
 
 class KineticsFitResult(object):
+    """
+    this fit results is only for wt avg fitting
+    """
     def __init__(self, results, models, block_length):
         assert len(results) == len(models)
         assert len(models) == len(block_length)
@@ -323,15 +328,30 @@ class KineticsFitResult(object):
         self.block_length = block_length
         self.models = models
 
-    def get_param(self, name):
+    def __len__(self):
+        return len(self.results)
+
+    def __getitem__(self, item):
+        if isinstance(item, int):
+            return self.results[item], self.models[item], self.block_length[item]
+        else:
+            return KineticsFitResult(self.results[item], self.models[item], self.block_length[item])
+
+    def __iter__(self):
+        iterable = [(r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)]
+        return iterable.__iter__()
+
+    def get_param(self, name, repeat=True):
         """
-        Get an array of parameter with name `name` from the fit result. The lenght of the array is equal to the
+        Get an array of parameter with name `name` from the fit result. The length of the array is equal to the
         number of amino acids.
 
         Parameters
         ----------
         name : :obj:`str`
             Name of the parameter to extract
+        repeat : :obj:`bool`
+            If true the parameter array is repeated by block size
 
         Returns
         -------
@@ -342,7 +362,10 @@ class KineticsFitResult(object):
 
         names = [model.names[name] for model in self.models]
         arr = np.array([res.params[name] for res, name in zip(self.results, names)])
-        par_arr = np.repeat(arr, self.block_length)
+        if repeat:
+            par_arr = np.repeat(arr, self.block_length)
+        else:
+            par_arr = arr
         return par_arr
 
     @property
