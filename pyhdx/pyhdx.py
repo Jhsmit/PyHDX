@@ -10,24 +10,7 @@ from operator import add
 from .math import solve_nnls
 from .support import reduce_inter
 
-CSV_DTYPE = [
-    ('Protein', 'U', 'c'),
-    ('start', 'i', 'i'),
-    ('end', 'i', 'i'),
-    ('sequence', 'U', 'c'),
-    ('modification', 'U', 'c'),
-    ('fragment', 'U', 'c'),
-    ('max_uptake', 'i', 'i'),
-    ('MHP', 'f', 'f'),
-    ('state', 'U', 'c'),
-    ('exposure', 'f', 'f'),
-    ('center', 'f', 'f'),
-    ('center_sd', 'f', 'f'),
-    ('uptake', 'f', 'f'),
-    ('uptake_sd', 'f', 'f'),
-    ('RT', 'f', 'f'),
-    ('RT_sd', 'f', 'f')
-]
+
 
 HEADER = 'Protein,Start,End,Sequence,Modification,Fragment,MaxUptake,MHP,State,Exposure,Center,Center SD,Uptake,Uptake SD,RT,RT SD'
 
@@ -43,10 +26,9 @@ class PeptideCSVFile(object):
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
     """
-    def __init__(self, file_path, drop_first=1, sort=True):
+    def __init__(self, data, drop_first=1, sort=True):
 
-        names = [t[0] for t in CSV_DTYPE]
-        self.data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
+        self.data = data
         if sort:
             self.data = np.sort(self.data, order=['start', 'sequence'])
 
@@ -176,7 +158,6 @@ class PeptideCSVFile(object):
 
 
 
-
 class Coverage(object):
     """
     object describing layout and coverage of peptides and generating the corresponding matrices
@@ -215,6 +196,7 @@ class Coverage(object):
         self.start = np.min(self.data['start'])
         self.end = np.max(self.data['end'])  # todo refactor to end
         self.prot_len = self.end - self.start + 1  # Total number of amino acids described by these measurments
+        self.r_number = np.arange(self.start, self.end + 1)
 
         # Create and fill coefficient matrix X
         self.X = np.zeros((len(data), self.prot_len), dtype=float)
