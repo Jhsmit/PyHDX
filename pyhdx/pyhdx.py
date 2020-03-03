@@ -215,7 +215,7 @@ class Coverage(object):
 
         self.has_coverage = np.sum(self.X, axis=0) > 0
 
-        cs = np.cumsum(self.has_coverage)
+        cs = np.cumsum(self.block_length)
         self.X_red = np.zeros((len(data), len(self.block_length)), dtype=float)
         for row, entry in enumerate(data):
             i0 = entry['start'] - self.start
