@@ -272,6 +272,12 @@ class KineticsFitting(object):
         scores_norm = 100 * (self.scores_stack / self.scores_stack[-1, :][np.newaxis, :])
         return scores_norm
 
+    @property
+    def scores_peptides(self):
+        scores_peptides = np.stack([v.scores for v in self.k_series])
+        return scores_peptides
+
+
     def global_fitting(self):
         """
         fit (per section) in time
