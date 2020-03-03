@@ -3,6 +3,7 @@
 """Main module."""
 
 import numpy as np
+from numpy.lib.recfunctions import append_fields
 import itertools
 import scipy
 from functools import reduce
@@ -49,6 +50,73 @@ class PeptideCSVFile(object):
 
         states = np.unique(self.data['state'])
         return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
+
+    def set_control(self, control_100, control_0=None, remove_nan=True):
+        """
+        Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
+        value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
+        control or vice versa are deleted.
+        Optionally, ``control_zero`` can be specified which is a datasets whose uptake value will be set to zero.
+
+        Parameters
+        ----------
+        control_100 : tuple
+            Numpy structured array with control peptides to use for normalization to 100%
+        control_0 : tuple, optional
+            Numpy structured array with control peptides to use for normalization to 0%
+        remove_nan : :obj:`Bool`
+            If `True`, `NaN` entries are removed from the controls
+
+        Returns
+        -------
+
+        """
+        # peptides in measurements that are also in the control
+        #todo check for NaNs with lilys file
+
+        control_100 = self.get_data(*control_100)
+
+        if control_0 is None:
+            control_0 = np.copy(control_100)
+            control_0['uptake'] = 0
+        else:
+            control_0 = self.get_data(*control_0)
+
+        # Remove NaN entries from controls
+        # if remove_nan:
+        #     control_100 = control_100[~np.isnan(control_100['uptake'])]
+        #     control_0 = control_0[~np.isnan(control_0['uptake'])]
+
+        b_100 = np.isin(self.data['sequence'], control_100['sequence'])
+        b_0 = np.isin(self.data['sequence'], control_0['sequence'])
+        data_selected = self.data[np.logical_and(b_100, b_0)]
+
+        # Control peptides corresponding to those peptides in measurement
+        c_100_selected = control_100[np.isin(control_100['sequence'], data_selected['sequence'])]
+        c_0_selected = control_0[np.isin(control_0['sequence'], data_selected['sequence'])]
+
+        control_100_final = np.sort(c_100_selected, order=['start', 'sequence'])
+        control_0_final = np.sort(c_0_selected, order=['start', 'sequence'])
+
+        # Sort both datasets by starting index and then by sequence to make sure they are both equal
+        data_final = np.sort(data_selected, order=['start', 'sequence', 'state', 'exposure'])
+
+        #Apply controls for each sequence
+        scores = np.zeros(len(data_final), dtype=float)
+        for c_100, c_0 in zip(control_100_final, control_0_final):
+            bs = data_final['start'] == c_100['start']
+            be = data_final['end'] == c_100['end']
+            b_all = np.logical_and(bs, be)
+            uptake = data_final[b_all]['uptake']
+            scores[b_all] = 100 * (uptake - c_0['uptake']) / (c_100['uptake'] - c_0['uptake'])
+
+        data_scores = append_fields(data_final, 'scores', data=scores, usemask=False)
+        if remove_nan:
+            data_scores = data_scores[~np.isnan(data_scores['scores'])]
+
+        self.data = data_scores
+
+        #update this when changing to Coverage objects
 
     def groupby_state_control(self, control_100, control_0=None, remove_nan=True):
         """
@@ -157,7 +225,6 @@ class PeptideCSVFile(object):
         return output_data
 
 
-
 class Coverage(object):
     """
     object describing layout and coverage of peptides and generating the corresponding matrices
@@ -259,6 +326,9 @@ class KineticsSeries(object):
     def __init__(self, data):
         # todo check or assert if all coverages of time points are equal?
         # todo add function to make all time points have the same peptides
+
+        # todo include scores into the friggin data array to make life easier
+
         assert len(np.unique(data['state'])) == 1
         self.state = data['state'][0]
         self.times = np.sort(np.unique(data['exposure']))
@@ -320,6 +390,7 @@ class KineticsSeries(object):
         if self.uniform:
             intervals = [(s, e) for s, e in zip(self[0].data['start'], self[0].data['end'])]
         else:
+            raise AssertionError("not uniform data not yet supported")
             intervals = reduce(add, [[(s, e) for s, e in zip(pm.data['start'], pm.data['end'])] for pm in self])
 
         sections = reduce_inter(intervals)
@@ -361,6 +432,8 @@ class KineticsSeries(object):
         -------
 
         """
+
+        raise DeprecationWarning('will be removed')
 
         for pm in self:
             pm.set_control(control_100, control_zero, remove_nan=remove_nan)
@@ -410,7 +483,14 @@ class PeptideMeasurements(Coverage):
 
         self.state = data['state'][0]
         self.exposure = data['exposure'][0]
-        self.scores = data['uptake']
+      #  self.scores = data['uptake']
+
+    @property
+    def scores(self):
+        try:
+            return self.data['scores']
+        except ValueError:
+            return self.data['uptake']
 
     def __len__(self):
         return len(self.data)
@@ -437,6 +517,7 @@ class PeptideMeasurements(Coverage):
         """
         # peptides in measurements that are also in the control
         #todo check for NaNs with lilys file
+        raise DeprecationWarning("will be deprecated")
 
         if control_0 is None:
             control_0 = np.copy(control_100)
@@ -481,7 +562,7 @@ class PeptideMeasurements(Coverage):
             scores = self.scores[item]
 
             pm = PeptideMeasurements(data)
-            pm.scores = scores
+#            pm.scores = scores
             return pm
 
 
