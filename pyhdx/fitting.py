@@ -288,8 +288,35 @@ class KineticsFitting(object):
 
         """
 
-    def fine_fitting(self):
-        pass
+    def fine_fitting(self, initial_result):
+        """ initial_result: KineticsFitResult object from global_fitting"""
+
+        assert self.k_series.uniform
+        split = self.k_series.split()
+
+        total_cs = np.append(self.k_series.cov.start, self.k_series.cov.start + np.cumsum(self.k_series.cov.block_length))
+        rate_output = np.empty(len(self.k_series.cov.r_number))
+        rate_output[:] = np.nan
+        for section in split.values():
+            s, e = section.cov.start, section.cov.end
+            i0, i1 = np.searchsorted(total_cs, [s, e + 1])
+            section_result = initial_result[i0:i1]
+
+            kf = KineticsFitting(section)  #deeeeep. dont do fine_fitting on this guy
+            model = LSQKinetics(section_result, kf)
+
+            data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, kf.scores_peptides.T)}
+            data_dict[model.t_var.name] = section.times
+
+            fit = Fit(model.sf_model, **data_dict)
+            result = fit.execute()
+
+            rate = model.get_rate(**result.params)
+            i0, i1 = np.searchsorted(self.k_series.cov.r_number, [s, e])
+            rate_output[i0:i1+1] = rate
+
+        return self.k_series.cov.r_number, rate_output
+
 
     def do_fitting(self, chisq_thd=20):
         """
@@ -435,3 +462,51 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         self.d_vars = d_vars
         self.t_var = t_var
         self.sf_model = CallableModel(model_dict)
+
+        self.block_length = initial_result.block_length
+
+    def get_tau(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+
+        tau_list = []
+        for i, bl in enumerate(self.block_length):
+            if bl == 1:
+                tau1 = params[self.names['tau1_{}'.format(i)]]
+                tau_list.append(tau1)
+            else:
+                tau1 = params[self.names['tau1_{}'.format(i)]]
+                tau2 = params[self.names['tau2_{}'.format(i)]]
+                r = params[self.names['r_{}'.format(i)]]
+
+                tau = r * tau1 + (1 - r) * tau2
+                tau_list += [tau]*bl
+
+        print(tau_list)
+        return np.array(tau_list)
+
+    def get_rate(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+        tau = self.get_tau(**params)
+        return 1/tau
