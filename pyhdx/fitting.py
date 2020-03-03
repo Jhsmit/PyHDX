@@ -331,8 +331,8 @@ class KineticsFitResult(object):
         assert len(models) == len(block_length)
 
         self.results = results
-        self.block_length = block_length
         self.models = models
+        self.block_length = block_length
 
     def __len__(self):
         return len(self.results)
