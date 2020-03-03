@@ -2,9 +2,11 @@ from pyhdx import Coverage
 
 from scipy.optimize import fsolve
 import numpy as np
-from symfit import Fit, Variable, Parameter, exp, Model
+from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
 from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
+from functools import reduce
+from operator import add
 
 from tqdm.auto import tqdm
 #
@@ -277,7 +279,6 @@ class KineticsFitting(object):
         scores_peptides = np.stack([v.scores for v in self.k_series])
         return scores_peptides
 
-
     def global_fitting(self):
         """
         fit (per section) in time
@@ -286,6 +287,9 @@ class KineticsFitting(object):
         -------
 
         """
+
+    def fine_fitting(self):
+        pass
 
     def do_fitting(self, chisq_thd=20):
         """
@@ -381,5 +385,53 @@ class KineticsFitResult(object):
         return np.repeat(rates, self.block_length)
 
 
+class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
+    #todo block length is redundant
+    def __init__(self, initial_result, kf_section):
+        """
 
+        Parameters
+        ----------
+        initial_result kineticsresult object from initial fitting
+        kf_section kineticsfitting object for the section
+        """
+        super(LSQKinetics, self).__init__()
+        # print(block_lengths)
+        # total = np.sum(block_lengths)
+        t_var = self.make_variable('t')
 
+        #Assemble terms spanning accross blocks of residues
+        #blocks with only 1 residue have only 1 time component
+        terms = []
+        for i, (r, m, bl) in enumerate(initial_result):
+            if bl == 1:
+                t1v = r.params[m.names['tau1']]
+                t2v = r.params[m.names['tau2']]
+                rv = r.params[m.names['r']]
+                value = rv * t1v + (1 - rv) * t2v
+                tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1 / 40, value=value)
+
+                term = (1 - exp(-t_var / tau1))
+            else:
+                t1v = r.params[m.names['tau1']]
+                t2v = r.params[m.names['tau2']]
+                rv = r.params[m.names['r']]
+                tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1 / 40, value=t1v)
+                tau2 = self.make_parameter('tau2_{}'.format(i), max=30, min=1 / 40, value=t2v)
+                r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
+
+                term = (1 - (r*exp(-t_var / tau1) + (1-r)*exp(-t_var/tau2)))
+            terms.append(term)
+
+        #Iterate over rows (peptides) and add terms together which make one peptide
+        model_dict = {}
+        d_vars = []
+        for i, x_row in enumerate(kf_section.k_series.cov.X_red_norm):
+            d_var = self.make_variable('d_{}'.format(i))
+            d_vars.append(d_var)
+            rhs = reduce(add, [100*fraction*term for fraction, term in zip(x_row, terms)])
+            model_dict[d_var] = rhs
+
+        self.d_vars = d_vars
+        self.t_var = t_var
+        self.sf_model = CallableModel(model_dict)
