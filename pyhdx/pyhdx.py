@@ -59,7 +59,7 @@ class PeptideCSVFile(object):
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
         value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
         control or vice versa are deleted.
-        Optionally, ``control_zero`` can be specified which is a datasets whose uptake value will be set to zero.
+        Optionally, ``control_zero`` can be specified which is a dataset whose uptake value will be set to zero.
 
         Parameters
         ----------
