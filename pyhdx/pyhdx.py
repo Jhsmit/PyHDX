@@ -39,6 +39,9 @@ class PeptideCSVFile(object):
             new_seq = np.array([s[drop_first:] for s in self.data['sequence']], dtype='<U' + str(size - drop_first))
             self.data['sequence'] = new_seq
 
+    def __len__(self):
+        return len(self.data)
+
     def groupby_state(self):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a :class:`pyhdx.KineticSeries`
