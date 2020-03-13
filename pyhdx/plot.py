@@ -77,12 +77,13 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
     return fig, (ax1, ax2, cbar_ax)
 
 
-def make_coverage_figure(pm, wrap, aa_per_subplot, figsize=(10, 8), **kwargs):
+def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8), **kwargs):
 
-    rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k', 'facecolor': '#313695'}
+    rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
     rect_kwargs.update(kwargs)
 
     num_axes = pm.end // aa_per_subplot + 1
+    cmap = mpl.cm.get_cmap('jet')
 
     fig, axes = plt.subplots(num_axes, figsize=figsize)
     axes = [axes] if num_axes == 1 else axes
@@ -93,8 +94,13 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, figsize=(10, 8), **kwargs):
             if i < -wrap:
                 i = -1
 
+            if color:
+                c = cmap(e['scores'] / 100)
+            else:
+                c = '#313695'
+
             width = e['end'] - e['start'] + 1
-            rect = Rectangle((e['start'] - 0.5, i), width, 1, **rect_kwargs)
+            rect = Rectangle((e['start'] - 0.5, i), width, 1, facecolor=c, **rect_kwargs)
             ax.add_patch(rect)
 
             i -= 1
@@ -103,8 +109,19 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, figsize=(10, 8), **kwargs):
         ax.set_xlim(j * aa_per_subplot, (j + 1) * aa_per_subplot)
         ax.set_yticks([])
 
+    if color:
+        fig.subplots_adjust(right=0.85)
+        cbar_ax = fig.add_axes([0.87, 0.05, 0.02, 0.9])
+        norm = mpl.colors.Normalize(vmin=0, vmax=100)
+        cb1 = mpl.colorbar.ColorbarBase(cbar_ax, cmap=mpl.cm.get_cmap(cmap),
+                                    norm=norm,
+                                    orientation='vertical')
+        cb1.set_label('Uptake (%)')
+    else:
+        plt.tight_layout()
+
     axes[-1].set_xlabel('Residue number')
-    plt.tight_layout()
+
 
     return fig, axes
 
