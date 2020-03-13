@@ -390,7 +390,8 @@ class KineticsSeries(object):
 
         """
         if self.uniform:
-            intervals = [(s, e) for s, e in zip(self[0].data['start'], self[0].data['end'])]
+            # end is inclusive therefore +1 is needed
+            intervals = [(s, e + 1) for s, e in zip(self[0].data['start'], self[0].data['end'])]
         else:
             raise AssertionError("not uniform data not yet supported")
             intervals = reduce(add, [[(s, e) for s, e in zip(pm.data['start'], pm.data['end'])] for pm in self])
