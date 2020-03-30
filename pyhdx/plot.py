@@ -77,7 +77,7 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
     return fig, (ax1, ax2, cbar_ax)
 
 
-def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8), **kwargs):
+def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8), labels=False, **kwargs):
 
     rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
     rect_kwargs.update(kwargs)
@@ -90,7 +90,7 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8),
     for j, ax in enumerate(axes):
         i = -1
 
-        for e in pm.data:
+        for p_num, e in enumerate(pm.data):
             if i < -wrap:
                 i = -1
 
@@ -101,7 +101,14 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8),
 
             width = e['end'] - e['start'] + 1
             rect = Rectangle((e['start'] - 0.5, i), width, 1, facecolor=c, **rect_kwargs)
+
+
             ax.add_patch(rect)
+            if labels:
+                rx, ry = rect.get_xy()
+                cy = ry# + rect.get_height() / 2.
+                cx = rx
+                ax.annotate(str(p_num), (cx, cy), color='k', fontsize=6, va='bottom', ha='right')
 
             i -= 1
 
