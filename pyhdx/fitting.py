@@ -307,7 +307,9 @@ class KineticsFitting(object):
 
             kf = KineticsFitting(section)  #deeeeep. dont do fine_fitting on this guy
             print('make model')
-            model = LSQKineticsConstantBlocks(initial_result, kf)
+            #model = LSQKineticsDoubleConstantBlocks(initial_result, kf)
+            model = LSQKineticsDoubleCustomBlocks(initial_result, kf)
+
 
             print('make data dict')
             data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, kf.scores_peptides.T)}
@@ -452,7 +454,7 @@ class KineticsFitResult(object):
         return np.repeat(rates, self.block_length)
 
 
-class LSQKineticsDoubleConstantBlocks(KineticsModel): #TODO find a better name (lstsq)
+class LSQKineticsDoubleCustomBlocks(KineticsModel): #TODO find a better name (lstsq)
     #todo block length is redundant
     def __init__(self, initial_result, kf_section):  #todo does this really need to be kf but can be series?
         """
@@ -462,7 +464,7 @@ class LSQKineticsDoubleConstantBlocks(KineticsModel): #TODO find a better name (
         initial_result array with r_number and rate
         kf_section kineticsfitting object for the section
         """
-        super(LSQKineticsDoubleConstantBlocks, self).__init__()
+        super(LSQKineticsDoubleCustomBlocks, self).__init__()
         # print(block_lengths)
         # total = np.sum(block_lengths)
         t_var = self.make_variable('t')
@@ -470,30 +472,71 @@ class LSQKineticsDoubleConstantBlocks(KineticsModel): #TODO find a better name (
         #Assemble terms spanning accross blocks of residues
         #blocks with only 1 residue have only 1 time component
         terms = []
-
-        block_size = 5
-        initial_block = 2
-        num_repeats = (kf_section.k_series.cov.prot_len - initial_block) // block_size
-        remainder = (kf_section.k_series.cov.prot_len - initial_block) % block_size
-
         r_number = initial_result['r_number']
-        rate = initial_result['rate']
 
-        blocks = [initial_block] + [block_size] * num_repeats
-        if remainder:
-            blocks += [remainder]
+        block_length = list(kf_section.k_series.cov.block_length.copy())
+
+
+        # Merge blocks
+        max_size = 2
+        i = 0
+        subblock = 0
+        while i < len(block_length):
+            curr_size = block_length[i]
+            if curr_size <= max_size:
+                del block_length[i]
+                subblock += curr_size
+            elif subblock != 0:
+                # if block_length > 1:
+                block_length.insert(i, subblock)
+                subblock = 0
+                i += 1
+            else:
+                i += 1
+        if subblock != 0:
+            block_length.append(subblock)
+
+        blocks = block_length
+        print(blocks)
+
+        changes = True
+        min_size = 5
+        while changes:
+            i = 0
+            changes = False
+            while i < len(block_length):
+                curr_size = block_length[i]
+                if curr_size < min_size:
+                    changes = True
+                    if i == 0:  # beginning of list
+                        block_length[i + 1] += curr_size
+                        del block_length[i]
+                    elif i == len(block_length) - 1:  # end of the list
+                        block_length[i - 1] += curr_size
+                        del block_length[i]
+                    else:
+                        if block_length[i - 1] < block_length[i + 1]:
+                            block_length[i - 1] += curr_size
+                        else:
+                            block_length[i + 1] += curr_size
+                        del block_length[i]
+                else:
+                    i += 1
+
+        print(block_length)
         r_index = kf_section.k_series.cov.start
         for i, bl in enumerate(blocks):
             current = r_index + (bl // 2)
             idx = np.searchsorted(r_number, current)
-            value = 1 / rate[idx]
+            t1v = 1 / initial_result['rate1'][idx]
+            t2v = 1 / initial_result['rate2'][idx]
             r_index += bl
 
-            t1v = value / 5
-            t2v = value * 5
+            # t1v = value / 5
+            # t2v = value * 5
             rv = 0.5
-            tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1 / 40, value=t1v)
-            tau2 = self.make_parameter('tau2_{}'.format(i), max=30, min=1 / 40, value=t2v)
+            tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1/80, value=t1v)
+            tau2 = self.make_parameter('tau2_{}'.format(i), max=30, min=1/80, value=t2v)
             r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
             term = (1 - (r * exp(-t_var / tau1) + (1 - r) * exp(-t_var / tau2)))
             terms.append(term)
@@ -543,7 +586,6 @@ class LSQKineticsDoubleConstantBlocks(KineticsModel): #TODO find a better name (
             tau = r * tau1 + (1 - r) * tau2
             tau_list += [tau] * bl
 
-        print(tau_list)
         return np.array(tau_list)
 
     def get_rate(self, **params):
@@ -561,6 +603,118 @@ class LSQKineticsDoubleConstantBlocks(KineticsModel): #TODO find a better name (
         """
         tau = self.get_tau(**params)
         return 1/tau
+
+
+class LSQKineticsDoubleConstantBlocks(KineticsModel): #TODO find a better name (lstsq)
+    #todo block length is redundant
+    def __init__(self, initial_result, kf_section):  #todo does this really need to be kf but can be series?
+        """
+
+        Parameters
+        ----------
+        initial_result array with r_number and rate
+        kf_section kineticsfitting object for the section
+        """
+        super(LSQKineticsDoubleConstantBlocks, self).__init__()
+        # print(block_lengths)
+        # total = np.sum(block_lengths)
+        t_var = self.make_variable('t')
+
+        #Assemble terms spanning accross blocks of residues
+        #blocks with only 1 residue have only 1 time component
+        terms = []
+
+        block_size = 10
+        initial_block = 5
+        num_repeats = (kf_section.k_series.cov.prot_len - initial_block) // block_size
+        remainder = (kf_section.k_series.cov.prot_len - initial_block) % block_size
+
+        r_number = initial_result['r_number']
+        rate = initial_result['rate']
+
+        blocks = [initial_block] + [block_size] * num_repeats
+        if remainder:
+            blocks += [remainder]
+        r_index = kf_section.k_series.cov.start
+        for i, bl in enumerate(blocks):
+            current = r_index + (bl // 2)
+            idx = np.searchsorted(r_number, current)
+            t1v = 1 / initial_result['rate1'][idx]
+            t2v = 1 / initial_result['rate2'][idx]
+            r_index += bl
+
+            # t1v = value / 5
+            # t2v = value * 5
+            rv = 0.5
+            tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1/40, value=t1v)
+            tau2 = self.make_parameter('tau2_{}'.format(i), max=30, min=1/40, value=t2v)
+            r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
+            term = (1 - (r * exp(-t_var / tau1) + (1 - r) * exp(-t_var / tau2)))
+            terms.append(term)
+
+        #Iterate over rows (peptides) and add terms together which make one peptide
+        model_dict = {}
+        d_vars = []
+        cs = np.insert(np.cumsum(blocks) + kf_section.k_series.cov.start, 0, kf_section.k_series.cov.start)
+        for i, entry in enumerate(kf_section.k_series.cov.data):
+            d_var = self.make_variable('d_{}'.format(i))
+            d_vars.append(d_var)
+
+            s, e = entry['start'], entry['end']
+            length = e - s + 1
+            used_blocks = np.diff(np.clip((cs - s).copy(), a_min=0, a_max=length))
+            fractions = used_blocks / length
+
+            rhs = reduce(add, [100*fraction*term for fraction, term in zip(fractions, terms)])
+            model_dict[d_var] = rhs
+
+        self.d_vars = d_vars
+        self.t_var = t_var
+        self.sf_model = CallableModel(model_dict)
+
+        self.block_length = blocks
+
+    def get_tau(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+
+        tau_list = []
+        for i, bl in enumerate(self.block_length):
+            tau1 = params[self.names['tau1_{}'.format(i)]]
+            tau2 = params[self.names['tau2_{}'.format(i)]]
+            r = params[self.names['r_{}'.format(i)]]
+
+            tau = r * tau1 + (1 - r) * tau2
+            tau_list += [tau] * bl
+
+        return np.array(tau_list)
+
+    def get_rate(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+        tau = self.get_tau(**params)
+        return 1/tau
+
 
 class LSQKineticsConstantBlocks(KineticsModel): #TODO find a better name (lstsq)
     #todo block length is redundant
