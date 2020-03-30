@@ -1,6 +1,6 @@
 from pyhdx import PeptideMeasurements, PeptideCSVFile, Coverage, KineticsSeries
 from pyhdx.plot import plot_residue_map, make_coverage_figure
-from pyhdx.fitting import KineticsFitting, KineticsFitResult, BiexpIncreaseModel
+from pyhdx.fitting import KineticsFitting, KineticsFitResult, TwoComponentAssociationModel
 import numpy as np
 import matplotlib.pyplot as plt
 #

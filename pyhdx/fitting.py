@@ -55,10 +55,10 @@ class KineticsModel(object):
         return self.sf_model.params[idx]
 
 
-class BiexpIncreaseModel(KineticsModel):
-    """Two Phase Association"""
+class TwoComponentAssociationModel(KineticsModel):
+    """Two componenent Association"""
     def __init__(self):
-        super(BiexpIncreaseModel, self).__init__()
+        super(TwoComponentAssociationModel, self).__init__()
 
         r = self.make_parameter('r', value=0.5, min=0, max=1)
         tau1 = self.make_parameter('tau1', min=0, max=5)
@@ -129,10 +129,10 @@ class BiexpIncreaseModel(KineticsModel):
         return 1/tau
 
 
-class MonoexpIncreaseModel(KineticsModel):
-    """One Phase Association"""
+class OneComponentAssociationModel(KineticsModel):
+    """One component Association"""
     def __init__(self):
-        super(MonoexpIncreaseModel, self).__init__()
+        super(OneComponentAssociationModel, self).__init__()
         tau1 = self.make_parameter('tau1', min=0, max=100)
         t = self.make_variable('t')
         y = self.make_variable('y')
