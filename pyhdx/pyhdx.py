@@ -296,6 +296,9 @@ class Coverage(object):
 
         self.block_coverage = np.sum(self.X_red, axis=0) > 0
 
+    def __len__(self):
+        return self.prot_len
+
     @property
     def X_red_norm(self):
         return self.X_red / np.sum(self.X_red, axis=1)[:, np.newaxis]
