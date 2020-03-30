@@ -621,7 +621,7 @@ class PeptideMeasurements(Coverage):
     @property
     def sequence(self):
         """:obj:`str: String of the full protein sequence. Gaps of no coverage are filled with Prolines."""
-        seq = np.full(self.stop, 'P', dtype='U')
+        seq = np.full(self.end, 'X', dtype='U')
         for d in self.data:
             i = d['start'] - 1
             j = d['end']
