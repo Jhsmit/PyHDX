@@ -25,13 +25,64 @@ var config = {
         type: 'row',
         content:[
             {
-                type: 'component',
-                componentName: 'view',
-                componentState: { model: '{{ embed(roots.controller) }}',
-                                  title: 'Controls',
-                                  width: 350,
-                                  css_classes:['scrollable']},
-                isClosable: false,
+                type: 'stack',
+                content: [
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.controller) }}',
+                            title: 'Controls',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.coverage) }}',
+                            title: 'Coverage',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.controller) }}',
+                            title: 'Controls',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.controller) }}',
+                            title: 'Controls',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.controller) }}',
+                            title: 'Controls',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
+                    }
+                        ]
             },
             {
                 type: 'column',

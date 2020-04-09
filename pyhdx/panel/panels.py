@@ -5,38 +5,158 @@ from bokeh.models.widgets import Button as BKButton
 from bokeh.models import CustomJS, ColumnDataSource
 
 from io import StringIO
-from pyhdx import PeptideCSVFile
+from pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import fit_kinetics
 from pyhdx.plot import make_kinetics_figure
+from pyhdx.fileIO import read_dynamx
 import param
 from collections import namedtuple
+from numpy.lib.recfunctions import stack_arrays
 
 from matplotlib.collections import LineCollection
 #matplotlib.use('agg')
 
+import logging
+logger = logging.getLogger('pyhdx')
 
 
-
-class FileInputPanel(param.Parameterized):
-    def __init__(self, **params):
-        super(FileInputPanel, self).__init__(**params)
-
-
-
+class PanelBase(param.Parameterized):
+    """base class for mixin panels"""
 
 
     @property
-    def data(self):
-        """returns the full concatenated data array of all files"""
+    def control_panel(self):
+        """panel which goes in the left controls stack in the template"""
+        return None
+
+    @property
+    def view_panel(self):
+        """panel which goes in the main view stack in the template"""
+        return None
+
+    @property
+    def log_panel(self):
+        """panel which goes in the bottom panel stack in the template"""
         return None
 
 
-    def panel(self):
-        """returns the panel object in the tab"""
-        return None
+
+
+class FileInputPanel(PanelBase):
+    add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
+    clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
+    drop_first = param.Integer(1, bounds=(0, None))
+    load_button = param.Action(lambda self: self._action_load(), doc='Load Files', label='Load Files')
+
+    control_state = param.Selector(doc='State for the control condition', label='Control State')
+    control_exposure = param.Selector(doc='Exposure for control condition', label='Control exposure')
+
+    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
+    exp_times = param.ListSelector(default=[], objects=[''])
+
+    parse_button = param.Action(lambda self: self._action_parse, doc='Parse', label='Parse')
+
+    def __init__(self, parent, **params):
+        super(FileInputPanel, self).__init__(**params)
+        self.parent = parent
+        self.file_selectors_column = pn.Column(*[pn.widgets.FileInput(accept='.csv')])
+
+    def _action_add(self):
+        print('action_add')
+        widget = pn.widgets.FileInput(accept='.csv')
+        self.file_selectors_column.append(widget)
+
+    def _action_clear(self):
+        print('action clear')
+        self.file_selectors_column.clear()
+        self._action_add()
+
+    def _action_load(self):
+        print('action load')
+        data_list = []
+        for file_selector in self.file_selectors_column:
+            if file_selector.value is not None:
+                s_io = StringIO(file_selector.value.decode('UTF-8'))
+                data = read_dynamx(s_io)
+                data_list.append(data)
+
+        combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
+
+        self.parent.data = combined
+        self.parent.peptides = PeptideCSVFile(self.parent.data, drop_first=self.drop_first)
+
+        states = list(np.unique(self.parent.peptides.data['state']))
+        self.param['control_state'].objects = states
+        self.control_state = states[0]
+
+    def _action_parse(self):
+        self.parent.peptides.set_control((self.control_state, self.control_exposure))
+        data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
+        data = data_states[np.isin(data_states['exposure'], self.exp_times)]
+
+        self.parent.series = KineticsSeries(data)
 
 
 
+
+    @param.depends('control_state', watch=True)
+    def _update_control_exposure(self):
+        b = self.parent.peptides.data['state'] == self.control_state
+        data = self.parent.peptides.data[b]
+        exposures = list(np.unique(data['exposure']))
+        self.param['control_exposure'].objects = exposures
+        self.control_exposure = exposures[0]
+
+    @param.depends('control_state', 'control_exposure', watch=True)
+    def _update_experiment(self):
+        # r = str(np.random.rand())
+        # self.param['exp_state'].objects = [r]
+        # self.exp_state = r
+
+        pm_dict = self.parent.peptides.return_by_name(self.control_state, self.control_exposure)
+        states = list(np.unique([v.state for v in pm_dict.values()]))
+        self.param['exp_state'].objects = states
+        self.exp_state = states[0]
+
+    @param.depends('exp_state', watch=True)
+    def _update_experiment_exposure(self):
+        b = self.parent.data['state'] == self.exp_state
+        exposures = list(np.unique(self.parent.data['exposure'][b]))
+        exposures.sort()
+        self.param['exp_times'].objects = exposures
+        self.exp_times = exposures
+
+    @property
+    def control_panel(self):
+        params = pn.panel(self.param)
+        col = pn.Column(*[self.file_selectors_column, *params[1:]])
+
+        return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
+
+
+class CoveragePanel(PanelBase):
+    wrap = param.Integer(15, doc='Number of peptides vertically before moving to the next row') # todo auto?
+    aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
+    color = param.Boolean(False, label='Color')
+
+    update = param.Action(lambda self: self.update(), label='Update')
+
+
+    def __init__(self, parent, **params):
+        super(CoveragePanel, self).__init__(**params)
+        self.parent = parent
+
+        self.parent.param.watch(self._update, ['series'])
+
+    def _update(self, *events):
+        pass
+
+    @property
+    def control_panel(self):
+        #params = pn.panel(self.param)
+        col = pn.Column(self.param)
+        return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'],
+                            sizing_mode='stretch_height')
 
 
 class HDXBase(param.Parameterized):

@@ -1,3 +1,12 @@
+
+from .log import setup_custom_logger
+from .panels import FileInputPanel, CoveragePanel
+from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
+
+logger = setup_custom_logger('root')
+logger.debug('main message')
+
+
 import param
 import panel as pn
 from jinja2 import Environment, FileSystemLoader
@@ -7,7 +16,6 @@ import os
 from bokeh.util.serialization import make_globally_unique_id
 
 
-#from .panels import FileInputPanel
 pth = os.path.dirname(__file__)
 
 env = Environment(loader=FileSystemLoader(pth))
@@ -19,8 +27,9 @@ class Controller(param.Parameterized):
 
     """
 
-    data = param.Array()
-
+    data = param.Array()  # might not be needed, in favour of peptides
+    peptides = param.ClassSelector(PeptideCSVFile)  #class with all peptides to be considered
+    series = param.ClassSelector(KineticsSeries)
 
     def __init__(self, template, panels, **params):
         super(Controller, self).__init__(**params)
@@ -29,8 +38,12 @@ class Controller(param.Parameterized):
         tmpl = pn.Template(template=template)
      #   tmpl.nb_template.globals['get_id'] = make_globally_unique_id
 
+        self.fileinput = FileInputPanel(self)
+        self.coverage = CoveragePanel(self)
+
         # tmpl = pn.Template(template)
-        tmpl.add_panel('controller', hv.Curve([1, 2, 3]))
+        tmpl.add_panel('controller', self.fileinput.control_panel)
+        tmpl.add_panel('coverage', self.coverage.control_panel)
         tmpl.add_panel('scene3d', hv.Curve([1, 2, 3]))
         tmpl.add_panel('slice_i', hv.Curve([1, 2, 3]))
         tmpl.add_panel('slice_j', hv.Curve([1, 2, 3]))
@@ -47,9 +60,9 @@ class Controller(param.Parameterized):
     def servable(self):
         return self.template.servable
 
-    @param.depends('hdxparams.data')
+    @param.depends('data')
     def _test(self):
-        print("hoi")
+        print("hoi, data changed")
 
 
 class HDXParams(param.Parameterized):
