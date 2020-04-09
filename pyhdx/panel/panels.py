@@ -15,6 +15,30 @@ from matplotlib.collections import LineCollection
 #matplotlib.use('agg')
 
 
+
+
+class FileInputPanel(param.Parameterized):
+    def __init__(self, **params):
+        super(FileInputPanel, self).__init__(**params)
+
+
+
+
+
+    @property
+    def data(self):
+        """returns the full concatenated data array of all files"""
+        return None
+
+
+    def panel(self):
+        """returns the panel object in the tab"""
+        return None
+
+
+
+
+
 class HDXBase(param.Parameterized):
     file = param.FileSelector()
     drop_first = param.Integer(default=1, bounds=(0, None))
