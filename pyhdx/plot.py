@@ -2,7 +2,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
-
+from bokeh.models import LinearColorMapper, ColorBar, ColumnDataSource, Rect, LabelSet
+from bokeh.plotting import figure
+from bokeh.layouts import row, column
 
 def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs):
     img = (pm.X > 0).astype(float)
@@ -131,6 +133,45 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8),
 
 
     return fig, axes
+
+def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwargs):
+    TOTAL_HEIGHT = 600
+
+
+    num_axes = pm.end // aa_per_subplot + 1
+    cmap = mpl.cm.get_cmap('jet')
+    c_rgba = cmap(pm.data['scores'] / 100)
+    c = [mpl.colors.to_hex(color) for color in c_rgba]
+
+    pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 256, endpoint=True))
+
+    color_mapper = LinearColorMapper(palette=pal, low=0, high=100)
+    color_bar = ColorBar(color_mapper=color_mapper)
+
+    repeats = (len(pm) // wrap) + 1
+    y = (list(range(wrap, 0, -1))*repeats)[:len(pm.data)]
+    width = pm.data['end'] - pm.data['start'] + 1
+    x = pm.data['start'] - 0.5 + (width / 2)
+    label_x = pm.data['start']
+    names = [str(i) for i in range(len(pm.data))]
+    source = ColumnDataSource(dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names))
+    glyph = Rect(x='x', y='y', width='width', height=1, fill_color='c')
+    labels = LabelSet(x='label_x', y='y', text='names', source=source, y_offset=-1, x_offset=-15)
+
+    figures = []
+    for j in range(num_axes):
+        fig = figure(title=None, plot_width=750, plot_height=int(TOTAL_HEIGHT/num_axes), min_border=0,
+                     x_range=(j*aa_per_subplot, (j + 1) * aa_per_subplot))
+        fig.add_glyph(source, glyph)
+        fig.add_layout(labels)
+        figures.append(fig)
+
+    #https://github.com/bokeh/bokeh/issues/7093
+    dummy = figure(height=TOTAL_HEIGHT, width=100, toolbar_location=None, min_border=0, outline_line_color=None)
+    dummy.add_layout(color_bar, 'right')
+    layout = row(column(*figures), dummy)
+
+    return layout
 
 
 """
