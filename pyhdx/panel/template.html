@@ -59,28 +59,6 @@ var config = {
                             css_classes: ['scrollable']
                         },
                         isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.controller) }}',
-                            title: 'Controls',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.controller) }}',
-                            title: 'Controls',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
                     }
                         ]
             },
@@ -88,35 +66,41 @@ var config = {
                 type: 'column',
                 content: [
                     {
-                        type: 'row',
+                        type: 'stack',
                         content:[
                             {
                                 type: 'component',
                                 componentName: 'view',
-                                componentState: { model: '{{ embed(roots.scene3d) }}', title: '3D View'},
+                                componentState: {
+                                    model: '{{ embed(roots.scene3d) }}',
+                                    title: '3D View'
+                                },
                                 isClosable: false,
                             },
-                            {
-                                type: 'component',
-                                componentName: 'view',
-                                componentState: { model: '{{ embed(roots.slice_i) }}', title: 'Slice I'},
-                                isClosable: false,
-                            }
+
                         ]
                     },
                     {
-                        type: 'row',
+                        type: 'stack',
                         content:[
                             {
                                 type: 'component',
                                 componentName: 'view',
-                                componentState: { model: '{{ embed(roots.slice_j) }}', title: 'Slice J'},
+                                componentState: {
+                                    model: '{{ embed(roots.slice_j) }}',
+                                    title: 'Slice J',
+                                    height: 200
+                                },
                                 isClosable: false,
                             },
                             {
                                 type: 'component',
                                 componentName: 'view',
-                                componentState: { model: '{{ embed(roots.slice_k) }}', title: 'Slice K'},
+                                componentState: {
+                                    model: '{{ embed(roots.slice_k) }}',
+                                    title: 'Slice K',
+                                    height: 200
+                                },
                                 isClosable: false,
                             }
                         ]

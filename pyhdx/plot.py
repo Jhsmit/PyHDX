@@ -104,7 +104,6 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8),
             width = e['end'] - e['start'] + 1
             rect = Rectangle((e['start'] - 0.5, i), width, 1, facecolor=c, **rect_kwargs)
 
-
             ax.add_patch(rect)
             if labels:
                 rx, ry = rect.get_xy()
@@ -156,22 +155,23 @@ def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwarg
     names = [str(i) for i in range(len(pm.data))]
     source = ColumnDataSource(dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names))
     glyph = Rect(x='x', y='y', width='width', height=1, fill_color='c')
-    labels = LabelSet(x='label_x', y='y', text='names', source=source, y_offset=-1, x_offset=-15)
+    labels = LabelSet(x='label_x', y='y', text='names', source=source, text_baseline='middle', text_align='left')
 
     figures = []
+    # plot_width=750, plot_height=int(TOTAL_HEIGHT/num_axes),
     for j in range(num_axes):
-        fig = figure(title=None, plot_width=750, plot_height=int(TOTAL_HEIGHT/num_axes), min_border=0,
+        fig = figure(title=None, min_border=0,
                      x_range=(j*aa_per_subplot, (j + 1) * aa_per_subplot))
         fig.add_glyph(source, glyph)
         fig.add_layout(labels)
         figures.append(fig)
 
     #https://github.com/bokeh/bokeh/issues/7093
-    dummy = figure(height=TOTAL_HEIGHT, width=100, toolbar_location=None, min_border=0, outline_line_color=None)
-    dummy.add_layout(color_bar, 'right')
-    layout = row(column(*figures), dummy)
+    #ummy = figure(width=100, toolbar_location=None, min_border=0, outline_line_color=None)
+    #dummy.add_layout(color_bar, 'right')
+    layout = row(column(*figures, sizing_mode='stretch_both'), sizing_mode='stretch_both')
 
-    return layout
+    return layout, figures, labels
 
 
 """

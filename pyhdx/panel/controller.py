@@ -13,6 +13,9 @@ from jinja2 import Environment, FileSystemLoader
 import holoviews as hv
 import os
 
+import matplotlib
+matplotlib.use('agg') # for panel mpl support
+
 from bokeh.util.serialization import make_globally_unique_id
 
 
@@ -44,8 +47,7 @@ class Controller(param.Parameterized):
         # tmpl = pn.Template(template)
         tmpl.add_panel('controller', self.fileinput.control_panel)
         tmpl.add_panel('coverage', self.coverage.control_panel)
-        tmpl.add_panel('scene3d', hv.Curve([1, 2, 3]))
-        tmpl.add_panel('slice_i', hv.Curve([1, 2, 3]))
+        tmpl.add_panel('scene3d', self.coverage.view_panel)
         tmpl.add_panel('slice_j', hv.Curve([1, 2, 3]))
         tmpl.add_panel('slice_k', hv.Curve([1, 2, 3]))
 
