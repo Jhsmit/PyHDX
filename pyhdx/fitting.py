@@ -91,6 +91,18 @@ class TwoComponentAssociationModel(KineticsModel):
         r_p = self.get_parameter('r')
         r_p.value = 0.5
 
+    def initial_grid(self, t, d, step=15):
+        kmax = 5 * np.log(1-0.98) / -t[1]
+        d_final = np.min([0.95, d[-1]/100])  # todo refactor norm
+        kmin = np.log(1-d_final) / -t[-1]
+
+        tau_space = np.logspace(np.log10(1/kmax), np.log10(1/kmin), num=step, endpoint=True)
+        r_space = np.linspace(0.05, 0.95, num=step, endpoint=True)
+
+        guess = np.column_stack([tau_space, tau_space, r_space])
+        return guess
+
+
     def get_tau(self, **params):
         """
 
@@ -248,10 +260,10 @@ def fit_kinetics(t, d, model, chisq_thd):
         r = 1
 
     if np.isnan(rate) or res.chi_squared > chisq_thd or r > 1 or r < 0:
-        print(res.chi_squared)
         #TODO add thread lock here
         fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
-        res = fit.execute(workers=-1)
+        #grid = model.initial_grid(t, d, step=5)
+        res = fit.execute()
 
     return res
 
