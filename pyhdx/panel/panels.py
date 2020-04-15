@@ -223,7 +223,8 @@ class RateConstantPanel(PanelBase):
 
     @property
     def control_panel(self):
-        return  pn.WidgetBox(pn.Param(self.param))
+        return pn.WidgetBox(pn.Param(self.param))
+
 
 class CoveragePanel(PanelBase):
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
@@ -387,6 +388,8 @@ class HDXKinetics(param.Parameterized):
     update = param.Action()
 
     def __init__(self, **params):
+        raise DeprecationWarning()
+
         super(HDXKinetics, self).__init__(**params)
         s = self.pm_dict[next(iter(self.pm_dict))]  # First element in dictionary
         for v in self.pm_dict.values():
@@ -590,6 +593,8 @@ class HDXBaseDep(param.Parameterized):
 
     def __init__(self, **params):
         super(HDXBaseDep, self).__init__(**params)
+        raise DeprecationWarning()
+
         self.peptide_file = None
         self.pm_dict = {}  # Dictionary of PeptideMeasurements object
 
@@ -637,6 +642,7 @@ class HDXPanel(param.Parameterized):
     exp_times = param.List()
 
     def __init__(self):
+        raise DeprecationWarning()
         self.pm_dict = {}
         self.source = ColumnDataSource(data=dict())
 
