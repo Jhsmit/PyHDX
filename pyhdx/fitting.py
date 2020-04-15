@@ -272,6 +272,7 @@ class KineticsFitting(object):
     @property
     def scores_norm(self):
     # Normalized to 100 array of scores
+        print('where is this used?')
         scores_norm = 100 * (self.scores_stack / self.scores_stack[-1, :][np.newaxis, :])
         return scores_norm
 
@@ -427,14 +428,14 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
             idx = np.searchsorted(r_number, current)
             if model == 'mono' or (model == 'mixed' and bl == 1):
                 print('mono')
-                value = 1 / initial_result['rate'][idx]  #this should be the average of the block range
+                value = 1 / initial_result['fit1'][idx]  #this should be the average of the block range
                 r_index += bl
                 tau1 = self.make_parameter('tau_{}'.format(i), max=30, min=1 / 70, value=value)
                 term = (1 - exp(-t_var / tau1))
                 terms.append(term)
             else:
-                t1v = 1 / initial_result['rate1'][idx]
-                t2v = 1 / initial_result['rate2'][idx]
+                t1v = 1 / initial_result['fit1_r1'][idx]
+                t2v = 1 / initial_result['fit1_r2'][idx]
                 r_index += bl
                 print(t1v, t2v)
 
