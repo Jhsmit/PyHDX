@@ -1,20 +1,27 @@
+import matplotlib
+matplotlib.use('agg')
+
+
 import os
 import panel as pn
 import numpy as np
 from bokeh.models.widgets import Button as BKButton
-from bokeh.models import CustomJS, ColumnDataSource
-
+from bokeh.models import CustomJS, ColumnDataSource, LabelSet
+from bokeh.plotting import figure
+from bokeh.layouts import column, row
 from io import StringIO
 from pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import fit_kinetics
-from pyhdx.plot import make_kinetics_figure
+from pyhdx.plot import make_kinetics_figure, _bokeh_coverage
 from pyhdx.fileIO import read_dynamx
 import param
 from collections import namedtuple
 from numpy.lib.recfunctions import stack_arrays
 
 from matplotlib.collections import LineCollection
-#matplotlib.use('agg')
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+
 
 import logging
 logger = logging.getLogger('pyhdx')
@@ -40,8 +47,6 @@ class PanelBase(param.Parameterized):
         return None
 
 
-
-
 class FileInputPanel(PanelBase):
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
@@ -54,7 +59,7 @@ class FileInputPanel(PanelBase):
     exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
     exp_times = param.ListSelector(default=[], objects=[''])
 
-    parse_button = param.Action(lambda self: self._action_parse, doc='Parse', label='Parse')
+    parse_button = param.Action(lambda self: self._action_parse(), doc='Parse', label='Parse')
 
     def __init__(self, parent, **params):
         super(FileInputPanel, self).__init__(**params)
@@ -90,14 +95,14 @@ class FileInputPanel(PanelBase):
         self.control_state = states[0]
 
     def _action_parse(self):
-        self.parent.peptides.set_control((self.control_state, self.control_exposure))
+        print('parse action')
+        self.parent.peptides.set_control((self.control_state, self.control_exposure), remove_nan=True)
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_times)]
+        series = KineticsSeries(data)
+        series.make_uniform()  #TODO add gui control for this
 
-        self.parent.series = KineticsSeries(data)
-
-
-
+        self.parent.series = series
 
     @param.depends('control_state', watch=True)
     def _update_control_exposure(self):
@@ -134,27 +139,175 @@ class FileInputPanel(PanelBase):
         return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
 
 
+class RateConstantPanel(PanelBase):
+
+    chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
+    r_max = param.Number(27, doc='Ceil value for rates')  # Update this value
+
+    do_fit1 = param.Action(lambda self: self._action_fit1())
+    do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True)
+
+
+    def __init__(self, parent, **params):
+        super(RateConstantPanel, self).__init__(**params)
+        self.parent = parent
+
+        self.figure = figure(y_axis_type="log")
+
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
+        self.parent.param.watch(self._renew, ['rates'])
+        self.parent.param.watch(self._update, ['series'])
+
+    def _update(self, event):
+        #rerender plot because of new series
+
+        source = ColumnDataSource({name: self.parent.rates[name] for name in self.parent.rates.dtype.names})
+
+        self.figure.circle(x='r_number', y='fit1', legend_label='Fit 1', source=source)
+        self.figure.circle(x='r_number', y='fit2', legend_label='Fit 2', source=source, color='red')
+
+        self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
+        self.figure.circle(x='r_number', y='fit1_r2', legend_label='Fit 1 r2', source=source, color='yellow')
+
+        self.bk_pane.param.trigger('object')
+
+    def _renew(self, event):
+        print('rates array update, renew')
+
+        new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
+        for renderer in self.figure.renderers:
+            renderer.data_source.data.update(new_dict)
+
+        self.bk_pane.param.trigger('object')
+
+    def _action_fit1(self):
+        print('fitting 1')
+
+        #todo context manager?
+        self.param['do_fit1'].constant = True
+        self.param['do_fit2'].constant = True
+
+        result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
+        rates = np.vstack([1 / result.get_param('tau1'), 1 / result.get_param('tau2')])
+
+        names = ['fit1', 'fit1_r1', 'fit1_r2']
+        rates_out = np.empty_like(self.parent.rates,
+                                  dtype=[(name, float) for name in names])
+        rates_out['fit1'] = result.rate
+        rates_out['fit1_r1'] = rates.min(axis=0)
+        rates_out['fit1_r2'] = rates.max(axis=0)
+
+        self.parent.rates[names] = rates_out[names]  # assigning fields doesnt seem to trigger replot
+        self._renew(None)  #manual trigger
+
+        self.param['do_fit1'].constant = False
+        self.param['do_fit2'].constant = False
+
+    def _action_fit2(self):
+        print('fitting 2')
+        #todo context manager
+        self.param['do_fit1'].constant = True
+        self.param['do_fit2'].constant = True
+        from pyhdx.support import get_constant_blocks, get_reduced_blocks
+
+        r_number, fit2_rate = self.parent.fitting.lsq_fit_blocks(self.parent.rates)
+        self.parent.rates['fit2'] = fit2_rate
+        self._renew(None)  # manual trigger
+
+        self.param['do_fit1'].constant = False
+        self.param['do_fit2'].constant = False
+
+    @property
+    def view_panel(self):
+        return self.bk_pane
+
+    @property
+    def control_panel(self):
+        return  pn.WidgetBox(pn.Param(self.param))
+
 class CoveragePanel(PanelBase):
-    wrap = param.Integer(15, doc='Number of peptides vertically before moving to the next row') # todo auto?
+    wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
     aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
-    color = param.Boolean(False, label='Color')
+    #color = param.Boolean(False, label='Color')
 
-    update = param.Action(lambda self: self.update(), label='Update')
+    update = param.Action(lambda self: self._update(), label='Update')
 
+    labels = param.Boolean(False, label='Labels')
+
+    index = param.Integer(0, bounds=(0, None), doc='Current index of coverage plot in time')
+    # next_btn = param.Action(lambda self: self._action_next(), label='Next')
+    # prev_btn = param.Action(lambda self: self._action_prev(), label='Previous')
 
     def __init__(self, parent, **params):
         super(CoveragePanel, self).__init__(**params)
         self.parent = parent
 
+        self.figures = [figure()]
+        self.layout = column(*self.figures, sizing_mode='stretch_both')
+        self.label_set = LabelSet()
+        self.bk_pane = pn.pane.Bokeh(self.layout, sizing_mode='stretch_both')
+
+        #self.exposure_str = pn.pane.Str('Exposure: ')
+        self.exposure_str = pn.widgets.StaticText(name='Exposure', value='A string')
         self.parent.param.watch(self._update, ['series'])
 
+    def _render_figure(self):
+        layout, figs, label_set = _bokeh_coverage(self.peptide_measurement, self.wrap, self.aa_per_subplot)
+        label_set.visible = self.labels
+        return layout, figs, label_set
+
     def _update(self, *events):
-        pass
+        self.param['index'].bounds = (0, len(self.parent.series) - 1)
+        self.exposure_str.value = str(self.peptide_measurement.exposure)
+
+        self.layout, self.figures, self.label_set = self._render_figure()
+        self.bk_pane.object = self.layout
+
+        print('series change')
+
+    @property
+    def peptide_measurement(self):
+        return self.parent.series[self.index]
+
+
+    def _get_color(self):
+        #todo move function to pyhdx.plot
+        #todo also update pallette in that function
+
+        cmap = mpl.cm.get_cmap('jet')
+        c_rgba = cmap(self.peptide_measurement.data['scores'] / 100)
+        c = [mpl.colors.to_hex(color) for color in c_rgba]
+
+        return list(c)
+
+    @param.depends('index', watch=True)
+    def _update_index(self):
+        print('index updated', self.index)
+        color = self._get_color()
+        print(self.peptide_measurement.exposure)
+
+        self.exposure_str.value = str(self.peptide_measurement.exposure)
+        for fig in self.figures:
+            fig.renderers[0].data_source.data.update({'c': color})
+        self.bk_pane.param.trigger('object')
+
+    @param.depends('labels', watch=True)
+    def _update_labels(self):
+        self.label_set.visible = self.labels
+        self.bk_pane.param.trigger('object')
+
+    @property
+    def view_panel(self):
+        return self.bk_pane
 
     @property
     def control_panel(self):
+        #todo this is standard, move to base class
         #params = pn.panel(self.param)
-        col = pn.Column(self.param)
+        col = pn.Column(self.param, self.exposure_str)
+        #p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput}) for exposure
+
+
         return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'],
                             sizing_mode='stretch_height')
 
@@ -268,7 +421,7 @@ class HDXKinetics(param.Parameterized):
 
         # move plotting logic to mixin / module?
         self.fig, self.axes = self.get_figure()
-        self.mpl = pn.pane.Matplotlib(self.fig)
+        self.mpl = pn.pane.Matplotlib(self.fig, dpi=100)
 
         # reimplement with download widget coming in panel 0.8.0
         self.save_btn = BKButton(label='Save', button_type='success')
