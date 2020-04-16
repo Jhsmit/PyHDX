@@ -40,4 +40,5 @@ class ControlPanel(PanelBase):
 
     @property
     def panel(self):
+        #todo this needs some widgetbox luvin
         return pn.panel(self.param)

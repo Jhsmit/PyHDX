@@ -38,8 +38,6 @@ class PanelBase(param.Parameterized):
         return None
 
 
-
-
 class FileInputPanel(PanelBase):
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
@@ -179,7 +177,7 @@ class RateConstantPanel(PanelBase):
     def _renew(self, event):
         print('rates array update, renew')
 
-        self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
+        self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]  # KEEP THIS
 
         new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
         for renderer in self.figure.renderers:

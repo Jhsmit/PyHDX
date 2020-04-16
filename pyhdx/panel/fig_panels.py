@@ -2,11 +2,13 @@ from .base import FigurePanel
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure
 from bokeh.layouts import column
-from bokeh.models import LabelSet
+from bokeh.models import LabelSet, ColumnDataSource
 import panel as pn
+import numpy as np
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+
 
 class CoverageFigure(FigurePanel):
 
@@ -43,11 +45,13 @@ class CoverageFigure(FigurePanel):
         self.label_set.visible = self.ctrl.labels
         self.bk_pane.object = self.layout
 
-    def _update_labels(self, event):
-        self.label_set.visible = event.new
+    def _update_labels(self, *events): #todo direct link?
+        for event in events:
+            self.label_set.visible = event.new
+
         self.bk_pane.param.trigger('object')
 
-    def _update_index(self, event):
+    def _update_index(self, *events):
         color = self._get_color()
         for fig in self.figures:
             fig.renderers[0].data_source.data.update({'c': color})
@@ -62,3 +66,39 @@ class CoverageFigure(FigurePanel):
         c = [mpl.colors.to_hex(color) for color in c_rgba]
 
         return list(c)
+
+
+class RateFigure(FigurePanel):
+    def __init__(self, *args, **params):
+        super(RateFigure, self).__init__(*args, **params)
+
+        self.figure = figure(y_axis_type="log")
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
+
+        self.parent.param.watch(self._renew, ['rates'])
+        self.parent.param.watch(self._update, ['series'])
+
+    def _update(self, *events):
+        #draw plot because of new series
+
+        source = ColumnDataSource({name: self.parent.rates[name] for name in self.parent.rates.dtype.names})
+
+        self.figure.triangle(x='r_number', y='fit1', legend_label='Fit 1', source=source)
+        self.figure.circle(x='r_number', y='fit2', legend_label='Fit 2', source=source, color='red')
+
+        #self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
+        #self.figure.circle(x='r_number', y='fit1_r2', legend_label='Fit 1 r2', source=source, color='yellow')
+
+        self.bk_pane.param.trigger('object')
+
+    def _renew(self, event):
+        print('rates array update, renew')
+
+        self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
+
+        new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
+        for renderer in self.figure.renderers:
+            renderer.data_source.data.update(new_dict)
+
+        self.bk_pane.param.trigger('object')
+
