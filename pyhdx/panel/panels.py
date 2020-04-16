@@ -31,21 +31,13 @@ logger = logging.getLogger('pyhdx')
 class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 
+    position = ''
 
     @property
-    def control_panel(self):
-        """panel which goes in the left controls stack in the template"""
+    def panel(self):
         return None
 
-    @property
-    def view_panel(self):
-        """panel which goes in the main view stack in the template"""
-        return None
 
-    @property
-    def log_panel(self):
-        """panel which goes in the bottom panel stack in the template"""
-        return None
 
 
 class FileInputPanel(PanelBase):
@@ -141,7 +133,6 @@ class FileInputPanel(PanelBase):
 
 
 class RateConstantPanel(PanelBase):
-    param.List
     chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
     r_max = param.Number(27, doc='Ceil value for rates')  # Update this value
 
@@ -295,14 +286,15 @@ class CoveragePanel(PanelBase):
         self.exposure_str = pn.widgets.StaticText(name='Exposure', value='A string')
         self.parent.param.watch(self._update, ['series'])
 
+
     def _render_figure(self):
         layout, figs, label_set = _bokeh_coverage(self.peptide_measurement, self.wrap, self.aa_per_subplot)
         label_set.visible = self.labels
         return layout, figs, label_set
 
     def _update(self, *events):
-        self.param['index'].bounds = (0, len(self.parent.series) - 1)
-        self.exposure_str.value = str(self.peptide_measurement.exposure)
+        self.param['index'].bounds = (0, len(self.parent.series) - 1)  #THIS HAS TO STAY
+        self.exposure_str.value = str(self.peptide_measurement.exposure)  # THIS A SWELL
 
         self.layout, self.figures, self.label_set = self._render_figure()
         self.bk_pane.object = self.layout
@@ -329,7 +321,7 @@ class CoveragePanel(PanelBase):
         color = self._get_color()
         print(self.peptide_measurement.exposure)
 
-        self.exposure_str.value = str(self.peptide_measurement.exposure)
+        self.exposure_str.value = str(self.peptide_measurement.exposure)  # THIS HAS TO STAY
         for fig in self.figures:
             fig.renderers[0].data_source.data.update({'c': color})
         self.bk_pane.param.trigger('object')
