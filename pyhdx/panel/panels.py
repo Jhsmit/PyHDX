@@ -277,6 +277,8 @@ class CoveragePanel(PanelBase):
     labels = param.Boolean(False, label='Labels')
 
     index = param.Integer(0, bounds=(0, None), doc='Current index of coverage plot in time')
+
+
     # next_btn = param.Action(lambda self: self._action_next(), label='Next')
     # prev_btn = param.Action(lambda self: self._action_prev(), label='Previous')
 
@@ -347,10 +349,18 @@ class CoveragePanel(PanelBase):
         #params = pn.panel(self.param)
         col = pn.Column(self.param, self.exposure_str)
         #p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput}) for exposure
-
-
         return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'],
                             sizing_mode='stretch_height')
+
+
+class ClassificationPanel(PanelBase):
+    num_classes = param.Integer(3, doc='Number of rate constant classes')
+    otsu_thd = param.Action(lambda self: self._action_otsu)
+
+    def __init__(self, **params):
+        super(ClassificationPanel, self).__init__(**params)
+
+
 
 
 class HDXBase(param.Parameterized):
