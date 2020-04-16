@@ -13,6 +13,7 @@ from io import StringIO
 from pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import fit_kinetics
 from pyhdx.plot import make_kinetics_figure, _bokeh_coverage
+from pyhdx.support import get_reduced_blocks, get_constant_blocks
 from pyhdx.fileIO import read_dynamx
 import param
 from collections import namedtuple
@@ -140,21 +141,34 @@ class FileInputPanel(PanelBase):
 
 
 class RateConstantPanel(PanelBase):
-
+    param.List
     chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
     r_max = param.Number(27, doc='Ceil value for rates')  # Update this value
 
     do_fit1 = param.Action(lambda self: self._action_fit1())
-    do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True)
+    block_mode = param.ObjectSelector(default='reduced', objects=['reduced', 'original', 'constant'])
 
+    #todo generate from func signature?
+    #block mode reduced params
+    max_combine = param.Integer(2, doc='Neighbouring blocks up to and including this size are merged together')
+    max_join = param.Integer(5, doc='Blocks up to and including this size are joined with their smallest neighbour')
+
+    #constant block params
+    block_size = param.Integer(10, doc='Size of the blocks in constant blocks mode')
+    initial_block = param.Integer(5, doc='Size of the initial block in constant block mode')
+    show_blocks = param.Boolean(False, doc='Show bounds of blocks in graph')
+
+    do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True)
 
     def __init__(self, parent, **params):
         super(RateConstantPanel, self).__init__(**params)
         self.parent = parent
 
         self.figure = figure(y_axis_type="log")
-
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
+
+        self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
+
         self.parent.param.watch(self._renew, ['rates'])
         self.parent.param.watch(self._update, ['series'])
 
@@ -166,13 +180,15 @@ class RateConstantPanel(PanelBase):
         self.figure.circle(x='r_number', y='fit1', legend_label='Fit 1', source=source)
         self.figure.circle(x='r_number', y='fit2', legend_label='Fit 2', source=source, color='red')
 
-        self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
-        self.figure.circle(x='r_number', y='fit1_r2', legend_label='Fit 1 r2', source=source, color='yellow')
+        #self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
+        #self.figure.circle(x='r_number', y='fit1_r2', legend_label='Fit 1 r2', source=source, color='yellow')
 
         self.bk_pane.param.trigger('object')
 
     def _renew(self, event):
         print('rates array update, renew')
+
+        self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
 
         new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
         for renderer in self.figure.renderers:
@@ -208,9 +224,8 @@ class RateConstantPanel(PanelBase):
         #todo context manager
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
-        from pyhdx.support import get_constant_blocks, get_reduced_blocks
 
-        r_number, fit2_rate = self.parent.fitting.lsq_fit_blocks(self.parent.rates)
+        r_number, fit2_rate = self.parent.fitting.lsq_fit_blocks(self.parent.rates, **self.fit_kwargs)
         self.parent.rates['fit2'] = fit2_rate
         self._renew(None)  # manual trigger
 
@@ -218,12 +233,38 @@ class RateConstantPanel(PanelBase):
         self.param['do_fit2'].constant = False
 
     @property
+    def fit_kwargs(self):
+        if self.block_mode == 'reduced':
+            fit_kwargs = {'block_func': get_reduced_blocks, 'max_combine': self.max_combine, 'max_join': self.max_join}
+        elif self.block_mode == 'original':
+            fit_kwargs = {'block_func': lambda series, **kwargs: series.cov.block_length}
+        elif self.block_mode == 'constant':
+            fit_kwargs = {'block_func': get_constant_blocks, 'block_size': self.block_size, 'initial_block': self.initial_block}
+        return fit_kwargs
+
+    @param.depends('block_mode', watch=True)
+    def _update_block_mode(self):
+        print('block mode updated')
+        if self.block_mode == 'reduced':
+            self.block_column.clear()
+            [self.block_column.append(self.param[key]) for key in ['max_combine', 'max_join']]
+        elif self.block_mode == 'original':
+            self.block_column.clear()
+        elif self.block_mode == 'constant':
+            self.block_column.clear()
+            [self.block_column.append(self.param[key]) for key in ['block_size', 'initial_block']]
+
+    @property
     def view_panel(self):
         return self.bk_pane
 
     @property
     def control_panel(self):
-        return pn.WidgetBox(pn.Param(self.param))
+        par1 = ['chisq_thd', 'r_max', 'do_fit1', 'block_mode']
+        par2 = ['do_fit2']
+
+        pars = [self.param[key] for key in par1] + [self.block_column] + [self.param[key] for key in par2]
+        return pn.WidgetBox(*pars)
 
 
 class CoveragePanel(PanelBase):
@@ -269,7 +310,6 @@ class CoveragePanel(PanelBase):
     @property
     def peptide_measurement(self):
         return self.parent.series[self.index]
-
 
     def _get_color(self):
         #todo move function to pyhdx.plot
