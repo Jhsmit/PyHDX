@@ -50,7 +50,7 @@ class Controller(param.Parameterized):
         self.rate_panel = RateConstantPanel(self)
 
         # tmpl = pn.Template(template)
-        tmpl.add_panel('controller', self.fileinput.control_panel)
+        tmpl.add_panel('input', self.fileinput.control_panel)
         tmpl.add_panel('coverage', self.coverage.control_panel)
         tmpl.add_panel('fitting', self.rate_panel.control_panel)
         tmpl.add_panel('scene3d', self.coverage.view_panel)
