@@ -31,8 +31,8 @@ var config = {
                         type: 'component',
                         componentName: 'view',
                         componentState: {
-                            model: '{{ embed(roots.controller) }}',
-                            title: 'Controls',
+                            model: '{{ embed(roots.input) }}',
+                            title: 'Input',
                             width: 350,
                             css_classes: ['scrollable']
                         },
@@ -54,7 +54,7 @@ var config = {
                         componentName: 'view',
                         componentState: {
                             model: '{{ embed(roots.fitting) }}',
-                            title: 'Controls',
+                            title: 'Fitting',
                             width: 350,
                             css_classes: ['scrollable']
                         },
