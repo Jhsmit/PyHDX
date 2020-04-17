@@ -1,4 +1,3 @@
-
 from .log import setup_custom_logger
 from .base import ControlPanel
 from .panels import FileInputPanel, CoveragePanel, RateConstantPanel
@@ -110,11 +109,14 @@ class FileInputControl(ControlPanel):
     drop_first = param.Integer(1, bounds=(0, None))
     load_button = param.Action(lambda self: self._action_load(), doc='Load Files', label='Load Files')
 
-    control_state = param.Selector(doc='State for the control condition', label='Control State')
-    control_exposure = param.Selector(doc='Exposure for control condition', label='Control exposure')
+    norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
+    norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
+
+    zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
+    zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
 
     exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
-    exp_times = param.ListSelector(default=[], objects=[''])
+    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures')
 
     parse_button = param.Action(lambda self: self._action_parse(), doc='Parse', label='Parse')
 
@@ -147,34 +149,48 @@ class FileInputControl(ControlPanel):
         self.parent.peptides = PeptideCSVFile(self.parent.data, drop_first=self.drop_first)
 
         states = list(np.unique(self.parent.peptides.data['state']))
-        self.param['control_state'].objects = states
-        self.control_state = states[0]
+        self.param['norm_state'].objects = states
+        self.norm_state = states[0]
+        self.param['zero_state'].objects = ['None'] + states
+        self.zero_state = 'None'
 
     def _action_parse(self):
         print('parse action')
-        self.parent.peptides.set_control((self.control_state, self.control_exposure), remove_nan=True)
+        control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
+        self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0, remove_nan=True)
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
-        data = data_states[np.isin(data_states['exposure'], self.exp_times)]
+        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
         series = KineticsSeries(data)
         series.make_uniform()  #TODO add gui control for this
 
         self.parent.series = series
 
-    @param.depends('control_state', watch=True)
-    def _update_control_exposure(self):
-        b = self.parent.peptides.data['state'] == self.control_state
+    @param.depends('norm_state', watch=True)
+    def _update_norm_exposure(self):
+        b = self.parent.peptides.data['state'] == self.norm_state
         data = self.parent.peptides.data[b]
         exposures = list(np.unique(data['exposure']))
-        self.param['control_exposure'].objects = exposures
-        self.control_exposure = exposures[0]
+        self.param['norm_exposure'].objects = exposures
+        if exposures:
+            self.norm_exposure = exposures[0]
 
-    @param.depends('control_state', 'control_exposure', watch=True)
+    @param.depends('zero_state', watch=True)
+    def _update_zero_exposure(self):
+        b = self.parent.peptides.data['state'] == self.zero_state
+        data = self.parent.peptides.data[b]
+        exposures = list(np.unique(data['exposure']))
+        self.param['zero_exposure'].objects = exposures
+        if exposures:
+            self.control_exposure = exposures[0]
+
+    @param.depends('norm_state', 'norm_exposure', watch=True)
     def _update_experiment(self):
         # r = str(np.random.rand())
         # self.param['exp_state'].objects = [r]
         # self.exp_state = r
-
-        pm_dict = self.parent.peptides.return_by_name(self.control_state, self.control_exposure)
+        #TODO THIS needs to be updated to also incorporate the zero
+        print(self.norm_state, self.norm_exposure)
+        pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
         states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
         self.exp_state = states[0]
@@ -184,8 +200,8 @@ class FileInputControl(ControlPanel):
         b = self.parent.data['state'] == self.exp_state
         exposures = list(np.unique(self.parent.data['exposure'][b]))
         exposures.sort()
-        self.param['exp_times'].objects = exposures
-        self.exp_times = exposures
+        self.param['exp_exposures'].objects = exposures  #todo refactor exposures
+        self.exp_exposures = exposures
 
     @property
     def panel(self):
@@ -198,7 +214,6 @@ class FileInputControl(ControlPanel):
 class CoverageControl(ControlPanel):
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
     aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
-    update = param.Action(lambda self: self.param.trigger('update'), label='Update')  #Triggers redraw of the figure (might not need this in favour of directly triggering from wrap and aa per subplot
     labels = param.Boolean(False, label='Labels')
     index = param.Integer(0, bounds=(0, None), doc='Current index of coverage plot in time')
 
