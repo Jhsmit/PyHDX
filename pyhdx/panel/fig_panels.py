@@ -73,18 +73,31 @@ class RateFigure(FigurePanel):
         super(RateFigure, self).__init__(*args, **params)
 
         self.figure = figure(y_axis_type="log")
+        self.figure.xaxis.axis_label = 'Residue number'
+        self.figure.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
 
         self.parent.param.watch(self._renew, ['rates'])
         self.parent.param.watch(self._update, ['series'])
+
+        self.fit_renderers = []
+        self.line_renderers = []
+
+        #todo refactor as kwargs?
+        self.ctrl = self.controllers[1]  # classification controller
+        self.ctrl.param.watch(self._draw_thds, ['values'])
 
     def _update(self, *events):
         #draw plot because of new series
 
         source = ColumnDataSource({name: self.parent.rates[name] for name in self.parent.rates.dtype.names})
 
-        self.figure.triangle(x='r_number', y='fit1', legend_label='Fit 1', source=source)
-        self.figure.circle(x='r_number', y='fit2', legend_label='Fit 2', source=source, color='red')
+        self.line_renderers = []
+        r = self.figure.triangle(x='r_number', y='fit1', legend_label='Fit 1', source=source, color='fit1_color')
+        self.line_renderers.append(r)
+        r = self.figure.circle(x='r_number', y='fit2', legend_label='Fit 2', source=source, color='fit2_color')
+        self.line_renderers.append(r)
+        self.figure.legend.click_policy = 'hide'
 
         #self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
         #self.figure.circle(x='r_number', y='fit1_r2', legend_label='Fit 1 r2', source=source, color='yellow')
@@ -94,11 +107,19 @@ class RateFigure(FigurePanel):
     def _renew(self, event):
         print('rates array update, renew')
 
+        #todo maybe not if the user has already set it
         self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
 
         new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
-        for renderer in self.figure.renderers:
+        for renderer in self.fit_renderers:
             renderer.data_source.data.update(new_dict)
 
         self.bk_pane.param.trigger('object')
 
+    def _draw_thds(self, *events):
+        #todo check events and draw according to those?
+        print('draw thresholds')
+
+        #https://docs.bokeh.org/en/latest/docs/user_guide/layout.html
+        #http://docs.bokeh.org/en/latest/docs/user_guide/annotations.html#spans
+        #self.figure.add_layout()

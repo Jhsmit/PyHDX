@@ -18,7 +18,10 @@ from jinja2 import Environment, FileSystemLoader
 import holoviews as hv
 import os
 import numpy as np
-from numpy.lib.recfunctions import stack_arrays
+from skimage.filters import threshold_multiotsu
+from numpy.lib.recfunctions import stack_arrays, append_fields
+
+
 from io import StringIO
 
 import matplotlib
@@ -63,7 +66,7 @@ class Controller(param.Parameterized):
 
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage])  #parent, [controllers]
-        self.rate_figure = RateFigure(self, [self.fit_control]) # parent, [controllers]
+        self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
 
         # tmpl = pn.Template(template)
         tmpl.add_panel('input', self.fileinput.panel)
@@ -88,11 +91,14 @@ class Controller(param.Parameterized):
         self.fitting = KineticsFitting(self.series)
         #todo add errors here
         rate_fields = ['fit1', 'fit1_r1', 'fit1_r2', 'fit2', 'fit2_r1', 'fit2_r2']
-        rates = np.zeros(self.series.cov.prot_len,
-                              dtype=[('r_number', int)] + [(name, float ) for name in rate_fields])
+        color_fields = ['fit1_color', 'fit2_color']
+        dtype = [('r_number', int)] + [(name, float) for name in rate_fields] + [(name, 'U7') for name in color_fields]
+        rates = np.zeros(self.series.cov.prot_len, dtype=dtype)
         rates['r_number'] = self.series.cov.r_number
+        rates['fit1_color'][:] = 'blue'
+        rates['fit2_color'][:] = 'red'
 
-        self.rates = rates  # this assignement triggers downstream watchers
+        self.rates = rates  # this assignement triggers downstream watchers? manual trigger?
 
     @property
     def servable(self):
@@ -342,7 +348,8 @@ class FittingControl(ControlPanel):
 
 class ClassificationControl(ControlPanel):
     num_classes = param.Number(3, bounds=(1, None), doc='Number of classification classes')
-    otsu_thd = param.Action(lambda self: None, label='Otsu')
+    target = param.Selector(label='Target')
+    otsu_thd = param.Action(lambda self: self._action_threshold(), label='Otsu')
     values = param.List(precedence=-1)
     colors = param.List(precedence=-1)
 
@@ -361,9 +368,60 @@ class ClassificationControl(ControlPanel):
 
         self.param.trigger('values')
         self.param.trigger('colors')
+        self.parent.param.watch(self._rates_updated, ['rates'])
+
+    def _rates_updated(self, *events):
+        print('rates')
+        objects = [elem for elem in ['fit1', 'fit2'] if not np.all(self.parent.rates[elem] == 0)]
+        print(objects)
+        self.param['target'].objects = objects
+        if not self.target and objects:
+            self.target = objects[-1]
+
+    def _action_threshold(self):
+        if self.num_classes > 1:
+            rates = self.parent.rates[self.target]
+            thd_rates = rates[~np.isnan(rates)]
+            thds = threshold_multiotsu(np.log(thd_rates), classes=self.num_classes)
+            for thd, widget in zip(thds, self.values_col):
+                widget.value = np.exp(thd)
+        self._do_thresholding()
+
+    def _do_thresholding(self):
+        # perhaps we need a class to handle fitting output which has this method
+        # yes we do. for all fitting not just fit1
+        # alright great. now stop talking to yourself and get back to worK!
+        # #quarantine
+
+        # dont do thresholding if the following criteria are met
+        if 0 in self.values:
+            return
+        elif np.any(np.diff(self.values)) < 0:
+            return
+
+        rates = self.parent.rates[self.target]
+        colors = np.empty(len(self.parent.rates), dtype='U7')
+
+        if self.num_classes == 1:
+            colors[:] = self.colors[0]
+        else:
+            full_thds = [-np.inf] + self.values + [np.inf]
+            for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors):
+                b = (rates > lower) & (rates <= upper)
+                colors[b] = color
+
+        name = self.target + '_color'
+       # if 'color' in self.parent.rates.dtype.names:
+        self.parent.rates[name] = colors
+        self.parent.param.trigger('rates')
+        # else:
+        #     #perhaps the rates should be a pandas dataframe
+        #     rates = append_fields(self.parent.rates, 'color', data=colors, usemask=False)
+        #     self.parent.rates = rates  #triggers
+
 
     @param.depends('num_classes', watch=True)
-    def _update_colors(self):
+    def _update_num_colors(self):
         while len(self.colors_col) != self.num_classes:
             if len(self.colors_col) > self.num_classes:
                 self._remove_color()
@@ -372,7 +430,7 @@ class ClassificationControl(ControlPanel):
         self.param.trigger('colors')
 
     @param.depends('num_classes', watch=True)
-    def _update_values(self):
+    def _update_num_values(self):
         while len(self.values_col) != self.num_classes - 1:
             if len(self.values_col) > self.num_classes - 1:
                 self._remove_value()
