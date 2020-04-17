@@ -28,7 +28,7 @@ class CoverageFigure(FigurePanel):
         #hook up side watchers
         self.ctrl.param.watch(self._update_labels, ['labels'])
         self.ctrl.param.watch(self._update_index, ['index'])
-        self.ctrl.param.watch(self._update, ['update'])
+        self.ctrl.param.watch(self._update, ['wrap', 'aa_per_subplot'])
 
     def _render_figure(self):
         raise NotImplementedError()
