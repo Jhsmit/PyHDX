@@ -59,6 +59,7 @@ class Controller(param.Parameterized):
         self.coverage = CoverageControl(self)#CoveragePanel(self)
         self.fit_control = FittingControl(self)
         self.rate_panel = RateConstantPanel(self)
+        self.classification_panel = ClassificationControl(self)
 
 
         #Figures
@@ -69,6 +70,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('input', self.fileinput.panel)
         tmpl.add_panel('coverage', self.coverage.panel)
         tmpl.add_panel('fitting', self.fit_control.panel)
+        tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('scene3d', self.coverage_figure.panel)
         tmpl.add_panel('slice_j', self.rate_figure.panel)
         tmpl.add_panel('slice_k', hv.Curve([1, 2, 3]))
@@ -319,6 +321,97 @@ class FittingControl(ControlPanel):
     def panel(self):
         par1 = ['chisq_thd', 'r_max', 'do_fit1', 'block_mode']
         par2 = ['do_fit2']
-
         pars = [self.param[key] for key in par1] + [self.block_column] + [self.param[key] for key in par2]
         return pn.WidgetBox(*pars)
+
+
+class ClassificationControl(ControlPanel):
+    num_classes = param.Number(3, bounds=(1, None), doc='Number of classification classes')
+    otsu_thd = param.Action(lambda self: None, label='Otsu')
+    values = param.List(precedence=-1)
+    colors = param.List(precedence=-1)
+
+    color_defaults = ['#1930e0', '#eded0e', '#cc0c49']
+
+    def __init__(self, parent, **param):
+        super(ClassificationControl, self).__init__(parent, **param)
+
+        self.values_col = pn.Column()
+        for _ in range(self.num_classes - 1):
+            self._add_value()
+
+        self.colors_col = pn.Column()
+        for _ in range(self.num_classes):
+            self._add_color()
+
+        self.param.trigger('values')
+        self.param.trigger('colors')
+
+    @param.depends('num_classes', watch=True)
+    def _update_colors(self):
+        while len(self.colors_col) != self.num_classes:
+            if len(self.colors_col) > self.num_classes:
+                self._remove_color()
+            elif len(self.colors_col) < self.num_classes:
+                self._add_color()
+        self.param.trigger('colors')
+
+    @param.depends('num_classes', watch=True)
+    def _update_values(self):
+        while len(self.values_col) != self.num_classes - 1:
+            if len(self.values_col) > self.num_classes - 1:
+                self._remove_value()
+            elif len(self.values_col) < self.num_classes - 1:
+                self._add_value()
+        self.param.trigger('values')
+
+    def _add_value(self):
+        default = 0.0
+        self.values.append(default)
+
+        name = 'Threshold {}'.format(len(self.values_col) + 1)
+        widget = pn.widgets.LiteralInput(name=name, value=default)
+       # widget.param['value'].bounds = (0, None)
+        self.values_col.append(widget)
+        widget.param.watch(self._value_event, ['value'])
+
+    def _remove_value(self):
+        widget = self.values_col.pop(-1)
+        self.values.pop(-1)
+        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+        del widget
+
+    def _add_color(self):
+        try:
+            default = self.color_defaults[len(self.colors_col)]
+        except IndexError:
+            default = '#FFFFFF'
+
+        self.colors.append(default)
+        widget = pn.widgets.ColorPicker(value=default)
+        self.colors_col.append(widget)
+        widget.param.watch(self._color_event, ['value'])
+
+    def _remove_color(self):
+        widget = self.colors_col.pop(-1)
+        self.colors.pop(-1)
+        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+        del widget
+
+    def _color_event(self, *events):
+        print('color event')
+        for event in events:
+            idx = list(self.colors_col).index(event.obj)
+            self.colors[idx] = event.new
+        self.param.trigger('colors')
+
+    def _value_event(self, *events):
+        print('value event')
+        for event in events:
+            idx = list(self.values_col).index(event.obj)
+            self.values[idx] = event.new
+        self.param.trigger('values')
+
+    @property
+    def panel(self):
+        return pn.WidgetBox(pn.Param(self.param), self.values_col, self.colors_col)

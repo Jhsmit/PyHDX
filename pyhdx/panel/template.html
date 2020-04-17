@@ -59,6 +59,17 @@ var config = {
                             css_classes: ['scrollable']
                         },
                         isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.classification) }}',
+                            title: 'Classification',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
                     }
                         ]
             },
