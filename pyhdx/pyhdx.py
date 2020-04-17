@@ -113,7 +113,11 @@ class PeptideCSVFile(object):
             uptake = data_final[b_all]['uptake']
             scores[b_all] = 100 * (uptake - c_0['uptake']) / (c_100['uptake'] - c_0['uptake'])
 
-        data_scores = append_fields(data_final, 'scores', data=scores, usemask=False)
+        if 'scores' in data_final.dtype.names:
+            data_scores = data_final
+            data_scores['scores'] = scores
+        else:
+            data_scores = append_fields(data_final, 'scores', data=scores, usemask=False)
         if remove_nan:
             data_scores = data_scores[~np.isnan(data_scores['scores'])]
 
@@ -153,6 +157,7 @@ class PeptideCSVFile(object):
 
     def return_by_name(self, control_state, control_exposure):
         #todo return dictionary of kinetic series instead
+        print('deprecate this')
 
         """
 
