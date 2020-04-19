@@ -6,7 +6,7 @@ from .fig_panels import CoverageFigure, RateFigure
 from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
-from pyhdx.support import get_constant_blocks, get_reduced_blocks
+from pyhdx.support import get_constant_blocks, get_reduced_blocks, fmt_export, np_from_txt
 
 logger = setup_custom_logger('root')
 logger.debug('main message')
@@ -15,12 +15,11 @@ logger.debug('main message')
 import param
 import panel as pn
 from jinja2 import Environment, FileSystemLoader
-import holoviews as hv
+import holoviews as hv  #todo remove dependency
 import os
 import numpy as np
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays, append_fields
-
 
 from io import StringIO
 
@@ -62,6 +61,7 @@ class Controller(param.Parameterized):
         self.fit_control = FittingControl(self)
         self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
+        self.file_export = FileExportPanel(self)
 
 
         #Figures
@@ -73,6 +73,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('coverage', self.coverage.panel)
         tmpl.add_panel('fitting', self.fit_control.panel)
         tmpl.add_panel('classification', self.classification_panel.panel)
+        tmpl.add_panel('file_export', self.file_export.panel)
         tmpl.add_panel('scene3d', self.coverage_figure.panel)
         tmpl.add_panel('slice_j', self.rate_figure.panel)
         tmpl.add_panel('slice_k', hv.Curve([1, 2, 3]))
@@ -103,6 +104,11 @@ class Controller(param.Parameterized):
     @property
     def servable(self):
         return self.template.servable
+
+    def get_rate_file_export(self):
+        fmt, header = fmt_export(self.rates)
+        s = StringIO()
+        np.savetxt(s, fmt=fmt, header=header)
 
     @param.depends('data')
     def _test(self):
@@ -485,6 +491,18 @@ class ClassificationControl(ControlPanel):
             self.values[idx] = event.new
         self.param.trigger('values')
 
+
+
     @property
     def panel(self):
         return pn.WidgetBox(pn.Param(self.param), self.values_col, self.colors_col)
+
+
+class FileExportPanel(ControlPanel):
+
+
+    @param.depends()
+
+    @property
+    def panel(self):
+        return pn.WidgetBox(pn.widgets.FileDownload(file='test.html', auto=False))

@@ -70,6 +70,17 @@ var config = {
                             css_classes: ['scrollable']
                         },
                         isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.file_export) }}',
+                            title: 'Export',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
                     }
                         ]
             },

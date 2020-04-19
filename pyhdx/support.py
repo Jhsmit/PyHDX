@@ -1,3 +1,6 @@
+import numpy as np
+
+
 def get_reduced_blocks(k_series, max_combine=2, max_join=5):
     block_length = list(k_series.cov.block_length.copy())
 
@@ -43,6 +46,7 @@ def get_reduced_blocks(k_series, max_combine=2, max_join=5):
 
     return block_length
 
+
 def get_constant_blocks(k_series, block_size=10, initial_block=5):
     num_repeats = (k_series.cov.prot_len - initial_block) // block_size
     remainder = (k_series.cov.prot_len - initial_block) % block_size
@@ -77,3 +81,92 @@ def reduce_inter(args):
         else:
             ret.append((ns, ne))
     return ret
+
+
+def _get_f_width(data, sign):
+    i = 1 if sign else 0
+    with np.testing.suppress_warnings() as sup:
+        sup.filter(RuntimeWarning)
+        w_pos = np.log10(np.max(data)) + i
+        w_neg = np.log10(np.max(-data)) + 1
+    w = np.nanmax([w_pos, w_neg]) + 1
+    return int(np.floor(w))
+
+
+def fmt_export(arr, delimiter='\t', header=True, sig_fig=2, width='auto', justify='left', sign=False, pad=''):
+    flag1 = '' if justify != 'left' else '-'
+    flag2 = '+' if sign else ''
+    flag3 = '0' if pad == '0' else ''
+    fmt = []
+    hdr = []
+    for j, name in enumerate(arr.dtype.names):
+        dtype = arr[name].dtype
+
+        if dtype.kind in ['b']:
+            specifier = 'i'
+            precision = ''
+            w = 4 if np.all(arr[name]) else 5
+        elif dtype.kind in ['i', 'u']:
+            specifier = 'i'
+            precision = ''
+
+            w = _get_f_width(arr[name], sign)
+
+        elif dtype.kind in ['f', 'c']:
+            specifier = 'g'
+            precision = '.' + str(sig_fig)
+
+            # float notation width
+            w_f = _get_f_width(arr[name], sign) + sig_fig
+
+            # scientific notation width
+            i = 1 if sign or np.any(arr[name] < 0) else 0
+            w_s = sig_fig + 4 + i + 1  # +1 for decimal point which is not always needed
+            print(w_f, w_s)
+            w = min(w_f, w_s) + 1
+
+        elif dtype.kind in ['U', 'S', 'O']:
+            specifier = 's'
+            precision = ''
+            w = np.max([len(str(item)) for item in data[name]])
+        else:
+            raise TypeError(f'Invalid dtype kind {dtype.kind} for field {name}')
+
+        if width == 'auto':
+            col_w = w
+        elif isinstance(width, int) and width > 0:
+            col_w = width
+        else:
+            raise ValueError('Invalid width')
+
+        if header:
+            i = 2 if j == 0 else 0  # Additional space for header comment #
+            if width == 'auto':
+                _width = max(col_w, len(name) + i)
+            elif isinstance(width, int) and width > 0:
+                _width = col_w
+
+            func = str.ljust if justify == 'left' else str.rjust
+            fill = flag3 if flag3 else ' '
+            h = func(name, _width - i, fill)
+            hdr.append(h)
+        else:
+            _width = col_w
+
+        s = f'%{flag1}{flag2}{flag3}{_width}{precision}{specifier}'
+        fmt.append(s)
+
+    fmt = delimiter.join(fmt)
+    hdr = delimiter.join(hdr)
+    return fmt, hdr
+
+def np_from_txt(file_path, delimiter='\t'):
+    with open(file_path, 'r') as f:
+        header = f.readline()
+
+    if header.startswith('#'):
+        names = header[2:].split(delimiter)
+    else:
+        names = None
+
+    return np.genfromtxt(file_path, dtype=None, names=names, skip_header=1, delimiter=delimiter, encoding=None, autostrip=True)
