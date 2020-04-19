@@ -501,8 +501,6 @@ class ClassificationControl(ControlPanel):
 class FileExportPanel(ControlPanel):
 
 
-    @param.depends()
-
     @property
     def panel(self):
         return pn.WidgetBox(pn.widgets.FileDownload(file='test.html', auto=False))
