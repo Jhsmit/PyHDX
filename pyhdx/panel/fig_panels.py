@@ -94,9 +94,9 @@ class RateFigure(FigurePanel):
 
         self.line_renderers = []
         r = self.figure.triangle(x='r_number', y='fit1', legend_label='Fit 1', source=source, color='fit1_color')
-        self.line_renderers.append(r)
+        self.fit_renderers.append(r)
         r = self.figure.circle(x='r_number', y='fit2', legend_label='Fit 2', source=source, color='fit2_color')
-        self.line_renderers.append(r)
+        self.fit_renderers.append(r)
         self.figure.legend.click_policy = 'hide'
 
         #self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
