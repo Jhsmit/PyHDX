@@ -248,7 +248,7 @@ class CoverageControl(ControlPanel):
         self.exposure_str.value = str(self.peptide_measurement.exposure)
 
         step = 25
-        value = int(step*((self.parent.series.cov.end + 1) // step) + 1)
+        value = int(step*(self.parent.series.cov.end // step + 1))
         self.aa_per_subplot = value# triggers redraw
 
     @param.depends('index', watch=True)
