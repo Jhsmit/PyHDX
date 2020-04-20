@@ -29,6 +29,8 @@ matplotlib.use('agg') # for panel mpl support
 from bokeh.util.serialization import make_globally_unique_id
 
 
+
+
 pth = os.path.dirname(__file__)
 
 env = Environment(loader=FileSystemLoader(pth))
