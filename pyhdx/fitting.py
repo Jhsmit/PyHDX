@@ -247,6 +247,7 @@ def fit_kinetics(t, d, model, chisq_thd):
         Symfit fitresults object.
     """
     if np.any(np.isnan(d)):  # states!
+        raise ValueError('There shouldnt be NaNs anymore')
         er = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
         return er
 
@@ -301,10 +302,18 @@ class KineticsFitting(object):
 
         rate_output = np.empty(len(self.k_series.cov.r_number))
         rate_output[:] = np.nan
+
+        results = []
+        models = []
+        intervals = []
         for section in split.values():  # Section block is 7 one block
-            s, e = section.cov.start, section.cov.end
+            s, e = section.cov.start, section.cov.end  #inclusive, inclusive (source file)
+            intervals.append((s, e + 1))  #inclusive, exclusive
 
             blocks = block_func(section, **block_kwargs)
+
+            print('section', section)
+            print('blocks', blocks)
             model = LSQKinetics(initial_result, section, blocks, model=model)
 
             scores_peptides = np.stack([v.scores for v in section])
@@ -313,11 +322,12 @@ class KineticsFitting(object):
             fit = Fit(model.sf_model, **data_dict)
             result = fit.execute()
 
-            rate = model.get_rate(**result.params)
-            i0, i1 = np.searchsorted(self.k_series.cov.r_number, [s, e])
-            rate_output[i0:i1 + 1] = rate
+            results.append(result)
+            models.append(model)
 
-        return self.k_series.cov.r_number, rate_output
+        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+
+        return fit_result
 
     def weighted_avg_fit(self, chisq_thd=20):
         """
@@ -333,24 +343,23 @@ class KineticsFitting(object):
 
         """
 
-        arr = self.scores_norm.T
-        block_length = []
         results = []
         models = []
-        i = 0
-        for j, d in enumerate(tqdm(arr)):
-            i += 1
-            # End of array, or new block approaching,
-            if j == len(arr) - 1 or not np.allclose(d, arr[j + 1], equal_nan=True):
-                block_length.append(i)
-                i = 0
+        intervals = [] # Intervals; (start, end); (inclusive, exclusive)
 
+        for series in self.k_series.split().values():
+            arr = self.scores_norm.T  # todo use nonnormed scores as they should be normalized already
+            i = 0
+            for bl in series.cov.block_length:
+                intervals.append((series.cov.start + i, series.cov.start + i + bl + 1))
+                d = arr[i]
                 model = TwoComponentAssociationModel()
-                res = fit_kinetics(self.k_series.times, d, model, chisq_thd=chisq_thd)
+                res = fit_kinetics(series.times, d, model, chisq_thd=chisq_thd)
                 results.append(res)
                 models.append(model)
+                i += bl
 
-        self.result = KineticsFitResult(results, models, block_length)
+        self.result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
         return self.result
 
 
@@ -358,13 +367,14 @@ class KineticsFitResult(object):
     """
     this fit results is only for wt avg fitting
     """
-    def __init__(self, results, models, block_length):
+    def __init__(self, r_number, intervals, results, models):
         assert len(results) == len(models)
-        assert len(models) == len(block_length)
-
+#        assert len(models) == len(block_length)
+        self.r_number = r_number
+        self.intervals = intervals
         self.results = results
         self.models = models
-        self.block_length = block_length
+
 
     def __len__(self):
         return len(self.results)
@@ -379,7 +389,7 @@ class KineticsFitResult(object):
         iterable = [(r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)]
         return iterable.__iter__()
 
-    def get_param(self, name, repeat=True):
+    def get_param(self, name):
         """
         Get an array of parameter with name `name` from the fit result. The length of the array is equal to the
         number of amino acids.
@@ -388,8 +398,6 @@ class KineticsFitResult(object):
         ----------
         name : :obj:`str`
             Name of the parameter to extract
-        repeat : :obj:`bool`
-            If true the parameter array is repeated by block size
 
         Returns
         -------
@@ -398,23 +406,58 @@ class KineticsFitResult(object):
 
         """
 
-        names = [model.names[name] for model in self.models]
-        arr = np.array([res.params[name] for res, name in zip(self.results, names)])
-        if repeat:
-            par_arr = np.repeat(arr, self.block_length)
-        else:
-            par_arr = arr
-        return par_arr
+        output = np.full_like(self.r_number, np.nan, dtype=float)
+        for (s, e), result, model in zip(self.intervals, self.results, self.models):
+            try:
+                dummy_name = model.names[name]  ## dummy parameter name
+                value = result.params[dummy_name]  #value is scalar
+            except KeyError:   # is a lsqmodel funky town
+                value = model.get_param_values(name, **result.params)  #value is vector
+                #values = model.get_parameter(name)            #todo unify nomenclature param/parameter
+
+            i0, i1 = np.searchsorted(self.r_number, [s, e])
+            output[i0:i1] = value
+
+        return output
+
+    @property
+    def tau(self):
+        """Returns an array with the exchange rates"""
+        output = np.full_like(self.r_number, np.nan, dtype=float)
+        for (s, e), result, model in zip(self.intervals, self.results, self.models):
+            rate = model.get_tau(**result.params)
+            i0, i1 = np.searchsorted(self.r_number, [s, e])
+            output[i0:i1] = rate
+        return output
 
     @property
     def rate(self):
         """Returns an array with the exchange rates"""
-        rates = np.array([model.get_rate(**res.params) for model, res in zip(self.models, self.results)])
-        return np.repeat(rates, self.block_length)
+        return 1 / self.tau
+
+        # output = np.full_like(self.r_number, np.nan, dtype=float)
+        # for (s, e), result, model in zip(self.intervals, self.results, self.models):
+        #     rate = model.get_rate(**result.params)
+        #     i0, i1 = np.searchsorted(self.r_number, [s, e])
+        #     output[i0:i1] = rate
+        # return output
+
+    def get_output(self, names):
+        dtype = [('r_number', int)] + [(name, float) for name in names]
+        array = np.full_like(self.r_number, np.nan, dtype=dtype)
+        array['r_number'] = self.r_number
+        for name in names:
+            try:
+                array[name] = getattr(self, name)
+            except AttributeError:
+                array[name] = self.get_param(name)
+        return array
 
 
 class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
     #todo block length is redundant
+    #what is keeping it as attribute?
+    #not really because its now needed to keep as we're not storing it anymore on FitREsults
     def __init__(self, initial_result, k_series, blocks, model='bi'):
     #todo allow for setting of min/max value of parameters
         """
@@ -429,7 +472,6 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
 
         self.block_length = blocks
         self.model = model
-        print(self.block_length)
         terms = []
 
         r_number = initial_result['r_number']
@@ -440,16 +482,22 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
             idx = np.searchsorted(r_number, current)
             if model == 'mono' or (model == 'mixed' and bl == 1):
                 print('mono')
-                value = 1 / initial_result['fit1'][idx]  #this should be the average of the block range
+                #TODO update names
+                value = 1 / initial_result['rate'][idx]  #this should be the average of the block range
                 r_index += bl
-                tau1 = self.make_parameter('tau_{}'.format(i), max=30, min=1 / 70, value=value)
+                tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1 / 70, value=value)
                 term = (1 - exp(-t_var / tau1))
                 terms.append(term)
             else:
-                t1v = 1 / initial_result['fit1_r1'][idx]
-                t2v = 1 / initial_result['fit1_r2'][idx]
+                # t1v = initial_result['tau1'][idx]  #TODO update names
+                # t2v = initial_result['tau2'][idx]
                 r_index += bl
+
+
+                t1v = min(initial_result['tau1'][idx], initial_result['tau2'][idx])
+                t2v = max(initial_result['tau1'][idx], initial_result['tau2'][idx])
                 print(t1v, t2v)
+
 
                 rv = 0.5
                 tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1 / 70, value=t1v)
@@ -477,6 +525,43 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         self.d_vars = d_vars
         self.t_var = t_var
         self.sf_model = CallableModel(model_dict)
+
+    def get_param_values(self, name, **params):
+        """returns a list of parameters with name name which should have been indexed parameters
+        params repeat during blocks
+
+        """
+
+        values = [params[self.names[f'{name}_{i}']] for i, _ in enumerate(self.block_length)]
+        return np.repeat(values, self.block_length)
+
+    def get_tau(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+
+        tau_list = []
+        for i, bl in enumerate(self.block_length):
+            if self.model == 'mono' or (self.model == 'mixed' and bl == 1):
+                tau = params[self.names['tau1_{}'.format(i)]]
+            else:
+                tau1 = params[self.names['tau1_{}'.format(i)]]
+                tau2 = params[self.names['tau2_{}'.format(i)]]
+                r = params[self.names['r_{}'.format(i)]]
+
+                tau = r * tau1 + (1 - r) * tau2
+            tau_list += [tau] * bl
+
+        return np.array(tau_list)
 
     def get_tau(self, **params):
         """
