@@ -485,6 +485,7 @@ class ClassificationControl(ControlPanel):
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
 
+    #todo jslink?
     def _color_event(self, *events):
         print('color event')
         for event in events:
