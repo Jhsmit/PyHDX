@@ -396,8 +396,8 @@ class KineticsSeries(object):
         Returns
         -------
         output : :obj:`dict`
-            Output dictionary with individual kinetic series. Keys are '{start}_{stop}', values are
-            :class:`~pyhdx.pyhdx.KineticSeries` objects.
+            Output dictionary with individual kinetic series. Keys are '{start}_{stop}', (including, excluding)
+             values are :class:`~pyhdx.pyhdx.KineticSeries` objects.
 
         """
         if self.uniform:
