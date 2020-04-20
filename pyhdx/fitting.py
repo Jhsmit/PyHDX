@@ -26,7 +26,7 @@ class KineticsModel(object):
     var_index = 0
 
     def __init__(self):
-        self.names = {}
+        self.names = {}  # human name: dummy name
         self.sf_model = None
 
     def make_parameter(self, name, value=1., min=None, max=None):
