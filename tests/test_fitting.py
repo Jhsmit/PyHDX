@@ -1,6 +1,7 @@
 import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideCSVFile, KineticsSeries
+from pyhdx.fileIO import read_dynamx
 from pyhdx.fitting import KineticsFitting, KineticsFitResult
 import numpy as np
 
@@ -14,15 +15,17 @@ class TestFitting(object):
         control_100 = ('PpiA-FD', 0.167)
         state = 'PpiANative'
 
-        pcf = PeptideCSVFile(fpath)
+        data = read_dynamx(fpath)
+        pcf = PeptideCSVFile(data)
         b = pcf.data['start'] < 50
         pcf.data = pcf.data[b]
 
-        states = pcf.groupby_state_control(control_100)
+        pcf.set_control(control_100)
+        states = pcf.groupby_state()
         series = states[state]
 
         kf = KineticsFitting(series)
-        fr = kf.do_fitting()
+        fr = kf.weighted_avg_fit()
 
         rate = fr.rate
         expected = np.array([1.00335533, 1.00335533, 1.00335533, 1.00335533, 1.00335533, 1.00335533,
