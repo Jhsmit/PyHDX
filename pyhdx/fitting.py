@@ -102,7 +102,6 @@ class TwoComponentAssociationModel(KineticsModel):
         guess = np.column_stack([tau_space, tau_space, r_space])
         return guess
 
-
     def get_tau(self, **params):
         """
 
