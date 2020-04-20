@@ -240,8 +240,14 @@ class CoverageControl(ControlPanel):
 
     def _update_series(self, event):
         print('coverage new series update index bounds')
+        #also update aa per subplot
+
         self.param['index'].bounds = (0, len(event.new) - 1)
         self.exposure_str.value = str(self.peptide_measurement.exposure)
+
+        step = 25
+        value = int(step*((self.parent.series.cov.end + 1) // step) + 1)
+        self.aa_per_subplot = value# triggers redraw
 
     @param.depends('index', watch=True)
     def _update_index(self):

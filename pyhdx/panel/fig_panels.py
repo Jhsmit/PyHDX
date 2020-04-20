@@ -21,7 +21,7 @@ class CoverageFigure(FigurePanel):
         self.bk_pane = pn.pane.Bokeh(self.layout, sizing_mode='stretch_both')
 
         #hook up main controller watchers
-        self.parent.param.watch(self._update, ['series'])
+       # self.parent.param.watch(self._update, ['series'])
 
         self.ctrl = self.controllers[0]  # Only one controller for this Figure
 
