@@ -347,7 +347,7 @@ class KineticsFitting(object):
         intervals = [] # Intervals; (start, end); (inclusive, exclusive)
 
         for series in self.k_series.split().values():
-            arr = self.scores_norm.T  # todo use nonnormed scores as they should be normalized already
+            arr = self.scores_stack.T  # todo use nonnormed scores as they should be normalized already
             i = 0
             for bl in series.cov.block_length:
                 intervals.append((series.cov.start + i, series.cov.start + i + bl + 1))
