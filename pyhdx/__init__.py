@@ -7,4 +7,5 @@ __email__ = 'jhsmit@gmail.com'
 __version__ = '0.1.0'
 
 from .pyhdx import PeptideCSVFile, PeptideMeasurements, KineticsSeries, Coverage
+from .fitting import KineticsFitting
 from .fileIO import read_dynamx
