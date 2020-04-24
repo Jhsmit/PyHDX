@@ -77,28 +77,34 @@ class RateFigure(FigurePanel):
         self.figure.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
 
-        self.parent.param.watch(self._renew, ['rates'])
+        self.parent.param.watch(self._renew, ['fit_results'])
         self.parent.param.watch(self._update, ['series'])
 
-        self.fit_renderers = []
-        self.line_renderers = []
+        self.fit_renderers = {}
+        self.line_renderers = {}
 
         #todo refactor as kwargs?
         self.ctrl = self.controllers[1]  # classification controller
         self.ctrl.param.watch(self._draw_thds, ['values'])
 
     def _update(self, *events):
-        #draw plot because of new series
+        #redraw plot because of new series
 
-        source = ColumnDataSource({name: self.parent.rates[name] for name in self.parent.rates.dtype.names})
+        DEFAULT_RENDERERS = {'fit1': Triangle, 'fit2': Circle} # todo add default for non in dict
 
-        self.line_renderers = []
-        r = self.figure.triangle(x='r_number', y='fit1', legend_label='Fit 1', source=source, color='fit1_color')
-        self.fit_renderers.append(r)
-        r = self.figure.circle(x='r_number', y='fit2', legend_label='Fit 2', source=source, color='fit2_color')
-        self.fit_renderers.append(r)
+        self.fit_renderers = {}
+        for k, v in self.parent.fit_results.items():
+            array = v['rates']
+            glyph_klass = DEFAULT_RENDERERS.get(k, Diamond)
+            source = ColumnDataSource({'r_number': array['r_number'], 'rate': array['rate']})  #todo add color
+            glyph = glyph_klass(x='r_number', y='rate')
+
+            #r = self.figure.triangle(x='r_number', y='rate', legend_label=k, source=source)#, color='fit1_color')
+            #legend_label=k,
+            renderer = self.figure.add_glyph(source,  glyph=glyph)
+            self.fit_renderers[k] = renderer
+
         self.figure.legend.click_policy = 'hide'
-
         #self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
         #self.figure.circle(x='r_number', y='fit1_r2', legend_label='Fit 1 r2', source=source, color='yellow')
 
