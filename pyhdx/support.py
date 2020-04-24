@@ -165,6 +165,7 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
     hdr = delimiter.join(hdr)
     return fmt, hdr
 
+
 def np_from_txt(file_path, delimiter='\t'):
     with open(file_path, 'r') as f:
         header = f.readline()

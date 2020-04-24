@@ -597,7 +597,6 @@ class PeptideMeasurements(Coverage):
 #            pm.scores = scores
             return pm
 
-
     @property
     def name(self):
         return self.state + '_' + str(self.exposure)

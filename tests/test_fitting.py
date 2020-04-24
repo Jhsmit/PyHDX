@@ -38,7 +38,6 @@ class TestFitting(object):
         for name in ['rate', 'tau', 'tau1', 'tau2', 'r']:
             np.testing.assert_allclose(arr1[name], gt[name], rtol=1e-2)
 
-
         fr2 = kf.lsq_fit_blocks(arr1)
         arr2 = fr2.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
 
