@@ -452,6 +452,24 @@ class KineticsSeries(object):
         for pm in self:
             pm.set_control(control_100, control_zero, remove_nan=remove_nan)
 
+    @property
+    def scores_stack(self):
+        # todo move this to series
+        """uptake scores to fit in a 2d stack"""
+        scores_2d = np.stack([v.scores_average for v in self])
+        return scores_2d
+
+    @property
+    def scores_norm(self):
+        # Normalized to 100 array of scores
+        print('where is this used?')
+        scores_norm = 100 * (self.scores_stack / self.scores_stack[-1, :][np.newaxis, :])
+        return scores_norm
+
+    @property
+    def scores_peptides(self):
+        scores_peptides = np.stack([v.scores for v in self])
+        return scores_peptides
 
 class PeptideMeasurements(Coverage):
     """
