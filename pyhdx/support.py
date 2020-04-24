@@ -94,7 +94,7 @@ def _get_f_width(data, sign):
     return int(np.floor(w))
 
 
-def fmt_export(arr, delimiter='\t', header=True, sig_fig=2, width='auto', justify='left', sign=False, pad=''):
+def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
     with np.testing.suppress_warnings() as sup:
         sup.filter(RuntimeWarning)
 
