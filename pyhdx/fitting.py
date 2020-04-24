@@ -277,6 +277,9 @@ class KineticsFitting(object):
 
     @property
     def scores_stack(self):
+        raise DeprecationWarning()
+        print('move to series')
+        # todo move this to series
         """uptake scores to fit in a 2d stack"""
         scores_2d = np.stack([v.scores_average for v in self.k_series])
         return scores_2d
@@ -284,12 +287,15 @@ class KineticsFitting(object):
     @property
     def scores_norm(self):
     # Normalized to 100 array of scores
+        raise DeprecationWarning()
         print('where is this used?')
         scores_norm = 100 * (self.scores_stack / self.scores_stack[-1, :][np.newaxis, :])
         return scores_norm
 
     @property
     def scores_peptides(self):
+        raise DeprecationWarning()
+        print('move to series')
         scores_peptides = np.stack([v.scores for v in self.k_series])
         return scores_peptides
 
