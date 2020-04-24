@@ -110,8 +110,12 @@ class RateFigure(FigurePanel):
         #todo maybe not if the user has already set it
         self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
 
-        new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
-        for renderer in self.fit_renderers:
+        #todo only redraw whats nessecary dependent on events?
+        #new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
+        print(self.parent.fit_results)
+        for key, renderer in self.fit_renderers.items():
+            array = self.parent.fit_results[key]['rates']
+            new_dict = {name: array[name] for name in renderer.data_source.column_names}
             renderer.data_source.data.update(new_dict)
 
         self.bk_pane.param.trigger('object')
@@ -119,6 +123,8 @@ class RateFigure(FigurePanel):
     def _draw_thds(self, *events):
         #todo check events and draw according to those?
         print('draw thresholds')
+        for event in events:
+            print(event)
 
         #https://docs.bokeh.org/en/latest/docs/user_guide/layout.html
         #http://docs.bokeh.org/en/latest/docs/user_guide/annotations.html#spans

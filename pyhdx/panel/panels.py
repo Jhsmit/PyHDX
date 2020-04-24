@@ -1,7 +1,6 @@
 import matplotlib
 matplotlib.use('agg')
 
-
 import os
 import panel as pn
 import numpy as np
