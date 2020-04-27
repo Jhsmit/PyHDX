@@ -1,6 +1,10 @@
 import param
 import panel as pn
 
+DEFAULT_RENDERERS = {'fit1': 'triangle', 'fit2': 'circle'}
+DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red'}
+
+
 class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 

@@ -1,8 +1,8 @@
-from .base import FigurePanel
+from .base import FigurePanel, DEFAULT_RENDERERS
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure
 from bokeh.layouts import column
-from bokeh.models import LabelSet, ColumnDataSource, HoverTool
+from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer
 from bokeh.models.markers import Triangle, Circle, Diamond
 import panel as pn
 import numpy as np
@@ -85,72 +85,51 @@ class RateFigure(FigurePanel):
         self.figure.xaxis.axis_label = 'Residue number'
         self.figure.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
 
+#        DEFAULT_RENDERERS
+        for k, v in DEFAULT_RENDERERS.items():
+            glyph_func = getattr(self.figure, v)
+            source = ColumnDataSource({name: [] for name in ['r_number', 'rate', 'color']})
+            renderer = glyph_func(x='r_number', y='rate', color='color', source=source, legend_label=k, size=10,
+                                  name=k)
+            renderer.tags = ['rate']
+
         hover = self.figure.select(dict(type=HoverTool))
         hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@rate')]
         hover.mode = 'vline'
+        self.figure.legend.click_policy = 'hide'
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
-
-        self.fit_renderers = {}
-        self.line_renderers = {}
 
         #todo refactor as kwargs?
         self.ctrl = self.controllers[1]  # classification controller
         self.ctrl.param.watch(self._draw_thds, ['values'])
-        self.parent.param.watch(self._renew, ['fit_results'])
-        self.parent.param.watch(self._update, ['series'])
+        self.parent.param.watch(self._update_rates, ['fit_results'])
+        self.parent.param.watch(self._update_colors, ['rate_colors'])
 
-    def _update(self, *events):
-        #redraw plot because of new series
 
-        DEFAULT_RENDERERS = {'fit1': 'triangle', 'fit2': 'circle'}
-        DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red'}
-
-        self.fit_renderers = {}
-        for k, v in self.parent.fit_results.items():
-            array = v['rates']
-            glyph_func = getattr(self.figure, DEFAULT_RENDERERS.get(k, 'diamond'))
-            color = DEFAULT_COLORS.get(k, 'black')
-            print([color]*len(array))
-            source = ColumnDataSource({'r_number': array['r_number'], 'rate': array['rate'], 'color': [color]})  #todo add color
-            renderer = glyph_func(x='r_number', y='rate', source=source, color='color', legend_label='asdf', size=10)
-
-            #r = self.figure.triangle(x='r_number', y='rate', legend_label=k, source=source)#, color='fit1_color')
-            #legend_label=k,
-            #renderer = self.figure.add_glyph(source,  glyph=glyph)
-            self.fit_renderers[k] = renderer
-
-        self.figure.legend.click_policy = 'hide'
-        #self.figure.circle(x='r_number', y='fit1_r1', legend_label='Fit 1 r1', source=source, color='green')
-        #self.figure.circle(x='r_number', y='fit1_r2', legend_label='Fit 1 r2', source=source, color='yellow')
-
-        self.bk_pane.param.trigger('object')
-
-    def _renew(self, event):
-        print('rates array update, renew')
+    def _update_rates(self, event):
+        print('rates array update, renew', event.what)
 
         #todo maybe not if the user has already set it
         self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
 
         #todo only redraw whats nessecary dependent on events?
-        #new_dict = {name: self.parent.rates[name] for name in self.parent.rates.dtype.names}
-
-        #todo this should be down with plot.select and naming the glyps
-        # >> > plot.circle([1, 2, 3], [4, 5, 6], name="temp")
-        # >> > plot.select(name="temp")
-        # [GlyphRenderer(id='399d53f5-73e9-44d9-9527-544b761c7705', ...)]
-
-        # >> > r = plot.circle([1, 2, 3], [4, 5, 6])
-        # >> > r.tags = ["foo", 10]
-        # >> > plot.select(tags=['foo', 10])
-        # [GlyphRenderer(id='1de4c3df-a83d-480a-899b-fb263d3d5dd9', ...)]
-
-        for key, renderer in self.fit_renderers.items():
-            array = self.parent.fit_results[key]['rates']
+        renderers = self.figure.select(tags='rate', type=GlyphRenderer)
+        print(renderers)
+        for renderer in renderers:
+            array = self.parent.fit_results[renderer.name]['rates']
             new_dict = {name: array[name] for name in renderer.data_source.column_names if name in array.dtype.names}
-
-            #Temporary hack
-            new_dict['color'] = [renderer.data_source.data['color'][0]]*len(array)
             renderer.data_source.data.update(new_dict)
+
+        self.bk_pane.param.trigger('object')
+
+    def _update_colors(self, event):
+        print('colors', event.what)
+        # #todo jslink colors to parent.rate_colors?
+        # for event in events:
+        renderers = self.figure.select(tags='rate', type=GlyphRenderer)
+        print('renderers', renderers)
+        for renderer in renderers:
+            renderer.data_source.data.update({'color': self.parent.rate_colors[renderer.name]})
 
         self.bk_pane.param.trigger('object')
 

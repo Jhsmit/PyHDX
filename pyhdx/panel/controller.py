@@ -1,5 +1,5 @@
 from .log import setup_custom_logger
-from .base import ControlPanel
+from .base import ControlPanel, DEFAULT_COLORS
 from .fig_panels import CoverageFigure, RateFigure
 from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import KineticsFitting
@@ -49,6 +49,7 @@ class Controller(param.Parameterized):
     data = param.Array()  # might not be needed, in favour of peptides
     #rates = param.Array(doc='Output rates data')
     fit_results = param.Dict(empty_results)
+    rate_colors = param.Dict({})
     peptides = param.ClassSelector(PeptideCSVFile)  #class with all peptides to be considered
     series = param.ClassSelector(KineticsSeries)
     fitting = param.ClassSelector(KineticsFitting)
@@ -60,7 +61,6 @@ class Controller(param.Parameterized):
         tmpl = pn.Template(template=template)
      #   tmpl.nb_template.globals['get_id'] = make_globally_unique_id
 
-
         # Controllers
         self.fileinput = FileInputControl(self)
         self.coverage = CoverageControl(self)#CoveragePanel(self)
@@ -68,7 +68,6 @@ class Controller(param.Parameterized):
         #self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
         self.file_export = FileExportPanel(self)
-
 
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage])  #parent, [controllers]
@@ -96,16 +95,20 @@ class Controller(param.Parameterized):
         print('series changed')
 
         self.fitting = KineticsFitting(self.series)
-        #todo add errors here
-        rate_fields = ['fit1', 'fit1_r1', 'fit1_r2', 'fit2', 'fit2_r1', 'fit2_r2']
-        color_fields = ['fit1_color', 'fit2_color']
-        dtype = [('r_number', int)] + [(name, float) for name in rate_fields] + [(name, 'U7') for name in color_fields]
-        rates = np.zeros(self.series.cov.prot_len, dtype=dtype)
-        rates['r_number'] = self.series.cov.r_number
-        rates['fit1_color'][:] = 'blue'
-        rates['fit2_color'][:] = 'red'
+        for key in ['fit1', 'fit2']:    # todo this list of names somewhere?
+            self.rate_colors[key] = [DEFAULT_COLORS[key]]*len(self.series.cov.r_number)
+        self.param.trigger('rate_colors')
 
-        self.rates = rates  # this assignement triggers downstream watchers? manual trigger?
+        # #todo add errors here
+        # rate_fields = ['fit1', 'fit1_r1', 'fit1_r2', 'fit2', 'fit2_r1', 'fit2_r2']
+        # color_fields = ['fit1_color', 'fit2_color']
+        # dtype = [('r_number', int)] + [(name, float) for name in rate_fields] + [(name, 'U7') for name in color_fields]
+        # rates = np.zeros(self.series.cov.prot_len, dtype=dtype)
+        # rates['r_number'] = self.series.cov.r_number
+        # rates['fit1_color'][:] = 'blue'
+        # rates['fit2_color'][:] = 'red'
+        #
+        # self.rates = rates  # this assignement triggers downstream watchers? manual trigger?
 
     @property
     def servable(self):
@@ -313,6 +316,8 @@ class FittingControl(ControlPanel):
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
         self.parent.param.trigger('fit_results')  # Trigger plot update
 
+        # self.parent.rate_colors['fit1'] = [DEFAULT_COLORS['fit1']]*len(rates_array)
+        # self.parent.param.trigger('rates_colors') # Trigger plot update
 
         #self.parent.param.trigger('rates')
         #self._renew(None)  #manual trigger
@@ -329,11 +334,10 @@ class FittingControl(ControlPanel):
         fit_result = self.parent.fitting.lsq_fit_blocks(self.parent.fit_results['fit1']['rates'], **self.fit_kwargs)
         rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
         self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
-
-#        self.parent.param.trigger('rates')
-
-  #      self._renew(None)  # manual trigger
         self.parent.param.trigger('fit_results')  # Trigger plot update
+
+        # self.parent.rate_colors['fit2'] = [DEFAULT_COLORS['fit2']]*len(rates_array)
+        # self.parent.param.trigger('rates_colors')  # Trigger plot update
 
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
@@ -394,11 +398,13 @@ class ClassificationControl(ControlPanel):
 
     def _rates_updated(self, *events):
         print('rates')
-        objects = [elem for elem in ['fit1', 'fit2'] if not np.all(self.parent.rates[elem] == 0)]
-        print(objects)
-        self.param['target'].objects = objects
-        if not self.target and objects:
-            self.target = objects[-1]
+        print("UPDATE")
+
+        # objects = [elem for elem in ['fit1', 'fit2'] if not np.all(self.parent.rates[elem] == 0)]
+        # print(objects)
+        # self.param['target'].objects = objects
+        # if not self.target and objects:
+        #     self.target = objects[-1]
 
     def _action_threshold(self):
         if self.num_classes > 1:
@@ -440,7 +446,6 @@ class ClassificationControl(ControlPanel):
         #     #perhaps the rates should be a pandas dataframe
         #     rates = append_fields(self.parent.rates, 'color', data=colors, usemask=False)
         #     self.parent.rates = rates  #triggers
-
 
     @param.depends('num_classes', watch=True)
     def _update_num_colors(self):
