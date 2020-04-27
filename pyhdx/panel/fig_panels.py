@@ -47,6 +47,7 @@ class CoverageFigure(FigurePanel):
             _bokeh_coverage(self.peptide_measurement, self.ctrl.wrap, self.ctrl.aa_per_subplot)
         self.figures[-1].xaxis.axis_label = 'Residue number'
 
+
         self.label_set.visible = self.ctrl.labels
         self.bk_pane.object = self.layout
 
@@ -57,9 +58,12 @@ class CoverageFigure(FigurePanel):
         self.bk_pane.param.trigger('object')
 
     def _update_index(self, *events):
-        color = self._get_color()
+        new_dict = {}
+        new_dict['c'] = self._get_color()
+        new_dict['uptake'] = self.peptide_measurement.data['uptake']
+        new_dict['scores'] = self.peptide_measurement.data['scores']
         for fig in self.figures:
-            fig.renderers[0].data_source.data.update({'c': color})
+            fig.renderers[0].data_source.data.update(new_dict)
         self.bk_pane.param.trigger('object')
 
     def _get_color(self):
@@ -77,7 +81,7 @@ class RateFigure(FigurePanel):
     def __init__(self, *args, **params):
         super(RateFigure, self).__init__(*args, **params)
 
-        self.figure = figure(y_axis_type="log", tools= 'pan,wheel_zoom,box_zoom,save,reset,hover')
+        self.figure = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
         self.figure.xaxis.axis_label = 'Residue number'
         self.figure.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
 
@@ -108,7 +112,7 @@ class RateFigure(FigurePanel):
             color = DEFAULT_COLORS.get(k, 'black')
             print([color]*len(array))
             source = ColumnDataSource({'r_number': array['r_number'], 'rate': array['rate'], 'color': [color]})  #todo add color
-            renderer = glyph_func(x='r_number', y='rate', source=source, color='color', legend_label='asdf', size=15)
+            renderer = glyph_func(x='r_number', y='rate', source=source, color='color', legend_label='asdf', size=10)
 
             #r = self.figure.triangle(x='r_number', y='rate', legend_label=k, source=source)#, color='fit1_color')
             #legend_label=k,

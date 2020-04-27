@@ -2,7 +2,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
-from bokeh.models import LinearColorMapper, ColorBar, ColumnDataSource, Rect, LabelSet
+from bokeh.models import LinearColorMapper, ColorBar, ColumnDataSource, Rect, LabelSet, HoverTool
 from bokeh.plotting import figure
 from bokeh.layouts import row, column
 
@@ -153,17 +153,26 @@ def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwarg
     x = pm.data['start'] - 0.5 + (width / 2)
     label_x = pm.data['start']
     names = [str(i) for i in range(len(pm.data))]
-    source = ColumnDataSource(dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names))
+    source = ColumnDataSource(dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names, start=pm.data['start'],
+                                   end=pm.data['end'], sequence=pm.data['sequence'], uptake=pm.data['uptake'], scores=pm.data['scores']))
     glyph = Rect(x='x', y='y', width='width', height=1, fill_color='c')
     labels = LabelSet(x='label_x', y='y', text='names', source=source, text_baseline='middle', text_align='left')
 
     figures = []
     # plot_width=750, plot_height=int(TOTAL_HEIGHT/num_axes),
     for j in range(num_axes):
-        fig = figure(title=None, min_border=0,
+        fig = figure(title=None, min_border=0, tools='pan,wheel_zoom,box_zoom,save,reset,hover',
                      x_range=(j*aa_per_subplot, (j + 1) * aa_per_subplot))
         fig.add_glyph(source, glyph)
         fig.add_layout(labels)
+        hover = fig.select(dict(type=HoverTool))
+        hover.tooltips = [('Index', '@names'),
+                          ('Start', '@start'),
+                          ('End', '@end'),
+                          ('Sequence', '@sequence'),
+                          ('Score', '@scores'),
+                          ('Uptake', '@uptake')]
+
         figures.append(fig)
 
     #https://github.com/bokeh/bokeh/issues/7093
