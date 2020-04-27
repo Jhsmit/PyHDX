@@ -3,6 +3,7 @@ from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure
 from bokeh.layouts import column
 from bokeh.models import LabelSet, ColumnDataSource
+from bokeh.models.markers import Triangle, Circle, Diamond
 import panel as pn
 import numpy as np
 

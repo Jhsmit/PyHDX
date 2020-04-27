@@ -80,8 +80,8 @@ class Controller(param.Parameterized):
         tmpl.add_panel('fitting', self.fit_control.panel)
         tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('file_export', self.file_export.panel)
-        tmpl.add_panel('scene3d', self.coverage_figure.panel)
-        tmpl.add_panel('slice_j', self.rate_figure.panel)
+        tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
+        tmpl.add_panel('rate_fig', self.rate_figure.panel)
         tmpl.add_panel('slice_k', hv.Curve([1, 2, 3]))
 
 
