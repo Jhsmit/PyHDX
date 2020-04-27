@@ -305,6 +305,7 @@ class FittingControl(ControlPanel):
         rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
 
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
+        self.parent.param.trigger('fit_results')  # Trigger plot update
 
 
         #self.parent.param.trigger('rates')
@@ -319,13 +320,14 @@ class FittingControl(ControlPanel):
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
 
-        fit_result = self.parent.fitting.lsq_fit_blocks(self.parent.rates, **self.fit_kwargs)
+        fit_result = self.parent.fitting.lsq_fit_blocks(self.parent.fit_results['fit1']['rates'], **self.fit_kwargs)
         rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
         self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
 
 #        self.parent.param.trigger('rates')
 
   #      self._renew(None)  # manual trigger
+        self.parent.param.trigger('fit_results')  # Trigger plot update
 
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False

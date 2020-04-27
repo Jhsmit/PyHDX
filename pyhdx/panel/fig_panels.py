@@ -82,8 +82,7 @@ class RateFigure(FigurePanel):
         self.figure.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
 
-        self.parent.param.watch(self._renew, ['fit_results'])
-        self.parent.param.watch(self._update, ['series'])
+
 
         self.fit_renderers = {}
         self.line_renderers = {}
@@ -91,6 +90,8 @@ class RateFigure(FigurePanel):
         #todo refactor as kwargs?
         self.ctrl = self.controllers[1]  # classification controller
         self.ctrl.param.watch(self._draw_thds, ['values'])
+        self.parent.param.watch(self._renew, ['fit_results'])
+        self.parent.param.watch(self._update, ['series'])
 
     def _update(self, *events):
         #redraw plot because of new series
