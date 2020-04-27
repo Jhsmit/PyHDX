@@ -316,13 +316,12 @@ class KineticsFitting(object):
             intervals.append((s, e + 1))  #inclusive, exclusive
 
             blocks = block_func(section, **block_kwargs)
-
-            print('section', section)
-            print('blocks', blocks)
             model = LSQKinetics(initial_result, section, blocks, model=model)
 
-            scores_peptides = np.stack([v.scores for v in section])
-            data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, scores_peptides.T)}
+            # scores_peptides = np.stack([v.scores for v in section])
+            # sp1 = section.scores_peptides
+            # assert np.all(scores_peptides == sp1)
+            data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, section.scores_peptides.T)}
             data_dict[model.t_var.name] = section.times
             fit = Fit(model.sf_model, **data_dict)
             result = fit.execute()
