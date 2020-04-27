@@ -35,6 +35,11 @@ pth = os.path.dirname(__file__)
 
 env = Environment(loader=FileSystemLoader(pth))
 
+empty_results = {
+    'fit1': {'rates': {'r_number': [], 'rate': []}},
+    'fit2': {'rates': {'r_number': [], 'rate': []}}
+}
+
 
 class Controller(param.Parameterized):
     """
@@ -44,7 +49,8 @@ class Controller(param.Parameterized):
     """
 
     data = param.Array()  # might not be needed, in favour of peptides
-    rates = param.Array(doc='Output rates data')
+    #rates = param.Array(doc='Output rates data')
+    fit_results = param.Dict(empty_results)
     peptides = param.ClassSelector(PeptideCSVFile)  #class with all peptides to be considered
     series = param.ClassSelector(KineticsSeries)
     fitting = param.ClassSelector(KineticsFitting)
@@ -61,7 +67,7 @@ class Controller(param.Parameterized):
         self.fileinput = FileInputControl(self)
         self.coverage = CoverageControl(self)#CoveragePanel(self)
         self.fit_control = FittingControl(self)
-        self.rate_panel = RateConstantPanel(self)
+        #self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
         self.file_export = FileExportPanel(self)
 
@@ -222,7 +228,7 @@ class FileInputControl(ControlPanel):
         params = pn.panel(self.param)
         col = pn.Column(*[self.file_selectors_column, *params[1:]])
 
-        return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
+        return pn.WidgetBox(col,  pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
 
 
 class CoverageControl(ControlPanel):
@@ -286,7 +292,6 @@ class FittingControl(ControlPanel):
         super(FittingControl, self).__init__(parent, **params)
 
         self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
-
         self.parent.param.watch(self._update_series, ['series'])
 
     def _update_series(self, *events):
@@ -298,18 +303,13 @@ class FittingControl(ControlPanel):
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
 
-        result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
-        rates = np.vstack([1 / result.get_param('tau1'), 1 / result.get_param('tau2')])
+        fit_result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
+        rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
 
-        names = ['fit1', 'fit1_r1', 'fit1_r2']
-        rates_out = np.empty_like(self.parent.rates,
-                                  dtype=[(name, float) for name in names])
-        rates_out['fit1'] = result.rate
-        rates_out['fit1_r1'] = rates.min(axis=0)
-        rates_out['fit1_r2'] = rates.max(axis=0)
+        self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
 
-        self.parent.rates[names] = rates_out[names]  # assigning fields doesnt seem to trigger replot
-        self.parent.param.trigger('rates')
+
+        #self.parent.param.trigger('rates')
         #self._renew(None)  #manual trigger
 
         self.param['do_fit1'].constant = False
@@ -321,9 +321,11 @@ class FittingControl(ControlPanel):
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
 
-        r_number, fit2_rate = self.parent.fitting.lsq_fit_blocks(self.parent.rates, **self.fit_kwargs)
-        self.parent.rates['fit2'] = fit2_rate
-        self.parent.param.trigger('rates')
+        fit_result = self.parent.fitting.lsq_fit_blocks(self.parent.rates, **self.fit_kwargs)
+        rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
+        self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
+
+#        self.parent.param.trigger('rates')
 
   #      self._renew(None)  # manual trigger
 
@@ -382,7 +384,7 @@ class ClassificationControl(ControlPanel):
 
         self.param.trigger('values')
         self.param.trigger('colors')
-        self.parent.param.watch(self._rates_updated, ['rates'])
+        self.parent.param.watch(self._rates_updated, ['fit_results'])
 
     def _rates_updated(self, *events):
         print('rates')
@@ -394,7 +396,7 @@ class ClassificationControl(ControlPanel):
 
     def _action_threshold(self):
         if self.num_classes > 1:
-            rates = self.parent.rates[self.target]
+            rates = self.parent.fit_results[self.target]['rates']['rate']
             thd_rates = rates[~np.isnan(rates)]
             thds = threshold_multiotsu(np.log(thd_rates), classes=self.num_classes)
             for thd, widget in zip(thds, self.values_col):
