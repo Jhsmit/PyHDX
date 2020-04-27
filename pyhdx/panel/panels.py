@@ -150,6 +150,7 @@ class RateConstantPanel(PanelBase):
 
     def __init__(self, parent, **params):
         super(RateConstantPanel, self).__init__(**params)
+        raise DeprecationWarning('this is all old crap')
         self.parent = parent
 
         self.figure = figure(y_axis_type="log")
@@ -272,6 +273,7 @@ class CoveragePanel(PanelBase):
 
     def __init__(self, parent, **params):
         super(CoveragePanel, self).__init__(**params)
+        raise DeprecationWarning('will be removed')
         self.parent = parent
 
         self.figures = [figure()]
@@ -367,6 +369,7 @@ class HDXBase(param.Parameterized):
 
     def __init__(self, **params):
         super(HDXBase, self).__init__(**params)
+        raise DeprecationWarning('will also be removed')
         self.peptide_file = None  # PeptideCSVFile object
         self.pm_dict = {}  # Dictionary of PeptideMeasurements object
 
