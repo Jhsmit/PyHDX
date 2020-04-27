@@ -3,6 +3,8 @@ import panel as pn
 
 DEFAULT_RENDERERS = {'fit1': 'triangle', 'fit2': 'circle'}
 DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red'}
+DEFAULT_CLASS_COLORS = ['#cc0c49', '#eded0e', '#1930e0']
+
 
 
 class PanelBase(param.Parameterized):

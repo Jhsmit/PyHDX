@@ -2,7 +2,7 @@ from .base import FigurePanel, DEFAULT_RENDERERS
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure
 from bokeh.layouts import column
-from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer
+from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span
 from bokeh.models.markers import Triangle, Circle, Diamond
 import panel as pn
 import numpy as np
@@ -105,7 +105,6 @@ class RateFigure(FigurePanel):
         self.parent.param.watch(self._update_rates, ['fit_results'])
         self.parent.param.watch(self._update_colors, ['rate_colors'])
 
-
     def _update_rates(self, event):
         print('rates array update, renew', event.what)
 
@@ -136,8 +135,19 @@ class RateFigure(FigurePanel):
     def _draw_thds(self, *events):
         #todo check events and draw according to those?
         print('draw thresholds')
-        for event in events:
-            print(event)
+
+        #remove everything
+        for span in self.figure.select(tags='thd'):
+            self.figure.center.remove(span)
+        print("Values'", self.ctrl.values)
+        for value in self.ctrl.values:
+            print('value in loop', value)
+            span = Span(location=value, dimension='width')
+            span.tags = ['thd']
+            self.figure.add_layout(span)
+            print(self.figure.center)
+
+        self.bk_pane.param.trigger('object')
 
         #https://docs.bokeh.org/en/latest/docs/user_guide/layout.html
         #http://docs.bokeh.org/en/latest/docs/user_guide/annotations.html#spans

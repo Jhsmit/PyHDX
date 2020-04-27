@@ -1,5 +1,5 @@
 from .log import setup_custom_logger
-from .base import ControlPanel, DEFAULT_COLORS
+from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from .fig_panels import CoverageFigure, RateFigure
 from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import KineticsFitting
@@ -33,9 +33,10 @@ pth = os.path.dirname(__file__)
 
 env = Environment(loader=FileSystemLoader(pth))
 
+# todo dict comprehension
 empty_results = {
-    'fit1': {'rates': {'r_number': [], 'rate': []}},
-    'fit2': {'rates': {'r_number': [], 'rate': []}}
+    'fit1': {'rates': {'r_number': [], 'rate': []}, 'fitresult': None},
+    'fit2': {'rates': {'r_number': [], 'rate': []}, 'fitresult': None}
 }
 
 
@@ -379,8 +380,6 @@ class ClassificationControl(ControlPanel):
     values = param.List(precedence=-1)
     colors = param.List(precedence=-1)
 
-    color_defaults = ['#1930e0', '#eded0e', '#cc0c49']
-
     def __init__(self, parent, **param):
         super(ClassificationControl, self).__init__(parent, **param)
 
@@ -400,11 +399,13 @@ class ClassificationControl(ControlPanel):
         print('rates')
         print("UPDATE")
 
-        # objects = [elem for elem in ['fit1', 'fit2'] if not np.all(self.parent.rates[elem] == 0)]
-        # print(objects)
-        # self.param['target'].objects = objects
-        # if not self.target and objects:
-        #     self.target = objects[-1]
+        objects = [k for k, v in self.parent.fit_results.items() if v['fitresult'] is not None]
+        #objects = [elem for elem in ['fit1', 'fit2'] if not np.all(self.parent.rates[elem] == 0)]
+        print(objects)
+        self.param['target'].objects = objects
+        #set target if its not set already
+        if not self.target and objects:
+            self.target = objects[-1]
 
     def _action_threshold(self):
         if self.num_classes > 1:
@@ -427,21 +428,24 @@ class ClassificationControl(ControlPanel):
         elif np.any(np.diff(self.values)) < 0:
             return
 
-        rates = self.parent.rates[self.target]
-        colors = np.empty(len(self.parent.rates), dtype='U7')
+        #todo make rates a property
+        rates = self.parent.fit_results[self.target]['rates']['rate']
+        colors = np.empty(len(rates), dtype='U7')
 
         if self.num_classes == 1:
             colors[:] = self.colors[0]
         else:
             full_thds = [-np.inf] + self.values + [np.inf]
-            for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors):
+            for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
                 b = (rates > lower) & (rates <= upper)
                 colors[b] = color
 
-        name = self.target + '_color'
        # if 'color' in self.parent.rates.dtype.names:
-        self.parent.rates[name] = colors
-        self.parent.param.trigger('rates')
+        self.parent.rate_colors[self.target] = colors
+        self.parent.param.trigger('rate_colors')
+
+
+
         # else:
         #     #perhaps the rates should be a pandas dataframe
         #     rates = append_fields(self.parent.rates, 'color', data=colors, usemask=False)
@@ -483,7 +487,7 @@ class ClassificationControl(ControlPanel):
 
     def _add_color(self):
         try:
-            default = self.color_defaults[len(self.colors_col)]
+            default = DEFAULT_CLASS_COLORS[len(self.colors_col)]
         except IndexError:
             default = '#FFFFFF'
 
@@ -512,8 +516,6 @@ class ClassificationControl(ControlPanel):
             idx = list(self.values_col).index(event.obj)
             self.values[idx] = event.new
         self.param.trigger('values')
-
-
 
     @property
     def panel(self):
