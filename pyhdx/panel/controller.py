@@ -4,7 +4,7 @@ from .fig_panels import CoverageFigure, RateFigure
 from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
-from pyhdx.support import get_constant_blocks, get_reduced_blocks, fmt_export, np_from_txt
+from pyhdx.support import get_constant_blocks, get_reduced_blocks, fmt_export, np_from_txt, autowrap
 
 logger = setup_custom_logger('root')
 logger.debug('main message')
@@ -254,6 +254,9 @@ class CoverageControl(ControlPanel):
         step = 25
         value = int(step*(self.parent.series.cov.end // step + 1))
         self.aa_per_subplot = value# triggers redraw
+
+        #must be uniform
+        self.wrap = autowrap(self.parent.series.cov)
 
     @param.depends('index', watch=True)
     def _update_index(self):

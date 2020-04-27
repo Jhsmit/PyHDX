@@ -1,5 +1,5 @@
 import numpy as np
-
+import itertools
 
 def get_reduced_blocks(k_series, max_combine=2, max_join=5):
     block_length = list(k_series.cov.block_length.copy())
@@ -176,3 +176,26 @@ def np_from_txt(file_path, delimiter='\t'):
         names = None
 
     return np.genfromtxt(file_path, dtype=None, names=names, skip_header=1, delimiter=delimiter, encoding=None, autostrip=True)
+
+
+def try_wrap(coverage, wrap, margin=4):
+    """Check for a given coverage if the value of wrap is high enough to not have peptides overlapping within margin"""
+    x = np.zeros((wrap, coverage.prot_len + margin))
+    wrap_gen = itertools.cycle(range(wrap))
+    for i, elem in zip(wrap_gen, coverage.data):
+        section = x[i, elem['start']: elem['end'] + 1 + margin]
+        if np.any(section):
+            return False
+        section[:] = 1
+
+    return True
+
+
+def autowrap(coverage, margin=4):
+    """Automatically finds wrap value for coverage to not have overlapping peptides within margin"""
+    wrap = 5
+    while not try_wrap(coverage, wrap, margin=margin):
+        wrap += 5
+        if wrap > coverage.prot_len:
+            break
+    return wrap
