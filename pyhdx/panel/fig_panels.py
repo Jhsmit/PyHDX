@@ -16,6 +16,8 @@ class CoverageFigure(FigurePanel):
         super(CoverageFigure, self).__init__(*args, **params)
 
         self.figures = [figure()]
+        self.figures[0].xaxis.axis_label = 'Residue number'
+
         self.layout = column(*self.figures, sizing_mode='stretch_both')
         self.label_set = LabelSet()
         self.bk_pane = pn.pane.Bokeh(self.layout, sizing_mode='stretch_both')
@@ -42,6 +44,8 @@ class CoverageFigure(FigurePanel):
         print('series change on coverage fig')
         self.layout, self.figures, self.label_set = \
             _bokeh_coverage(self.peptide_measurement, self.ctrl.wrap, self.ctrl.aa_per_subplot)
+        self.figures[-1].xaxis.axis_label = 'Residue number'
+
         self.label_set.visible = self.ctrl.labels
         self.bk_pane.object = self.layout
 
