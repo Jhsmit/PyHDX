@@ -1,7 +1,5 @@
 from .log import setup_custom_logger
 from .base import ControlPanel
-from .panels import FileInputPanel, CoveragePanel, RateConstantPanel
-
 from .fig_panels import CoverageFigure, RateFigure
 from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import KineticsFitting
