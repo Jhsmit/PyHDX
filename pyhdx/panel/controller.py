@@ -258,6 +258,9 @@ class CoverageControl(ControlPanel):
         #must be uniform
         self.wrap = autowrap(self.parent.series.cov)
 
+        #set index to zero
+        self.index = 0
+
     @param.depends('index', watch=True)
     def _update_index(self):
         self.exposure_str.value = str(self.peptide_measurement.exposure)
