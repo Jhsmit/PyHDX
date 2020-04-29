@@ -1,6 +1,6 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import CoverageFigure, RateFigure
+from .fig_panels import CoverageFigure, RateFigure, ProteinFigure
 from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
@@ -13,7 +13,7 @@ logger.debug('main message')
 import param
 import panel as pn
 from jinja2 import Environment, FileSystemLoader
-import holoviews as hv  #todo remove dependency
+#import holoviews as hv  #todo remove dependency
 import os
 import numpy as np
 from skimage.filters import threshold_multiotsu
@@ -73,6 +73,7 @@ class Controller(param.Parameterized):
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
+        self.protein_figure = ProteinFigure(self, [])
 
         # tmpl = pn.Template(template)
         tmpl.add_panel('input', self.fileinput.panel)
@@ -82,7 +83,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('file_export', self.file_export.panel)
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
-        tmpl.add_panel('slice_k', hv.Curve([1, 2, 3]))
+        tmpl.add_panel('slice_k', self.protein_figure.panel)
 
 
         #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
@@ -374,9 +375,10 @@ class FittingControl(ControlPanel):
 
 
 class ClassificationControl(ControlPanel):
-    num_classes = param.Number(3, bounds=(1, None), doc='Number of classification classes')
+    num_classes = param.Number(3, bounds=(1, 10), doc='Number of classification classes')
     target = param.Selector(label='Target')
     otsu_thd = param.Action(lambda self: self._action_threshold(), label='Otsu')
+    show_thds = param.Boolean(True)
     values = param.List(precedence=-1)
     colors = param.List(precedence=-1)
 
@@ -506,12 +508,15 @@ class ClassificationControl(ControlPanel):
     def _color_event(self, *events):
         print('color event')
         for event in events:
+            print(event)
             idx = list(self.colors_col).index(event.obj)
             self.colors[idx] = event.new
-        self.param.trigger('colors')
+            c_array = self.parent.rate_colors[self.target]
+            c_array[c_array == event.old] = event.new
+        self.param.trigger('colors')  # i dont think anyone listens to this
+        self.parent.param.trigger('rate_colors')
 
     def _value_event(self, *events):
-        print('value event')
         for event in events:
             idx = list(self.values_col).index(event.obj)
             self.values[idx] = event.new
@@ -519,7 +524,8 @@ class ClassificationControl(ControlPanel):
 
     @property
     def panel(self):
-        return pn.WidgetBox(pn.Param(self.param), self.values_col, self.colors_col)
+        return pn.WidgetBox(pn.Param(self.param, widgets={'num_classes': pn.widgets.Spinner}),
+                            self.values_col, self.colors_col)
 
 
 class FileExportPanel(ControlPanel):

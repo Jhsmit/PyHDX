@@ -166,7 +166,8 @@ def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwarg
         fig.add_glyph(source, glyph)
         fig.add_layout(labels)
         hover = fig.select(dict(type=HoverTool))
-        hover.tooltips = [('Index', '@names'),
+        hover.tooltips = [('Pos', '$x{int}'),
+                          ('Index', '@names'),
                           ('Start', '@start'),
                           ('End', '@end'),
                           ('Sequence', '@sequence'),

@@ -11,6 +11,15 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 
 
+NGL_HTML = """
+<div id="viewport" style="width:100%; height:100%;"></div>
+<script>
+stage = new NGL.Stage("viewport");
+stage.loadFile("rcsb://1NKT.mmtf", {defaultRepresentation: true});
+</script>
+"""
+
+
 class CoverageFigure(FigurePanel):
 
     def __init__(self, *args, **params):
@@ -46,7 +55,6 @@ class CoverageFigure(FigurePanel):
         self.layout, self.figures, self.label_set = \
             _bokeh_coverage(self.peptide_measurement, self.ctrl.wrap, self.ctrl.aa_per_subplot)
         self.figures[-1].xaxis.axis_label = 'Residue number'
-
 
         self.label_set.visible = self.ctrl.labels
         self.bk_pane.object = self.layout
@@ -93,6 +101,13 @@ class RateFigure(FigurePanel):
                                   name=k)
             renderer.tags = ['rate']
 
+        #spans for threshold lines
+        for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
+            sp = Span(location=0, dimension='width')
+            sp.tags = ['thd']
+            sp.visible = False
+            self.figure.add_layout(sp)
+
         hover = self.figure.select(dict(type=HoverTool))
         hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@rate')]
         hover.mode = 'vline'
@@ -101,19 +116,18 @@ class RateFigure(FigurePanel):
 
         #todo refactor as kwargs?
         self.ctrl = self.controllers[1]  # classification controller
-        self.ctrl.param.watch(self._draw_thds, ['values'])
+        self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
         self.parent.param.watch(self._update_rates, ['fit_results'])
         self.parent.param.watch(self._update_colors, ['rate_colors'])
 
     def _update_rates(self, event):
-        print('rates array update, renew', event.what)
+        print('rates array update, renew')
 
         #todo maybe not if the user has already set it
         self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
 
         #todo only redraw whats nessecary dependent on events?
         renderers = self.figure.select(tags='rate', type=GlyphRenderer)
-        print(renderers)
         for renderer in renderers:
             array = self.parent.fit_results[renderer.name]['rates']
             new_dict = {name: array[name] for name in renderer.data_source.column_names if name in array.dtype.names}
@@ -122,33 +136,51 @@ class RateFigure(FigurePanel):
         self.bk_pane.param.trigger('object')
 
     def _update_colors(self, event):
-        print('colors', event.what)
+        print('colorst in ratefigure')
         # #todo jslink colors to parent.rate_colors?
         # for event in events:
         renderers = self.figure.select(tags='rate', type=GlyphRenderer)
-        print('renderers', renderers)
         for renderer in renderers:
             renderer.data_source.data.update({'color': self.parent.rate_colors[renderer.name]})
-
         self.bk_pane.param.trigger('object')
 
     def _draw_thds(self, *events):
-        #todo check events and draw according to those?
-        print('draw thresholds')
+        #todo check events and draw according to those? (events are triggers)
+        spans = self.figure.select(tags='thd')
+        spans.sort(key=lambda x: x.id)
+        for i, span in enumerate(spans): # spanspanspam
+            if i < len(self.ctrl.values):
+                span.location = self.ctrl.values[i]
+                span.visible = self.ctrl.show_thds
+            else:
+                span.visible = False
 
-        #remove everything
-        for span in self.figure.select(tags='thd'):
-            self.figure.center.remove(span)
-        print("Values'", self.ctrl.values)
-        for value in self.ctrl.values:
-            print('value in loop', value)
-            span = Span(location=value, dimension='width')
-            span.tags = ['thd']
-            self.figure.add_layout(span)
-            print(self.figure.center)
+
+        # #remove everything
+        # for span in self.figure.select(tags='thd'):
+        #     self.figure.center.remove(span)
+        # print("Values'", self.ctrl.values)
+        # for value in self.ctrl.values:
+        #     print('value in loop', value)
+        #     span = Span(location=value, dimension='width')
+        #     span.tags = ['thd']
+        #     self.figure.add_layout(span)
+        #     print(self.figure.center)
 
         self.bk_pane.param.trigger('object')
 
         #https://docs.bokeh.org/en/latest/docs/user_guide/layout.html
         #http://docs.bokeh.org/en/latest/docs/user_guide/annotations.html#spans
         #self.figure.add_layout()
+
+
+class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel
+
+    def __init__(self, *args, **params):
+        super(ProteinFigure, self).__init__(*args, **params)
+
+        self.html_panel = pn.pane.HTML(NGL_HTML, height=500, width=500)
+
+    @property
+    def panel(self):
+        return pn.panel(self.html_panel)
