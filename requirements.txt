@@ -1,0 +1,6 @@
+symfit
+numpy
+tqdm
+scikit-image
+
+matplotlib
