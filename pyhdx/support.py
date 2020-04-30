@@ -133,7 +133,7 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
             elif dtype.kind in ['U', 'S', 'O']:
                 specifier = 's'
                 precision = ''
-                w = np.max([len(str(item)) for item in data[name]])
+                w = np.max([len(str(item)) for item in arr[name]])
             else:
                 raise TypeError(f'Invalid dtype kind {dtype.kind} for field {name}')
 

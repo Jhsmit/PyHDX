@@ -529,8 +529,46 @@ class ClassificationControl(ControlPanel):
 
 
 class FileExportPanel(ControlPanel):
+    target = param.Selector(label='Target')
 
+    def __init__(self, parent, **param):
+        super(FileExportPanel, self).__init__(parent, **param)
+        self.parent.param.watch(self._rates_updated, ['fit_results'])
+
+    def _rates_updated(self, *events):
+        print('rates updated in fileexportpanel')
+        #todo centralize this on parent? -> no child controls should hook into main controller
+        objects = [k for k, v in self.parent.fit_results.items() if v['fitresult'] is not None]
+        print(objects)
+        self.param['target'].objects = objects
+        #set target if its not set already
+        if not self.target and objects:
+            self.target = objects[-1]
+
+    @pn.depends('target')
+    def rates_export(self):
+        io = StringIO()
+        print(self.target)
+        print('exporting')
+        if self.target:
+            fit_arr = self.parent.fit_results[self.target]['rates']
+            if self.target in self.parent.rate_colors:
+                colors = self.parent.rate_colors[self.target]
+                export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
+            else:
+                export_data = fit_arr
+
+            fmt, header = fmt_export(export_data)
+            np.savetxt(io, export_data, fmt=fmt, header=header)
+
+            io.seek(0)
+            return io
+        else:
+            return None
 
     @property
     def panel(self):
-        return pn.WidgetBox(pn.widgets.FileDownload(file='test.html', auto=False))
+
+        rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
+
+        return pn.WidgetBox(pn.Param(self.param), rates_export)
