@@ -10,7 +10,6 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
-
 NGL_HTML = """
 <div id="viewport" style="width:100%; height:100%;"></div>
 <script>
@@ -89,29 +88,7 @@ class RateFigure(FigurePanel):
     def __init__(self, *args, **params):
         super(RateFigure, self).__init__(*args, **params)
 
-        self.figure = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
-        self.figure.xaxis.axis_label = 'Residue number'
-        self.figure.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
-
-#        DEFAULT_RENDERERS
-        for k, v in DEFAULT_RENDERERS.items():
-            glyph_func = getattr(self.figure, v)
-            source = ColumnDataSource({name: [] for name in ['r_number', 'rate', 'color']})
-            renderer = glyph_func(x='r_number', y='rate', color='color', source=source, legend_label=k, size=10,
-                                  name=k)
-            renderer.tags = ['rate']
-
-        #spans for threshold lines
-        for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
-            sp = Span(location=0, dimension='width')
-            sp.tags = ['thd']
-            sp.visible = False
-            self.figure.add_layout(sp)
-
-        hover = self.figure.select(dict(type=HoverTool))
-        hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@rate')]
-        hover.mode = 'vline'
-        self.figure.legend.click_policy = 'hide'
+        self.figure = self.draw_figure()
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
 
         #todo refactor as kwargs?
@@ -119,6 +96,33 @@ class RateFigure(FigurePanel):
         self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
         self.parent.param.watch(self._update_rates, ['fit_results'])
         self.parent.param.watch(self._update_colors, ['rate_colors'])
+
+    def draw_figure(self):
+        """makes bokeh figure and returns it"""
+        fig = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
+        fig.xaxis.axis_label = 'Residue number'
+        fig.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
+
+        #        DEFAULT_RENDERERS
+        for k, v in DEFAULT_RENDERERS.items():
+            glyph_func = getattr(fig, v)
+            source = ColumnDataSource({name: [] for name in ['r_number', 'rate', 'color']})
+            renderer = glyph_func(x='r_number', y='rate', color='color', source=source, legend_label=k, size=10,
+                                  name=k)
+            renderer.tags = ['rate']
+
+        # spans for threshold lines
+        for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
+            sp = Span(location=0, dimension='width')
+            sp.tags = ['thd']
+            sp.visible = False
+            fig.add_layout(sp)
+
+        hover = fig.select(dict(type=HoverTool))
+        hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@rate')]
+        hover.mode = 'vline'
+        fig.legend.click_policy = 'hide'
+        return fig
 
     def _update_rates(self, event):
         print('rates array update, renew')

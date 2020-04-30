@@ -1,5 +1,6 @@
 import param
 import panel as pn
+from bokeh.plotting import figure
 
 DEFAULT_RENDERERS = {'fit1': 'triangle', 'fit2': 'circle'}
 DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red'}
@@ -11,6 +12,7 @@ class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 
     position = ''
+
 
     @property
     def panel(self):
@@ -27,6 +29,8 @@ class FigurePanel(PanelBase):
         self.controllers = controllers  #side controllers
         super(FigurePanel, self).__init__(**params)
 
+    def draw_figure(self):
+        return figure()
 
     def _update(self):
         """redraw the graph"""

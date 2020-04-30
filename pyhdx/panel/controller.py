@@ -69,11 +69,18 @@ class Controller(param.Parameterized):
         #self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
         self.file_export = FileExportPanel(self)
+        self.options = OptionsPanel(self)
 
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
         self.protein_figure = ProteinFigure(self, [])
+
+
+        #setup options  #todo automate figure out cross dependencies
+        self.options.cov_fig_panel = self.coverage_figure
+        self.options.rate_fig_panel = self.rate_figure
+        self.options.coverage_ctrl = self.coverage
 
         # tmpl = pn.Template(template)
         tmpl.add_panel('input', self.fileinput.panel)
@@ -81,6 +88,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('fitting', self.fit_control.panel)
         tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('file_export', self.file_export.panel)
+        tmpl.add_panel('options', self.options.panel)
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
         tmpl.add_panel('slice_k', self.protein_figure.panel)
@@ -583,3 +591,66 @@ class FileExportPanel(ControlPanel):
         data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
 
         return pn.WidgetBox(pn.Param(self.param), rates_export, data_export)
+
+
+class OptionsPanel(ControlPanel):
+    """panel for various options and settings"""
+
+    #todo this needs to access other panels as well
+
+    link_xrange = param.Boolean(False)
+
+    def __init__(self, parent, **param):
+        super(OptionsPanel, self).__init__(parent, **param)
+        self.cov_fig_panel = None
+        self.rate_fig_panel = None
+        self.coverage_ctrl = None
+
+    #
+    # def setup(self, fig1, fig2, coverage_ctrl):
+    #     self.fig1 = fig1,
+    #     self.fig2 = fig2
+
+    @property
+    def fig1(self):
+        return self.cov_fig_panel.figures[0]
+
+    @property
+    def fig2(self):
+        return self.rate_fig_panel.figure
+
+    @property
+    def enabled(self):
+        return self.fig1 is not None and self.fig1 is not None and self.coverage_ctrl is not None
+
+    @param.depends('link_xrange', watch=True)
+    def _update_link(self):
+        if self.enabled:
+            if self.link_xrange:
+                self._link()
+            else:
+                self._unlink()
+
+    def _unlink(self):
+        self.coverage_ctrl.param['aa_per_subplot'].constant = False
+        self.fig1.x_range.js_property_callbacks.pop('change:start')
+        self.fig1.x_range.js_property_callbacks.pop('change:end')
+
+        self.fig2.x_range.js_property_callbacks.pop('change:start')
+        self.fig2.x_range.js_property_callbacks.pop('change:end')
+
+    def _link(self):
+        step = 25  #todo global config
+        value = int(step*(self.parent.series.cov.end // step + 1))
+        self.coverage_ctrl.aa_per_subplot = value# triggers redraw
+        self.coverage_ctrl.param['aa_per_subplot'].constant = True
+
+
+        self.fig1.x_range.js_link('start', self.fig2.x_range, 'start')
+        self.fig1.x_range.js_link('end', self.fig2.x_range, 'end')
+
+        self.fig2.x_range.js_link('start', self.fig1.x_range, 'start')
+        self.fig2.x_range.js_link('end', self.fig1.x_range, 'end')
+
+    def panel(self):
+        return pn.WidgetBox(pn.Param(self.param))

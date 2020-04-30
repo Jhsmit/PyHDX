@@ -76,6 +76,17 @@ var config = {
                         componentName: 'view',
                         componentState: {
                             model: '{{ embed(roots.file_export) }}',
+                            title: 'Options',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.options) }}',
                             title: 'Export',
                             width: 350,
                             css_classes: ['scrollable']
