@@ -139,7 +139,7 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
 
             if width == 'auto':
                 col_w = w
-            elif isinstance(width, int) and width > 0:
+            elif isinstance(width, int):
                 col_w = width
             else:
                 raise ValueError('Invalid width')
@@ -148,7 +148,7 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
                 i = 2 if j == 0 else 0  # Additional space for header comment #
                 if width == 'auto':
                     _width = max(col_w, len(name) + i)
-                elif isinstance(width, int) and width > 0:
+                elif isinstance(width, int):
                     _width = col_w
 
                 func = str.ljust if justify == 'left' else str.rjust

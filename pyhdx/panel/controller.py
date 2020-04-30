@@ -566,9 +566,20 @@ class FileExportPanel(ControlPanel):
         else:
             return None
 
+    def data_export(self):
+        io = StringIO()
+        delimiter = ','
+
+        #todo combine these lines into one function?
+        fmt, header = fmt_export(self.parent.data, delimiter=delimiter, width=0)
+        np.savetxt(io, self.parent.data, fmt=fmt, header=header, delimiter=delimiter)
+        io.seek(0)
+        return io
+
     @property
     def panel(self):
 
         rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
+        data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
 
-        return pn.WidgetBox(pn.Param(self.param), rates_export)
+        return pn.WidgetBox(pn.Param(self.param), rates_export, data_export)
