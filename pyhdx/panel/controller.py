@@ -34,9 +34,13 @@ pth = os.path.dirname(__file__)
 env = Environment(loader=FileSystemLoader(pth))
 
 # todo dict comprehension
+
+dic = {'rates': np.zeros(0, dtype=[('r_number', int), ('rate', float)]),
+       'fitresult': None}
+
 empty_results = {
-    'fit1': {'rates': {'r_number': [], 'rate': []}, 'fitresult': None},
-    'fit2': {'rates': {'r_number': [], 'rate': []}, 'fitresult': None}
+    'fit1': dic,
+    'fit2': dic
 }
 
 
