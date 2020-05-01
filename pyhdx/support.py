@@ -2,6 +2,7 @@ import numpy as np
 import itertools
 
 def get_reduced_blocks(k_series, max_combine=2, max_join=5):
+    #todo arguments of these should be coverage, not series
     block_length = list(k_series.cov.block_length.copy())
 
     i = 0
@@ -56,6 +57,11 @@ def get_constant_blocks(k_series, block_size=10, initial_block=5):
         blocks += [remainder]
 
     return blocks
+
+
+def get_original_blocks(k_series):
+    block_length = list(k_series.cov.block_length.copy())
+    return block_length
 
 
 def reduce_inter(args):
