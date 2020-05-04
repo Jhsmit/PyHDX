@@ -92,12 +92,16 @@ def reduce_inter(args):
 def _get_f_width(data, sign):
     i = 1 if sign else 0
 
+
     w_pos = np.log10(np.nanmax(data)) + i
     w_neg = np.log10(np.nanmax(-data)) + 1
 
-
     w = np.nanmax([w_pos, w_neg]) + 1
-    return int(np.floor(w))
+    try:
+        width = int(np.floor(w))
+    except OverflowError: # all zeros
+        width = 0
+    return width
 
 
 def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
