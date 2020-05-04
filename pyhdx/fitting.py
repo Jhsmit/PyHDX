@@ -70,6 +70,7 @@ class TwoComponentAssociationModel(KineticsModel):
         self.sf_model = Model({y: 100 * (1 - (r * exp(-t / tau1) + (1 - r) * exp(-t / tau2)))})
 
     def __call__(self, t, **params):
+        """call model at time t, returns uptake values of peptides"""
         time_var = self.names['t']
         params[time_var] = t
         return self.sf_model(**params)
@@ -157,6 +158,8 @@ class OneComponentAssociationModel(KineticsModel):
         self.sf_model = Model({y: 100 * (1 - exp(-t / tau1))})
 
     def __call__(self, t, **params):
+        """call model at time t, returns uptake values of peptides"""
+
         time_var = self.names['t']
         params[time_var] = t
         return self.sf_model(**params)
@@ -393,33 +396,38 @@ class KineticsFitResult(object):
         self.results = results
         self.models = models
 
-    def __call__(self, t):
+    def get_p(self, t):
         """
-        Calculate P at timepoint t
+        Calculate P at timepoint t. Only for wt average type fitting results
 
         """
         p = np.full_like(self.r_number, fill_value=np.nan, dtype=float)
         for (s, e), result, model in zip(self.intervals, self.results, self.models):
             i0, i1 = np.searchsorted(self.r_number, [s, e])
-            p[i0:i1] = 1
             p[i0:i1] = model(t, **result.params)
 
         return p
 
-
-
-
+    def get_d(self, t):
+        "calculate d at timepoint t only for lsqkinetics (refactor glocal) type fitting results (scores per peptide)"
+        d_arr = np.array([])
+        for result, model in zip(self.results, self.models):
+            d = np.array(model(t, **result.params)).flatten()
+            d_arr = np.append(d_arr, d)
+        return d_arr
 
     def __len__(self):
         return len(self.results)
 
     def __getitem__(self, item):
+        raise DeprecationWarning()
         if isinstance(item, int):
             return self.results[item], self.models[item], self.block_length[item]
         else:
             return KineticsFitResult(self.results[item], self.models[item], self.block_length[item])
 
     def __iter__(self):
+        raise DeprecationWarning()
         iterable = [(r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)]
         return iterable.__iter__()
 
@@ -561,6 +569,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         self.sf_model = CallableModel(model_dict)
 
     def __call__(self, t, **params):
+        """returns the callled model at time t for params, returns uptake values of peptides"""
         time_var = self.names['t']
         params[time_var] = t
         return self.sf_model(**params)
@@ -601,7 +610,6 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
             tau_list += [tau] * bl
 
         return np.array(tau_list)
-
 
     def get_rate(self, **params):
         """
