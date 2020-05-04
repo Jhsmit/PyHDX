@@ -69,6 +69,11 @@ class TwoComponentAssociationModel(KineticsModel):
 
         self.sf_model = Model({y: 100 * (1 - (r * exp(-t / tau1) + (1 - r) * exp(-t / tau2)))})
 
+    def __call__(self, t, **params):
+        time_var = self.names['t']
+        params[time_var] = t
+        return self.sf_model(**params)
+
     def initial_guess(self, t, d):
         """
         Calculates initial guesses for fitting of two-component kinetic uptake reaction
@@ -150,6 +155,11 @@ class OneComponentAssociationModel(KineticsModel):
         y = self.make_variable('y')
 
         self.sf_model = Model({y: 100 * (1 - exp(-t / tau1))})
+
+    def __call__(self, t, **params):
+        time_var = self.names['t']
+        params[time_var] = t
+        return self.sf_model(**params)
 
     def initial_guess(self, t, d):
         """
@@ -373,12 +383,31 @@ class KineticsFitResult(object):
     this fit results is only for wt avg fitting
     """
     def __init__(self, r_number, intervals, results, models):
+        """
+        each model with corresponding interval covers a region in the protein corresponding to r_number
+        """
         assert len(results) == len(models)
 #        assert len(models) == len(block_length)
         self.r_number = r_number
-        self.intervals = intervals
+        self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
+
+    def __call__(self, t):
+        """
+        Calculate P at timepoint t
+
+        """
+        p = np.full_like(self.r_number, fill_value=np.nan, dtype=float)
+        for (s, e), result, model in zip(self.intervals, self.results, self.models):
+            i0, i1 = np.searchsorted(self.r_number, [s, e])
+            p[i0:i1] = 1
+            p[i0:i1] = model(t, **result.params)
+
+        return p
+
+
+
 
 
     def __len__(self):
@@ -531,6 +560,11 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         self.t_var = t_var
         self.sf_model = CallableModel(model_dict)
 
+    def __call__(self, t, **params):
+        time_var = self.names['t']
+        params[time_var] = t
+        return self.sf_model(**params)
+
     def get_param_values(self, name, **params):
         """returns a list of parameters with name name which should have been indexed parameters
         params repeat during blocks
@@ -568,33 +602,6 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
 
         return np.array(tau_list)
 
-    def get_tau(self, **params):
-        """
-
-        Parameters
-        ----------
-        params
-
-        key value where keys are the dummy names
-
-        Returns
-        -------
-
-        """
-
-        tau_list = []
-        for i, bl in enumerate(self.block_length):
-            if self.model == 'mono' or (self.model == 'mixed' and bl == 1):
-                tau = params[self.names['tau_{}'.format(i)]]
-            else:
-                tau1 = params[self.names['tau1_{}'.format(i)]]
-                tau2 = params[self.names['tau2_{}'.format(i)]]
-                r = params[self.names['r_{}'.format(i)]]
-
-                tau = r * tau1 + (1 - r) * tau2
-            tau_list += [tau] * bl
-
-        return np.array(tau_list)
 
     def get_rate(self, **params):
         """
