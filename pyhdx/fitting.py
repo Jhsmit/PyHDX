@@ -369,7 +369,7 @@ class KineticsFitting(object):
             #arr = self.scores_stack.T  # todo use nonnormed scores as they should be normalized already
             i = 0
             for bl in series.cov.block_length:
-                intervals.append((series.cov.start + i, series.cov.start + i + bl + 1))
+                intervals.append((series.cov.start + i, series.cov.start + i + bl))
                 d = arr[i]
                 model = TwoComponentAssociationModel()
                 res = fit_kinetics(series.times, d, model, chisq_thd=chisq_thd)
