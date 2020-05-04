@@ -96,8 +96,6 @@ class Controller(param.Parameterized):
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
         tmpl.add_panel('slice_k', self.protein_figure.panel)
-
-
         #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
 
         self.template = tmpl
@@ -590,7 +588,6 @@ class FileExportPanel(ControlPanel):
 
     @property
     def panel(self):
-
         rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
         data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
 
@@ -648,7 +645,6 @@ class OptionsPanel(ControlPanel):
         value = int(step*(self.parent.series.cov.end // step + 1))
         self.coverage_ctrl.aa_per_subplot = value# triggers redraw
         self.coverage_ctrl.param['aa_per_subplot'].constant = True
-
 
         self.fig1.x_range.js_link('start', self.fig2.x_range, 'start')
         self.fig1.x_range.js_link('end', self.fig2.x_range, 'end')
