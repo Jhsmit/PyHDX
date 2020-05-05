@@ -1,4 +1,6 @@
 import numpy as np
+from numpy.lib.recfunctions import stack_arrays
+
 
 CSV_DTYPE = [
     ('Protein', 'U', 'c'),
@@ -19,7 +21,7 @@ CSV_DTYPE = [
     ('RT_sd', 'f', 'f')
 ]
 
-def read_dynamx(file_path):
+def read_dynamx(*file_paths):
     """
     Reads a dynamX .csv file and returns the data as a numpy structured array
 
@@ -34,9 +36,15 @@ def read_dynamx(file_path):
         numpy structured array with
 
     """
-    names = [t[0] for t in CSV_DTYPE]
-    data = np.genfromtxt(file_path, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
-    return data
+
+    data_list = []
+    for fpath in file_paths:
+        names = [t[0] for t in CSV_DTYPE]
+        data = np.genfromtxt(fpath, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
+        data_list.append(data)
+
+    full_data = stack_arrays(data_list, usemask=True, autoconvert=True)
+    return full_data
 
 
 def write_expfact(data_list, name):
