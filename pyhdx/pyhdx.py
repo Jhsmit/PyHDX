@@ -159,6 +159,7 @@ class PeptideCSVFile(object):
             Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`
         """
 
+        raise DeprecationWarning
 
         #todo does this affect underlying data?
         out_dict = self.groupby_state()
