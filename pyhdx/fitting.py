@@ -538,12 +538,10 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
 
                 t1v = min(initial_result['tau1'][idx], initial_result['tau2'][idx])
                 t2v = max(initial_result['tau1'][idx], initial_result['tau2'][idx])
-                print(t1v, t2v)
-
-
-                rv = 0.5
-                tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1 / 70, value=t1v)
-                tau2 = self.make_parameter('tau2_{}'.format(i), max=30, min=1 / 70, value=t2v)
+                rv = np.clip(initial_result['r'][idx], 0.1, 0.9)
+                print(t1v, t2v, rv)
+                tau1 = self.make_parameter('tau1_{}'.format(i), max=350, min=1 / 100, value=t1v)
+                tau2 = self.make_parameter('tau2_{}'.format(i), max=350, min=1 / 100, value=t2v)
                 r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
                 term = (1 - (r * exp(-t_var / tau1) + (1 - r) * exp(-t_var / tau2)))
                 terms.append(term)
@@ -606,10 +604,26 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
                 tau2 = params[self.names['tau2_{}'.format(i)]]
                 r = params[self.names['r_{}'.format(i)]]
 
-                tau = r * tau1 + (1 - r) * tau2
+                x0 = tau1 if r > 0.5 else tau2
+
+                t_half = fsolve(self.min_func, x0, args=(tau1, tau2, r))
+                try:
+                    assert np.round(self.min_func(t_half, tau1, tau2, r), 5) == 0, 'Failed to find half life root'
+                except AssertionError:
+                    print('uhoh')
+                    print(tau1, tau2, r)
+                    print(np.round(self.min_func(t_half, tau1, tau2, r), 5) == 0)
+                tau = np.asscalar(t_half / np.log(2))
+
+
+                #tau = r * tau1 + (1 - r) * tau2
             tau_list += [tau] * bl
 
         return np.array(tau_list)
+
+    @staticmethod
+    def min_func(t, t1, t2, r):
+        return 0.5 - r * np.exp(-t / t1) - (1 - r) * np.exp(-t / t2)
 
     def get_rate(self, **params):
         """
