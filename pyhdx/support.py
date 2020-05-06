@@ -209,3 +209,18 @@ def autowrap(coverage, margin=4):
         if wrap > coverage.prot_len:
             break
     return wrap
+
+
+#https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
+def fields_view(arr, fields):
+    dtype2 = np.dtype({name:arr.dtype.fields[name] for name in fields})
+    return np.ndarray(arr.shape, dtype2, arr, 0, arr.strides)
+
+
+#https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
+def make_view(arr, fields, dtype):
+    offsets = [arr.dtype.fields[f][1] for f in fields]
+    offset = min(offsets)
+    stride = max(offsets)
+    return np.ndarray((len(arr), 2), buffer=arr, offset=offset, strides=(arr.strides[0], stride-offset), dtype=dtype)
+

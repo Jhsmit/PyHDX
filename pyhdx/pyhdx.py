@@ -9,7 +9,7 @@ import scipy
 from functools import reduce
 from operator import add
 from .math import solve_nnls
-from .support import reduce_inter
+from .support import reduce_inter, make_view
 
 
 
@@ -31,7 +31,7 @@ class PeptideCSVFile(object):
 
         self.data = data
         if sort:
-            self.data = np.sort(self.data, order=['start', 'sequence'])
+            self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
         if drop_first:
             self.data['start'] += drop_first
@@ -53,6 +53,20 @@ class PeptideCSVFile(object):
 
         states = np.unique(self.data['state'])
         return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
+
+    @staticmethod
+    def isin_by_idx(array, test_array):
+        """
+        checks if entries in test_array are in array, by 'start' and 'end' field values
+        returns boolean array which is true for each entry of test_array in array
+        """
+
+        test = make_view(test_array, ['start', 'end'], dtype=np.int32)
+        full = make_view(array, ['start', 'end'], dtype=np.int32)
+
+        # https://stackoverflow.com/questions/54828039/how-to-match-pairs-of-values-contained-in-two-numpy-arrays/54828333
+        result = (full[:, None] == test).all(axis=2).any(axis=1)
+        return result
 
     def set_control(self, control_100, control_0=None, remove_nan=True):
         """
@@ -90,19 +104,19 @@ class PeptideCSVFile(object):
         #     control_100 = control_100[~np.isnan(control_100['uptake'])]
         #     control_0 = control_0[~np.isnan(control_0['uptake'])]
 
-        b_100 = np.isin(self.data['sequence'], control_100['sequence'])
-        b_0 = np.isin(self.data['sequence'], control_0['sequence'])
+        b_100 = self.isin_by_idx(self.data, control_100)
+        b_0 = self.isin_by_idx(self.data, control_0)
         data_selected = self.data[np.logical_and(b_100, b_0)]
 
         # Control peptides corresponding to those peptides in measurement
-        c_100_selected = control_100[np.isin(control_100['sequence'], data_selected['sequence'])]
-        c_0_selected = control_0[np.isin(control_0['sequence'], data_selected['sequence'])]
+        c_100_selected = control_100[self.isin_by_idx(control_100, data_selected)]
+        c_0_selected = control_0[self.isin_by_idx(control_0, data_selected)]
 
-        control_100_final = np.sort(c_100_selected, order=['start', 'sequence'])
-        control_0_final = np.sort(c_0_selected, order=['start', 'sequence'])
+        control_100_final = np.sort(c_100_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
+        control_0_final = np.sort(c_0_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
         # Sort both datasets by starting index and then by sequence to make sure they are both equal
-        data_final = np.sort(data_selected, order=['start', 'sequence', 'state', 'exposure'])
+        data_final = np.sort(data_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
         #Apply controls for each sequence
         scores = np.zeros(len(data_final), dtype=float)
