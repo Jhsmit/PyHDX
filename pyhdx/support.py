@@ -224,3 +224,38 @@ def make_view(arr, fields, dtype):
     stride = max(offsets)
     return np.ndarray((len(arr), 2), buffer=arr, offset=offset, strides=(arr.strides[0], stride-offset), dtype=dtype)
 
+
+def hex_to_rgb(h):
+    r, g, b = tuple(int(h.lstrip('#')[2*i:2*i+2], 16) for i in range(3))
+    return r, g, b
+
+
+def group_with_index(arr):
+    # https://stackoverflow.com/questions/25438491/finding-consecutively-repeating-strings-in-python-list/25438531#25438531
+    i = 0
+    for k, vs in itertools.groupby(arr):
+        c = sum(1 for _ in vs)
+        yield k, c, i
+        i += c
+
+
+def colors_to_pymol(r_number, colors):
+    """coverts colors (hexadecimal format) and corresponding residue numbers to pml
+    script to color structures in pymol
+    """
+    s_out = ''
+    for i, c in enumerate(np.unique(colors)):
+        r, g, b = hex_to_rgb(c)
+        s_out += f'set_color color_{i}, [{r},{g},{b}]\n'
+
+    s_out += '\n'
+
+    grp_idx = list(group_with_index(colors))
+    for i, c in enumerate(np.unique(colors)):
+        residues = [f'resi {r_number[idx]}-{r_number[idx] + length - 1}' for color, length, idx in grp_idx if
+                    color == c]
+        line = f'color color_{i}, ' + ' + '.join(residues)
+        s_out += line + '\n'
+
+    return s_out
+
