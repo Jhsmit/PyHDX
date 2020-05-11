@@ -40,8 +40,12 @@ def read_dynamx(*file_paths):
     data_list = []
     for fpath in file_paths:
        # names = [t[0] for t in CSV_DTYPE]
-        with open(fpath, 'r') as f:
-            hdr = f.readline().strip()
+        if isinstance(fpath, StringIO):
+            hdr = fpath.readline().strip()
+            fpath.seek(0)
+        else:
+            with open(fpath, 'r') as f:
+                hdr = f.readline().strip()
 
         names = [name.lower() for name in hdr.split(',')]
         data = np.genfromtxt(fpath, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
