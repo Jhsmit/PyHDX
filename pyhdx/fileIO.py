@@ -2,24 +2,24 @@ import numpy as np
 from numpy.lib.recfunctions import stack_arrays
 
 
-CSV_DTYPE = [
-    ('Protein', 'U', 'c'),
-    ('start', 'i', 'i'),
-    ('end', 'i', 'i'),
-    ('sequence', 'U', 'c'),
-    ('modification', 'U', 'c'),
-    ('fragment', 'U', 'c'),
-    ('max_uptake', 'i', 'i'),
-    ('MHP', 'f', 'f'),
-    ('state', 'U', 'c'),
-    ('exposure', 'f', 'f'),
-    ('center', 'f', 'f'),
-    ('center_sd', 'f', 'f'),
-    ('uptake', 'f', 'f'),
-    ('uptake_sd', 'f', 'f'),
-    ('RT', 'f', 'f'),
-    ('RT_sd', 'f', 'f')
-]
+# CSV_DTYPE = [
+#     ('Protein', 'U', 'c'),
+#     ('start', 'i', 'i'),
+#     ('end', 'i', 'i'),
+#     ('sequence', 'U', 'c'),
+#     ('modification', 'U', 'c'),
+#     ('fragment', 'U', 'c'),
+#     ('max_uptake', 'i', 'i'),
+#     ('MHP', 'f', 'f'),
+#     ('state', 'U', 'c'),
+#     ('exposure', 'f', 'f'),
+#     ('center', 'f', 'f'),
+#     ('center_sd', 'f', 'f'),
+#     ('uptake', 'f', 'f'),
+#     ('uptake_sd', 'f', 'f'),
+#     ('RT', 'f', 'f'),
+#     ('RT_sd', 'f', 'f')
+# ]
 
 def read_dynamx(*file_paths):
     """
@@ -39,7 +39,11 @@ def read_dynamx(*file_paths):
 
     data_list = []
     for fpath in file_paths:
-        names = [t[0] for t in CSV_DTYPE]
+       # names = [t[0] for t in CSV_DTYPE]
+        with open(fpath, 'r') as f:
+            hdr = f.readline().strip()
+
+        names = [name.lower() for name in hdr.split(',')]
         data = np.genfromtxt(fpath, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
         data_list.append(data)
 
