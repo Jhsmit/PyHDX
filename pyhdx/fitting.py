@@ -126,7 +126,18 @@ class TwoComponentAssociationModel(KineticsModel):
         tau1 = params[self.names['tau1']]
         tau2 = params[self.names['tau2']]
 
-        tau = r * tau1 + (1 - r) * tau2
+        #tau = r * tau1 + (1 - r) * tau2
+
+        x0 = tau1 if r > 0.5 else tau2
+
+        t_log = fsolve(self.min_func, np.log(x0), args=(tau1, tau2, r))
+        try:
+            assert np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0, 'Failed to find half life root'
+        except AssertionError:
+            print('uhoh')
+            print(tau1, tau2, r)
+            print(np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0)
+        tau = np.asscalar(np.exp(t_log) / np.log(2))
 
         return tau
 
@@ -145,6 +156,11 @@ class TwoComponentAssociationModel(KineticsModel):
         """
         tau = self.get_tau(**params)
         return 1/tau
+
+    @staticmethod
+    def min_func(t_log, t1, t2, r):
+        t = np.exp(t_log)
+        return 0.5 - r * np.exp(-t / t1) - (1 - r) * np.exp(-t / t2)
 
 
 class OneComponentAssociationModel(KineticsModel):
@@ -517,7 +533,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         terms = []
 
         r_number = initial_result['r_number']
-
+        print(blocks)
         r_index = k_series.cov.start
         for i, bl in enumerate(blocks):
             current = r_index + (bl // 2)
@@ -525,9 +541,10 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
             if model == 'mono' or (model == 'mixed' and bl == 1):
                 print('mono')
                 #TODO update names
+                print("this probably gives errors down the line")
                 value = 1 / initial_result['rate'][idx]  #this should be the average of the block range
                 r_index += bl
-                tau1 = self.make_parameter('tau1_{}'.format(i), max=30, min=1 / 70, value=value)
+                tau1 = self.make_parameter('tau1_{}'.format(i), max=300, min=1 / 70, value=value)
                 term = (1 - exp(-t_var / tau1))
                 terms.append(term)
             else:
@@ -603,17 +620,17 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
                 tau1 = params[self.names['tau1_{}'.format(i)]]
                 tau2 = params[self.names['tau2_{}'.format(i)]]
                 r = params[self.names['r_{}'.format(i)]]
-
+                #todo this code is duplicated in TwoComponentAssociationModel
                 x0 = tau1 if r > 0.5 else tau2
 
-                t_half = fsolve(self.min_func, x0, args=(tau1, tau2, r))
+                t_log = fsolve(self.min_func, np.log(x0), args=(tau1, tau2, r))
                 try:
-                    assert np.round(self.min_func(t_half, tau1, tau2, r), 5) == 0, 'Failed to find half life root'
+                    assert np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0, 'Failed to find half life root'
                 except AssertionError:
                     print('uhoh')
                     print(tau1, tau2, r)
-                    print(np.round(self.min_func(t_half, tau1, tau2, r), 5) == 0)
-                tau = np.asscalar(t_half / np.log(2))
+                    print(np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0)
+                tau = np.asscalar(np.exp(t_log) / np.log(2))
 
 
                 #tau = r * tau1 + (1 - r) * tau2
@@ -622,7 +639,8 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         return np.array(tau_list)
 
     @staticmethod
-    def min_func(t, t1, t2, r):
+    def min_func(t_log, t1, t2, r):
+        t = np.exp(t_log)
         return 0.5 - r * np.exp(-t / t1) - (1 - r) * np.exp(-t / t2)
 
     def get_rate(self, **params):
