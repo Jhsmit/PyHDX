@@ -1,6 +1,4 @@
-from pyhdx import Coverage
 from pyhdx.support import get_constant_blocks, get_reduced_blocks
-
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
@@ -9,16 +7,6 @@ from collections import namedtuple
 from functools import reduce
 from operator import add
 
-from tqdm.auto import tqdm
-#
-# #module level (non dummy) parameters are likely to cause all sorts of problems
-# r = Parameter('r', value=0.5, min=0, max=1)
-# tau1 = Parameter('tau1', min=0, max=5)
-# tau2 = Parameter('tau2', min=0, max=100)
-# t = Variable('t')
-# y = Variable('y')
-# model = Model({y: 100 *(1 - (r*exp(-t/tau1) + (1-r)*exp(-t/tau2)))})
-#
 
 
 class KineticsModel(object):
