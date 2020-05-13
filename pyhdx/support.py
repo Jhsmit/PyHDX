@@ -259,3 +259,18 @@ def colors_to_pymol(r_number, colors):
 
     return s_out
 
+
+def make_monomer(input_file, output_file):
+    """ reads input_file pdb file and removes all chains except chain A and all water"""
+    with open(input_file, 'r') as f_in:
+        with open(output_file, 'w') as f_out:
+            for line in iter(f_in.readline, ''):
+                if line.startswith("COMPND") and "CHAIN" in line:
+                    res = re.findall(':(.*);', line)[0]
+                    line = line.replace(res + ';', ' A;' + ' '*(len(res) - 2))
+                if line.startswith("ATOM") and not ' A ' in line:
+                    continue
+                elif line.startswith("HETATM") and "HOH" in line:
+                    continue
+                f_out.write(line)
+
