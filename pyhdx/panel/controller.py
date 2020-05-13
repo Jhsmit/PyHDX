@@ -142,6 +142,8 @@ class FileInputControl(ControlPanel):
     drop_first = param.Integer(1, bounds=(0, None))
     load_button = param.Action(lambda self: self._action_load(), doc='Load Files', label='Load Files')
 
+    norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
+
     norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
     norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
 
@@ -238,7 +240,7 @@ class FileInputControl(ControlPanel):
 
     @property
     def panel(self):
-        params = pn.panel(self.param)
+        params = pn.panel(self.param, widgets={'norm_mode': pn.widgets.RadioButtonGroup})
         col = pn.Column(*[self.file_selectors_column, *params[1:]])
 
         return pn.WidgetBox(col,  pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
@@ -442,6 +444,7 @@ class ClassificationControl(ControlPanel):
 
         #todo make rates a property
         rates = self.parent.fit_results[self.target]['rates']['rate']
+        #todo use function in support
         colors = np.empty(len(rates), dtype='U7')
 
         if self.num_classes == 1:
