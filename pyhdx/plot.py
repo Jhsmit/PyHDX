@@ -6,6 +6,7 @@ from bokeh.models import LinearColorMapper, ColorBar, ColumnDataSource, Rect, La
 from bokeh.plotting import figure
 from bokeh.layouts import row, column
 
+
 def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs):
     img = (pm.X > 0).astype(float)
     if scores is not None:
@@ -80,12 +81,11 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
 
 
 def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8), labels=False, **kwargs):
-
     rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
     rect_kwargs.update(kwargs)
 
     num_axes = pm.end // aa_per_subplot + 1
-    cmap = mpl.cm.get_cmap('jet')
+    cmap = mpl.cm.get_cmap('viridis')
 
     fig, axes = plt.subplots(num_axes, figsize=figsize)
     axes = [axes] if num_axes == 1 else axes
