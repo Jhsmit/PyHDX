@@ -1,5 +1,6 @@
 import numpy as np
 import itertools
+import re
 
 def get_reduced_blocks(k_series, max_combine=2, max_join=5):
     #todo arguments of these should be coverage, not series
