@@ -1,5 +1,6 @@
 import numpy as np
 from numpy.lib.recfunctions import stack_arrays
+from io import StringIO
 
 
 # CSV_DTYPE = [
@@ -28,7 +29,7 @@ def read_dynamx(*file_paths):
     Parameters
     ----------
     file_path: :obj:`str`
-        File path of the .csv file
+        File path of the .csv file or StringIO object
 
     Returns
     -------
