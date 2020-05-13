@@ -172,7 +172,8 @@ class PeptideCSVFile(object):
 
     def return_by_name(self, control_state, control_exposure):
         #todo return dictionary of kinetic series instead
-        print('deprecate this')
+        print('deprecate this')  #currently used by GUI
+        #raise DeprecationWarning
 
         """
 
