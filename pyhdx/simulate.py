@@ -87,7 +87,7 @@ def generate_data(peptides, sequence, timepoints, rates, state='state1'):
     data['state'][:] = 'state1'
     data['sequence'] = list([sequence[s:e + 1] for s, e in zip(start, end)])
 
-    cov = Coverage(data)
+    cov = Coverage(data, ignore_prolines=False, drop_first=0)
 
     #crop rates to the right size
     prot_rates = rates[:cov.prot_len]

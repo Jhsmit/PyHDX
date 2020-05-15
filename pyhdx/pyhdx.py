@@ -13,7 +13,7 @@ from .support import reduce_inter, make_view
 
 
 
-HEADER = 'Protein,Start,End,Sequence,Modification,Fragment,MaxUptake,MHP,State,Exposure,Center,Center SD,Uptake,Uptake SD,RT,RT SD'
+#HEADER = 'Protein,Start,End,Sequence,Modification,Fragment,MaxUptake,MHP,State,Exposure,Center,Center SD,Uptake,Uptake SD,RT,RT SD'
 
 
 class PeptideCSVFile(object):
@@ -27,17 +27,14 @@ class PeptideCSVFile(object):
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
     """
-    def __init__(self, data, drop_first=1, sort=True):
+    def __init__(self, data, sort=True, **kwargs):
 
         self.data = data
+        self.kwargs = kwargs
         if sort:
             self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
-        if drop_first:
-            self.data['start'] += drop_first
-            size = np.max([len(s) for s in self.data['sequence']])
-            new_seq = np.array([s[drop_first:] for s in self.data['sequence']], dtype='<U' + str(size - drop_first))
-            self.data['sequence'] = new_seq
+
 
     def __len__(self):
         return len(self.data)
@@ -52,7 +49,7 @@ class PeptideCSVFile(object):
         """
 
         states = np.unique(self.data['state'])
-        return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
+        return {state: KineticsSeries(self.data[self.data['state'] == state], **self.kwargs) for state in states}
 
     @staticmethod
     def isin_by_idx(array, test_array):
@@ -277,58 +274,148 @@ class Coverage(object):
             Values are `True` when the corresponding residues are in at least one peptide, otherwise `False`
     """
 
-    def __init__(self, data):
+    def __init__(self, data, drop_first=0, ignore_prolines=False):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
-
+        self.ignore_prolines = ignore_prolines
+        # character to use to count for proline occurences
+        cnt = 'P' if ignore_prolines else 'X'
+        self.drop_first = drop_first
         # todo insert and update coverage logic
 
-        self.data = data
+        self.data = data.copy()
+
+        if '_start' not in self.data.dtype.fields: # First pass through coverage, not corrected for prolines/nterm
+            self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
+        else: # restore original start/end values and apply prolines/nterm
+            self.data['start'] = self.data['_start']
+        if '_end' not in self.data.dtype.fields:
+            self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
+        else:
+            self.data['end'] = self.data['_end']
+
+        # Determine the number of exchanging residues (considering N-terminal peptides and prolines)
+        # If this field is present then the incoming data has already been through a Coverage object
+        if not 'ex_residues' in data.dtype.fields:
+            rep = '' if ignore_prolines else 'P'
+            ex_residues = np.array([len(seq.replace('P', rep)) for seq in self.data['sequence']], dtype=int)
+            #Additional residues to remove in the first N terimnal residues which arent prolines
+            addl = drop_first - np.array([seq[:drop_first].count(cnt) for seq in self.data['sequence']])
+            ex_residues -= addl
+
+            self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
+
+        #Find the total number of n terminal / c_terminal residues to remove
+        n_term = np.array([len(seq) - len(seq[drop_first:].lstrip(cnt)) for seq in self.data['sequence']])
+        c_term = np.array([len(seq) - len(seq.rstrip(cnt)) for seq in self.data['sequence']])
+
+        self.data['start'] += n_term
+        self.data['end'] -= c_term
+
         self.start = np.min(self.data['start'])
-        self.end = np.max(self.data['end'])  # todo refactor to end
-        self.prot_len = self.end - self.start + 1  # Total number of amino acids described by these measurments
+        self.end = np.max(self.data['end'])
+        self.prot_len = self.end - self.start + 1  # Total number of amino acids spanned by these measurements
+
         self.r_number = np.arange(self.start, self.end + 1)
+        # Find all indices of prolines in the middle of sequences, remove from r_number array and from sequence
+        if ignore_prolines:
+            p = [entry['_start'] + i - self.start for entry in self.data for i, s in enumerate(entry['sequence']) if s == 'P']
+            p_index = np.unique(p)
+            self.r_number = np.delete(self.r_number, p_index)  # remove r number indices
 
-        # Create and fill coefficient matrix X
-        self.X = np.zeros((len(data), self.prot_len), dtype=float)
-        for row, entry in enumerate(data):
-            i0 = entry['start'] - self.start
-            i1 = entry['end'] - self.start
-            pep_len = i1 - i0 + 1
-            assert len(entry['sequence']) == pep_len, "Length of the sequence doesnt correspond to start and end values"
-            self.X[row][i0:i1 + 1] = 1 / pep_len
+        self.X = np.zeros((len(self.data), len(self.r_number)), dtype=float)
+        for row, entry in enumerate(self.data):
+            i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
+            self.X[row][i0:i1+1] = 1 / entry['ex_residues']
 
-        # Find the lengths of unique blocks of residues in the peptides
-        indices = np.sort(np.concatenate([self.data['start'], self.data['end'] + 1]))
-        diffs = np.diff(indices)
-        self.block_length = diffs[diffs != 0]
-        #self.cs = np.cumsum(self.counts)
+    @property
+    def block_coverage(self):
+        """boolean array true where blocks have coverge, False for no coverage blocks"""
+        block_coverage = np.sum(self.X_red, axis=0) > 0
+        return block_coverage
 
-        self.has_coverage = np.sum(self.X, axis=0) > 0
-
+    @property
+    def X_red(self):
+        """X coefficent matrix reduced to blocks
+        elements are equal to block size
+        """
         cs = np.cumsum(self.block_length)
-        self.X_red = np.zeros((len(data), len(self.block_length)), dtype=float)
-        for row, entry in enumerate(data):
+        X_red = np.zeros((len(self.data), len(self.block_length)), dtype=float)
+        for row, entry in enumerate(self.data):
             i0 = entry['start'] - self.start
             i1 = entry['end'] - self.start + 1
             p = np.searchsorted(cs, [i0, i1], side='right')
 
-            self.X_red[row][p[0]:p[1]] = self.block_length[p[0]:p[1]]
+            X_red[row][p[0]:p[1]] = self.block_length[p[0]:p[1]]
 
-        self.block_coverage = np.sum(self.X_red, axis=0) > 0
+        return X_red
+
+    @property
+    def block_length(self):
+        # Find the lengths of unique blocks of residues in the peptides
+        # These are number of exchangeable residues along the r_number axis
+
+        # indices are start and stop values of blocks
+        indices = np.sort(np.concatenate([self.data['start'], self.data['end'] + 1]))
+
+        #indices of insertion into r_number vector gives us blocks with taking into account prolines
+        diffs = np.diff(np.searchsorted(self.r_number, indices))
+
+        #diffs = np.diff(indices)
+        block_length = diffs[diffs != 0]
+        return block_length
+
+    @property
+    def has_coverage(self):
+        return np.sum(self.X, axis=0) > 0
 
     def __len__(self):
         return self.prot_len
 
     @property
     def X_red_norm(self):
-        return self.X_red / np.sum(self.X_red, axis=1)[:, np.newaxis]
+        """X matrix normalized along columns"""
+
+        return self.X_red / np.sum(self.X_red, axis=0)[np.newaxis, :]
 
     @property
     def X_norm(self):
+        """X matrix normalized along columns
+        use X.dot(scores) to get weighted average scores along peptide axis
+        """
         return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
 
+    @property
+    def sequence(self):
+        """:obj:`str: String of the full protein sequence. Gaps of no coverage are filled with Prolines."""
+        seq = np.full(self.end, 'X', dtype='U')
+        for d in self.data:
+            i = d['_start'] - 1
+            j = d['_end']
+            seq[i:j] = [s for s in d['sequence']]
+        return ''.join(seq)
+
+    def split(self):
+        """
+        Splits the dataset into independent parts which have no overlapping peptides between them
+
+        Returns PeptideMeasurement / Coverage object dictionary
+
+        """
+
+        klass = self.__class__
+
+        intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
+        sections = reduce_inter(intervals)
+        output = {}
+        for s, e in sections:
+            b = np.logical_and(self.data['start'] >= s, self.data['end'] <= e)
+            output[f'{s}_{e}'] = klass(self.data[b], drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+
+        return output
+
     def __eq__(self, other):
+        """equality check used for set intersections"""
         assert isinstance(other, Coverage), "Other must be an instance of Coverage"
         return len(self.data) == len(other.data) and np.all(self.data['start'] == other.data['start']) and \
                np.all(self.data['end'] == other.data['end']) and np.all(self.data['sequence'] == other.data['sequence'])
@@ -340,8 +427,8 @@ class KineticsSeries(object):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray`
-        Numpy array with peptide entries corresponding to a single state
+    data : :class:`~numpy.ndarray` or :obj:`list`
+        Numpy array with peptide entries corresponding to a single state, or list of PeptideMeasurements
 
 
     Attributes
@@ -352,23 +439,41 @@ class KineticsSeries(object):
         Array with time points
 
     """
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
         # todo check or assert if all coverages of time points are equal?
         # todo add function to make all time points have the same peptides
 
-        # todo include scores into the friggin data array to make life easier
+        self.kwargs = kwargs
+        if isinstance(data, np.ndarray):
+            assert len(np.unique(data['state'])) == 1
+            self.state = data['state'][0]
+            self.times = np.sort(np.unique(data['exposure']))
 
-        assert len(np.unique(data['state'])) == 1
-        self.state = data['state'][0]
-        self.times = np.sort(np.unique(data['exposure']))
+            self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure], **kwargs) for exposure in self.times]
 
-        #todo establish naming
-        self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
+            if self.uniform:
+                self.cov = Coverage(data[data['exposure'] == self.times[0]], **kwargs)
+            else:
+                self.cov = None
 
-        if self.uniform:
-            self.cov = Coverage(data[data['exposure'] == self.times[0]])
+        elif isinstance(data, list):
+            for elem in data:
+                assert isinstance(elem, PeptideMeasurements)
+            self.state = data[0].state
+            self.times = np.sort([elem.exposure for elem in data])
+            self.peptidesets = data
+
+
+            if self.uniform:
+                # Use first peptideset to create coverage object
+                self.cov = Coverage(data[0].data, drop_first=data[0].drop_first, ignore_prolines=data[0].ignore_prolines)
+            else:
+                self.cov = None
+
         else:
-            self.cov = None
+            raise TypeError('Invalid data type')
+
+
 
     def make_uniform(self, in_place=True):
         """
@@ -388,7 +493,8 @@ class KineticsSeries(object):
 
         if in_place:
             self.peptidesets = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
-            self.cov = Coverage(self[0].data)
+            self.cov = Coverage(self[0].data, **self.kwargs)  #not happy about having to save the kwargs like this
+            #in principle it is stored on each peptidemeasurement and has the same values fo rall peptidemeasuremnts
 
         else:
             raise NotImplementedError('Only making peptidesets uniform in place is implemented')
@@ -423,14 +529,18 @@ class KineticsSeries(object):
             raise AssertionError("not uniform data not yet supported")
             intervals = reduce(add, [[(s, e) for s, e in zip(pm.data['start'], pm.data['end'])] for pm in self])
 
-        sections = reduce_inter(intervals)
 
+        split_list = [pm.split() for pm in self]
+        #accumulate all keys in the split list and sort them by start then end
+        keys = sorted(np.unique([list(dic.keys()) for dic in split_list]), key=lambda x: tuple(int(c) for c in x.split('_')))
+        #keys = ''
+        #sections = reduce_inter(intervals)
         output = {}
-        full_ds = self.full_data
-        for section in sections:
-            s, e = section
-            b = np.logical_and(full_ds['start'] >= s, full_ds['end'] <= e)
-            output['{}_{}'.format(s, e)] = KineticsSeries(full_ds[b])
+        for key in keys:
+            output[key] = KineticsSeries(list([dic[key] for dic in split_list]))
+            # s, e = section
+            # b = np.logical_and(full_ds['start'] >= s, full_ds['end'] <= e)
+            # output['{}_{}'.format(s, e)] = KineticsSeries(full_ds[b])
 
         return output
 
@@ -487,6 +597,7 @@ class KineticsSeries(object):
         scores_peptides = np.stack([v.scores for v in self])
         return scores_peptides
 
+
 class PeptideMeasurements(Coverage):
     """
     Class with subset of peptides corresponding to only one state and exposure
@@ -523,14 +634,14 @@ class PeptideMeasurements(Coverage):
 
     """
 
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
-        super(PeptideMeasurements, self).__init__(data)
+        super(PeptideMeasurements, self).__init__(data, **kwargs)
 
-        self.state = data['state'][0]
-        self.exposure = data['exposure'][0]
+        self.state = self.data['state'][0]
+        self.exposure = self.data['exposure'][0]
       #  self.scores = data['uptake']
 
     @property
@@ -656,15 +767,7 @@ class PeptideMeasurements(Coverage):
         scores = self.X.dot(residue_scores)
         return scores
 
-    @property
-    def sequence(self):
-        """:obj:`str: String of the full protein sequence. Gaps of no coverage are filled with Prolines."""
-        seq = np.full(self.end, 'X', dtype='U')
-        for d in self.data:
-            i = d['start'] - 1
-            j = d['end']
-            seq[i:j] = [s for s in d['sequence']]
-        return ''.join(seq)
+
 
 
 
