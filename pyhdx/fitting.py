@@ -8,7 +8,6 @@ from functools import reduce
 from operator import add
 
 
-
 class KineticsModel(object):
     par_index = 0
     var_index = 0
@@ -367,19 +366,22 @@ class KineticsFitting(object):
         results = []
         models = []
         intervals = [] # Intervals; (start, end); (inclusive, exclusive)
-
         for k, series in self.k_series.split().items():
             arr = series.scores_stack.T
-            #arr = self.scores_stack.T  # todo use nonnormed scores as they should be normalized already
             i = 0
+
+            #because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
+            r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
             for bl in series.cov.block_length:
-                intervals.append((series.cov.start + i, series.cov.start + i + bl))
+                intervals.append((r_excl[i], r_excl[i + bl]))
                 d = arr[i]
                 model = TwoComponentAssociationModel()
+                #res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
                 res = fit_kinetics(series.times, d, model, chisq_thd=chisq_thd)
+
                 results.append(res)
                 models.append(model)
-                i += bl
+                i += bl  # increment in block length does not equal move to the next start position
 
         self.result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
         return self.result
@@ -539,7 +541,6 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
                 # t1v = initial_result['tau1'][idx]  #TODO update names
                 # t2v = initial_result['tau2'][idx]
                 r_index += bl
-
 
                 t1v = min(initial_result['tau1'][idx], initial_result['tau2'][idx])
                 t2v = max(initial_result['tau1'][idx], initial_result['tau2'][idx])

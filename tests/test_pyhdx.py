@@ -157,7 +157,6 @@ class TestSimulatedData(object):
         # series keys are inclusive, exclusive
         keys = [f'{self.start}_{self.nc_start}', f'{self.nc_end + 1}_{self.end + 1}']
         split = series.split()
-        print(split.keys())
 
         for k1, k2 in zip(keys, split.keys()):
             assert k1 == k2
@@ -203,6 +202,9 @@ class TestSimulatedData(object):
             ex_res = ''.join(list(peptides.sequence[i] for i in peptides.r_number - 1))
             assert ex_res == self.sequence[peptides.start - 1:].replace('P', '')
 
+
+
+            assert np.sum(peptides.block_length) == len(peptides.r_number)
        #     assert len(peptides.r_number) == self.end - self.start + 1 - df  - 2 # 2 prolines
 
 #            assert np.all(np.diff(peptides.r_number) == 1)  #THIS WILL CHANGE!

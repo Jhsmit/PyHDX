@@ -353,8 +353,15 @@ class Coverage(object):
     @property
     def block_length(self):
         # Find the lengths of unique blocks of residues in the peptides
+        # These are number of exchangeable residues along the r_number axis
+
+        # indices are start and stop values of blocks
         indices = np.sort(np.concatenate([self.data['start'], self.data['end'] + 1]))
-        diffs = np.diff(indices)
+
+        #indices of insertion into r_number vector gives us blocks with taking into account prolines
+        diffs = np.diff(np.searchsorted(self.r_number, indices))
+
+        #diffs = np.diff(indices)
         block_length = diffs[diffs != 0]
         return block_length
 
@@ -524,10 +531,8 @@ class KineticsSeries(object):
 
 
         split_list = [pm.split() for pm in self]
+        #accumulate all keys in the split list and sort them by start then end
         keys = sorted(np.unique([list(dic.keys()) for dic in split_list]), key=lambda x: tuple(int(c) for c in x.split('_')))
-        print('keys', keys)
-        print(type(keys))
-
         #keys = ''
         #sections = reduce_inter(intervals)
         output = {}
