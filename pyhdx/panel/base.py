@@ -52,3 +52,7 @@ class ControlPanel(PanelBase):
     def panel(self):
         #todo this needs some widgetbox luvin
         return pn.panel(self.param)
+
+
+get_widget = pn.Param.get_widget
+

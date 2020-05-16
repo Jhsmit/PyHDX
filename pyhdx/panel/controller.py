@@ -18,17 +18,13 @@ import os
 import numpy as np
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays, append_fields
-
+from .base import get_widget
 from io import StringIO
 
 import matplotlib
 matplotlib.use('agg') # for panel mpl support
 
 from bokeh.util.serialization import make_globally_unique_id
-
-
-
-
 pth = os.path.dirname(__file__)
 
 env = Environment(loader=FileSystemLoader(pth))
@@ -147,6 +143,8 @@ class FileInputControl(ControlPanel):
 
     norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
     norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
+    be_percent = param.Number(28., bounds=(0, 100), doc='Percentage of exchangeable deuteriums which backexchange',
+                              label='Back exchange percentage')
 
     zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
     zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
@@ -159,6 +157,20 @@ class FileInputControl(ControlPanel):
     def __init__(self, parent, **params):
         super(FileInputControl, self).__init__(parent, **params)
         self.file_selectors_column = pn.Column(*[pn.widgets.FileInput(accept='.csv')])
+
+        params = [self.param.norm_state, self.param.norm_exposure, self.param.zero_state, self.param.zero_exposure]
+        self.norm_exp_col = pn.Column(*[get_widget(p) for p in params])
+        self.norm_th_col = pn.Column(get_widget(self.param.be_percent, widget_type=pn.widgets.input.LiteralInput))
+
+        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button', 'exp_state', 'exp_exposures', 'parse_button']
+        params = pn.panel(self.param, parameters=parameters, show_name=False)
+        print(params)
+        params.insert(0, self.file_selectors_column)
+        params.insert(6, get_widget(self.param.norm_mode, widget_type=pn.widgets.RadioButtonGroup))
+        params.insert(7, self.norm_exp_col)
+
+        print(params)
+        self.col = params
 
     def _action_add(self):
         print('action_add')
@@ -192,14 +204,29 @@ class FileInputControl(ControlPanel):
 
     def _action_parse(self):
         print('parse action')
-        control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
-        self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0, remove_nan=True)
+        if self.norm_mode == 'Exp':
+            control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
+            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0, remove_nan=True)
+        elif self.norm_mode == 'Theory':
+            raise NotImplementedError()
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
         series = KineticsSeries(data)
         series.make_uniform()  #TODO add gui control for this
 
         self.parent.series = series
+
+    @param.depends('norm_mode', watch=True)
+    def _update_norm_mode(self):
+
+        if self.norm_mode == 'Exp':
+            self.col[-4] = self.norm_exp_col
+            self._update_experiment()
+        elif self.norm_mode =='Theory':
+            self.col[-4] = self.norm_th_col
+            states = np.unique(self.parent.data['state'])
+            self.param['exp_state'].objects = states
+            self.exp_state = states[0] if not self.exp_state else self.exp_state
 
     @param.depends('norm_state', watch=True)
     def _update_norm_exposure(self):
@@ -229,7 +256,7 @@ class FileInputControl(ControlPanel):
         pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
         states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
-        self.exp_state = states[0]
+        self.exp_state = states[0] if not self.exp_state else self.exp_state
 
     @param.depends('exp_state', watch=True)
     def _update_experiment_exposure(self):
@@ -241,10 +268,9 @@ class FileInputControl(ControlPanel):
 
     @property
     def panel(self):
-        params = pn.panel(self.param, widgets={'norm_mode': pn.widgets.RadioButtonGroup})
-        col = pn.Column(*[self.file_selectors_column, *params[1:]])
 
-        return pn.WidgetBox(col,  pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
+
+        return pn.WidgetBox(self.col,  pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
 
 
 class CoverageControl(ControlPanel):
