@@ -28,7 +28,7 @@ class PeptideCSVFile(object):
         Number of N-terminal amino acids to ignore. Default is 1.
     """
     def __init__(self, data, sort=True, **kwargs):
-
+    #todo perhaps again move determination of exchangeable deuteriums here as well as handling of prolines
         self.data = data
         self.kwargs = kwargs
         if sort:
@@ -64,6 +64,13 @@ class PeptideCSVFile(object):
         # https://stackoverflow.com/questions/54828039/how-to-match-pairs-of-values-contained-in-two-numpy-arrays/54828333
         result = (full[:, None] == test).all(axis=2).any(axis=1)
         return result
+
+    def set_backexchange(self, back_exchange):
+        """
+        Normalize deuterium uptake as a percentage of the number of exchangeable deuteriums
+        """
+
+        raise NotImplementedError()
 
     def set_control(self, control_100, control_0=None, remove_nan=True):
         """
