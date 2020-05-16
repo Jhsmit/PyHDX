@@ -1,4 +1,4 @@
-from .base import FigurePanel, DEFAULT_RENDERERS
+from .base import FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure
 from bokeh.layouts import column
@@ -101,7 +101,7 @@ class RateFigure(FigurePanel):
         """makes bokeh figure and returns it"""
         fig = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
         fig.xaxis.axis_label = 'Residue number'
-        fig.yaxis.axis_label = 'Rate (min⁻¹)'  # oh boy
+        fig.yaxis.axis_label = 'Rate'  # oh boy  #todo units?
 
         #        DEFAULT_RENDERERS
         for k, v in DEFAULT_RENDERERS.items():
@@ -176,6 +176,103 @@ class RateFigure(FigurePanel):
         #https://docs.bokeh.org/en/latest/docs/user_guide/layout.html
         #http://docs.bokeh.org/en/latest/docs/user_guide/annotations.html#spans
         #self.figure.add_layout()
+
+
+class FitResultFigure(FigurePanel):
+    def __init__(self, *args, **params):
+        super(FitResultFigure, self).__init__(*args, **params)
+
+        self.ctrl = self.controllers[0]  #update to dict
+        self.figure = self.draw_figure()
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both') #todo move to base class as property
+
+        self.ctrl.param.watch(self._update_index, ['peptide_index'])
+        self.ctrl.param.watch(self._redraw, ['x_axis_type'])
+        self.parent.param.watch(self._update_fits, ['fit_results'])
+        self.parent.param.watch(self._update_peptides, ['series'])
+        #self.parent.param.watch(self._update_colors, ['rate_colors'])
+
+        self.fit_data = {} # Dictionary with uptake values for peptides from fits
+
+    def _redraw(self, *events):
+        print('redraw')
+        print(self.ctrl.x_axis_type.lower())
+        self.figure = self.draw_figure()
+
+        self._update_fits()
+        self._update_peptides()
+        self.bk_pane.object = self.figure
+
+    def draw_figure(self):
+        fig = figure(x_axis_type=self.ctrl.x_axis_type.lower())
+        fig.axis.axis_label = 'Time'
+
+        renderers = ['fit1', 'fit2']
+        for r in renderers:
+            source = ColumnDataSource({'time': [], 'uptake': []})
+            fig.line(x='time', y='uptake', color=DEFAULT_COLORS[r], source=source, legend_label=r, name=r)
+
+        source = ColumnDataSource({'time': [], 'uptake': []})
+        fig.circle(x='time', y='uptake', color='black', source=source, legend_label='Exp', name='Exp')
+        return fig
+
+    def _update_peptides(self, *events):
+        timepoints = self.parent.series.times
+        datapoints = [pm.data[self.ctrl.peptide_index]['scores'] for pm in self.parent.series]
+        renderer = self.figure.select('Exp')[0]
+        renderer.data_source.data.update({'time': timepoints, 'uptake': datapoints})
+        self.bk_pane.param.trigger('object')
+
+    @property
+    def fit_timepoints(self):
+        timepoints = self.parent.series.times
+        if self.ctrl.x_axis_type == 'Linear':
+            time = np.linspace(0, timepoints.max(), num=250)
+        elif self.ctrl.x_axis_type == 'Log':
+            time = np.logspace(-2, np.log10(timepoints.max()), num=250)
+        return time
+
+    def _update_fits(self, *events):
+        for k, v in self.parent.fit_results.items():
+            fit_result = v['fitresult']
+            if fit_result is None:
+                continue
+            #Issue #35
+            if k == 'fit1':
+                d_list = []
+                for time in self.fit_timepoints:
+                    p = fit_result.get_p(time)
+                    p = np.nan_to_num(p)
+                    d = self.parent.series.cov.X.dot(p)
+                    d_list.append(d)
+                d = np.vstack(d_list)
+            elif k == 'fit2':
+                d_list = []
+                for time in self.fit_timepoints:
+                    d = fit_result.get_d(time)
+                    d_list.append(d)
+                d = np.vstack(d_list)
+
+            self.fit_data[k] = d
+        self._update_index()
+
+    def _update_index(self, *events):
+        for k, v in self.fit_data.items():
+            renderer = self.figure.select(k)[0]
+            renderer.data_source.data.update({'time': self.fit_timepoints, 'uptake': v[:, self.ctrl.peptide_index]})
+
+        #update measured points
+        print('series', self.parent.series)
+        datapoints = [pm.data[self.ctrl.peptide_index]['scores'] for pm in self.parent.series]
+        renderer = self.figure.select('Exp')[0]
+        renderer.data_source.data.update({'uptake': datapoints})
+
+        self.bk_pane.param.trigger('object')
+
+
+
+
+
 
 
 class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel

@@ -12,8 +12,6 @@ class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 
     position = ''
-
-
     @property
     def panel(self):
         return None
@@ -51,7 +49,9 @@ class ControlPanel(PanelBase):
     @property
     def panel(self):
         #todo this needs some widgetbox luvin
-        return pn.panel(self.param)
+
+        return pn.WidgetBox(pn.Param(self.param))
+        #return pn.panel(self.param)
 
 
 get_widget = pn.Param.get_widget

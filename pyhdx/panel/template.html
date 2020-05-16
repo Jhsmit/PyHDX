@@ -64,6 +64,17 @@ var config = {
                         type: 'component',
                         componentName: 'view',
                         componentState: {
+                            model: '{{ embed(roots.fit_quality) }}',
+                            title: 'Fit Quality',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
                             model: '{{ embed(roots.classification) }}',
                             title: 'Classification',
                             width: 350,
@@ -122,6 +133,16 @@ var config = {
                                 componentState: {
                                     model: '{{ embed(roots.rate_fig) }}',
                                     title: 'Uptake rates',
+                                    height: 200
+                                },
+                                isClosable: false,
+                            },
+                            {
+                                type: 'component',
+                                componentName: 'view',
+                                componentState: {
+                                    model: '{{ embed(roots.fitres_fig) }}',
+                                    title: 'Fit Result',
                                     height: 200
                                 },
                                 isClosable: false,

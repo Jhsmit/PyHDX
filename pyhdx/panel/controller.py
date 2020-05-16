@@ -1,6 +1,6 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import CoverageFigure, RateFigure, ProteinFigure
+from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure
 from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
@@ -66,6 +66,7 @@ class Controller(param.Parameterized):
         self.fileinput = FileInputControl(self)
         self.coverage = CoverageControl(self)#CoveragePanel(self)
         self.fit_control = FittingControl(self)
+        self.fit_quality = FittingQuality(self)
         #self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
         self.file_export = FileExportPanel(self)
@@ -74,6 +75,7 @@ class Controller(param.Parameterized):
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
+        self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
         self.protein_figure = ProteinFigure(self, [])
 
 
@@ -86,11 +88,13 @@ class Controller(param.Parameterized):
         tmpl.add_panel('input', self.fileinput.panel)
         tmpl.add_panel('coverage', self.coverage.panel)
         tmpl.add_panel('fitting', self.fit_control.panel)
+        tmpl.add_panel('fit_quality', self.fit_quality.panel)
         tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('file_export', self.file_export.panel)
         tmpl.add_panel('options', self.options.panel)
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
+        tmpl.add_panel('fitres_fig', self.fit_result_figure.panel)
         tmpl.add_panel('slice_k', self.protein_figure.panel)
         #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
 
@@ -194,6 +198,9 @@ class FileInputControl(ControlPanel):
         combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
 
         self.parent.data = combined
+        print(self.parent.data.shape)
+        print(self.drop_first)
+        print(self.ignore_prolines)
         self.parent.peptides = PeptideCSVFile(self.parent.data, drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
         states = list(np.unique(self.parent.peptides.data['state']))
@@ -211,10 +218,19 @@ class FileInputControl(ControlPanel):
             raise NotImplementedError()
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
-        series = KineticsSeries(data)
-        series.make_uniform()  #TODO add gui control for this
 
-        self.parent.series = series
+        # states = self.parent.peptides.groupby_state()
+        # series = states[self.exp_state]
+        # series.make_uniform()
+
+        # b = np.isin(series.full_data['exposure'], self.exp_exposures)
+        # data = series.full_data[b].copy()
+
+
+        #series = KineticsSeries(data)
+        #series.make_uniform()  #TODO add gui control for this
+
+        self.parent.series = KineticsSeries(data, drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
     @param.depends('norm_mode', watch=True)
     def _update_norm_mode(self):
@@ -411,6 +427,21 @@ class FittingControl(ControlPanel):
         par2 = ['do_fit2']
         pars = [self.param[key] for key in par1] + [self.block_column] + [self.param[key] for key in par2]
         return pn.WidgetBox(*pars)
+
+
+class FittingQuality(ControlPanel):
+    peptide_index = param.Number(0, bounds=(0, None))
+    x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'])
+    chi_sq = param.Number(0., bounds=(0, None))
+
+    def __init__(self, parent, **param):
+        super(FittingQuality, self).__init__(parent, **param)
+
+        self.parent.param.watch(self._series_updated, ['series'])
+
+    def _series_updated(self, *events):
+
+        self.param['peptide_index'].bounds =(0, len(self.parent.series.cov.data))
 
 
 class ClassificationControl(ControlPanel):
