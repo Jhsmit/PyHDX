@@ -17,6 +17,7 @@ from .support import reduce_inter, make_view
 
 
 class PeptideCSVFile(object):
+    #todo refactor to? PeptideCollection??
     """
     Input object of DynamX HDX .csv file
 
@@ -27,13 +28,36 @@ class PeptideCSVFile(object):
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
     """
-    def __init__(self, data, sort=True, **kwargs):
+    def __init__(self, data, drop_first=1, ignore_prolines=True, sort=True):
     #todo perhaps again move determination of exchangeable deuteriums here as well as handling of prolines
-        self.data = data
-        self.kwargs = kwargs
+        self.data = data.copy()
         if sort:
             self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
+        # Make backup copies of unmodified start and end fields before taking prolines and n terminal residues into account
+        self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
+        self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
+
+        #Covert sequence to upper case if not so already
+
+        self.data['sequence'] = [s.upper() for s in self.data['sequence']]
+        #Mark ignored prolines with lower case letters
+        if ignore_prolines:
+            self.data['sequence'] = [s.replace('P', 'p') for s in self.data['sequence']]
+
+
+        # Find the total number of n terminal / c_terminal residues to remove
+        # Todo: edge cases such as pure prolines or overlap between c terminal prolines and drop_first section
+        n_term = np.array([len(seq) - len(seq[drop_first:].lstrip('p')) for seq in self.data['sequence']])
+        c_term = np.array([len(seq) - len(seq.rstrip('p')) for seq in self.data['sequence']])
+        # Mark removed n terminal residues with lower case x
+        self.data['sequence'] = ['x'*nt + s[nt:] for nt, s in zip(n_term, self.data['sequence'])]
+
+        self.data['start'] += n_term
+        self.data['end'] -= c_term
+
+        ex_residues = [len(s) - s.count('x') - s.count('p') for s in data['sequence']]
+        self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
 
 
     def __len__(self):
@@ -49,7 +73,7 @@ class PeptideCSVFile(object):
         """
 
         states = np.unique(self.data['state'])
-        return {state: KineticsSeries(self.data[self.data['state'] == state], **self.kwargs) for state in states}
+        return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
 
     @staticmethod
     def isin_by_idx(array, test_array):
@@ -281,54 +305,24 @@ class Coverage(object):
             Values are `True` when the corresponding residues are in at least one peptide, otherwise `False`
     """
 
-    def __init__(self, data, drop_first=0, ignore_prolines=False):
+    def __init__(self, data):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
-        self.ignore_prolines = ignore_prolines
         # character to use to count for proline occurences
-        cnt = 'P' if ignore_prolines else 'X'
-        self.drop_first = drop_first
+
         # todo insert and update coverage logic
 
-        self.data = data.copy()
-
-        if '_start' not in self.data.dtype.fields: # First pass through coverage, not corrected for prolines/nterm
-            self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
-        else: # restore original start/end values and apply prolines/nterm
-            self.data['start'] = self.data['_start']
-        if '_end' not in self.data.dtype.fields:
-            self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
-        else:
-            self.data['end'] = self.data['_end']
-
-        # Determine the number of exchanging residues (considering N-terminal peptides and prolines)
-        # If this field is present then the incoming data has already been through a Coverage object
-        if not 'ex_residues' in data.dtype.fields:
-            rep = '' if ignore_prolines else 'P'
-            ex_residues = np.array([len(seq.replace('P', rep)) for seq in self.data['sequence']], dtype=int)
-            #Additional residues to remove in the first N terimnal residues which arent prolines
-            addl = drop_first - np.array([seq[:drop_first].count(cnt) for seq in self.data['sequence']])
-            ex_residues -= addl
-
-            self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
-
-        #Find the total number of n terminal / c_terminal residues to remove
-        n_term = np.array([len(seq) - len(seq[drop_first:].lstrip(cnt)) for seq in self.data['sequence']])
-        c_term = np.array([len(seq) - len(seq.rstrip(cnt)) for seq in self.data['sequence']])
-
-        self.data['start'] += n_term
-        self.data['end'] -= c_term
-
+        self.data = data
         self.start = np.min(self.data['start'])
         self.end = np.max(self.data['end'])
-        self.prot_len = self.end - self.start + 1  # Total number of amino acids spanned by these measurements
+        self.prot_len = self.end - self.start + 1  # Total number of amino acids spanned by these measurements (not counting prolines!)
 
         self.r_number = np.arange(self.start, self.end + 1)
+
         # Find all indices of prolines in the middle of sequences, remove from r_number array and from sequence
-        if ignore_prolines:
-            p = [entry['_start'] + i - self.start for entry in self.data for i, s in enumerate(entry['sequence']) if s == 'P']
-            p_index = np.unique(p)
-            self.r_number = np.delete(self.r_number, p_index)  # remove r number indices
+        p = [entry['_start'] + i - self.start for entry in self.data for i, s in enumerate(entry['sequence']) if s == 'p']
+        p_index = np.unique(p)
+        self.r_number = np.delete(self.r_number, p_index)  # remove r number indices
 
         self.X = np.zeros((len(self.data), len(self.r_number)), dtype=float)
         for row, entry in enumerate(self.data):
@@ -377,12 +371,12 @@ class Coverage(object):
         return np.sum(self.X, axis=0) > 0
 
     def __len__(self):
+        #todo check overload
         return self.prot_len
 
     @property
     def X_red_norm(self):
         """X matrix normalized along columns"""
-
         return self.X_red / np.sum(self.X_red, axis=0)[np.newaxis, :]
 
     @property
@@ -394,7 +388,7 @@ class Coverage(object):
 
     @property
     def sequence(self):
-        """:obj:`str: String of the full protein sequence. Gaps of no coverage are filled with Prolines."""
+        """:obj:`str: String of the full protein sequence."""
         seq = np.full(self.end, 'X', dtype='U')
         for d in self.data:
             i = d['_start'] - 1
@@ -417,7 +411,7 @@ class Coverage(object):
         output = {}
         for s, e in sections:
             b = np.logical_and(self.data['start'] >= s, self.data['end'] <= e)
-            output[f'{s}_{e}'] = klass(self.data[b], drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+            output[f'{s}_{e}'] = klass(self.data[b])
 
         return output
 
@@ -470,17 +464,14 @@ class KineticsSeries(object):
             self.times = np.sort([elem.exposure for elem in data])
             self.peptidesets = data
 
-
             if self.uniform:
                 # Use first peptideset to create coverage object
-                self.cov = Coverage(data[0].data, drop_first=data[0].drop_first, ignore_prolines=data[0].ignore_prolines)
+                self.cov = Coverage(data[0].data)
             else:
                 self.cov = None
 
         else:
             raise TypeError('Invalid data type')
-
-
 
     def make_uniform(self, in_place=True):
         """
