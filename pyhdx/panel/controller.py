@@ -230,7 +230,9 @@ class FileInputControl(ControlPanel):
         #series = KineticsSeries(data)
         #series.make_uniform()  #TODO add gui control for this
 
-        self.parent.series = KineticsSeries(data, drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        series = KineticsSeries(data, drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        series.make_uniform()
+        self.parent.series = series
 
     @param.depends('norm_mode', watch=True)
     def _update_norm_mode(self):
