@@ -316,14 +316,16 @@ class Coverage(object):
         self.data = data
         self.start = np.min(self.data['start'])
         self.end = np.max(self.data['end'])
-        self.prot_len = self.end - self.start + 1  # Total number of amino acids spanned by these measurements (not counting prolines!)
+        #self.prot_len = self.end - self.start + 1  # Total number of amino acids spanned by these measurements (not counting prolines!)
 
         self.r_number = np.arange(self.start, self.end + 1)
+
 
         # Find all indices of prolines in the middle of sequences, remove from r_number array and from sequence
         p = [entry['_start'] + i - self.start for entry in self.data for i, s in enumerate(entry['sequence']) if s == 'p']
         p_index = np.unique(p)
         self.r_number = np.delete(self.r_number, p_index)  # remove r number indices
+        self.prot_len = len(self.r_number)
 
         self.X = np.zeros((len(self.data), len(self.r_number)), dtype=float)
         for row, entry in enumerate(self.data):
