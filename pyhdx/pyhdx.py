@@ -57,7 +57,7 @@ class PeptideCSVFile(object):
         self.data['start'] += n_term
         self.data['end'] -= c_term
 
-        ex_residues = [len(s) - s.count('x') - s.count('p') for s in data['sequence']]
+        ex_residues = [len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]
         self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
 
 
