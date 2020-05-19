@@ -34,11 +34,12 @@ class PeptideCSVFile(object):
         if sort:
             self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
-        # Make backup copies of unmodified start and end fields before taking prolines and n terminal residues into account
+        # Make backup copies of unmodified start, end and sequence fields before taking prolines and n terminal residues into account
         self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
         self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
+        self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
 
-        #Covert sequence to upper case if not so already
+    #Covert sequence to upper case if not so already
 
         self.data['sequence'] = [s.upper() for s in self.data['sequence']]
         #Mark ignored prolines with lower case letters
@@ -393,7 +394,7 @@ class Coverage(object):
         for d in self.data:
             i = d['_start'] - 1
             j = d['_end']
-            seq[i:j] = [s for s in d['sequence']]
+            seq[i:j] = [s for s in d['_sequence']]
         return ''.join(seq)
 
     def split(self):
