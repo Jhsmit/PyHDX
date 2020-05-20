@@ -137,6 +137,8 @@ class Controller(param.Parameterized):
 
 
 class FileInputControl(ControlPanel):
+    header = 'Input'
+
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
     drop_first = param.Integer(1, bounds=(0, None))
@@ -159,37 +161,39 @@ class FileInputControl(ControlPanel):
     parse_button = param.Action(lambda self: self._action_parse(), doc='Parse', label='Parse')
 
     def __init__(self, parent, **params):
+        self.file_selectors = [pn.widgets.FileInput(accept='.csv')]
         super(FileInputControl, self).__init__(parent, **params)
-        self.file_selectors_column = pn.Column(*[pn.widgets.FileInput(accept='.csv')])
 
-        params = [self.param.norm_state, self.param.norm_exposure, self.param.zero_state, self.param.zero_exposure]
-        self.norm_exp_col = pn.Column(*[get_widget(p) for p in params])
-        self.norm_th_col = pn.Column(get_widget(self.param.be_percent, widget_type=pn.widgets.input.LiteralInput))
+    def make_dict(self):
+        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.LiteralInput)
 
-        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button', 'exp_state', 'exp_exposures', 'parse_button']
-        params = pn.panel(self.param, parameters=parameters, show_name=False)
-        print(params)
-        params.insert(0, self.file_selectors_column)
-        params.insert(6, get_widget(self.param.norm_mode, widget_type=pn.widgets.RadioButtonGroup))
-        params.insert(7, self.norm_exp_col)
-
-        print(params)
-        self.col = params
+    def make_list(self):
+        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
+                      'norm_mode', 'norm_state', 'norm_exposure', 'exp_state', 'exp_exposures', 'parse_button']
+        first_widgets = list([self._widget_dict[par] for par in parameters])
+        return self.file_selectors + first_widgets
 
     def _action_add(self):
         print('action_add')
         widget = pn.widgets.FileInput(accept='.csv')
-        self.file_selectors_column.append(widget)
+        i = len(self.file_selectors) + 1 # position to insert the new file selector into the widget box
+        self.file_selectors.append(widget)
+        self._box.insert(i, widget)
 
     def _action_clear(self):
         print('action clear')
-        self.file_selectors_column.clear()
+
+        while self.file_selectors:
+            fs = self.file_selectors.pop()
+            #todo allow popping/locking with both widgets and parameter names?
+            idx = list(self._box).index(fs)
+            self._box.pop(idx)
         self._action_add()
 
     def _action_load(self):
         print('action load')
         data_list = []
-        for file_selector in self.file_selectors_column:
+        for file_selector in self.file_selectors:
             if file_selector.value is not None:
                 s_io = StringIO(file_selector.value.decode('UTF-8'))
                 data = read_dynamx(s_io)
@@ -198,10 +202,8 @@ class FileInputControl(ControlPanel):
         combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
 
         self.parent.data = combined
-        print(self.parent.data.shape)
-        print(self.drop_first)
-        print(self.ignore_prolines)
-        self.parent.peptides = PeptideCSVFile(self.parent.data, drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        self.parent.peptides = PeptideCSVFile(self.parent.data,
+                                              drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
         states = list(np.unique(self.parent.peptides.data['state']))
         self.param['norm_state'].objects = states
@@ -215,7 +217,8 @@ class FileInputControl(ControlPanel):
             control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
             self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0, remove_nan=True)
         elif self.norm_mode == 'Theory':
-            raise NotImplementedError()
+            self.parent.peptides.set_backexchange(self.be_percent)
+
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
@@ -238,10 +241,15 @@ class FileInputControl(ControlPanel):
     def _update_norm_mode(self):
 
         if self.norm_mode == 'Exp':
-            self.col[-4] = self.norm_exp_col
-            self._update_experiment()
-        elif self.norm_mode =='Theory':
-            self.col[-4] = self.norm_th_col
+            self.box_pop('be_percent')
+            self.box_insert_after('norm_mode', 'norm_state')
+            self.box_insert_after('norm_state', 'norm_exposure')
+            #self._update_experiment()  dont think this is needed
+        elif self.norm_mode == 'Theory':
+            self.box_pop('norm_state')
+            self.box_pop('norm_exposure')
+            self.box_insert_after('norm_mode', 'be_percent')
+
             states = np.unique(self.parent.data['state'])
             self.param['exp_state'].objects = states
             self.exp_state = states[0] if not self.exp_state else self.exp_state
@@ -284,27 +292,39 @@ class FileInputControl(ControlPanel):
         self.param['exp_exposures'].objects = exposures  #todo refactor exposures
         self.exp_exposures = exposures
 
-    @property
-    def panel(self):
-
-
-        return pn.WidgetBox(self.col,  pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
+    # @property
+    # def panel(self):
+    #
+    #
+    #     return pn.WidgetBox(self.col,  pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
 
 
 class CoverageControl(ControlPanel):
+    header = 'Coverage'
+
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
     aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
     labels = param.Boolean(False, label='Labels')
-    index = param.Integer(0, bounds=(0, None), doc='Current index of coverage plot in time')
+    index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time')
 
     def __init__(self, parent, **params):
-        super(CoverageControl, self).__init__(parent, **params)
         self.exposure_str = pn.widgets.StaticText(name='Exposure', value='0') # todo update to some param?
+        super(CoverageControl, self).__init__(parent, **params)
         self.parent.param.watch(self._update_series, ['series'])
+
+    def make_list(self):
+        lst = super(CoverageControl, self).make_list()
+        return lst + [self.exposure_str]
+
+    def make_dict(self):
+        return self.generate_widgets(index=pn.widgets.IntSlider)
 
     @property
     def peptide_measurement(self):
-        return self.parent.series[self.index]
+        if self.parent.series is not None:
+            return self.parent.series[self.index]
+        else:
+            return None
 
     def _update_series(self, event):
         print('coverage new series update index bounds')
@@ -327,17 +347,19 @@ class CoverageControl(ControlPanel):
     def _update_index(self):
         self.exposure_str.value = str(self.peptide_measurement.exposure)
 
-    @property
-    def panel(self):
-        col = pn.Column(self.param, self.exposure_str)
-        #p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput}) for exposure
-        return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'],
-                            sizing_mode='stretch_height')
+    # @property
+    # def panel(self):
+    #     col = pn.Column(self.param, self.exposure_str)
+    #     #p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput}) for exposure
+    #     return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'],
+    #                         sizing_mode='stretch_height')
 
 
 class FittingControl(ControlPanel):
-    chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
+    header = 'Rate Fitting'
+
     r_max = param.Number(27, doc='Ceil value for rates')  # Update this value
+    chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
 
     do_fit1 = param.Action(lambda self: self._action_fit1())
     block_mode = param.ObjectSelector(default='reduced', objects=['reduced', 'original', 'constant'])
@@ -350,7 +372,6 @@ class FittingControl(ControlPanel):
     #constant block params
     block_size = param.Integer(10, doc='Size of the blocks in constant blocks mode')
     initial_block = param.Integer(5, doc='Size of the initial block in constant block mode')
-    show_blocks = param.Boolean(False, doc='Show bounds of blocks in graph')
 
     do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True)
 
@@ -359,6 +380,17 @@ class FittingControl(ControlPanel):
 
         self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
         self.parent.param.watch(self._update_series, ['series'])
+
+    def make_list(self):
+        text_f1 = pn.widgets.StaticText(name='Weighted averaging fit (Fit 1)')
+        text_f2 = pn.widgets.StaticText(name='Global fit (Fit 2)')
+
+        self._widget_dict.update(text_f1=text_f1, text_f2=text_f2)
+        parameters = ['r_max', 'text_f1', 'chisq_thd', 'do_fit1', 'text_f2', 'block_mode', 'max_combine', 'max_join',
+                      'do_fit2']
+
+        widget_list = list([self._widget_dict[par] for par in parameters])
+        return widget_list
 
     def _update_series(self, *events):
         self.r_max = np.log(1 - 0.98) / -self.parent.series.times[1]  # todo user input 0.98
@@ -411,27 +443,40 @@ class FittingControl(ControlPanel):
             fit_kwargs = {'block_func': get_constant_blocks, 'block_size': self.block_size, 'initial_block': self.initial_block}
         return fit_kwargs
 
+    def _clear_block_kwargs(self):
+        """removes all block func kwarg widgets from the box"""
+        parameters = ['max_combine', 'max_join', 'initial_block', 'block_size']
+        for par in parameters:
+            try:
+                self.box_pop(par)
+            except ValueError:
+                pass
+
     @param.depends('block_mode', watch=True)
     def _update_block_mode(self):
         print('block mode updated')
         if self.block_mode == 'reduced':
-            self.block_column.clear()
-            [self.block_column.append(self.param[key]) for key in ['max_combine', 'max_join']]
+            self._clear_block_kwargs()
+            self.box_insert_after('block_mode', 'max_combine')
+            self.box_insert_after('max_combine', 'max_join')
         elif self.block_mode == 'original':
-            self.block_column.clear()
+            self._clear_block_kwargs()
         elif self.block_mode == 'constant':
-            self.block_column.clear()
-            [self.block_column.append(self.param[key]) for key in ['block_size', 'initial_block']]
+            self._clear_block_kwargs()
+            self.box_insert_after('block_mode', 'initial_block')
+            self.box_insert_after('initial_block', 'block_size')
 
-    @property
-    def panel(self):
-        par1 = ['chisq_thd', 'r_max', 'do_fit1', 'block_mode']
-        par2 = ['do_fit2']
-        pars = [self.param[key] for key in par1] + [self.block_column] + [self.param[key] for key in par2]
-        return pn.WidgetBox(*pars)
+    # @property
+    # def panel(self):
+    #     par1 = ['chisq_thd', 'r_max', 'do_fit1', 'block_mode']
+    #     par2 = ['do_fit2']
+    #     pars = [self.param[key] for key in par1] + [self.block_column] + [self.param[key] for key in par2]
+    #     return pn.WidgetBox(*pars)
 
 
 class FittingQuality(ControlPanel):
+    header = 'Fitting Quality'
+
     peptide_index = param.Number(0, bounds=(0, None))
     x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'])
     chi_sq = param.Number(0., bounds=(0, None))
@@ -447,27 +492,31 @@ class FittingQuality(ControlPanel):
 
 
 class ClassificationControl(ControlPanel):
+    header = 'Classification'
     num_classes = param.Number(3, bounds=(1, 10), doc='Number of classification classes')
     target = param.Selector(label='Target')
     otsu_thd = param.Action(lambda self: self._action_threshold(), label='Otsu')
-    show_thds = param.Boolean(True)
+    show_thds = param.Boolean(True, label='Show Thresholds')
     values = param.List(precedence=-1)
     colors = param.List(precedence=-1)
 
     def __init__(self, parent, **param):
         super(ClassificationControl, self).__init__(parent, **param)
 
-        self.values_col = pn.Column()
+        self.values_widgets = []
         for _ in range(self.num_classes - 1):
             self._add_value()
 
-        self.colors_col = pn.Column()
+        self.colors_widgets = []
         for _ in range(self.num_classes):
             self._add_color()
 
         self.param.trigger('values')
         self.param.trigger('colors')
         self.parent.param.watch(self._rates_updated, ['fit_results'])
+
+    def make_dict(self):
+        return self.generate_widgets(num_classes=pn.widgets.Spinner)
 
     def _rates_updated(self, *events):
         print('rates')
@@ -486,7 +535,7 @@ class ClassificationControl(ControlPanel):
             rates = self.parent.fit_results[self.target]['rates']['rate']
             thd_rates = rates[~np.isnan(rates)]
             thds = threshold_multiotsu(np.log(thd_rates), classes=self.num_classes)
-            for thd, widget in zip(thds, self.values_col):
+            for thd, widget in zip(thds, self.values_widgets):
                 widget.value = np.exp(thd)
         self._do_thresholding()
 
@@ -528,19 +577,19 @@ class ClassificationControl(ControlPanel):
 
     @param.depends('num_classes', watch=True)
     def _update_num_colors(self):
-        while len(self.colors_col) != self.num_classes:
-            if len(self.colors_col) > self.num_classes:
+        while len(self.colors_widgets) != self.num_classes:
+            if len(self.colors_widgets) > self.num_classes:
                 self._remove_color()
-            elif len(self.colors_col) < self.num_classes:
+            elif len(self.colors_widgets) < self.num_classes:
                 self._add_color()
         self.param.trigger('colors')
 
     @param.depends('num_classes', watch=True)
     def _update_num_values(self):
-        while len(self.values_col) != self.num_classes - 1:
-            if len(self.values_col) > self.num_classes - 1:
+        while len(self.values_widgets) != self.num_classes - 1:
+            if len(self.values_widgets) > self.num_classes - 1:
                 self._remove_value()
-            elif len(self.values_col) < self.num_classes - 1:
+            elif len(self.values_widgets) < self.num_classes - 1:
                 self._add_value()
         self.param.trigger('values')
 
@@ -548,32 +597,36 @@ class ClassificationControl(ControlPanel):
         default = 0.0
         self.values.append(default)
 
-        name = 'Threshold {}'.format(len(self.values_col) + 1)
+        name = 'Threshold {}'.format(len(self.values_widgets) + 1)
         widget = pn.widgets.LiteralInput(name=name, value=default)
-       # widget.param['value'].bounds = (0, None)
-        self.values_col.append(widget)
+        self.values_widgets.append(widget)
+        i = len(self.values_widgets) + self.box_index('show_thds')
+        self._box.insert(i, widget)
         widget.param.watch(self._value_event, ['value'])
 
     def _remove_value(self):
-        widget = self.values_col.pop(-1)
-        self.values.pop(-1)
+        widget = self.values_widgets.pop(-1)
+        self.box_pop(widget)
+
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
 
     def _add_color(self):
         try:
-            default = DEFAULT_CLASS_COLORS[len(self.colors_col)]
+            default = DEFAULT_CLASS_COLORS[len(self.colors_widgets)]
         except IndexError:
-            default = '#FFFFFF'
+            default = '#FFFFFF'  #random color?
 
         self.colors.append(default)
         widget = pn.widgets.ColorPicker(value=default)
-        self.colors_col.append(widget)
+        self.colors_widgets.append(widget)
+        i = len(self.values_widgets) + len(self.colors_widgets) + self.box_index('show_thds')
+        self._box.insert(i, widget)
         widget.param.watch(self._color_event, ['value'])
 
     def _remove_color(self):
-        widget = self.colors_col.pop(-1)
-        self.colors.pop(-1)
+        widget = self.colors_widgets.pop(-1)
+        self.box_pop(widget)
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
 
@@ -582,7 +635,7 @@ class ClassificationControl(ControlPanel):
         print('color event')
         for event in events:
             print(event)
-            idx = list(self.colors_col).index(event.obj)
+            idx = list(self.colors_widgets).index(event.obj)
             self.colors[idx] = event.new
             c_array = self.parent.rate_colors[self.target]
             c_array[c_array == event.old] = event.new
@@ -591,22 +644,30 @@ class ClassificationControl(ControlPanel):
 
     def _value_event(self, *events):
         for event in events:
-            idx = list(self.values_col).index(event.obj)
+            idx = list(self.values_widgets).index(event.obj)
             self.values[idx] = event.new
         self.param.trigger('values')
 
-    @property
-    def panel(self):
-        return pn.WidgetBox(pn.Param(self.param, widgets={'num_classes': pn.widgets.Spinner}),
-                            self.values_col, self.colors_col)
+    # @property
+    # def panel(self):
+    #     return pn.WidgetBox(pn.Param(self.param, widgets={'num_classes': pn.widgets.Spinner}),
+    #                         self.values_col, self.colors_col)
 
 
 class FileExportPanel(ControlPanel):
+    header = "File Export"
     target = param.Selector(label='Target')
 
     def __init__(self, parent, **param):
         super(FileExportPanel, self).__init__(parent, **param)
         self.parent.param.watch(self._rates_updated, ['fit_results'])
+
+    def make_list(self):
+        rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
+        data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
+
+        self._widget_dict.update(rates_export=rates_export, data_export=data_export)
+        return super(FileExportPanel, self).make_list()
 
     def _rates_updated(self, *events):
         print('rates updated in fileexportpanel')
@@ -649,15 +710,17 @@ class FileExportPanel(ControlPanel):
         io.seek(0)
         return io
 
-    @property
-    def panel(self):
-        rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
-        data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
-
-        return pn.WidgetBox(pn.Param(self.param), rates_export, data_export)
+    # @property
+    # def panel(self):
+    #     rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
+    #     data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
+    #
+    #     return pn.WidgetBox(pn.Param(self.param), rates_export, data_export)
 
 
 class OptionsPanel(ControlPanel):
+    header = 'Options'
+
     """panel for various options and settings"""
 
     #todo this needs to access other panels as well
@@ -715,5 +778,5 @@ class OptionsPanel(ControlPanel):
         self.fig2.x_range.js_link('start', self.fig1.x_range, 'start')
         self.fig2.x_range.js_link('end', self.fig1.x_range, 'end')
 
-    def panel(self):
-        return pn.WidgetBox(pn.Param(self.param))
+    # def panel(self):
+    #     return pn.WidgetBox(pn.Param(self.param))
