@@ -95,9 +95,14 @@ class PeptideCSVFile(object):
         Normalize deuterium uptake as a percentage of the number of exchangeable deuteriums
         """
 
-        raise NotImplementedError()
+        back_exchange /= 100
+        scores = 100*self.data['uptake'] / ((1-back_exchange)*self.data['ex_residues'])
+        self.data = append_fields(self.data, 'scores', data=scores, usemask=False)
+
+        #raise NotImplementedError()
 
     def set_control(self, control_100, control_0=None, remove_nan=True):
+        #todo move remove_nan to init?
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
         value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
@@ -453,10 +458,10 @@ class KineticsSeries(object):
             self.state = data['state'][0]
             self.times = np.sort(np.unique(data['exposure']))
 
-            self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure], **kwargs) for exposure in self.times]
+            self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
 
             if self.uniform:
-                self.cov = Coverage(data[data['exposure'] == self.times[0]], **kwargs)
+                self.cov = Coverage(data[data['exposure'] == self.times[0]])
             else:
                 self.cov = None
 
@@ -494,7 +499,7 @@ class KineticsSeries(object):
 
         if in_place:
             self.peptidesets = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
-            self.cov = Coverage(self[0].data, **self.kwargs)  #not happy about having to save the kwargs like this
+            self.cov = Coverage(self[0].data)  #not happy about having to save the kwargs like this
             #in principle it is stored on each peptidemeasurement and has the same values fo rall peptidemeasuremnts
 
         else:
@@ -635,11 +640,11 @@ class PeptideMeasurements(Coverage):
 
     """
 
-    def __init__(self, data, **kwargs):
+    def __init__(self, data):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
-        super(PeptideMeasurements, self).__init__(data, **kwargs)
+        super(PeptideMeasurements, self).__init__(data)
 
         self.state = self.data['state'][0]
         self.exposure = self.data['exposure'][0]
