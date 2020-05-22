@@ -292,12 +292,6 @@ class FileInputControl(ControlPanel):
         self.param['exp_exposures'].objects = exposures  #todo refactor exposures
         self.exp_exposures = exposures
 
-    # @property
-    # def panel(self):
-    #
-    #
-    #     return pn.WidgetBox(self.col,  pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'], sizing_mode='stretch_height')
-
 
 class CoverageControl(ControlPanel):
     header = 'Coverage'
@@ -407,12 +401,6 @@ class FittingControl(ControlPanel):
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
         self.parent.param.trigger('fit_results')  # Trigger plot update
 
-        # self.parent.rate_colors['fit1'] = [DEFAULT_COLORS['fit1']]*len(rates_array)
-        # self.parent.param.trigger('rates_colors') # Trigger plot update
-
-        #self.parent.param.trigger('rates')
-        #self._renew(None)  #manual trigger
-
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
 
@@ -426,9 +414,6 @@ class FittingControl(ControlPanel):
         rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
         self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
         self.parent.param.trigger('fit_results')  # Trigger plot update
-
-        # self.parent.rate_colors['fit2'] = [DEFAULT_COLORS['fit2']]*len(rates_array)
-        # self.parent.param.trigger('rates_colors')  # Trigger plot update
 
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
@@ -465,13 +450,6 @@ class FittingControl(ControlPanel):
             self._clear_block_kwargs()
             self.box_insert_after('block_mode', 'initial_block')
             self.box_insert_after('initial_block', 'block_size')
-
-    # @property
-    # def panel(self):
-    #     par1 = ['chisq_thd', 'r_max', 'do_fit1', 'block_mode']
-    #     par2 = ['do_fit2']
-    #     pars = [self.param[key] for key in par1] + [self.block_column] + [self.param[key] for key in par2]
-    #     return pn.WidgetBox(*pars)
 
 
 class FittingQuality(ControlPanel):
@@ -523,9 +501,9 @@ class ClassificationControl(ControlPanel):
         print("UPDATE")
 
         objects = [k for k, v in self.parent.fit_results.items() if v['fitresult'] is not None]
-        #objects = [elem for elem in ['fit1', 'fit2'] if not np.all(self.parent.rates[elem] == 0)]
         print(objects)
         self.param['target'].objects = objects
+
         #set target if its not set already
         if not self.target and objects:
             self.target = objects[-1]
@@ -567,13 +545,6 @@ class ClassificationControl(ControlPanel):
        # if 'color' in self.parent.rates.dtype.names:
         self.parent.rate_colors[self.target] = colors
         self.parent.param.trigger('rate_colors')
-
-
-
-        # else:
-        #     #perhaps the rates should be a pandas dataframe
-        #     rates = append_fields(self.parent.rates, 'color', data=colors, usemask=False)
-        #     self.parent.rates = rates  #triggers
 
     @param.depends('num_classes', watch=True)
     def _update_num_colors(self):
@@ -648,11 +619,6 @@ class ClassificationControl(ControlPanel):
             self.values[idx] = event.new
         self.param.trigger('values')
 
-    # @property
-    # def panel(self):
-    #     return pn.WidgetBox(pn.Param(self.param, widgets={'num_classes': pn.widgets.Spinner}),
-    #                         self.values_col, self.colors_col)
-
 
 class FileExportPanel(ControlPanel):
     header = "File Export"
@@ -709,13 +675,6 @@ class FileExportPanel(ControlPanel):
         np.savetxt(io, self.parent.data, fmt=fmt, header=header, delimiter=delimiter)
         io.seek(0)
         return io
-
-    # @property
-    # def panel(self):
-    #     rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
-    #     data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
-    #
-    #     return pn.WidgetBox(pn.Param(self.param), rates_export, data_export)
 
 
 class OptionsPanel(ControlPanel):
