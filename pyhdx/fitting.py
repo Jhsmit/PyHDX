@@ -269,13 +269,14 @@ def fit_kinetics(t, d, model, chisq_thd):
     model.initial_guess(t, d)
     fit = Fit(model.sf_model, t, d, minimizer=Powell)
     res = fit.execute()
-    rate = model.get_rate(**res.params)
+
     try:
         r = res.params[model.names['r']]
     except KeyError:
         r = 1
 
-    if np.isnan(rate) or res.chi_squared > chisq_thd or r > 1 or r < 0:
+    chi = res.chi_squared
+    if np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd or r > 1 or r < 0:
         #TODO add thread lock here
         fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
         #grid = model.initial_grid(t, d, step=5)
