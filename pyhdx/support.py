@@ -231,6 +231,10 @@ def make_view(arr, fields, dtype):
     return np.ndarray((len(arr), 2), buffer=arr, offset=offset, strides=(arr.strides[0], stride-offset), dtype=dtype)
 
 
+def rgb_to_hex(r, g, b):
+    return f'#{r:02x}{g:02x}{b:02x}'
+
+
 def hex_to_rgb(h):
     r, g, b = tuple(int(h.lstrip('#')[2*i:2*i+2], 16) for i in range(3))
     return r, g, b
@@ -248,6 +252,7 @@ def group_with_index(arr):
 def colors_to_pymol(r_number, colors):
     """coverts colors (hexadecimal format) and corresponding residue numbers to pml
     script to color structures in pymol
+    residue ranges in output are inclusive, inclusive
     """
     s_out = ''
     for i, c in enumerate(np.unique(colors)):
@@ -280,3 +285,21 @@ def make_monomer(input_file, output_file):
                     continue
                 f_out.write(line)
 
+
+def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
+    """
+
+    :param rates: array of rates
+    :param colors: list of colors (slow to fast)
+    :param thds: list of thresholds
+    no_coverage: color value for no coverage
+    :return:
+    """
+
+    output = np.full_like(rates, fill_value=no_coverage, dtype='U7')
+    full_thds = [-np.inf] + list(thds) + [np.inf]
+    for lower, upper, color in zip(full_thds[:-1], full_thds[1:], colors):
+        b = (rates > lower) & (rates <= upper)
+        output[b] = color
+
+    return output
