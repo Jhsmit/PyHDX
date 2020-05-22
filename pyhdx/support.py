@@ -1,6 +1,7 @@
 import numpy as np
 import itertools
 import re
+from io import StringIO
 
 def get_reduced_blocks(k_series, max_combine=2, max_join=5):
     #todo arguments of these should be coverage, not series
@@ -178,8 +179,12 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
 
 
 def np_from_txt(file_path, delimiter='\t'):
-    with open(file_path, 'r') as f:
-        header = f.readline()
+    if isinstance(file_path, StringIO):
+        header = file_path.readline().strip()
+        file_path.seek(0)
+    else:
+        with open(file_path, 'r') as f:
+            header = f.readline()
 
     if header.startswith('#'):
         names = header[2:].split(delimiter)

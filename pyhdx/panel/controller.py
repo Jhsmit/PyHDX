@@ -19,10 +19,17 @@ import numpy as np
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays, append_fields
 from .base import get_widget
-from io import StringIO
+from io import StringIO, BytesIO
 
 import matplotlib
 matplotlib.use('agg') # for panel mpl support
+
+
+
+
+#dev only
+import pickle
+
 
 from bokeh.util.serialization import make_globally_unique_id
 pth = os.path.dirname(__file__)
@@ -71,6 +78,7 @@ class Controller(param.Parameterized):
         self.classification_panel = ClassificationControl(self)
         self.file_export = FileExportPanel(self)
         self.options = OptionsPanel(self)
+        self.dev = DeveloperPanel(self)
 
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage])  #parent, [controllers]
@@ -92,6 +100,8 @@ class Controller(param.Parameterized):
         tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('file_export', self.file_export.panel)
         tmpl.add_panel('options', self.options.panel)
+        tmpl.add_panel('dev', self.dev.panel)
+
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
         tmpl.add_panel('fitres_fig', self.fit_result_figure.panel)
@@ -739,3 +749,33 @@ class OptionsPanel(ControlPanel):
 
     # def panel(self):
     #     return pn.WidgetBox(pn.Param(self.param))
+
+
+class DeveloperPanel(ControlPanel):
+    header = 'Developer Options'
+    parse = param.Action(lambda self: self._action_load_files())
+
+    def __init__(self, parent, **params):
+        self.keys = ['fit1_rates', 'fit1_result', 'fit2_rates', 'fit2_result']
+        self.file_selectors = {key: pn.widgets.FileInput() for key in self.keys}
+        super(DeveloperPanel, self).__init__(parent, **params)
+
+    def make_list(self):
+        return list(self.file_selectors.values()) + [self._widget_dict['parse']]
+
+    def _action_load_files(self):
+        for k, fs in self.file_selectors.items():
+            if fs.value is not None:
+                name = k.split('_')[0]  # fit 1 or fit2
+                print(name)
+                if 'rates' in k:
+                    s_io = StringIO(fs.value.decode('UTF-8'))
+                    data = np_from_txt(s_io)
+                    self.parent.fit_results[name]['rates'] = data
+                elif 'result' in k:
+                    b_io = BytesIO(fs.value)
+                    result = pickle.load(b_io)
+                    self.parent.fit_results[name]['fitresult'] = result
+
+        self.parent.param.trigger('fit_results')
+

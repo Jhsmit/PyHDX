@@ -103,6 +103,17 @@ var config = {
                             css_classes: ['scrollable']
                         },
                         isClosable: false,
+                    },
+                    {
+                        type: 'component',
+                        componentName: 'view',
+                        componentState: {
+                            model: '{{ embed(roots.dev) }}',
+                            title: 'Dev',
+                            width: 350,
+                            css_classes: ['scrollable']
+                        },
+                        isClosable: false,
                     }
                         ]
             },
