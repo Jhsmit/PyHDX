@@ -42,8 +42,8 @@ dic = {'rates': np.zeros(0, dtype=[('r_number', int), ('rate', float)]),
        'fitresult': None}
 
 empty_results = {
-    'fit1': dic,
-    'fit2': dic
+    'fit1': dic.copy(),
+    'fit2': dic.copy()
 }
 
 
@@ -764,10 +764,10 @@ class DeveloperPanel(ControlPanel):
         return list(self.file_selectors.values()) + [self._widget_dict['parse']]
 
     def _action_load_files(self):
+
         for k, fs in self.file_selectors.items():
             if fs.value is not None:
                 name = k.split('_')[0]  # fit 1 or fit2
-                print(name)
                 if 'rates' in k:
                     s_io = StringIO(fs.value.decode('UTF-8'))
                     data = np_from_txt(s_io)
@@ -776,6 +776,5 @@ class DeveloperPanel(ControlPanel):
                     b_io = BytesIO(fs.value)
                     result = pickle.load(b_io)
                     self.parent.fit_results[name]['fitresult'] = result
-
         self.parent.param.trigger('fit_results')
 
