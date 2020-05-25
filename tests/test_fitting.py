@@ -1,6 +1,6 @@
 import pytest
 import os
-from pyhdx import PeptideMeasurements, PeptideCSVFile, KineticsSeries
+from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.fileIO import read_dynamx
 from pyhdx.fitting import KineticsFitting, KineticsFitResult
 from pyhdx.support import fmt_export, np_from_txt
@@ -21,7 +21,7 @@ class TestFitting(object):
 
         data = read_dynamx(fpath)
         print(np.unique(data['exposure']))
-        pcf = PeptideCSVFile(data)
+        pcf = PeptideMasterTable(data)
         #b = pcf.data['start'] < 50
         #pcf.data = pcf.data[b]
 

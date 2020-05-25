@@ -238,6 +238,7 @@ class FitResultFigure(FigurePanel):
             if fit_result is None:
                 continue
             #Issue #35
+
             if k == 'fit1':
                 d_list = []
                 for time in self.fit_timepoints:

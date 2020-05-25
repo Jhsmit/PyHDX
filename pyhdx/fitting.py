@@ -622,7 +622,6 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
                     print(np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0)
                 tau = np.asscalar(np.exp(t_log) / np.log(2))
 
-
                 #tau = r * tau1 + (1 - r) * tau2
             tau_list += [tau] * bl
 

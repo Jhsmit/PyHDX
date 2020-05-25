@@ -1,7 +1,7 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure
-from pyhdx.pyhdx import PeptideCSVFile, KineticsSeries
+from pyhdx.pyhdx import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, fmt_export, np_from_txt, autowrap
@@ -58,7 +58,7 @@ class Controller(param.Parameterized):
     #rates = param.Array(doc='Output rates data')
     fit_results = param.Dict(empty_results)
     rate_colors = param.Dict({})
-    peptides = param.ClassSelector(PeptideCSVFile)  #class with all peptides to be considered
+    peptides = param.ClassSelector(PeptideMasterTable)  #class with all peptides to be considered
     series = param.ClassSelector(KineticsSeries)
     fitting = param.ClassSelector(KineticsFitting)
 
@@ -212,8 +212,8 @@ class FileInputControl(ControlPanel):
         combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
 
         self.parent.data = combined
-        self.parent.peptides = PeptideCSVFile(self.parent.data,
-                                              drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        self.parent.peptides = PeptideMasterTable(self.parent.data,
+                                                  drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
         states = list(np.unique(self.parent.peptides.data['state']))
         self.param['norm_state'].objects = states

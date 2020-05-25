@@ -12,7 +12,7 @@ control_100 = ('PpiANative', 30.000002)
 series_name = 'PpiANative'
 
 data = pyhdx.read_dynamx(filename)
-pf = pyhdx.PeptideCSVFile(data, drop_first=drop_first, ignore_prolines=True)
+pf = pyhdx.PeptideMasterTable(data, drop_first=drop_first, ignore_prolines=True)
 pf.set_control(control_100)
 states = pf.groupby_state()
 series = states[series_name]

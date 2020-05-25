@@ -1,6 +1,6 @@
 import pytest
 import os
-from pyhdx import PeptideMeasurements, PeptideCSVFile, KineticsSeries
+from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import np_from_txt
 import numpy as np
@@ -15,16 +15,22 @@ class TestUptakeFileModels(object):
     @classmethod
     def setup_class(cls):
         fpath = os.path.join(directory, 'test_data', 'ds1.csv')
-        cls.pf1 = PeptideCSVFile(read_dynamx(fpath))
+        cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
 
         fpath = os.path.join(directory, 'test_data', 'ds2.csv')
-        cls.pf2 = PeptideCSVFile(read_dynamx(fpath))
+        cls.pf2 = PeptideMasterTable(read_dynamx(fpath))
 
         fpath = os.path.join(directory, 'test_data', 'ds3.csv')
-        cls.pf3 = PeptideCSVFile(read_dynamx(fpath))
+        cls.pf3 = PeptideMasterTable(read_dynamx(fpath))
+
+    def test_peptidemastertable(self):
+        data = self.pf1.data[self.pf1.data['start'] < 50]
+        res = self.pf1.isin_by_idx(self.pf1.data, data)
+        assert res.shape == self.pf1.data.shape
+        assert len(data) == np.sum(res)
 
     def test_peptidemeasurement(self):
-        assert isinstance(self.pf1, PeptideCSVFile)
+        assert isinstance(self.pf1, PeptideMasterTable)
 
         p_dict = self.pf1.return_by_name('PpiA-FD', 0.167)
 
@@ -65,6 +71,13 @@ class TestUptakeFileModels(object):
         new_len = reduce(add, [reduce(add, [len(pm.data) for pm in ks]) for ks in split_series.values()])
 
         assert len(series.full_data) == new_len
+
+        k1 = list(split_series.keys())[0]
+        for k, v in split_series.items():
+            s, e = np.array(k.split('_')).astype(int)
+            pm = v[0]
+            assert np.min(pm.data['start']) == s
+            assert np.all(pm.data['end'] < e)
 
     def test_uniform(self):
         control_100 = ("Full Deuteration control", 0.167)
@@ -110,7 +123,7 @@ class TestSimulatedData(object):
         cls.nc_start, cls.nc_end = 31, 34 # span of no coverage area (inc, inc)
 
     def test_keep_prolines(self):
-        pcf = PeptideCSVFile(self.data, drop_first=0, ignore_prolines=False)
+        pcf = PeptideMasterTable(self.data, drop_first=0, ignore_prolines=False)
         states = pcf.groupby_state()
         assert len(states) == 1
         series = states['state1']
@@ -184,7 +197,7 @@ class TestSimulatedData(object):
     def test_drop_first_prolines(self):
         for i, df in enumerate([1, 2, 3]):
             print('df', df)
-            pcf = PeptideCSVFile(self.data, drop_first=df, ignore_prolines=True)
+            pcf = PeptideMasterTable(self.data, drop_first=df, ignore_prolines=True)
             states = pcf.groupby_state()
             assert len(states) == 1
             series = states['state1']

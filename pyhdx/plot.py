@@ -133,6 +133,7 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8),
 
     return fig, axes
 
+
 def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwargs):
     TOTAL_HEIGHT = 600
 

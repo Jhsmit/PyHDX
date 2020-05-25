@@ -16,21 +16,54 @@ from .support import reduce_inter, make_view
 #HEADER = 'Protein,Start,End,Sequence,Modification,Fragment,MaxUptake,MHP,State,Exposure,Center,Center SD,Uptake,Uptake SD,RT,RT SD'
 
 
-class PeptideCSVFile(object):
-    #todo refactor to? PeptideCollection??
+class PeptideMasterTable(object):
     """
-    Input object of DynamX HDX .csv file
+    Main peptide input object. The input numpy structured array `data` must have the following entires for each peptide:
+
+    start: Residue number of the first amino acid in the peptide
+    end: Residue number of the last amino acid in the peptide (inclusive)
+    sequence: Amino acid sequence of the peptide (one letter code)
+    exposure: Typically the time the sample was exposed to a deuterated solution. This can correspond to other times if
+        the kinetics of the experiment are set up differently
+    state: String describing to which state (experimental conditions) the peptide belongs
+    uptake: Number of deuteriums the peptide has taken up
+
+    The following fields are added to the `data` array upon initialization:
+
+    _start: Unmodified copy of initial start field
+    _end: Unmodified copy of initial end field
+    _sequence: Unmodified copy of initial sequence
+    ex_residues: Number of residues that undergo deuterium exchange. This number is calculated using the `drop_first` and
+        `ignore_prolines` parameters
+
+    N-terminal residues which are removed because they are either within `drop_first` or they are N-terminal prolines are
+    marked with 'x' in the `sequence` field. Prolines which are removed because they are in the middle of a peptide are
+    marked with a lower case 'p' in the sequence field.
+
+    The field `scores` is used in calculating exchange rates and can be set by either the `set_backexchange` or
+    `set_control` methods.
+
 
     Parameters
     ----------
-    file_path : :obj:`str`
-        File path of the .csv file
+    data : ~:class:`np.ndarray`
+        Numpy recarray with peptide entries.
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
+    ignore_prolines: :obj:`bool`
+        Boolean to toggle ignoring of prolines residues. When True these residues are treated as if they're not present
+        in the protein.
+    sort: :obj:`bool`
+        Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
+    remove_nan: :obj`bool`
+        Set to ``True`` to remove NaN entries in uptake
+
     """
-    def __init__(self, data, drop_first=1, ignore_prolines=True, sort=True):
-    #todo perhaps again move determination of exchangeable deuteriums here as well as handling of prolines
+
+    def __init__(self, data, drop_first=1, ignore_prolines=True, sort=True, remove_nan=True):
         self.data = data.copy()
+        if remove_nan:
+            self.data = self.data[~np.isnan(self.data['uptake'])]
         if sort:
             self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
@@ -39,8 +72,7 @@ class PeptideCSVFile(object):
         self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
         self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
 
-    #Covert sequence to upper case if not so already
-
+        #Covert sequence to upper case if not so already
         self.data['sequence'] = [s.upper() for s in self.data['sequence']]
         #Mark ignored prolines with lower case letters
         if ignore_prolines:
@@ -48,9 +80,10 @@ class PeptideCSVFile(object):
 
 
         # Find the total number of n terminal / c_terminal residues to remove
-        # Todo: edge cases such as pure prolines or overlap between c terminal prolines and drop_first section
+        # Todo: edge cases such as pure prolines or overlap between c terminal prolines and drop_first section (issue 32)
         n_term = np.array([len(seq) - len(seq[drop_first:].lstrip('p')) for seq in self.data['sequence']])
         c_term = np.array([len(seq) - len(seq.rstrip('p')) for seq in self.data['sequence']])
+
         # Mark removed n terminal residues with lower case x
         self.data['sequence'] = ['x'*nt + s[nt:] for nt, s in zip(n_term, self.data['sequence'])]
 
@@ -60,13 +93,14 @@ class PeptideCSVFile(object):
         ex_residues = [len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]
         self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
 
-
     def __len__(self):
         return len(self.data)
 
     def groupby_state(self):
         """
-        Groups measurements in the dataset by state and returns them in a dictionary as a :class:`pyhdx.KineticSeries`
+        Groups measurements in the dataset by state and returns them in a dictionary as a
+        :class:`~pyhdx.pyhdx.KineticSeries`.
+
         Returns
         -------
         out : :obj:`dict`
@@ -79,20 +113,38 @@ class PeptideCSVFile(object):
     @staticmethod
     def isin_by_idx(array, test_array):
         """
-        checks if entries in test_array are in array, by 'start' and 'end' field values
-        returns boolean array which is true for each entry of test_array in array
+        Checks if entries in `array` are in `test_array`, by `start` and `end` field values.
+
+        Parameters
+        ----------
+        array : :class:`~numpy.ndarray`
+            Numpy input structured array
+        test_array : :class:`~numpy.ndarray`
+            Numpy structured array to test againts
+
+        Returns
+        -------
+        isin: ndarray, bool
+            Boolean array of the same shape as `array` where entries are `True` if they are in `test_array`
+
         """
 
         test = make_view(test_array, ['start', 'end'], dtype=np.int32)
         full = make_view(array, ['start', 'end'], dtype=np.int32)
 
         # https://stackoverflow.com/questions/54828039/how-to-match-pairs-of-values-contained-in-two-numpy-arrays/54828333
-        result = (full[:, None] == test).all(axis=2).any(axis=1)
-        return result
+        isin = (full[:, None] == test).all(axis=2).any(axis=1)
+        return isin
 
     def set_backexchange(self, back_exchange):
         """
-        Normalize deuterium uptake as a percentage of the number of exchangeable deuteriums
+        Sets the normalized percentage of uptake through a fixed backexchange value for all peptides.
+
+        Parameters
+        ----------
+        back_exchange :  `obj`:float:
+            Percentage of back exchange
+
         """
 
         back_exchange /= 100
@@ -101,29 +153,25 @@ class PeptideCSVFile(object):
 
         #raise NotImplementedError()
 
-    def set_control(self, control_100, control_0=None, remove_nan=True):
-        #todo move remove_nan to init?
+    def set_control(self, control_100, control_0=None):
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
         value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
-        control or vice versa are deleted.
-        Optionally, ``control_zero`` can be specified which is a dataset whose uptake value will be set to zero.
+        control or vice versa are deleted. (#todo perhaps set to NaN instead)
+        Optionally, ``control_zero`` can be specified which is a dataset whose uptake value will be used to zero
+        the uptake.
+
+        #todo insert math
 
         Parameters
         ----------
         control_100 : tuple
+            tuple with (`state`, `exposure`) for peptides to use for normalization to 100%
             Numpy structured array with control peptides to use for normalization to 100%
         control_0 : tuple, optional
-            Numpy structured array with control peptides to use for normalization to 0%
-        remove_nan : :obj:`Bool`
-            If `True`, `NaN` entries are removed from the controls
-
-        Returns
-        -------
+            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values
 
         """
-        # peptides in measurements that are also in the control
-        #todo check for NaNs with lilys file
 
         control_100 = self.get_data(*control_100)
 
@@ -132,11 +180,6 @@ class PeptideCSVFile(object):
             control_0['uptake'] = 0
         else:
             control_0 = self.get_data(*control_0)
-
-        # Remove NaN entries from controls
-        # if remove_nan:
-        #     control_100 = control_100[~np.isnan(control_100['uptake'])]
-        #     control_0 = control_0[~np.isnan(control_0['uptake'])]
 
         b_100 = self.isin_by_idx(self.data, control_100)
         b_0 = self.isin_by_idx(self.data, control_0)
@@ -166,43 +209,8 @@ class PeptideCSVFile(object):
             data_scores['scores'] = scores
         else:
             data_scores = append_fields(data_final, 'scores', data=scores, usemask=False)
-        if remove_nan:
-            data_scores = data_scores[~np.isnan(data_scores['scores'])]
 
         self.data = data_scores
-
-        #update this when changing to Coverage objects
-
-    def groupby_state_control(self, control_100, control_0=None, remove_nan=True):
-        """
-        Groups measurements in the dataset by state and returns them in a dictionary as a :class:`pyhdx.KineticSeries`.
-        Score values are calculated and normalized according to the controls specified.
-
-        Parameters
-        ----------
-        control_100 : :obj:`tuple`
-            Tuple of (:obj:`str`, :obj:`float`) with the state, exposure of the 100% control entry
-        control_0 : :obj:`tuple`, optional
-            Tuple of (:obj:`str`, :obj:`float`) with the state, exposure of the 0% control entry
-        remove_nan : :obj:`Bool`
-            Boolean to set removal of `Nan` entries (#todo currently only in controls)
-
-        Returns
-        -------
-        out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`
-        """
-
-        raise DeprecationWarning
-
-        #todo does this affect underlying data?
-        out_dict = self.groupby_state()
-        control_100 = self.get_data(*control_100) # Get the subset of data for 100% control
-        control_0 = self.get_data(*control_0) if control_0 is not None else control_0
-
-        [v.set_control(control_100, control_0, remove_nan=remove_nan) for v in out_dict.values()]
-
-        return out_dict
 
     def return_by_name(self, control_state, control_exposure):
         #todo return dictionary of kinetic series instead
@@ -264,7 +272,7 @@ class PeptideCSVFile(object):
 
     def get_data(self, state, exposure):
         """
-        Get all data matching the supplied state and exposure.
+        Get all peptides matching `state` and `exposure`.
 
         Parameters
         ----------
@@ -285,12 +293,13 @@ class PeptideCSVFile(object):
 
 class Coverage(object):
     """
-    object describing layout and coverage of peptides and generating the corresponding matrices
+    Object describing layout and coverage of peptides and generating the corresponding matrices. Peptides should all
+    belong to the same state and have the same exposure time.
 
     Parameters
     ----------
     data : ~class:`~numpy.ndarray`
-        Numpy structured array with input data
+        Numpy structured array with input peptides
 
     Attributes
     ----------
@@ -298,17 +307,13 @@ class Coverage(object):
             Index of residue first appearing in the peptides (first residue is 1)
         end : :obj:`int`
             Index of last residue appearing in the peptides (inclusive)
+        r_number : :class:`~numpy.ndarray`
+            Array of residue numbers which are covered by the peptides, excluding prolines if they are set to be ignored.
         prot_len : :obj:`int`
-            Total number of residues the peptides are spanning
+            Total number of residues the peptides covering, excluding prolines if they are set to be ignored.
         X : :class:`~numpy.ndarray`
             N x M matrix where N is the number of peptides and M equal to `prot_len`.
-            Values are 1 where there is coverage, 0 otherwise
-        X_red : :class:`~numpy.ndarray`
-            REDUCED VERSION OF big_X
-        block_length : :class:`~numpy.ndarray`
-            Array with lengths of blocks of residues which are uniquely represented in the peptides
-        has_coverage : :class:`~numpy.ndarray`
-            Values are `True` when the corresponding residues are in at least one peptide, otherwise `False`
+            Values are 1/(ex_residues) where there is coverage, so that rows sum to 1
     """
 
     def __init__(self, data):
@@ -321,8 +326,6 @@ class Coverage(object):
         self.data = data
         self.start = np.min(self.data['start'])
         self.end = np.max(self.data['end'])
-        #self.prot_len = self.end - self.start + 1  # Total number of amino acids spanned by these measurements (not counting prolines!)
-
         self.r_number = np.arange(self.start, self.end + 1)
 
 
@@ -338,15 +341,30 @@ class Coverage(object):
             self.X[row][i0:i1+1] = 1 / entry['ex_residues']
 
     @property
+    def block_length(self):
+        """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
+            along the `r_number` axis"""
+
+        # indices are start and stop values of blocks
+        indices = np.sort(np.concatenate([self.data['start'], self.data['end'] + 1]))
+
+        #indices of insertion into r_number vector gives us blocks with taking prolines into account.
+        diffs = np.diff(np.searchsorted(self.r_number, indices))
+
+        #diffs = np.diff(indices)
+        block_length = diffs[diffs != 0]
+        return block_length
+
+    @property
     def block_coverage(self):
-        """boolean array true where blocks have coverge, False for no coverage blocks"""
+        """:class:`~np.ndarray`: Boolean array with ``True`` values where blocks have coverage."""
         block_coverage = np.sum(self.X_red, axis=0) > 0
         return block_coverage
 
     @property
     def X_red(self):
-        """X coefficent matrix reduced to blocks
-        elements are equal to block size
+        """:class:`~np.ndarray`: Reduced NxM coefficient matrix, with N the number of peptides and M the number of blocks.
+            Elements are equal to the length of the block.
         """
         cs = np.cumsum(self.block_length)
         X_red = np.zeros((len(self.data), len(self.block_length)), dtype=float)
@@ -360,43 +378,26 @@ class Coverage(object):
         return X_red
 
     @property
-    def block_length(self):
-        # Find the lengths of unique blocks of residues in the peptides
-        # These are number of exchangeable residues along the r_number axis
-
-        # indices are start and stop values of blocks
-        indices = np.sort(np.concatenate([self.data['start'], self.data['end'] + 1]))
-
-        #indices of insertion into r_number vector gives us blocks with taking into account prolines
-        diffs = np.diff(np.searchsorted(self.r_number, indices))
-
-        #diffs = np.diff(indices)
-        block_length = diffs[diffs != 0]
-        return block_length
-
-    @property
-    def has_coverage(self):
-        return np.sum(self.X, axis=0) > 0
-
-    def __len__(self):
-        #todo check overload
-        return self.prot_len
-
-    @property
     def X_red_norm(self):
-        """X matrix normalized along columns"""
+        """:class:`~np.ndarray`: `X_red` blocks coefficient matrix normalized column wise."""
         return self.X_red / np.sum(self.X_red, axis=0)[np.newaxis, :]
 
     @property
     def X_norm(self):
-        """X matrix normalized along columns
-        use X.dot(scores) to get weighted average scores along peptide axis
-        """
+        """:class:`~np.ndarray`: `X` coefficient matrix normalized column wise."""
         return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
 
     @property
+    def has_coverage(self):
+        """:class:`~np.ndarray`: Boolean array indicating if the residues along r_number have coverage"""
+        return np.sum(self.X, axis=0) > 0
+
+    def __len__(self):
+        return self.prot_len
+
+    @property
     def sequence(self):
-        """:obj:`str: String of the full protein sequence."""
+        """:obj:`str`: String of the full protein sequence. One letter coding where X marks regions of no coverage"""
         seq = np.full(self.end, 'X', dtype='U')
         for d in self.data:
             i = d['_start'] - 1
@@ -406,9 +407,16 @@ class Coverage(object):
 
     def split(self):
         """
-        Splits the dataset into independent parts which have no overlapping peptides between them
+        Splits the dataset into independent parts which have no overlapping peptides between them. To determine overlap,
+        the modified 'start' and 'end' fields are used which take into account N-terminal non-exchanging residues and
+        prolines.
 
-        Returns PeptideMeasurement / Coverage object dictionary
+        Returns
+        -------
+
+        output: :obj:`dict`
+            Dictionary where keys are {start}_{end} (inclusive, exclusive) of the corresponding sections, values are
+            of the ``type`` of the current instance.
 
         """
 
@@ -424,7 +432,7 @@ class Coverage(object):
         return output
 
     def __eq__(self, other):
-        """equality check used for set intersections"""
+        """Coverage objects are considered equal if both objects fully match between their start, end and sequence fields"""
         assert isinstance(other, Coverage), "Other must be an instance of Coverage"
         return len(self.data) == len(other.data) and np.all(self.data['start'] == other.data['start']) and \
                np.all(self.data['end'] == other.data['end']) and np.all(self.data['sequence'] == other.data['sequence'])
@@ -432,33 +440,29 @@ class Coverage(object):
 
 class KineticsSeries(object):
     """
-    Object with a kinetic series of PeptideMeasurements belonging to the same state with different exposure times.
+    A series of :class:`~pyhdx.pyhdx.PeptideMeasurements` which correspond to the same state but with different exposures.
 
     Parameters
     ----------
     data : :class:`~numpy.ndarray` or :obj:`list`
-        Numpy array with peptide entries corresponding to a single state, or list of PeptideMeasurements
-
+        Numpy structured array with peptide entries corresponding to a single state,
+        or list of :class:`~pyhdx.pyhdx.PeptideMeasurements`
 
     Attributes
     ----------
     state : :obj:`str`
         State of the kinetic series
     times : :class:`~numpy.ndarray`
-        Array with time points
+        Array with exposure times (sorted)
 
     """
-    def __init__(self, data, **kwargs):
-        # todo check or assert if all coverages of time points are equal?
-        # todo add function to make all time points have the same peptides
-
-        self.kwargs = kwargs
+    def __init__(self, data):
         if isinstance(data, np.ndarray):
             assert len(np.unique(data['state'])) == 1
             self.state = data['state'][0]
             self.times = np.sort(np.unique(data['exposure']))
 
-            self.peptidesets = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
+            self.peptides = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
 
             if self.uniform:
                 self.cov = Coverage(data[data['exposure'] == self.times[0]])
@@ -467,10 +471,12 @@ class KineticsSeries(object):
 
         elif isinstance(data, list):
             for elem in data:
-                assert isinstance(elem, PeptideMeasurements)
+                assert isinstance(elem, PeptideMeasurements), 'Invalid data format'
+                assert elem.state == data[0].state, 'All peptide states must be equal'
+            data_sort = sorted(data, key=lambda x: x.exposure)
             self.state = data[0].state
-            self.times = np.sort([elem.exposure for elem in data])
-            self.peptidesets = data
+            self.times = np.array([elem.exposure for elem in data_sort])
+            self.peptides = data
 
             if self.uniform:
                 # Use first peptideset to create coverage object
@@ -498,7 +504,7 @@ class KineticsSeries(object):
         inter_arr = np.array([tup for tup in intersection], dtype=dtype)
 
         if in_place:
-            self.peptidesets = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
+            self.peptides = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
             self.cov = Coverage(self[0].data)  #not happy about having to save the kwargs like this
             #in principle it is stored on each peptidemeasurement and has the same values fo rall peptidemeasuremnts
 
@@ -554,10 +560,10 @@ class KineticsSeries(object):
         return len(self.times)
 
     def __iter__(self):
-        return self.peptidesets.__iter__()
+        return self.peptides.__iter__()
 
     def __getitem__(self, item):
-        return self.peptidesets.__getitem__(item)
+        return self.peptides.__getitem__(item)
 
     def set_control(self, control_100, control_zero=None, remove_nan=True):
         """
