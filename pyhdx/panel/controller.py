@@ -225,7 +225,7 @@ class FileInputControl(ControlPanel):
         print('parse action')
         if self.norm_mode == 'Exp':
             control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
-            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0, remove_nan=True)
+            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
         elif self.norm_mode == 'Theory':
             self.parent.peptides.set_backexchange(self.be_percent)
 
@@ -243,7 +243,7 @@ class FileInputControl(ControlPanel):
         #series = KineticsSeries(data)
         #series.make_uniform()  #TODO add gui control for this
 
-        series = KineticsSeries(data, drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        series = KineticsSeries(data)
         series.make_uniform()
         self.parent.series = series
 
