@@ -1,6 +1,6 @@
 import numpy as np
 from pyhdx.simulate import generate_data, trace, to_rates, gen_coverage
-from pyhdx import PeptideCSVFile, KineticsFitting
+from pyhdx import PeptideMasterTable, KineticsFitting
 from pyhdx.support import np_from_txt, fmt_export
 import matplotlib.pyplot as plt
 import pickle
@@ -30,7 +30,7 @@ cov, data = generate_data(peptides, sequence, timepoints, rates)
 np.save('rates.npy', rates)
 np.save('full_data.npy', data)
 
-pcf = PeptideCSVFile(data, drop_first=0)
+pcf = PeptideMasterTable(data, drop_first=0)
 states = pcf.groupby_state()
 series = states['state1']
 
