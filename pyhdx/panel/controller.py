@@ -527,6 +527,7 @@ class ClassificationControl(ControlPanel):
                 widget.value = np.exp(thd)
         self._do_thresholding()
 
+    @param.depends('values', watch=True)
     def _do_thresholding(self):
         # perhaps we need a class to handle fitting output which has this method
         # yes we do. for all fitting not just fit1
@@ -624,6 +625,7 @@ class ClassificationControl(ControlPanel):
         self.parent.param.trigger('rate_colors')
 
     def _value_event(self, *events):
+        print('value even')
         for event in events:
             idx = list(self.values_widgets).index(event.obj)
             self.values[idx] = event.new
