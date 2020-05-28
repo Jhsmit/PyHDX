@@ -91,6 +91,11 @@ def reduce_inter(args):
     return ret
 
 
+def grouper(n, iterable, padvalue=None):
+    "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
+    return itertools.zip_longest(*[iter(iterable)]*n, fillvalue=padvalue)
+
+
 def _get_f_width(data, sign):
     i = 1 if sign else 0
 

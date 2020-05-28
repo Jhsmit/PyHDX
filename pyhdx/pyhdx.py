@@ -393,7 +393,7 @@ class Coverage(object):
         return np.sum(self.X, axis=0) > 0
 
     def __len__(self):
-        return self.prot_len
+        return len(self.data)
 
     @property
     def sequence(self):
@@ -662,9 +662,6 @@ class PeptideMeasurements(Coverage):
             return self.data['scores']
         except ValueError:
             return self.data['uptake']
-
-    def __len__(self):
-        return len(self.data)
 
     def set_control(self, control_100, control_0=None, remove_nan=True):
         """

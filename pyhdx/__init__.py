@@ -9,3 +9,4 @@ __version__ = '0.1.0'
 from .pyhdx import PeptideMasterTable, PeptideMeasurements, KineticsSeries, Coverage
 from .fitting import KineticsFitting
 from .fileIO import read_dynamx
+from .output import Output

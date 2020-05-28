@@ -80,6 +80,57 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
     return fig, (ax1, ax2, cbar_ax)
 
 
+
+
+def plot_peptides(pm, wrap, ax, color=True, labels=False, cmap='jet', **kwargs):
+    """
+    Plots peptides as rectangles in the provided axes
+
+    Parameters
+    ----------
+    pm
+    wrap
+    ax
+    color
+    labels
+    cmap
+    kwargs
+
+    Returns
+    -------
+
+    """
+
+    rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
+    rect_kwargs.update(kwargs)
+
+    cmap = mpl.cm.get_cmap(cmap)
+    i = -1
+
+    for p_num, e in enumerate(pm.data):
+        if i < -wrap:
+            i = -1
+
+        if color:
+            c = cmap(e['scores'] / 100)
+        else:
+            c = '#707070'
+
+        width = e['end'] - e['start'] + 1
+        rect = Rectangle((e['start'] - 0.5, i), width, 1, facecolor=c, **rect_kwargs)
+        ax.add_patch(rect)
+        if labels:
+            rx, ry = rect.get_xy()
+            cy = ry# + rect.get_height() / 2.
+            cx = rx
+            ax.annotate(str(p_num), (cx, cy), color='k', fontsize=6, va='bottom', ha='right')
+
+        i -= 1
+
+    ax.set_ylim(-wrap, 0)
+    ax.set_xlim(0, pm.end + 5)
+    ax.set_yticks([])
+
 def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8), labels=False, **kwargs):
     rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
     rect_kwargs.update(kwargs)

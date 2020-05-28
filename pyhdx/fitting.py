@@ -43,7 +43,12 @@ class KineticsModel(object):
         return self.sf_model.params[idx]
 
 
-class TwoComponentAssociationModel(KineticsModel):
+class SingleKineticModel(KineticsModel):
+    """
+    Base class for models which fit only a single set (slice) of time, uptake points
+    """
+
+class TwoComponentAssociationModel(SingleKineticModel):
     """Two componenent Association"""
     def __init__(self):
         super(TwoComponentAssociationModel, self).__init__()
@@ -150,7 +155,7 @@ class TwoComponentAssociationModel(KineticsModel):
         return 0.5 - r * np.exp(-t / t1) - (1 - r) * np.exp(-t / t2)
 
 
-class OneComponentAssociationModel(KineticsModel):
+class OneComponentAssociationModel(SingleKineticModel):
     """One component Association"""
     def __init__(self):
         super(OneComponentAssociationModel, self).__init__()
@@ -292,30 +297,6 @@ class KineticsFitting(object):
         self.k_series = k_series
         self.result = None
 
-    @property
-    def scores_stack(self):
-        raise DeprecationWarning()
-        print('move to series')
-        # todo move this to series
-        """uptake scores to fit in a 2d stack"""
-        scores_2d = np.stack([v.scores_average for v in self.k_series])
-        return scores_2d
-
-    @property
-    def scores_norm(self):
-    # Normalized to 100 array of scores
-        raise DeprecationWarning()
-        print('where is this used?')
-        scores_norm = 100 * (self.scores_stack / self.scores_stack[-1, :][np.newaxis, :])
-        return scores_norm
-
-    @property
-    def scores_peptides(self):
-        raise DeprecationWarning()
-        print('move to series')
-        scores_peptides = np.stack([v.scores for v in self.k_series])
-        return scores_peptides
-
     def lsq_fit_blocks(self, initial_result, model='bi', block_func=get_reduced_blocks, **block_kwargs):
         """ initial_result: KineticsFitResult object from global_fitting"""
 
@@ -402,6 +383,17 @@ class KineticsFitResult(object):
         self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
+
+    @property
+    def model_type(self):
+
+        if np.all([isinstance(m, SingleKineticModel) for m in self.models]):
+            return 'Single'
+        elif np.all([isinstance(m, LSQKinetics) for m in self.models]):
+            return 'Global'
+        else:
+            return 'Mixed'
+        # return list([m.__class__ for m in self.models])
 
     def get_p(self, t):
         """

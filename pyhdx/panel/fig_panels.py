@@ -218,7 +218,8 @@ class FitResultFigure(FigurePanel):
 
     def _update_peptides(self, *events):
         timepoints = self.parent.series.times
-        datapoints = [pm.data[self.ctrl.peptide_index]['scores'] for pm in self.parent.series]
+        datapoints = self.parent.series.scores_peptides.T[self.ctrl.peptide_index]
+        #datapoints = [pm.data[self.ctrl.peptide_index]['scores'] for pm in self.parent.series]
         renderer = self.figure.select('Exp')[0]
         renderer.data_source.data.update({'time': timepoints, 'uptake': datapoints})
         self.bk_pane.param.trigger('object')
@@ -269,11 +270,6 @@ class FitResultFigure(FigurePanel):
         renderer.data_source.data.update({'uptake': datapoints})
 
         self.bk_pane.param.trigger('object')
-
-
-
-
-
 
 
 class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel
