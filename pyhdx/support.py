@@ -1,6 +1,7 @@
 import numpy as np
 import itertools
 import re
+import contextlib
 from io import StringIO
 
 def get_reduced_blocks(k_series, max_combine=2, max_join=5):
@@ -90,6 +91,16 @@ def reduce_inter(args):
             ret.append((ns, ne))
     return ret
 
+
+@contextlib.contextmanager
+def temporary_seed(seed):
+    #https://stackoverflow.com/questions/49555991/can-i-create-a-local-numpy-random-seed
+    state = np.random.get_state()
+    np.random.seed(seed)
+    try:
+        yield
+    finally:
+        np.random.set_state(state)
 
 def grouper(n, iterable, padvalue=None):
     "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"

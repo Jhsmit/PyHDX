@@ -1,12 +1,11 @@
 from .base import FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS
 from pyhdx.plot import _bokeh_coverage
-from bokeh.plotting import figure
+from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
 from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span
 from bokeh.models.markers import Triangle, Circle, Diamond
 import panel as pn
 import numpy as np
-
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 
@@ -102,6 +101,9 @@ class RateFigure(FigurePanel):
         fig = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = 'Rate'  # oh boy  #todo units?
+
+        doc = curdoc()
+        print(doc)
 
         #        DEFAULT_RENDERERS
         for k, v in DEFAULT_RENDERERS.items():
@@ -206,7 +208,8 @@ class FitResultFigure(FigurePanel):
     def draw_figure(self):
         fig = figure(x_axis_type=self.ctrl.x_axis_type.lower())
         fig.axis.axis_label = 'Time'
-
+        doc = curdoc()
+        print(doc)
         renderers = ['fit1', 'fit2']
         for r in renderers:
             source = ColumnDataSource({'time': [], 'uptake': []})

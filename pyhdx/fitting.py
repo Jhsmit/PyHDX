@@ -1,10 +1,10 @@
-from pyhdx.support import get_constant_blocks, get_reduced_blocks
+from pyhdx.support import get_constant_blocks, get_reduced_blocks, temporary_seed
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
 from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
-from functools import reduce
+from functools import reduce, partial
 from operator import add
 
 
@@ -47,6 +47,7 @@ class SingleKineticModel(KineticsModel):
     """
     Base class for models which fit only a single set (slice) of time, uptake points
     """
+
 
 class TwoComponentAssociationModel(SingleKineticModel):
     """Two componenent Association"""
@@ -272,43 +273,43 @@ def fit_kinetics(t, d, model, chisq_thd):
         return er
 
     model.initial_guess(t, d)
-    fit = Fit(model.sf_model, t, d, minimizer=Powell)
-    res = fit.execute()
-
-    try:
-        r = res.params[model.names['r']]
-    except KeyError:
-        r = 1
-
-    chi = res.chi_squared
-    if np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd or r > 1 or r < 0:
-        #TODO add thread lock here
-        fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
-        #grid = model.initial_grid(t, d, step=5)
+    with temporary_seed(43):
+        fit = Fit(model.sf_model, t, d, minimizer=Powell)
         res = fit.execute()
 
+        try:
+            r = res.params[model.names['r']]
+        except KeyError:
+            r = 1
+
+        if np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd or r > 1 or r < 0:
+            fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
+            #grid = model.initial_grid(t, d, step=5)
+            res = fit.execute()
+
+    return res
+
+
+def fit_global(data, model):
+    fit = Fit(model.sf_model, **data)
+    res = fit.execute()
     return res
 
 
 class KineticsFitting(object):
 
-    def __init__(self, k_series):
+    def __init__(self, k_series, client=None):
         #todo check if coverage is the same!
+
         self.k_series = k_series
         self.result = None
 
-    def lsq_fit_blocks(self, initial_result, model='bi', block_func=get_reduced_blocks, **block_kwargs):
-        """ initial_result: KineticsFitResult object from global_fitting"""
-
-        assert self.k_series.uniform
+    def _prepare_global_fit(self, initial_result, model='bi', block_func=get_reduced_blocks, **block_kwargs):
         split = self.k_series.split()
 
-        rate_output = np.empty(len(self.k_series.cov.r_number))
-        rate_output[:] = np.nan
-
-        results = []
         models = []
         intervals = []
+        d_list = []
         for section in split.values():  # Section block is 7 one block
             s, e = section.cov.start, section.cov.end  #inclusive, inclusive (source file)
             intervals.append((s, e + 1))  #inclusive, exclusive
@@ -316,22 +317,104 @@ class KineticsFitting(object):
             blocks = block_func(section, **block_kwargs)
             model = LSQKinetics(initial_result, section, blocks, model=model)
 
-            # scores_peptides = np.stack([v.scores for v in section])
-            # sp1 = section.scores_peptides
-            # assert np.all(scores_peptides == sp1)
             data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, section.scores_peptides.T)}
             data_dict[model.t_var.name] = section.times
-            fit = Fit(model.sf_model, **data_dict)
-            result = fit.execute()
+            d_list.append(data_dict)
 
-            results.append(result)
+            #fit = Fit(model.sf_model, **data_dict)
+
             models.append(model)
+
+        return d_list, intervals, models
+
+    async def global_fit_async(self, client, initial_result, pbar=None, model='bi', block_func=get_reduced_blocks, **block_kwargs):
+        """ initial_result: KineticsFitResult object from global_fitting"""
+        assert self.k_series.uniform
+        d_list, intervals, models = self._prepare_global_fit(initial_result, model=model, block_func=block_func, **block_kwargs)
+        sf_models = list([m.sf_model for m in models])
+
+        # for some reason if using the function fit_global from outer scope this doesnt work
+        def func(model, data):
+            fit = Fit(model, **data)
+            res = fit.execute()
+            return res
+
+        futures = client.map(func, sf_models, d_list)
+        if pbar:
+            await pbar.run(futures)
+
+        results = client.gather(futures)
+        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+
+        return fit_result
+
+    def global_fit(self, initial_result, pbar=None, model='bi', block_func=get_reduced_blocks, **block_kwargs):
+        """ initial_result: KineticsFitResult object from global_fitting"""
+
+        assert self.k_series.uniform
+
+        d_list, intervals, models = self._prepare_global_fit(initial_result, model=model, block_func=block_func, **block_kwargs)
+
+        results = []
+        for data, model in zip(d_list, models):
+            result = fit_global(data, model)
+            if pbar:
+                pbar.increment()
+            results.append(result)
 
         fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
 
         return fit_result
 
-    def weighted_avg_fit(self, chisq_thd=20):
+    def _prepare_wt_avg_fit(self):
+        models = []
+        intervals = []  # Intervals; (start, end); (inclusive, exclusive)
+        d_list = []
+        for k, series in self.k_series.split().items():
+            arr = series.scores_stack.T
+            i = 0
+            # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
+            r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
+
+            for bl in series.cov.block_length:
+                intervals.append((r_excl[i], r_excl[i + bl]))
+                d = arr[i]
+                d_list.append(d)
+                model = TwoComponentAssociationModel()
+                # res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
+
+                models.append(model)
+                i += bl  # increment in block length does not equal move to the next start position
+
+        return d_list, intervals, models
+
+    async def weighted_avg_fit_async(self, client, chisq_thd=20, pbar=None):
+        """
+        Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
+        is the same
+
+        Parameters
+        ----------
+        chisq_max
+
+        Returns
+        -------
+
+        """
+
+        d_list, intervals, models = self._prepare_wt_avg_fit()
+        fit_func = partial(fit_kinetics, self.k_series.times)
+        futures = client.map(fit_func, d_list, models, chisq_thd=chisq_thd)
+        if pbar:
+            pbar.num_tasks = len(d_list)  #this call assignment might also need unlocked()
+            await pbar.run(futures)
+
+        results = client.gather(futures)
+
+        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+        return fit_result
+
+    def weighted_avg_fit(self, chisq_thd=20, pbar=None):
         """
         Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
         is the same
@@ -365,8 +448,21 @@ class KineticsFitting(object):
                 models.append(model)
                 i += bl  # increment in block length does not equal move to the next start position
 
-        self.result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
-        return self.result
+        d_list, intervals, models = self._prepare_wt_avg_fit()
+        if pbar:
+            self.num_tasks = len(d_list)
+            inc = pbar.increment
+        else:
+            inc = lambda: None
+
+        results = []
+        for d, model in zip(d_list, models):
+            result = fit_kinetics(self.k_series.times, d, model, chisq_thd=chisq_thd)
+            inc()
+            results.append(result)
+
+        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+        return fit_result
 
 
 class KineticsFitResult(object):
@@ -386,14 +482,12 @@ class KineticsFitResult(object):
 
     @property
     def model_type(self):
-
         if np.all([isinstance(m, SingleKineticModel) for m in self.models]):
             return 'Single'
         elif np.all([isinstance(m, LSQKinetics) for m in self.models]):
             return 'Global'
         else:
             return 'Mixed'
-        # return list([m.__class__ for m in self.models])
 
     def get_p(self, t):
         """

@@ -19,11 +19,15 @@ import numpy as np
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays, append_fields
 from .base import get_widget
+from .components import ASyncProgressBar
 from io import StringIO, BytesIO
-
+from dask.distributed import Client
+from tornado.ioloop import IOLoop
+from bokeh.plotting import curdoc
+from bokeh.document import without_document_lock
 import matplotlib
 matplotlib.use('agg') # for panel mpl support
-
+from functools import partial
 
 
 
@@ -62,10 +66,10 @@ class Controller(param.Parameterized):
     series = param.ClassSelector(KineticsSeries)
     fitting = param.ClassSelector(KineticsFitting)
 
-    def __init__(self, template, panels, **params):
+    def __init__(self, template, panels, cluster=None, **params):
         super(Controller, self).__init__(**params)
         template = env.get_template('template.html')
-
+        self.cluster = cluster
         tmpl = pn.Template(template=template)
      #   tmpl.nb_template.globals['get_id'] = make_globally_unique_id
 
@@ -380,18 +384,21 @@ class FittingControl(ControlPanel):
     do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True)
 
     def __init__(self, parent, **params):
+        self.pbar1 = ASyncProgressBar()
+        self.pbar2 = ASyncProgressBar()
         super(FittingControl, self).__init__(parent, **params)
 
-        self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
+
+        #self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
         self.parent.param.watch(self._update_series, ['series'])
 
     def make_list(self):
         text_f1 = pn.widgets.StaticText(name='Weighted averaging fit (Fit 1)')
         text_f2 = pn.widgets.StaticText(name='Global fit (Fit 2)')
 
-        self._widget_dict.update(text_f1=text_f1, text_f2=text_f2)
-        parameters = ['r_max', 'text_f1', 'chisq_thd', 'do_fit1', 'text_f2', 'block_mode', 'max_combine', 'max_join',
-                      'do_fit2']
+        self._widget_dict.update(text_f1=text_f1, text_f2=text_f2, pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+        parameters = ['r_max', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
+                      'max_join', 'do_fit2', 'pbar2']
 
         widget_list = list([self._widget_dict[par] for par in parameters])
         return widget_list
@@ -399,13 +406,24 @@ class FittingControl(ControlPanel):
     def _update_series(self, *events):
         self.r_max = np.log(1 - 0.98) / -self.parent.series.times[1]  # todo user input 0.98
 
-    def _action_fit1(self):
-        print('fitting 1')
-        #todo context manager?
-        self.param['do_fit1'].constant = True
-        self.param['do_fit2'].constant = True
+    @without_document_lock
+    async def _fit1_async(self):
+        client = await Client(self.parent.cluster)
+        fit_result = await self.parent.fitting.weighted_avg_fit_async(client, pbar=self.pbar1)
+        rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
+        self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
+        doc = curdoc()
+        callback = partial(self.parent.param.trigger, 'fit_results')
+        doc.add_next_tick_callback(callback)
 
-        fit_result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
+        with pn.io.unlocked():
+            #self.parent.param.trigger('fit_results')
+            self.param['do_fit1'].constant = False
+            self.param['do_fit2'].constant = False
+
+    def _fit1(self):
+
+        fit_result = self.parent.fitting.weighted_avg_fit(pbar=self.pbar1, chisq_thd=self.chisq_thd)
         rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
 
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
@@ -414,13 +432,29 @@ class FittingControl(ControlPanel):
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
 
+    def _action_fit1(self):
+        print('fitting 1')
+        #todo context manager?
+        self.param['do_fit1'].constant = True
+        self.param['do_fit2'].constant = True
+
+        if self.parent.cluster:
+            loop = IOLoop.current()
+            loop.add_callback(self._fit1_async)
+        else:
+            self._fit1()
+
+
+        # fit_result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
+        # rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
+
     def _action_fit2(self):
         print('fitting 2')
         #todo context manager
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
 
-        fit_result = self.parent.fitting.lsq_fit_blocks(self.parent.fit_results['fit1']['rates'], **self.fit_kwargs)
+        fit_result = self.parent.fitting.global_fit(self.parent.fit_results['fit1']['rates'], **self.fit_kwargs)
         rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
         self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
         self.parent.param.trigger('fit_results')  # Trigger plot update
