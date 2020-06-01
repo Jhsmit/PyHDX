@@ -112,7 +112,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('slice_k', self.protein_figure.panel)
         #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
 
-        self.template = tmpl
+        self.app = tmpl
       #  self.panels = [panel(self) for panel in panels]
 
     @param.depends('series', watch=True)
@@ -138,7 +138,25 @@ class Controller(param.Parameterized):
 
     @property
     def servable(self):
-        return self.template.servable
+        return self.app.servable
+
+    def serve(self):
+        js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
+                    'goldenlayout': 'https://golden-layout.com/files/latest/js/goldenlayout.min.js',
+                    'ngl': 'https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.33/dist/ngl.js'}
+        css_files = ['https://golden-layout.com/files/latest/css/goldenlayout-base.css',
+                     'https://golden-layout.com/files/latest/css/goldenlayout-dark-theme.css']
+
+        css = '''
+        .custom-wbox > div.bk {
+            padding-right: 10px;
+        }
+        .scrollable {
+            overflow: auto !important;
+        }
+        '''
+
+        pn.serve(self.app, js_files=js_files, raw_css=[css], css_files=css_files)
 
     def get_rate_file_export(self):
         fmt, header = fmt_export(self.rates)
@@ -406,20 +424,21 @@ class FittingControl(ControlPanel):
     def _update_series(self, *events):
         self.r_max = np.log(1 - 0.98) / -self.parent.series.times[1]  # todo user input 0.98
 
-    @without_document_lock
+    #@without_document_lock
     async def _fit1_async(self):
         client = await Client(self.parent.cluster)
         fit_result = await self.parent.fitting.weighted_avg_fit_async(client, pbar=self.pbar1)
+        print('fit res in async', fit_result)
         rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
-        doc = curdoc()
-        callback = partial(self.parent.param.trigger, 'fit_results')
-        doc.add_next_tick_callback(callback)
-
-        with pn.io.unlocked():
-            #self.parent.param.trigger('fit_results')
-            self.param['do_fit1'].constant = False
-            self.param['do_fit2'].constant = False
+        # doc = curdoc()
+        # callback = partial(self.parent.param.trigger, 'fit_results')
+        # doc.add_next_tick_callback(callback)
+        #
+        # with pn.io.unlocked():
+        #     #self.parent.param.trigger('fit_results')
+        #     self.param['do_fit1'].constant = False
+        #     self.param['do_fit2'].constant = False
 
     def _fit1(self):
 
@@ -675,7 +694,7 @@ class FileExportPanel(ControlPanel):
         self.parent.param.watch(self._rates_updated, ['fit_results'])
 
     def make_list(self):
-        rates_export = pn.widgets.FileDownload(filename='Fit_rates.txt', callback=self.rates_export)
+        rates_export = pn.widgets.FileDownload(filename='Fit1_rates.txt', callback=self.fit1_export)
         data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
 
         self._widget_dict.update(rates_export=rates_export, data_export=data_export)
@@ -690,6 +709,24 @@ class FileExportPanel(ControlPanel):
         #set target if its not set already
         if not self.target and objects:
             self.target = objects[-1]
+
+    def fit1_export(self):
+        io = StringIO()
+#        print(self.target)
+        print('exporting fit1')
+
+        fit_arr = self.parent.fit_results['fit1']['rates']
+        if 'fit1' in self.parent.rate_colors:
+            colors = self.parent.rate_colors['fit1']
+            export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
+        else:
+            export_data = fit_arr
+
+        fmt, header = fmt_export(export_data)
+        np.savetxt(io, export_data, fmt=fmt, header=header)
+
+        io.seek(0)
+        return io
 
     @pn.depends('target')
     def rates_export(self):
