@@ -48,7 +48,7 @@ Overfitting occurs when more parameters are added to the model but the supplied 
 to be able to accurately and uniquely determine the value of these parameters. Typical signs of overfitting are large
 variations along residues in the obtained rates, such as for residue 43 in Figure :numref:`overfitting`.
 
-.. _blocks_reduced:
+.. _overfitting:
 .. figure:: figures/overfitting.png
     :scale: 25 %
     :figclass: align-center

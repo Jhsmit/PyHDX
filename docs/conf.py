@@ -38,7 +38,19 @@ numfig = True
 
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+#extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+
+extensions = [
+    'sphinx.ext.autodoc',
+    'sphinx.ext.intersphinx',
+    'sphinx.ext.mathjax',
+    'sphinx.ext.viewcode',
+    'numpydoc'
+  #  'sphinxcontrib.bibtex'
+]
+
+numpydoc_show_inherited_class_members = False
+
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -166,4 +178,8 @@ texinfo_documents = [
 ]
 
 
-
+intersphinx_mapping = {'python': ('http://docs.python.org/2', None),
+                       'numpy': ('http://docs.scipy.org/doc/numpy/', None),
+                       'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
+                       'matplotlib': ('http://matplotlib.sourceforge.net/', None),
+                       'symfit': ('https://symfit.readthedocs.io/en/stable/', None)}

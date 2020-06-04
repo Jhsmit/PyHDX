@@ -7,7 +7,7 @@ Welcome to PyHDX's documentation!
 
    readme
    installation
-   usage
+   fitting
    examples
    modules
    contributing

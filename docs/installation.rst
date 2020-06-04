@@ -65,7 +65,8 @@ or ``pip``:
 
 To launch the web application:
 
-.. code-block::
+.. code-block:: console
+
     $ panel serve panel/main.py
 
 .. _Github repo: https://github.com/Jhsmit/pyhdx
