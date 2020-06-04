@@ -6,17 +6,24 @@ from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
 from functools import reduce, partial
 from operator import add
+from dask.distributed import Client
 
 
 class KineticsModel(object):
     par_index = 0
     var_index = 0
 
-    def __init__(self):
+    def __init__(self, bounds):
+        if bounds[1] < bounds[0]:
+            raise ValueError('Lower bound must be smaller than upper bound')
+        self.bounds = bounds
         self.names = {}  # human name: dummy name
         self.sf_model = None
 
-    def make_parameter(self, name, value=1., min=None, max=None):
+    def make_parameter(self, name, value=None, min=None, max=None):
+        min = min or self.bounds[0]
+        max = max or self.bounds[1]
+        value = value or np.mean(self.bounds)
         dummy_name = 'pyhdx_par_{}'.format(self.par_index)
         KineticsModel.par_index += 1
         p = Parameter(dummy_name, value=value, min=min, max=max)
@@ -51,8 +58,8 @@ class SingleKineticModel(KineticsModel):
 
 class TwoComponentAssociationModel(SingleKineticModel):
     """Two componenent Association"""
-    def __init__(self):
-        super(TwoComponentAssociationModel, self).__init__()
+    def __init__(self, bounds):
+        super(TwoComponentAssociationModel, self).__init__(bounds)
 
         r = self.make_parameter('r', value=0.5, min=0, max=1)
         tau1 = self.make_parameter('tau1', min=0, max=5)
@@ -267,7 +274,7 @@ def fit_kinetics(t, d, model, chisq_thd):
     res : :class:`~symfit.FitResults`
         Symfit fitresults object.
     """
-    if np.any(np.isnan(d)):  # states!
+    if np.any(np.isnan(d)):
         raise ValueError('There shouldnt be NaNs anymore')
         er = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
         return er
@@ -276,7 +283,6 @@ def fit_kinetics(t, d, model, chisq_thd):
     with temporary_seed(43):
         fit = Fit(model.sf_model, t, d, minimizer=Powell)
         res = fit.execute()
-
         try:
             r = res.params[model.names['r']]
         except KeyError:
@@ -298,11 +304,24 @@ def fit_global(data, model):
 
 class KineticsFitting(object):
 
-    def __init__(self, k_series, client=None):
+    def __init__(self, k_series, bounds=None, cluster=None):
         #todo check if coverage is the same!
-
+        assert k_series.uniform
+        self.cluster = cluster
         self.k_series = k_series
-        self.result = None
+        self.bounds = bounds or self._get_bounds()
+
+    def _get_bounds(self):
+        #todo document
+        times = self.k_series.times
+        nonzero_times = times[np.nonzero(times)]
+        t_first = np.min(nonzero_times)
+        t_last = np.max(nonzero_times)
+        b_upper = 5*np.log(2) / t_first
+        b_lower = np.log(2) / (t_last * 5)
+
+        return 1/b_upper, 1/b_lower
+        #return b_lower, b_upper
 
     def _prepare_global_fit(self, initial_result, model='bi', block_func=get_reduced_blocks, **block_kwargs):
         split = self.k_series.split()
@@ -314,8 +333,8 @@ class KineticsFitting(object):
             s, e = section.cov.start, section.cov.end  #inclusive, inclusive (source file)
             intervals.append((s, e + 1))  #inclusive, exclusive
 
-            blocks = block_func(section, **block_kwargs)
-            model = LSQKinetics(initial_result, section, blocks, model=model)
+            blocks = block_func(section.cov, **block_kwargs)
+            model = LSQKinetics(initial_result, section, blocks, self.bounds, model=model)
 
             data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, section.scores_peptides.T)}
             data_dict[model.t_var.name] = section.times
@@ -327,7 +346,7 @@ class KineticsFitting(object):
 
         return d_list, intervals, models
 
-    async def global_fit_async(self, client, initial_result, pbar=None, model='bi', block_func=get_reduced_blocks, **block_kwargs):
+    async def global_fit_async(self, initial_result, pbar=None, model='bi', block_func=get_reduced_blocks, **block_kwargs):
         """ initial_result: KineticsFitResult object from global_fitting"""
         assert self.k_series.uniform
         d_list, intervals, models = self._prepare_global_fit(initial_result, model=model, block_func=block_func, **block_kwargs)
@@ -339,6 +358,7 @@ class KineticsFitting(object):
             res = fit.execute()
             return res
 
+        client = await Client(self.cluster)
         futures = client.map(func, sf_models, d_list)
         if pbar:
             await pbar.run(futures)
@@ -380,7 +400,7 @@ class KineticsFitting(object):
                 intervals.append((r_excl[i], r_excl[i + bl]))
                 d = arr[i]
                 d_list.append(d)
-                model = TwoComponentAssociationModel()
+                model = TwoComponentAssociationModel(self.bounds)
                 # res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
 
                 models.append(model)
@@ -388,7 +408,7 @@ class KineticsFitting(object):
 
         return d_list, intervals, models
 
-    async def weighted_avg_fit_async(self, client, chisq_thd=20, pbar=None):
+    async def weighted_avg_fit_async(self, chisq_thd=20, pbar=None):
         """
         Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
         is the same
@@ -404,6 +424,7 @@ class KineticsFitting(object):
 
         d_list, intervals, models = self._prepare_wt_avg_fit()
         fit_func = partial(fit_kinetics, self.k_series.times)
+        client = await Client(self.cluster)
         futures = client.map(fit_func, d_list, models, chisq_thd=chisq_thd)
         if pbar:
             pbar.num_tasks = len(d_list)  #this call assignment might also need unlocked()
@@ -428,25 +449,25 @@ class KineticsFitting(object):
 
         """
 
-        results = []
-        models = []
-        intervals = [] # Intervals; (start, end); (inclusive, exclusive)
-        for k, series in self.k_series.split().items():
-            arr = series.scores_stack.T
-            i = 0
-
-            #because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
-            r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
-            for bl in series.cov.block_length:
-                intervals.append((r_excl[i], r_excl[i + bl]))
-                d = arr[i]
-                model = TwoComponentAssociationModel()
-                #res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
-                res = fit_kinetics(series.times, d, model, chisq_thd=chisq_thd)
-
-                results.append(res)
-                models.append(model)
-                i += bl  # increment in block length does not equal move to the next start position
+        # results = []
+        # models = []
+        # intervals = [] # Intervals; (start, end); (inclusive, exclusive)
+        # for k, series in self.k_series.split().items():
+        #     arr = series.scores_stack.T
+        #     i = 0
+        #
+        #     #because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
+        #     r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
+        #     for bl in series.cov.block_length:
+        #         intervals.append((r_excl[i], r_excl[i + bl]))
+        #         d = arr[i]
+        #         model = TwoComponentAssociationModel(self.bounds)
+        #         #res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
+        #         #res = fit_kinetics(series.times, d, model, chisq_thd=chisq_thd)
+        #
+        #         #results.append(res)
+        #         models.append(model)
+        #         i += bl  # increment in block length does not equal move to the next start position
 
         d_list, intervals, models = self._prepare_wt_avg_fit()
         if pbar:
@@ -593,7 +614,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
     #todo block length is redundant
     #what is keeping it as attribute?
     #not really because its now needed to keep as we're not storing it anymore on FitREsults
-    def __init__(self, initial_result, k_series, blocks, model='bi'):
+    def __init__(self, initial_result, k_series, blocks, bounds, model='bi'):
     #todo allow for setting of min/max value of parameters
         """
 
@@ -602,7 +623,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         initial_result array with r_number and rate
         k_series kineticsseries object for the section
         """
-        super(LSQKinetics, self).__init__()
+        super(LSQKinetics, self).__init__(bounds)
         t_var = self.make_variable('t')
 
         self.block_length = blocks
@@ -610,7 +631,6 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         terms = []
 
         r_number = initial_result['r_number']
-        print(blocks)
         r_index = k_series.cov.start
         for i, bl in enumerate(blocks):
             current = r_index + (bl // 2)
