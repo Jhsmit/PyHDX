@@ -80,8 +80,6 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
     return fig, (ax1, ax2, cbar_ax)
 
 
-
-
 def plot_peptides(pm, wrap, ax, color=True, labels=False, cmap='jet', **kwargs):
     """
     Plots peptides as rectangles in the provided axes
