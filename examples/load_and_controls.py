@@ -19,6 +19,7 @@ series = states[series_name]
 series.make_uniform()
 print(series.cov.X.shape)
 
+
 kf = KineticsFitting(series)
 print(series[0].sequence)
 #ignore False: 163

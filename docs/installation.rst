@@ -8,6 +8,8 @@ Installation
 Stable release
 --------------
 
+(Currently no stable release available. This section will updated soon)
+
 To install PyHDX, run this command in your terminal:
 
 .. code-block:: console
@@ -40,12 +42,31 @@ Or download the `tarball`_:
 
     $ curl  -OL https://github.com/Jhsmit/pyhdx/tarball/master
 
-Once you have a copy of the source, you can install it with:
+pyHDX can then be installed with ``conda`` (requires ``conda build``):
 
 .. code-block:: console
 
-    $ python setup.py install
+    $ conda develop pyhdx
 
+or ``pip``:
+
+.. code-block:: console
+
+    $ pip install pyhdx
+
+
+..
+    Once you have a copy of the source, you can install it with:
+
+    .. code-block:: console
+
+        $ python setup.py install
+
+
+To launch the web application:
+
+.. code-block::
+    $ panel serve panel/main.py
 
 .. _Github repo: https://github.com/Jhsmit/pyhdx
 .. _tarball: https://github.com/Jhsmit/pyhdx/tarball/master
