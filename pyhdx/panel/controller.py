@@ -450,6 +450,7 @@ class FittingControl(ControlPanel):
 
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
+        self.pbar1.reset()
 
     def _action_fit1(self):
         print('fitting 1')
