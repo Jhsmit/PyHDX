@@ -16,7 +16,8 @@ class ASyncProgressBar(param.Parameterized):
 
     @property
     def value(self):
-        return int(100 * (self.completed / self.num_tasks))
+        value = int(100 * (self.completed / self.num_tasks))
+        return max(0, min(value, 100)) # todo check why this is somethings out of bounds
 
     def reset(self):
         self.completed = 0
