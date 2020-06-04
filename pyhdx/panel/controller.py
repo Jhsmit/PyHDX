@@ -155,8 +155,8 @@ class Controller(param.Parameterized):
             overflow: auto !important;
         }
         '''
-
-        pn.serve(self.app, js_files=js_files, raw_css=[css], css_files=css_files)
+        pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
+        pn.serve(self.app)
 
     def get_rate_file_export(self):
         fmt, header = fmt_export(self.rates)
