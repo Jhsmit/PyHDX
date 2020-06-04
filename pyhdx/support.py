@@ -4,9 +4,8 @@ import re
 import contextlib
 from io import StringIO
 
-def get_reduced_blocks(k_series, max_combine=2, max_join=5):
-    #todo arguments of these should be coverage, not series
-    block_length = list(k_series.cov.block_length.copy())
+def get_reduced_blocks(coverage, max_combine=2, max_join=5):
+    block_length = list(coverage.block_length.copy())
 
     i = 0
     subblock = 0
@@ -51,9 +50,9 @@ def get_reduced_blocks(k_series, max_combine=2, max_join=5):
     return block_length
 
 
-def get_constant_blocks(k_series, block_size=10, initial_block=5):
-    num_repeats = (k_series.cov.prot_len - initial_block) // block_size
-    remainder = (k_series.cov.prot_len - initial_block) % block_size
+def get_constant_blocks(coverage, block_size=10, initial_block=5):
+    num_repeats = (coverage.prot_len - initial_block) // block_size
+    remainder = (coverage.prot_len - initial_block) % block_size
 
     blocks = [initial_block] + [block_size] * num_repeats
     if remainder:
@@ -62,8 +61,8 @@ def get_constant_blocks(k_series, block_size=10, initial_block=5):
     return blocks
 
 
-def get_original_blocks(k_series):
-    block_length = list(k_series.cov.block_length.copy())
+def get_original_blocks(coverage):
+    block_length = list(coverage.block_length.copy())
     return block_length
 
 
