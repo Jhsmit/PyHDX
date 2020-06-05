@@ -65,14 +65,15 @@ class TestSimulatedDataFit(object):
         kf = KineticsFitting(series, bounds=(1e-2, 800))
 
         fr1 = kf.weighted_avg_fit()
-        out1 = fr1.get_output(['rate', 'tau1', 'tau2', 'r'])
+        out1 = fr1.get_output(['rate', 'k1', 'k2', 'r'])
 
         fr2 = kf.global_fit(out1)
-        out2 = fr2.get_output(['rate', 'tau1', 'tau2', 'r'])
+        out2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
 
         check1 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
         check2 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_global.txt'))
 
-        for name in ['rate', 'tau1', 'tau2', 'r']:
+        for name in ['rate', 'k1', 'k2', 'r']:
             np.testing.assert_array_almost_equal(out1[name], check1[name], decimal=4)
             np.testing.assert_array_almost_equal(out2[name], check2[name], decimal=4)
+
