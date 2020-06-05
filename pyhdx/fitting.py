@@ -63,8 +63,8 @@ class TwoComponentAssociationModel(SingleKineticModel):
         super(TwoComponentAssociationModel, self).__init__(bounds)
 
         r = self.make_parameter('r', value=0.5, min=0, max=1)
-        k1 = self.make_parameter('k1', min=1e-2, max=100)
-        k2 = self.make_parameter('k2', min=1e-2, max=100)
+        k1 = self.make_parameter('k1')
+        k2 = self.make_parameter('k2')
         t = self.make_variable('t')
         y = self.make_variable('y')
 
@@ -169,7 +169,7 @@ class OneComponentAssociationModel(SingleKineticModel):
     """One component Association"""
     def __init__(self, bounds):
         super(OneComponentAssociationModel, self).__init__(bounds)
-        k1 = self.make_parameter('k1', min=1/350, max=100)
+        k1 = self.make_parameter('k1')
         t = self.make_variable('t')
         y = self.make_variable('y')
 
@@ -648,7 +648,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
                 print("this probably gives errors down the line")
                 value = initial_result['rate'][idx]  #this should be the average of the block range
                 r_index += bl
-                k1 = self.make_parameter('k1_{}'.format(i), max=1/70, min=1 / 300, value=value)
+                k1 = self.make_parameter('k1_{}'.format(i), value=value)
                 term = (1 - exp(-k1*t_var))
                 terms.append(term)
             else:
@@ -659,8 +659,8 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
                 k1v = min(initial_result['k1'][idx], initial_result['k2'][idx])
                 k2v = max(initial_result['k2'][idx], initial_result['k2'][idx])
                 rv = np.clip(initial_result['r'][idx], 0.1, 0.9)
-                k1 = self.make_parameter('k1_{}'.format(i), max=100, min=1 / 350, value=k1v)
-                k2 = self.make_parameter('k2_{}'.format(i), max=100, min=1 / 350, value=k2v)
+                k1 = self.make_parameter('k1_{}'.format(i), value=k1v)
+                k2 = self.make_parameter('k2_{}'.format(i), value=k2v)
                 r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
                 term = (1 - (r * exp(-k1*t_var) + (1 - r) * exp(-k2*t_var)))
                 terms.append(term)
