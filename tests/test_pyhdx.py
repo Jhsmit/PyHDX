@@ -119,8 +119,8 @@ class TestSimulatedData(object):
         cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
 
         cls.timepoints = [0.167, 0.5, 1, 5, 10, 30, 100]
-        cls.start, cls.end = 5, 45 # total span of protein (inc, inc)
-        cls.nc_start, cls.nc_end = 31, 34 # span of no coverage area (inc, inc)
+        cls.start, cls.end = 5, 45  # total span of protein (inc, inc)
+        cls.nc_start, cls.nc_end = 31, 34  # span of no coverage area (inc, inc)
 
     def test_keep_prolines(self):
         pcf = PeptideMasterTable(self.data, drop_first=0, ignore_prolines=False)

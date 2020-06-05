@@ -21,8 +21,9 @@ class KineticsModel(object):
         self.sf_model = None
 
     def make_parameter(self, name, value=None, min=None, max=None):
-        min = min or self.bounds[0]
-        max = max or self.bounds[1]
+        min = min if min is not None else self.bounds[0]
+        max = max if max is not None else self.bounds[1]
+
         value = value or np.mean(self.bounds)
         dummy_name = 'pyhdx_par_{}'.format(self.par_index)
         KineticsModel.par_index += 1
@@ -288,13 +289,23 @@ def fit_kinetics(t, d, model, chisq_thd):
         except KeyError:
             r = 1
 
-        if np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd or r > 1 or r < 0:
-            fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
-            #grid = model.initial_grid(t, d, step=5)
-            res = fit.execute()
+        if not check_bounds(res) or np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd:
+            with temporary_seed(43):
+                fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
+                #grid = model.initial_grid(t, d, step=5)
+                res = fit.execute()
 
     return res
 
+
+def check_bounds(fit_result):
+    for param in fit_result.model.params:
+        value = fit_result.params[param.name]
+        if value < param.min:
+            return False
+        elif value > param.max:
+            return False
+    return True
 
 def fit_global(data, model):
     fit = Fit(model.sf_model, **data)
