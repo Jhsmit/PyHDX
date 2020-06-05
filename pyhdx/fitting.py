@@ -63,12 +63,12 @@ class TwoComponentAssociationModel(SingleKineticModel):
         super(TwoComponentAssociationModel, self).__init__(bounds)
 
         r = self.make_parameter('r', value=0.5, min=0, max=1)
-        tau1 = self.make_parameter('tau1', min=0, max=5)
-        tau2 = self.make_parameter('tau2', min=0, max=100)
+        k1 = self.make_parameter('k1', min=1e-2, max=100)
+        k2 = self.make_parameter('k2', min=1e-2, max=100)
         t = self.make_variable('t')
         y = self.make_variable('y')
 
-        self.sf_model = Model({y: 100 * (1 - (r * exp(-t / tau1) + (1 - r) * exp(-t / tau2)))})
+        self.sf_model = Model({y: 100 * (1 - (r * exp(-k1*t) + (1 - r) * exp(-k2*t)))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
@@ -88,13 +88,13 @@ class TwoComponentAssociationModel(SingleKineticModel):
             Array with uptake values
 
         """
-        tau1_v = fsolve(func_short, 2, args=(t[2], d[2]))[0]
-        tau2_v = fsolve(func_long, 20, args=(t[-2], d[-2], tau1_v))[0]
+        k1_v = fsolve(func_short, 1/2, args=(t[2], d[2]))[0]
+        k2_v = fsolve(func_long, 1/20, args=(t[-2], d[-2], k1_v))[0]
 
-        tau1_p = self.get_parameter('tau1')
-        tau1_p.value = tau1_v
-        tau2_p = self.get_parameter('tau2')
-        tau2_p.value = tau2_v
+        k1_p = self.get_parameter('k1')
+        k1_p.value = k1_v
+        k2_p = self.get_parameter('k2')
+        k2_p.value = k2_v
         r_p = self.get_parameter('r')
         r_p.value = 0.5
 
@@ -109,39 +109,6 @@ class TwoComponentAssociationModel(SingleKineticModel):
         guess = np.column_stack([tau_space, tau_space, r_space])
         return guess
 
-    def get_tau(self, **params):
-        """
-
-        Parameters
-        ----------
-        params
-
-        key value where keys are the dummy names
-
-        Returns
-        -------
-
-        """
-
-        r = params[self.names['r']]
-        tau1 = params[self.names['tau1']]
-        tau2 = params[self.names['tau2']]
-
-        #tau = r * tau1 + (1 - r) * tau2
-
-        x0 = tau1 if r > 0.5 else tau2
-
-        t_log = fsolve(self.min_func, np.log(x0), args=(tau1, tau2, r))
-        try:
-            assert np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0, 'Failed to find half life root'
-        except AssertionError:
-            print('uhoh')
-            print(tau1, tau2, r)
-            print(np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0)
-        tau = np.asscalar(np.exp(t_log) / np.log(2))
-
-        return tau
-
     def get_rate(self, **params):
         """
 
@@ -155,24 +122,58 @@ class TwoComponentAssociationModel(SingleKineticModel):
         -------
 
         """
-        tau = self.get_tau(**params)
-        return 1/tau
+
+        #todo generalize duplicate code for other models
+        r = params[self.names['r']]
+        k1 = params[self.names['k1']]
+        k2 = params[self.names['k2']]
+
+        #tau = r * tau1 + (1 - r) * tau2
+
+        x0 = k1 if r > 0.5 else k2
+
+        t_log = fsolve(self.min_func, np.log(x0), args=(k1, k2, r))
+        try:
+            assert np.round(self.min_func(t_log, k1, k2, r), 5) == 0, 'Failed to find half life root'
+        except AssertionError:
+            print('uhoh')
+            print(k1, k2, r)
+            print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
+        k = np.asscalar(np.log(2) / np.exp(t_log))
+
+        return k
+
+    def get_tau(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+        k = self.get_rate(**params)
+        return 1/k
 
     @staticmethod
-    def min_func(t_log, t1, t2, r):
+    def min_func(t_log, k1, k2, r):
         t = np.exp(t_log)
-        return 0.5 - r * np.exp(-t / t1) - (1 - r) * np.exp(-t / t2)
+        return 0.5 - r * np.exp(-k1*t) - (1 - r) * np.exp(-k2*t)
 
 
 class OneComponentAssociationModel(SingleKineticModel):
     """One component Association"""
-    def __init__(self):
-        super(OneComponentAssociationModel, self).__init__()
-        tau1 = self.make_parameter('tau1', min=0, max=100)
+    def __init__(self, bounds):
+        super(OneComponentAssociationModel, self).__init__(bounds)
+        k1 = self.make_parameter('k1', min=1/350, max=100)
         t = self.make_variable('t')
         y = self.make_variable('y')
 
-        self.sf_model = Model({y: 100 * (1 - exp(-t / tau1))})
+        self.sf_model = Model({y: 100 * (1 - exp(-k1*t))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
@@ -193,27 +194,27 @@ class OneComponentAssociationModel(SingleKineticModel):
             Array with uptake values
 
         """
-        tau1_v = fsolve(func_short, 2, args=(t[3], d[3]))[0]
+        k1_v = fsolve(func_short, 1/2, args=(t[3], d[3]))[0]
 
-        tau1_p = self.get_parameter('tau1')
-        tau1_p.value = tau1_v
-
-    def get_tau(self, **params):
-        tau1 = params[self.names['tau1']]
-        return tau1
+        k1_p = self.get_parameter('k1')
+        k1_p.value = k1_v
 
     def get_rate(self, **params):
-        tau = self.get_tau(**params)
-        return 1/tau
+        k1 = params[self.names['k1']]
+        return k1
+
+    def get_tau(self, **params):
+        k = self.get_rate(**params)
+        return 1/k
 
 
-def func_short(tau, tt, A):
+def func_short(k, tt, A):
     """
-    Function to estimate the short time component
+    Function to estimate the fast time component
 
     Parameters
     ----------
-    tau : :obj:`float`
+    k : :obj:`float`
         Lifetime
     tt : :obj:`float`
         Selected time point
@@ -226,23 +227,23 @@ def func_short(tau, tt, A):
         Amplitude difference given tau, tt, A
 
     """
-    return 100 * (1 - np.exp(-tt / tau)) - A
+    return 100 * (1 - np.exp(-k * tt)) - A
 
 
-def func_long(tau, tt, A, tau1):
+def func_long(k, tt, A, k1):
     """
     Function to estimate the short time component
 
     Parameters
     ----------
-    tau : :obj:`float`
-        Lifetime
+    k : :obj:`float`
+        rate
     tt : :obj:`float`
         Selected time point
     A : :obj:`float`
         Target amplitude
-    tau1: : obj:`float`
-        Lifetime of short time component
+    k1: : obj:`float`
+        Rate of fast time component
 
     Returns
     -------
@@ -250,7 +251,7 @@ def func_long(tau, tt, A, tau1):
         Amplitude difference given tau, tt, A, tau1
 
     """
-    return 100 * (1 - (0.5 * np.exp(-tt / tau1) + 0.5 * np.exp(-tt / tau))) - A
+    return 100 * (1 - (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt))) - A
 
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
@@ -284,16 +285,11 @@ def fit_kinetics(t, d, model, chisq_thd):
     with temporary_seed(43):
         fit = Fit(model.sf_model, t, d, minimizer=Powell)
         res = fit.execute()
-        try:
-            r = res.params[model.names['r']]
-        except KeyError:
-            r = 1
 
         if not check_bounds(res) or np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd:
-            with temporary_seed(43):
-                fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
-                #grid = model.initial_grid(t, d, step=5)
-                res = fit.execute()
+            fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
+            #grid = model.initial_grid(t, d, step=5)
+            res = fit.execute()
 
     return res
 
@@ -306,6 +302,7 @@ def check_bounds(fit_result):
         elif value > param.max:
             return False
     return True
+
 
 def fit_global(data, model):
     fit = Fit(model.sf_model, **data)
@@ -331,8 +328,7 @@ class KineticsFitting(object):
         b_upper = 5*np.log(2) / t_first
         b_lower = np.log(2) / (t_last * 5)
 
-        return 1/b_upper, 1/b_lower
-        #return b_lower, b_upper
+        return b_lower, b_upper
 
     def _prepare_global_fit(self, initial_result, model='bi', block_func=get_reduced_blocks, **block_kwargs):
         split = self.k_series.split()
@@ -588,19 +584,19 @@ class KineticsFitResult(object):
         return output
 
     @property
-    def tau(self):
+    def rate(self):
         """Returns an array with the exchange rates"""
         output = np.full_like(self.r_number, np.nan, dtype=float)
         for (s, e), result, model in zip(self.intervals, self.results, self.models):
-            rate = model.get_tau(**result.params)
+            rate = model.get_rate(**result.params)
             i0, i1 = np.searchsorted(self.r_number, [s, e])
             output[i0:i1] = rate
         return output
 
     @property
-    def rate(self):
+    def tau(self):
         """Returns an array with the exchange rates"""
-        return 1 / self.tau
+        return 1 / self.rate
 
         # output = np.full_like(self.r_number, np.nan, dtype=float)
         # for (s, e), result, model in zip(self.intervals, self.results, self.models):
@@ -650,24 +646,23 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
                 print('mono')
                 #TODO update names
                 print("this probably gives errors down the line")
-                value = 1 / initial_result['rate'][idx]  #this should be the average of the block range
+                value = initial_result['rate'][idx]  #this should be the average of the block range
                 r_index += bl
-                tau1 = self.make_parameter('tau1_{}'.format(i), max=300, min=1 / 70, value=value)
-                term = (1 - exp(-t_var / tau1))
+                k1 = self.make_parameter('k1_{}'.format(i), max=1/70, min=1 / 300, value=value)
+                term = (1 - exp(-k1*t_var))
                 terms.append(term)
             else:
                 # t1v = initial_result['tau1'][idx]  #TODO update names
                 # t2v = initial_result['tau2'][idx]
                 r_index += bl
 
-                t1v = min(initial_result['tau1'][idx], initial_result['tau2'][idx])
-                t2v = max(initial_result['tau1'][idx], initial_result['tau2'][idx])
+                k1v = min(initial_result['k1'][idx], initial_result['k2'][idx])
+                k2v = max(initial_result['k2'][idx], initial_result['k2'][idx])
                 rv = np.clip(initial_result['r'][idx], 0.1, 0.9)
-                print(t1v, t2v, rv)
-                tau1 = self.make_parameter('tau1_{}'.format(i), max=350, min=1 / 100, value=t1v)
-                tau2 = self.make_parameter('tau2_{}'.format(i), max=350, min=1 / 100, value=t2v)
+                k1 = self.make_parameter('k1_{}'.format(i), max=100, min=1 / 350, value=k1v)
+                k2 = self.make_parameter('k2_{}'.format(i), max=100, min=1 / 350, value=k2v)
                 r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
-                term = (1 - (r * exp(-t_var / tau1) + (1 - r) * exp(-t_var / tau2)))
+                term = (1 - (r * exp(-k1*t_var) + (1 - r) * exp(-k2*t_var)))
                 terms.append(term)
 
         #Iterate over rows (peptides) and add terms together which make one peptide
@@ -705,50 +700,6 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         values = [params[self.names[f'{name}_{i}']] for i, _ in enumerate(self.block_length)]
         return np.repeat(values, self.block_length)
 
-    def get_tau(self, **params):
-        """
-
-        Parameters
-        ----------
-        params
-
-        key value where keys are the dummy names
-
-        Returns
-        -------
-
-        """
-
-        tau_list = []
-        for i, bl in enumerate(self.block_length):
-            if self.model == 'mono' or (self.model == 'mixed' and bl == 1):
-                tau = params[self.names['tau1_{}'.format(i)]]
-            else:
-                tau1 = params[self.names['tau1_{}'.format(i)]]
-                tau2 = params[self.names['tau2_{}'.format(i)]]
-                r = params[self.names['r_{}'.format(i)]]
-                #todo this code is duplicated in TwoComponentAssociationModel
-                x0 = tau1 if r > 0.5 else tau2
-
-                t_log = fsolve(self.min_func, np.log(x0), args=(tau1, tau2, r))
-                try:
-                    assert np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0, 'Failed to find half life root'
-                except AssertionError:
-                    print('uhoh')
-                    print(tau1, tau2, r)
-                    print(np.round(self.min_func(t_log, tau1, tau2, r), 5) == 0)
-                tau = np.asscalar(np.exp(t_log) / np.log(2))
-
-                #tau = r * tau1 + (1 - r) * tau2
-            tau_list += [tau] * bl
-
-        return np.array(tau_list)
-
-    @staticmethod
-    def min_func(t_log, t1, t2, r):
-        t = np.exp(t_log)
-        return 0.5 - r * np.exp(-t / t1) - (1 - r) * np.exp(-t / t2)
-
     def get_rate(self, **params):
         """
 
@@ -762,7 +713,54 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         -------
 
         """
-        tau = self.get_tau(**params)
-        return 1/tau
+
+        k_list = []
+        for i, bl in enumerate(self.block_length):
+            if self.model == 'mono' or (self.model == 'mixed' and bl == 1):
+                k = params[self.names['k1_{}'.format(i)]]
+            else:
+                k1 = params[self.names['k1_{}'.format(i)]]
+                k2 = params[self.names['k2_{}'.format(i)]]
+                r = params[self.names['r_{}'.format(i)]]
+                #todo this code is duplicated in TwoComponentAssociationModel
+                x0 = k1 if r > 0.5 else k2
+
+                # log of the time at which d-uptake is 50% for given k1, k2, and r
+                t_log = fsolve(self.min_func, np.log(x0), args=(k1, k2, r))
+                try:
+                    assert np.round(self.min_func(t_log, k1, k2, r), 5) == 0, 'Failed to find half life root'
+                except AssertionError:
+                    print('uhoh')
+                    print(k1, k2, r)
+                    print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
+                k = np.asscalar(np.log(2) / np.exp(t_log))
+
+                #tau = r * tau1 + (1 - r) * tau2
+            k_list += [k] * bl
+
+        return np.array(k_list)
+
+    def get_tau(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+        k = self.get_rate(**params)
+        return 1/k
+
+    @staticmethod
+    def min_func(t_log, k1, k2, r):
+        t = np.exp(t_log)
+        return 0.5 - r * np.exp(-k1*t) - (1 - r) * np.exp(-k2*t)
+
+
 
 
