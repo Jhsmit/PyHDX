@@ -28,14 +28,14 @@ Plot
 
 
 Output
-----------
+------
 
 .. automodule:: pyhdx.output
     :members:
 
 
 Support
-------
+-------
 
 .. automodule:: pyhdx.support
     :members:

@@ -20,6 +20,7 @@
 #
 import os
 import sys
+
 sys.path.insert(0, os.path.abspath('..'))
 
 import pyhdx
@@ -27,7 +28,7 @@ import pyhdx
 # JHS modifications
 
 numfig = True
-
+latex_engine = 'xelatex'
 
 
 # -- General configuration ---------------------------------------------
@@ -45,7 +46,8 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'numpydoc'
+    'numpydoc',
+    'nbsphinx'
   #  'sphinxcontrib.bibtex'
 ]
 
