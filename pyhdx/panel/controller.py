@@ -70,6 +70,7 @@ class Controller(param.Parameterized):
         super(Controller, self).__init__(**params)
         template = env.get_template('template.html')
         self.cluster = cluster
+        self.doc = pn.state.curdoc
         tmpl = pn.Template(template=template)
      #   tmpl.nb_template.globals['get_id'] = make_globally_unique_id
 
@@ -120,7 +121,7 @@ class Controller(param.Parameterized):
         # This is triggered if the fileinput child panel yields a new KineticSeries
         print('series changed')
 
-        self.fitting = KineticsFitting(self.series)
+        self.fitting = KineticsFitting(self.series, cluster=self.cluster)
         for key in ['fit1', 'fit2']:    # todo this list of names somewhere?
             self.rate_colors[key] = [DEFAULT_COLORS[key]]*len(self.series.cov.r_number)
         self.param.trigger('rate_colors')
@@ -425,26 +426,24 @@ class FittingControl(ControlPanel):
     def _update_series(self, *events):
         self.r_max = np.log(1 - 0.98) / -self.parent.series.times[1]  # todo user input 0.98
 
-    #@without_document_lock
     async def _fit1_async(self):
-        client = await Client(self.parent.cluster)
-        fit_result = await self.parent.fitting.weighted_avg_fit_async(client, pbar=self.pbar1)
+        #client = await Client(self.parent.cluster)
+        fit_result = await self.parent.fitting.weighted_avg_fit_async(pbar=self.pbar1)
         print('fit res in async', fit_result)
-        rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
+        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
-        # doc = curdoc()
-        # callback = partial(self.parent.param.trigger, 'fit_results')
-        # doc.add_next_tick_callback(callback)
-        #
-        # with pn.io.unlocked():
+        callback = partial(self.parent.param.trigger, 'fit_results')
+        self.parent.doc.add_next_tick_callback(callback)
+
+        with pn.io.unlocked():
         #     #self.parent.param.trigger('fit_results')
-        #     self.param['do_fit1'].constant = False
-        #     self.param['do_fit2'].constant = False
+             self.pbar1.reset()
+             self.param['do_fit1'].constant = False
+             self.param['do_fit2'].constant = False
 
     def _fit1(self):
-
         fit_result = self.parent.fitting.weighted_avg_fit(pbar=self.pbar1, chisq_thd=self.chisq_thd)
-        rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
+        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
 
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
         self.parent.param.trigger('fit_results')  # Trigger plot update
@@ -460,14 +459,39 @@ class FittingControl(ControlPanel):
         self.param['do_fit2'].constant = True
 
         if self.parent.cluster:
+            print(self.parent.cluster)
+            self.parent.doc = pn.state.curdoc
             loop = IOLoop.current()
             loop.add_callback(self._fit1_async)
         else:
             self._fit1()
 
-
         # fit_result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
         # rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
+
+    async def _fit2_async(self):
+        fit_result = await self.parent.fitting.global_fit_async(self.parent.fit_results['fit1']['rates'],
+                                                                pbar=self.pbar2, **self.fit_kwargs)
+        print('fit res in async', fit_result)
+        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
+        self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
+        callback = partial(self.parent.param.trigger, 'fit_results')
+        self.parent.doc.add_next_tick_callback(callback)
+
+        with pn.io.unlocked():
+            self.param['do_fit1'].constant = False
+            self.param['do_fit2'].constant = False
+            self.pbar2.reset()
+
+    def _fit2(self):
+        fit_result = self.parent.fitting.global_fit(self.parent.fit_results['fit1']['rates'], **self.fit_kwargs)
+        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
+        self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
+        self.parent.param.trigger('fit_results')  # Trigger plot update
+
+        self.param['do_fit1'].constant = False
+        self.param['do_fit2'].constant = False
+        self.pbar2.reset()
 
     def _action_fit2(self):
         print('fitting 2')
@@ -475,13 +499,14 @@ class FittingControl(ControlPanel):
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
 
-        fit_result = self.parent.fitting.global_fit(self.parent.fit_results['fit1']['rates'], **self.fit_kwargs)
-        rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
-        self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
-        self.parent.param.trigger('fit_results')  # Trigger plot update
+        if self.parent.cluster:
+            self.parent.doc = pn.state.curdoc
+            loop = IOLoop.current()
+            loop.add_callback(self._fit2_async)
+        else:
+            self._fit2()
 
-        self.param['do_fit1'].constant = False
-        self.param['do_fit2'].constant = False
+
 
     @property
     def fit_kwargs(self):

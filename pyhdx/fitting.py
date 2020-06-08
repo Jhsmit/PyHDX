@@ -368,6 +368,7 @@ class KineticsFitting(object):
         client = await Client(self.cluster)
         futures = client.map(func, sf_models, d_list)
         if pbar:
+            pbar.num_tasks = len(d_list)
             await pbar.run(futures)
 
         results = client.gather(futures)
