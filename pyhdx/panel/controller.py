@@ -4,7 +4,7 @@ from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigu
 from pyhdx.pyhdx import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
-from pyhdx.support import get_constant_blocks, get_reduced_blocks, fmt_export, np_from_txt, autowrap
+from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, autowrap
 
 logger = setup_custom_logger('root')
 logger.debug('main message')
@@ -85,7 +85,7 @@ class Controller(param.Parameterized):
         self.dev = DeveloperPanel(self)
 
         #Figures
-        self.coverage_figure = CoverageFigure(self, [self.coverage])  #parent, [controllers]
+        self.coverage_figure = CoverageFigure(self, [self.coverage, self.fit_control])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
         self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
         self.protein_figure = ProteinFigure(self, [])
@@ -398,6 +398,7 @@ class FittingControl(ControlPanel):
     #constant block params
     block_size = param.Integer(10, doc='Size of the blocks in constant blocks mode')
     initial_block = param.Integer(5, doc='Size of the initial block in constant block mode')
+    show_blocks = param.Boolean(False, doc='Show how blocks are defined with the current settings')
 
     do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True)
 
@@ -416,7 +417,7 @@ class FittingControl(ControlPanel):
 
         self._widget_dict.update(text_f1=text_f1, text_f2=text_f2, pbar1=self.pbar1.view, pbar2=self.pbar2.view)
         parameters = ['r_max', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
-                      'max_join', 'do_fit2', 'pbar2']
+                      'max_join', 'show_blocks', 'do_fit2', 'pbar2']
 
         widget_list = list([self._widget_dict[par] for par in parameters])
         return widget_list
@@ -487,10 +488,25 @@ class FittingControl(ControlPanel):
         if self.block_mode == 'reduced':
             fit_kwargs = {'block_func': get_reduced_blocks, 'max_combine': self.max_combine, 'max_join': self.max_join}
         elif self.block_mode == 'original':
-            fit_kwargs = {'block_func': lambda series, **kwargs: series.cov.block_length}
+            fit_kwargs = {'block_func': get_original_blocks}
         elif self.block_mode == 'constant':
             fit_kwargs = {'block_func': get_constant_blocks, 'block_size': self.block_size, 'initial_block': self.initial_block}
         return fit_kwargs
+
+    @property
+    def fit_block_edges(self):
+        """returns the position of block edges from the current block func"""
+        kwargs = self.fit_kwargs
+        func = kwargs.pop('block_func')
+        all_edges = []
+        for series in self.parent.series.split().values():
+            blocks = np.array(func(series.cov, **kwargs))
+            indices = list(np.cumsum(blocks) - 1)
+            edges = [series.cov.start - 0.5] + list(series.cov.r_number[[indices]] + 0.5)
+            all_edges += edges
+
+        all_edges = np.array(all_edges)
+        return all_edges
 
     def _clear_block_kwargs(self):
         """removes all block func kwarg widgets from the box"""

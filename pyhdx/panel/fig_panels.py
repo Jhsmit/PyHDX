@@ -23,7 +23,7 @@ class CoverageFigure(FigurePanel):
     def __init__(self, *args, **params):
         super(CoverageFigure, self).__init__(*args, **params)
 
-        self.figures = [figure()]
+        self.figures = [figure()]  #todo deprecate multiple figures
         self.figures[0].xaxis.axis_label = 'Residue number'
 
         self.layout = column(*self.figures, sizing_mode='stretch_both')
@@ -34,11 +34,15 @@ class CoverageFigure(FigurePanel):
        # self.parent.param.watch(self._update, ['series'])
 
         self.ctrl = self.controllers[0]  # Only one controller for this Figure
+        self.fit_ctrl = self.controllers[1]
 
         #hook up side watchers
         self.ctrl.param.watch(self._update_labels, ['labels'])
         self.ctrl.param.watch(self._update_index, ['index'])
         self.ctrl.param.watch(self._update, ['wrap', 'aa_per_subplot'])
+
+        self.fit_ctrl.param.watch(self._draw_blocks, ['show_blocks', 'block_mode', 'max_combine', 'max_join',
+                                                     'block_size', 'initial_block'])
 
     def _render_figure(self):
         raise NotImplementedError()
@@ -47,6 +51,30 @@ class CoverageFigure(FigurePanel):
     def peptide_measurement(self):
         """return the peptide measurement currently plotted"""
         return self.parent.series[self.ctrl.index]
+
+    @property
+    def figure(self):
+        return self.figures[0]
+
+    def _draw_blocks(self, *events):
+        for event in events:
+            spans = self.figure.select(tags=['blocks'])
+            if event.name == 'show_blocks' and spans:
+               # if spans: # spans are already drawn, just toggle visible
+                for span in spans:  # lovely span
+                    span.visible = event.new
+            else:  # All spans need to be (re)drawn
+                for span in spans:
+                    self.figure.center.remove(span)
+                for pos in self.fit_ctrl.fit_block_edges:
+                 #   print(pos)
+                    span = Span(location=pos, dimension='height')
+                    span.tags = ['blocks']
+                    self.figure.add_layout(span)
+                  #  print(self.figure.select(tags=['blocks']))
+
+            #self.bk_pane.object = self.figure
+            self.bk_pane.param.trigger('object')
 
     def _update(self, *events):
         print('series change on coverage fig')
@@ -92,9 +120,12 @@ class RateFigure(FigurePanel):
 
         #todo refactor as kwargs?
         self.ctrl = self.controllers[1]  # classification controller
+        self.fit_ctrl = self.controllers[0]
         self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
         self.parent.param.watch(self._update_rates, ['fit_results'])
         self.parent.param.watch(self._update_colors, ['rate_colors'])
+        self.fit_ctrl.param.watch(self._draw_blocks, ['show_blocks', 'block_mode', 'max_combine', 'max_join',
+                                                     'block_size', 'initial_block'])
 
     def draw_figure(self):
         """makes bokeh figure and returns it"""
@@ -163,6 +194,7 @@ class RateFigure(FigurePanel):
 
 
         # #remove everything
+        # for some reason this wasnt a satisfactory solution
         # for span in self.figure.select(tags='thd'):
         #     self.figure.center.remove(span)
         # print("Values'", self.ctrl.values)
@@ -179,6 +211,26 @@ class RateFigure(FigurePanel):
         #http://docs.bokeh.org/en/latest/docs/user_guide/annotations.html#spans
         #self.figure.add_layout()
 
+    def _draw_blocks(self, *events):
+        #duplicate code on CoverageFigure (also for ctrl reference)
+        for event in events:
+            spans = self.figure.select(tags=['blocks'])
+            if event.name == 'show_blocks' and spans:
+               # if spans: # spans are already drawn, just toggle visible
+                for span in spans:  # lovely span
+                    span.visible = event.new
+            else:  # All spans need to be (re)drawn
+                for span in spans:
+                    self.figure.center.remove(span)
+                for pos in self.fit_ctrl.fit_block_edges:
+                 #   print(pos)
+                    span = Span(location=pos, dimension='height')
+                    span.tags = ['blocks']
+                    self.figure.add_layout(span)
+                  #  print(self.figure.select(tags=['blocks']))
+
+            #self.bk_pane.object = self.figure
+            self.bk_pane.param.trigger('object')
 
 class FitResultFigure(FigurePanel):
     def __init__(self, *args, **params):
@@ -195,6 +247,7 @@ class FitResultFigure(FigurePanel):
         #self.parent.param.watch(self._update_colors, ['rate_colors'])
 
         self.fit_data = {} # Dictionary with uptake values for peptides from fits
+
 
     def _redraw(self, *events):
         print('redraw')
