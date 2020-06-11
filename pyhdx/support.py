@@ -3,6 +3,8 @@ import itertools
 import re
 import contextlib
 from io import StringIO
+from skimage.filters import threshold_multiotsu
+
 
 def get_reduced_blocks(coverage, max_combine=2, max_join=5):
     block_length = list(coverage.block_length.copy())
@@ -101,6 +103,7 @@ def temporary_seed(seed):
     finally:
         np.random.set_state(state)
 
+
 def grouper(n, iterable, padvalue=None):
     "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
     return itertools.zip_longest(*[iter(iterable)]*n, fillvalue=padvalue)
@@ -121,6 +124,7 @@ def _get_f_width(data, sign):
     return width
 
 
+#move to fileIO?
 def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
     with np.testing.suppress_warnings() as sup:
         sup.filter(RuntimeWarning)
@@ -186,13 +190,14 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
                 _width = col_w
 
             s = f'%{flag1}{flag2}{flag3}{_width}{precision}{specifier}'
+
             fmt.append(s)
 
     fmt = delimiter.join(fmt)
     hdr = delimiter.join(hdr)
     return fmt, hdr
 
-
+#move to fileIO?
 def np_from_txt(file_path, delimiter='\t'):
     if isinstance(file_path, StringIO):
         header = file_path.readline().strip()
@@ -311,7 +316,8 @@ def make_monomer(input_file, output_file):
                     continue
                 f_out.write(line)
 
-
+#move t
+# o output?
 def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
     """
 
@@ -329,3 +335,25 @@ def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
         output[b] = color
 
     return output
+
+
+def multi_otsu(*rates, classes=3):
+    """
+
+    Parameters
+    ----------
+    rates: iterable
+        iterable of numpy structured arrays with  a 'rate' field
+    classes: :obj:`int`
+        Number of classes to divide the data into
+
+    Returns
+    -------
+    thds: `obj`:tuple:
+        tuple with thresholds
+
+    """
+    all_rates = np.concatenate([data['rate'] for data in rates])
+    thd_rates = np.log(all_rates[~np.isnan(all_rates)])
+    thds = threshold_multiotsu(thd_rates, classes=classes)
+    return tuple(np.e**thd for thd in thds)
