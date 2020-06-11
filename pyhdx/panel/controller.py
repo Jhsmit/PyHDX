@@ -137,9 +137,25 @@ class Controller(param.Parameterized):
         #
         # self.rates = rates  # this assignement triggers downstream watchers? manual trigger?
 
-    @property
     def servable(self):
-        return self.app.servable
+
+        js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
+                    'goldenlayout': 'https://golden-layout.com/files/latest/js/goldenlayout.min.js',
+                    'ngl': 'https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.33/dist/ngl.js'}
+        css_files = ['https://golden-layout.com/files/latest/css/goldenlayout-base.css',
+                     'https://golden-layout.com/files/latest/css/goldenlayout-dark-theme.css']
+
+        css = '''
+        .custom-wbox > div.bk {
+            padding-right: 10px;
+        }
+        .scrollable {
+            overflow: auto !important;
+        }
+        '''
+        pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
+
+        return self.app.servable()
 
     def serve(self):
         js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
