@@ -264,21 +264,32 @@ def group_with_index(arr):
         i += c
 
 
-def colors_to_pymol(r_number, colors):
+#move to output?
+def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     """coverts colors (hexadecimal format) and corresponding residue numbers to pml
     script to color structures in pymol
-    residue ranges in output are inclusive, inclusive
+    residue ranges in output are inclusive, incluive
+
+    c_term:
+        optional residue number of the c terminal of the last peptide doedsnt cover the c terminal
     """
+
+    c_term = c_term or np.max(r_number)
+    full_r = np.arange(1, c_term + 1)
+    idx = np.searchsorted(full_r, r_number)
+    full_color = np.full_like(full_r, fill_value=no_coverage, dtype=color_arr.dtype)
+    full_color[idx] = color_arr
+
     s_out = ''
-    for i, c in enumerate(np.unique(colors)):
+    for i, c in enumerate(np.unique(full_color)):
         r, g, b = hex_to_rgb(c)
         s_out += f'set_color color_{i}, [{r},{g},{b}]\n'
 
     s_out += '\n'
 
-    grp_idx = list(group_with_index(colors))
-    for i, c in enumerate(np.unique(colors)):
-        residues = [f'resi {r_number[idx]}-{r_number[idx] + length - 1}' for color, length, idx in grp_idx if
+    grp_idx = list(group_with_index(full_color))
+    for i, c in enumerate(np.unique(full_color)):
+        residues = [f'resi {full_r[idx]}-{full_r[idx] + length - 1}' for color, length, idx in grp_idx if
                     color == c]
         line = f'color color_{i}, ' + ' + '.join(residues)
         s_out += line + '\n'
