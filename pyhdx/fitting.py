@@ -674,6 +674,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
             d_var = self.make_variable('d_{}'.format(i))
             d_vars.append(d_var)
 
+            #TODO THIS IS WRONG BECAUSE IT DOES NOT TAKE PROLINES INTO ACCOUNT
             s, e = entry['start'], entry['end']
             length = e - s + 1
             used_blocks = np.diff(np.clip((cs - s).copy(), a_min=0, a_max=length))
