@@ -75,7 +75,6 @@ kinetic rates by fitting the uptake curve, it is impossible to assign these kine
 is referred to as the non-identifyability issue (XX REF) and this can only be overcome by increasing the number of peptides
 such that each amino acid occurs in a unique set of peptides.
 
-
 Building the model
 ------------------
 
@@ -84,9 +83,10 @@ by the blocks of residues as defined in :numref:`blocks_reduced`. The deuterium 
 by a two-component association model:
 
 .. math::
-    D_{1}(t) = 100*(1 - r*e^{-k_{1,1}*t} - (1 - r) e^{-k_{1,2}*t})
+    D_{1}(t) = 100 (1 - r_{1} e^{-k_{1,1}t} - (1 - r_{1}) e^{-k_{1,2}t})
 
-Where :math:`k_{0,1}` and :math:`k_{1,1}` are the first and second exchange rates for block `b_0`, respectively.
+Where :math:`k_{0,1}` and :math:`k_{1,1}` are the first and second exchange rates for block :math:`b_1`, respectively, and
+:math:`r_{1}` is the relative amplitude ratio between them.
 
 If we consider the peptide marked in red in :numref:`blocks_reduced` we can see it has a total length of 14 amino acids,
 with 4 residues in block :math:`b_1`, 8 residues in block :math:`b_2` and 2 residues in block :math:`b_3`. The deuterium
@@ -96,5 +96,11 @@ uptake is the modelled by:
 .. math::
     P_{6}(t) = \frac{4}{14} D_{0}(t) + \frac{8}{14} D_{1}(t) + \frac{2}{14} D_{2}(t)
 
-Where :math:`P_{6}(t)` is the deuterium uptake of peptide 6 at time :math:`t`
+Where :math:`P_{6}(t)` is the deuterium uptake of peptide 6 at time :math:`t`. The find the best fit parameters, the squared
+difference between the experimental deuterium uptake and modelled deuterium uptake is minimized.
+
+.. math::
+    \sum_{j, t} (D_{j, exp}(t) - P_{j}(t))^{2}
+
+
 
