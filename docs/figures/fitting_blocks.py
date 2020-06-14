@@ -56,4 +56,4 @@ positions = np.cumsum(red_blocks) + cov.start
 positions = np.insert(positions, 0, cov.start) - 0.5
 rect = ax.patches[6].set_color('r')
 add_blocks(ax, positions, 'b')
-plt.savefig('Blocks_reduced')
+plt.savefig('Blocks_reduced', dpi=300)
