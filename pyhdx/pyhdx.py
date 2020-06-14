@@ -1,7 +1,3 @@
-# -*- coding: utf-8 -*-
-
-"""Main module."""
-
 import numpy as np
 from numpy.lib.recfunctions import append_fields
 import itertools
