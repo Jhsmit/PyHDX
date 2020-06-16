@@ -6,44 +6,34 @@ from pyhdx.fitting import KineticsFitting, KineticsFitResult
 from pyhdx.support import fmt_export, np_from_txt
 import numpy as np
 
+import matplotlib.pyplot as plt
+
 directory = os.path.dirname(__file__)
 np.random.seed(43)
 
 
-# class TestFitting(object):
-#
-#     def test_fit_section(self):
-#         fpath = os.path.join(directory, 'test_data', 'ds1.csv')
-#         control_100 = ('PpiA-FD', 0.167)
-#         control_100 = ('PpiANative', 30.000002)
-#
-#         state = 'PpiANative'
-#
-#         data = read_dynamx(fpath)
-#         print(np.unique(data['exposure']))
-#         pcf = PeptideMasterTable(data)
-#         #b = pcf.data['start'] < 50
-#         #pcf.data = pcf.data[b]
-#
-#         pcf.set_control(control_100)
-#         states = pcf.groupby_state()
-#         series = states[state]
-#
-#         kf = KineticsFitting(series)
-#         fr1 = kf.weighted_avg_fit()
-#
-#         arr1 = fr1.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
-#
-#         gt = np_from_txt(os.path.join(directory, 'test_data', 'fit1_result.txt'))
-#         for name in ['rate', 'tau', 'tau1', 'tau2', 'r']:
-#             np.testing.assert_allclose(arr1[name], gt[name], rtol=1e-2)
-#
-#         fr2 = kf.global_fit(arr1)
-#         arr2 = fr2.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
-#
-#         gt = np_from_txt(os.path.join(directory, 'test_data', 'fit2_result.txt'))
-#         for name in ['rate', 'tau', 'tau1', 'tau2', 'r']:
-#             np.testing.assert_allclose(arr2[name], gt[name], rtol=1e-2)
+class TestDissociationFitting(object):
+
+    def test_fit_section(self):
+        fpath = os.path.join(directory, 'test_data', 'ds2.csv')
+        control_100 = ('FD', 0.001)
+        control_0 = ('Native folded', 60.000004)
+
+        state = 'folding_4C_10secLabelling'
+        data = read_dynamx(fpath)
+        pf = PeptideMasterTable(data, drop_first=1, ignore_prolines=True)
+        pf.set_control(control_100, control_0)
+        states = pf.groupby_state()
+        series = states[series_name]
+        split = list(series.split().items())[-1]
+
+        kf = KineticsFitting(split)
+        fr1 = kf.weighted_avg_fit(model_type='dissociation')
+        arr1 = fr1.get_output(['rate', 'k1', 'k2', 'r'])
+
+        fr2  = kf.global_fit(arr1, model_type='dissociation')
+        arr2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
+
 
 
 class TestSimulatedDataFit(object):
