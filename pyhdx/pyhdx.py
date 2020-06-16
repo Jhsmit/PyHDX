@@ -498,8 +498,8 @@ class KineticsSeries(object):
 
         if in_place:
             self.peptides = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
-            self.cov = Coverage(self[0].data)  #not happy about having to save the kwargs like this
-            #in principle it is stored on each peptidemeasurement and has the same values fo rall peptidemeasuremnts
+            self.cov = Coverage(self[0].data)
+
 
         else:
             raise NotImplementedError('Only making peptidesets uniform in place is implemented')
