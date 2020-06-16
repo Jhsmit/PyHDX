@@ -4,7 +4,7 @@ from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigu
 from pyhdx.pyhdx import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
-from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, autowrap
+from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, autowrap, colors_to_pymol
 
 logger = setup_custom_logger('root')
 logger.debug('main message')
@@ -218,7 +218,8 @@ class FileInputControl(ControlPanel):
 
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
-                      'norm_mode', 'norm_state', 'norm_exposure', 'exp_state', 'exp_exposures', 'parse_button']
+                      'norm_mode', 'norm_state', 'norm_exposure',  'zero_state', 'zero_exposure', 'exp_state',
+                      'exp_exposures', 'parse_button']
         first_widgets = list([self._widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
 
@@ -293,15 +294,23 @@ class FileInputControl(ControlPanel):
             self.box_pop('be_percent')
             self.box_insert_after('norm_mode', 'norm_state')
             self.box_insert_after('norm_state', 'norm_exposure')
+            self.box_insert_after('norm_exposure', 'zero_state')
+            self.box_insert_after('zero_state', 'zero_exposure')
+
             #self._update_experiment()  dont think this is needed
         elif self.norm_mode == 'Theory':
             self.box_pop('norm_state')
             self.box_pop('norm_exposure')
+            self.box_pop('zero_state')
+            self.box_pop('zero_exposure')
             self.box_insert_after('norm_mode', 'be_percent')
 
-            states = np.unique(self.parent.data['state'])
-            self.param['exp_state'].objects = states
-            self.exp_state = states[0] if not self.exp_state else self.exp_state
+            try:
+                states = np.unique(self.parent.data['state'])
+                self.param['exp_state'].objects = states
+                self.exp_state = states[0] if not self.exp_state else self.exp_state
+            except TypeError:
+                pass
 
     @param.depends('norm_state', watch=True)
     def _update_norm_exposure(self):
@@ -404,6 +413,8 @@ class FittingControl(ControlPanel):
     r_max = param.Number(27, doc='Ceil value for rates')  # Update this value
     chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
 
+    fitting_model = param.Selector(default='Association', objects=['Association', 'Dissociation'])
+
     do_fit1 = param.Action(lambda self: self._action_fit1())
     block_mode = param.ObjectSelector(default='reduced', objects=['reduced', 'original', 'constant'])
 
@@ -429,11 +440,11 @@ class FittingControl(ControlPanel):
         self.parent.param.watch(self._update_series, ['series'])
 
     def make_list(self):
-        text_f1 = pn.widgets.StaticText(name='Weighted averaging fit (Fit 1)')
-        text_f2 = pn.widgets.StaticText(name='Global fit (Fit 2)')
+        text_f1 = pn.widgets.StaticText(value='Weighted averaging fit (Fit 1)')
+        text_f2 = pn.widgets.StaticText(value='Global fit (Fit 2)')
 
         self._widget_dict.update(text_f1=text_f1, text_f2=text_f2, pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-        parameters = ['r_max', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
+        parameters = ['r_max', 'fitting_model', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
                       'max_join', 'show_blocks', 'do_fit2', 'pbar2']
 
         widget_list = list([self._widget_dict[par] for par in parameters])
@@ -444,7 +455,7 @@ class FittingControl(ControlPanel):
 
     async def _fit1_async(self):
         #client = await Client(self.parent.cluster)
-        fit_result = await self.parent.fitting.weighted_avg_fit_async(pbar=self.pbar1)
+        fit_result = await self.parent.fitting.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
         print('fit res in async', fit_result)
         rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
@@ -458,7 +469,7 @@ class FittingControl(ControlPanel):
              self.param['do_fit2'].constant = False
 
     def _fit1(self):
-        fit_result = self.parent.fitting.weighted_avg_fit(pbar=self.pbar1, chisq_thd=self.chisq_thd)
+        fit_result = self.parent.fitting.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1, chisq_thd=self.chisq_thd)
         rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
 
         self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
@@ -486,7 +497,7 @@ class FittingControl(ControlPanel):
         # rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
 
     async def _fit2_async(self):
-        fit_result = await self.parent.fitting.global_fit_async(self.parent.fit_results['fit1']['rates'],
+        fit_result = await self.parent.fitting.global_fit_async(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(),
                                                                 pbar=self.pbar2, **self.fit_kwargs)
         print('fit res in async', fit_result)
         rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
@@ -500,7 +511,7 @@ class FittingControl(ControlPanel):
             self.pbar2.reset()
 
     def _fit2(self):
-        fit_result = self.parent.fitting.global_fit(self.parent.fit_results['fit1']['rates'], **self.fit_kwargs)
+        fit_result = self.parent.fitting.global_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
         rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
         self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
         self.parent.param.trigger('fit_results')  # Trigger plot update
@@ -745,28 +756,66 @@ class ClassificationControl(ControlPanel):
 
 class FileExportPanel(ControlPanel):
     header = "File Export"
-    target = param.Selector(label='Target')
+    #target = param.Selector(label='Target')
+
+    c_term = param.Integer(0, bounds=(0, None))
 
     def __init__(self, parent, **param):
         super(FileExportPanel, self).__init__(parent, **param)
         self.parent.param.watch(self._rates_updated, ['fit_results'])
+        self.parent.param.watch(self._series_updated, ['series'])
+
 
     def make_list(self):
         rates_export = pn.widgets.FileDownload(filename='Fit1_rates.txt', callback=self.fit1_export)
+        rates2_export = pn.widgets.FileDownload(filename='fit2_rates.txt', callback=self.fit2_export)
+
+        pml1_export = pn.widgets.FileDownload(filename='pml_rates1.txt', callback=self.pml1_export)
+        pml2_export = pn.widgets.FileDownload(filename='pml_rates2.txt', callback=self.pml2_export)
+
         data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
 
-        self._widget_dict.update(rates_export=rates_export, data_export=data_export)
+        self._widget_dict.update(rates_export=rates_export, rates2_export=rates2_export, pml1_export=pml1_export,
+                                 pml2_export=pml2_export, data_export=data_export)
         return super(FileExportPanel, self).make_list()
 
     def _rates_updated(self, *events):
         print('rates updated in fileexportpanel')
-        #todo centralize this on parent? -> no child controls should hook into main controller
-        objects = [k for k, v in self.parent.fit_results.items() if v['fitresult'] is not None]
-        print(objects)
-        self.param['target'].objects = objects
-        #set target if its not set already
-        if not self.target and objects:
-            self.target = objects[-1]
+        # #todo centralize this on parent? -> no child controls should hook into main controller
+        # objects = [k for k, v in self.parent.fit_results.items() if v['fitresult'] is not None]
+        # print(objects)
+        # self.param['target'].objects = objects
+        # #set target if its not set already
+        # if not self.target and objects:
+        #     self.target = objects[-1]
+
+    def _series_updated(self, events):
+        self.c_term = int(self.parent.series.cov.end)
+
+    def _make_pml(self, target):
+#        try:
+        array = self.parent.fit_results[target]['rates']
+        bools = ~np.isnan(array['rate'])
+        color = self.parent.rate_colors[target]
+        script = colors_to_pymol(array['r_number'][bools], color[bools], c_term=self.c_term)
+        # except KeyError:
+        #     script = ''
+
+        return script
+
+    def pml1_export(self):
+        io = StringIO()
+        script = self._make_pml('fit1')
+        io.write(script)
+        io.seek(0)
+        return io
+
+    def pml2_export(self):
+        io = StringIO()
+        script = self._make_pml('fit2')
+        io.write(script)
+        io.seek(0)
+        return io
 
     def fit1_export(self):
         io = StringIO()
@@ -776,6 +825,24 @@ class FileExportPanel(ControlPanel):
         fit_arr = self.parent.fit_results['fit1']['rates']
         if 'fit1' in self.parent.rate_colors:
             colors = self.parent.rate_colors['fit1']
+            export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
+        else:
+            export_data = fit_arr
+
+        fmt, header = fmt_export(export_data)
+        np.savetxt(io, export_data, fmt=fmt, header=header)
+
+        io.seek(0)
+        return io
+
+    def fit2_export(self):
+        io = StringIO()
+        #        print(self.target)
+        print('exporting fit2')
+
+        fit_arr = self.parent.fit_results['fit2']['rates']
+        if 'fit2' in self.parent.rate_colors:  #todo this should be try/except
+            colors = self.parent.rate_colors['fit2']
             export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
         else:
             export_data = fit_arr
