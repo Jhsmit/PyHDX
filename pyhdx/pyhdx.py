@@ -61,9 +61,11 @@ class PeptideMasterTable(object):
             self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
         # Make backup copies of unmodified start, end and sequence fields before taking prolines and n terminal residues into account
-        self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
-        self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
-        self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
+        if not np.any(np.isin(['_start', '_end', '_sequence'], self.data.dtype.names)):
+            self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
+            self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
+            self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
+
 
         #Covert sequence to upper case if not so already
         self.data['sequence'] = [s.upper() for s in self.data['sequence']]
@@ -79,12 +81,12 @@ class PeptideMasterTable(object):
 
         # Mark removed n terminal residues with lower case x
         self.data['sequence'] = ['x'*nt + s[nt:] for nt, s in zip(n_term, self.data['sequence'])]
-
         self.data['start'] += n_term
         self.data['end'] -= c_term
 
         ex_residues = [len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]
-        self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
+        if 'ex_residues' not in self.data.dtype.names:
+            self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
 
     def __len__(self):
         return len(self.data)
