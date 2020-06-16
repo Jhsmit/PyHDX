@@ -603,7 +603,7 @@ class KineticsFitting(object):
                 intervals.append((r_excl[i], r_excl[i + bl]))
                 d = arr[i]
                 d_list.append(d)
-                if model_type == 'ass':
+                if model_type == 'association':
                     model = TwoComponentAssociationModel(self.bounds)
                 elif model_type == 'dissociation':
                     model = TwoComponentDissociationModel(self.bounds)
