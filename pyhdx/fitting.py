@@ -88,8 +88,8 @@ class TwoComponentAssociationModel(SingleKineticModel):
             Array with uptake values
 
         """
-        k1_v = fsolve(func_short, 1/2, args=(t[2], d[2]))[0]
-        k2_v = fsolve(func_long, 1/20, args=(t[-2], d[-2], k1_v))[0]
+        k1_v = fsolve(func_short_ass, 1 / 2, args=(t[2], d[2]))[0]
+        k2_v = fsolve(func_long_ass, 1 / 20, args=(t[-2], d[-2], k1_v))[0]
 
         k1_p = self.get_parameter('k1')
         k1_p.value = k1_v
@@ -194,7 +194,7 @@ class OneComponentAssociationModel(SingleKineticModel):
             Array with uptake values
 
         """
-        k1_v = fsolve(func_short, 1/2, args=(t[3], d[3]))[0]
+        k1_v = fsolve(func_short_ass, 1 / 2, args=(t[3], d[3]))[0]
 
         k1_p = self.get_parameter('k1')
         k1_p.value = k1_v
@@ -208,7 +208,204 @@ class OneComponentAssociationModel(SingleKineticModel):
         return 1/k
 
 
-def func_short(k, tt, A):
+class TwoComponentDissociationModel(SingleKineticModel):
+    """Two componenent Association"""
+    def __init__(self, bounds):
+        super(TwoComponentDissociationModel, self).__init__(bounds)
+
+        r = self.make_parameter('r', value=0.5, min=0, max=1)
+        k1 = self.make_parameter('k1')
+        k2 = self.make_parameter('k2')
+        t = self.make_variable('t')
+        y = self.make_variable('y')
+
+        self.sf_model = Model({y: 100 * (r * exp(-k1*t) + (1 - r) * exp(-k2*t))})
+
+    def __call__(self, t, **params):
+        """call model at time t, returns uptake values of peptides"""
+        time_var = self.names['t']
+        params[time_var] = t
+        return self.sf_model(**params)
+
+    def initial_guess(self, t, d):
+        """
+        Calculates initial guesses for fitting of two-component kinetic uptake reaction
+
+        Parameters
+        ----------
+        t : :class:~`numpy.ndarray`
+            Array with time points
+        d : :class:~`numpy.ndarray`
+            Array with uptake values
+
+        """
+        k1_v = fsolve(func_short_ass, 1 / 2, args=(t[2], d[2]))[0]
+        k2_v = fsolve(func_long_ass, 1 / 20, args=(t[-2], d[-2], k1_v))[0]
+
+        k1_p = self.get_parameter('k1')
+        k1_p.value = k1_v
+        k2_p = self.get_parameter('k2')
+        k2_p.value = k2_v
+        r_p = self.get_parameter('r')
+        r_p.value = 0.5
+
+    def initial_grid(self, t, d, step=15):
+        kmax = 5 * np.log(1-0.98) / -t[1]
+        d_final = np.min([0.95, d[-1]/100])  # todo refactor norm
+        kmin = np.log(1-d_final) / -t[-1]
+
+        tau_space = np.logspace(np.log10(1/kmax), np.log10(1/kmin), num=step, endpoint=True)
+        r_space = np.linspace(0.05, 0.95, num=step, endpoint=True)
+
+        guess = np.column_stack([tau_space, tau_space, r_space])
+        return guess
+
+    def get_rate(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+
+        #todo generalize duplicate code for other models
+        r = params[self.names['r']]
+        k1 = params[self.names['k1']]
+        k2 = params[self.names['k2']]
+
+        #tau = r * tau1 + (1 - r) * tau2
+
+        x0 = k1 if r > 0.5 else k2
+
+        t_log = fsolve(self.min_func, np.log(x0), args=(k1, k2, r))
+        try:
+            assert np.round(self.min_func(t_log, k1, k2, r), 5) == 0, 'Failed to find half life root'
+        except AssertionError:
+            print('uhoh')
+            print(k1, k2, r)
+            print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
+        k = np.asscalar(np.log(2) / np.exp(t_log))
+
+        return k
+
+    def get_tau(self, **params):
+        """
+
+        Parameters
+        ----------
+        params
+
+        key value where keys are the dummy names
+
+        Returns
+        -------
+
+        """
+        k = self.get_rate(**params)
+        return 1/k
+
+    @staticmethod
+    def min_func(t_log, k1, k2, r):
+        t = np.exp(t_log)
+        return - 0.5 + r * np.exp(-k1*t) + (1 - r) * np.exp(-k2*t)
+
+
+class OneComponentDissociationModel(SingleKineticModel):
+    """One component Association"""
+    def __init__(self, bounds):
+        super(OneComponentDissociationModel, self).__init__(bounds)
+        k1 = self.make_parameter('k1')
+        t = self.make_variable('t')
+        y = self.make_variable('y')
+
+        self.sf_model = Model({y: 100 * exp(-k1*t)})
+
+    def __call__(self, t, **params):
+        """call model at time t, returns uptake values of peptides"""
+
+        time_var = self.names['t']
+        params[time_var] = t
+        return self.sf_model(**params)
+
+    def initial_guess(self, t, d):
+        """
+        Calculates initial guesses for fitting of two-component kinetic uptake reaction
+
+        Parameters
+        ----------
+        t : :class:~`numpy.ndarray`
+            Array with time points
+        d : :class:~`numpy.ndarray`
+            Array with uptake values
+
+        """
+        k1_v = fsolve(func_short_ass, 1 / 2, args=(t[3], d[3]))[0]
+
+        k1_p = self.get_parameter('k1')
+        k1_p.value = k1_v
+
+    def get_rate(self, **params):
+        k1 = params[self.names['k1']]
+        return k1
+
+    def get_tau(self, **params):
+        k = self.get_rate(**params)
+        return 1/k
+
+
+def func_short_dis(k, tt, A):
+    """
+    Function to estimate the fast time component
+
+    Parameters
+    ----------
+    k : :obj:`float`
+        Lifetime
+    tt : :obj:`float`
+        Selected time point
+    A : :obj:`float`
+        Target amplitude
+
+    Returns
+    -------
+    A_t : :obj:`float`
+        Amplitude difference given tau, tt, A
+
+    """
+    return 100 * np.exp(-k * tt) - A
+
+
+def func_long_dis(k, tt, A, k1):
+    """
+    Function to estimate the short time component
+
+    Parameters
+    ----------
+    k : :obj:`float`
+        rate
+    tt : :obj:`float`
+        Selected time point
+    A : :obj:`float`
+        Target amplitude
+    k1: : obj:`float`
+        Rate of fast time component
+
+    Returns
+    -------
+    A_t : :obj:`float`
+        Amplitude difference given tau, tt, A, tau1
+
+    """
+    return 100 * (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt)) - A
+
+
+def func_short_ass(k, tt, A):
     """
     Function to estimate the fast time component
 
@@ -230,7 +427,7 @@ def func_short(k, tt, A):
     return 100 * (1 - np.exp(-k * tt)) - A
 
 
-def func_long(k, tt, A, k1):
+def func_long_ass(k, tt, A, k1):
     """
     Function to estimate the short time component
 
@@ -330,33 +527,31 @@ class KineticsFitting(object):
 
         return b_lower, b_upper
 
-    def _prepare_global_fit(self, initial_result, model='bi', block_func=get_reduced_blocks, **block_kwargs):
+    def _prepare_global_fit(self, initial_result, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
         split = self.k_series.split()
 
         models = []
         intervals = []
         d_list = []
-        for section in split.values():  # Section block is 7 one block
+        for section in split.values():
             s, e = section.cov.start, section.cov.end  #inclusive, inclusive (source file)
             intervals.append((s, e + 1))  #inclusive, exclusive
 
             blocks = block_func(section.cov, **block_kwargs)
-            model = LSQKinetics(initial_result, section, blocks, self.bounds, model=model)
+            model = LSQKinetics(initial_result, section, blocks, self.bounds, model_type=model_type)
 
             data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, section.scores_peptides.T)}
             data_dict[model.t_var.name] = section.times
             d_list.append(data_dict)
 
-            #fit = Fit(model.sf_model, **data_dict)
-
             models.append(model)
 
         return d_list, intervals, models
 
-    async def global_fit_async(self, initial_result, pbar=None, model='bi', block_func=get_reduced_blocks, **block_kwargs):
+    async def global_fit_async(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
         """ initial_result: KineticsFitResult object from global_fitting"""
         assert self.k_series.uniform
-        d_list, intervals, models = self._prepare_global_fit(initial_result, model=model, block_func=block_func, **block_kwargs)
+        d_list, intervals, models = self._prepare_global_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
         sf_models = list([m.sf_model for m in models])
 
         # for some reason if using the function fit_global from outer scope this doesnt work
@@ -376,12 +571,12 @@ class KineticsFitting(object):
 
         return fit_result
 
-    def global_fit(self, initial_result, pbar=None, model='bi', block_func=get_reduced_blocks, **block_kwargs):
+    def global_fit(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
         """ initial_result: KineticsFitResult object from global_fitting"""
 
         assert self.k_series.uniform
 
-        d_list, intervals, models = self._prepare_global_fit(initial_result, model=model, block_func=block_func, **block_kwargs)
+        d_list, intervals, models = self._prepare_global_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
 
         results = []
         for data, model in zip(d_list, models):
@@ -394,7 +589,7 @@ class KineticsFitting(object):
 
         return fit_result
 
-    def _prepare_wt_avg_fit(self):
+    def _prepare_wt_avg_fit(self, model_type='association'):
         models = []
         intervals = []  # Intervals; (start, end); (inclusive, exclusive)
         d_list = []
@@ -408,7 +603,12 @@ class KineticsFitting(object):
                 intervals.append((r_excl[i], r_excl[i + bl]))
                 d = arr[i]
                 d_list.append(d)
-                model = TwoComponentAssociationModel(self.bounds)
+                if model_type == 'ass':
+                    model = TwoComponentAssociationModel(self.bounds)
+                elif model_type == 'dissociation':
+                    model = TwoComponentDissociationModel(self.bounds)
+                else:
+                    raise ValueError('Invalid model type {}'.format(model_type))
                 # res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
 
                 models.append(model)
@@ -416,7 +616,7 @@ class KineticsFitting(object):
 
         return d_list, intervals, models
 
-    async def weighted_avg_fit_async(self, chisq_thd=20, pbar=None):
+    async def weighted_avg_fit_async(self, chisq_thd=20, model_type='association', pbar=None):
         """
         Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
         is the same
@@ -430,7 +630,7 @@ class KineticsFitting(object):
 
         """
 
-        d_list, intervals, models = self._prepare_wt_avg_fit()
+        d_list, intervals, models = self._prepare_wt_avg_fit(model_type=model_type)
         fit_func = partial(fit_kinetics, self.k_series.times)
         client = await Client(self.cluster)
         futures = client.map(fit_func, d_list, models, chisq_thd=chisq_thd)
@@ -443,7 +643,7 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
         return fit_result
 
-    def weighted_avg_fit(self, chisq_thd=20, pbar=None):
+    def weighted_avg_fit(self, chisq_thd=20, model_type='association', pbar=None):
         """
         Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
         is the same
@@ -477,7 +677,7 @@ class KineticsFitting(object):
         #         models.append(model)
         #         i += bl  # increment in block length does not equal move to the next start position
 
-        d_list, intervals, models = self._prepare_wt_avg_fit()
+        d_list, intervals, models = self._prepare_wt_avg_fit(model_type=model_type)
         if pbar:
             self.num_tasks = len(d_list)
             inc = pbar.increment
@@ -622,7 +822,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
     #todo block length is redundant
     #what is keeping it as attribute?
     #not really because its now needed to keep as we're not storing it anymore on FitREsults
-    def __init__(self, initial_result, k_series, blocks, bounds, model='bi'):
+    def __init__(self, initial_result, k_series, blocks, bounds, model_type='association'):
     #todo allow for setting of min/max value of parameters
         """
 
@@ -635,7 +835,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         t_var = self.make_variable('t')
 
         self.block_length = blocks
-        self.model = model
+        # self.model = model_type
         terms = []
 
         r_number = initial_result['r_number']
@@ -643,28 +843,34 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         for i, bl in enumerate(blocks):
             current = r_index + (bl // 2)
             idx = np.searchsorted(r_number, current)
-            if model == 'mono' or (model == 'mixed' and bl == 1):
-                print('mono')
-                #TODO update names
-                print("this probably gives errors down the line")
-                value = initial_result['rate'][idx]  #this should be the average of the block range
-                r_index += bl
-                k1 = self.make_parameter('k1_{}'.format(i), value=value)
-                term = (1 - exp(-k1*t_var))
-                terms.append(term)
-            else:
-                # t1v = initial_result['tau1'][idx]  #TODO update names
+            # if model == 'mono' or (model == 'mixed' and bl == 1):
+            #     print('mono')
+            #     #TODO update names
+            #     print("this probably gives errors down the line")
+            #     value = initial_result['rate'][idx]  #this should be the average of the block range
+            #     r_index += bl
+            #     k1 = self.make_parameter('k1_{}'.format(i), value=value)
+            #     term = (1 - exp(-k1*t_var))
+            #     terms.append(term)
+            # else:
+            #     # t1v = initial_result['tau1'][idx]  #TODO update names
                 # t2v = initial_result['tau2'][idx]
-                r_index += bl
+            r_index += bl
 
-                k1v = min(initial_result['k1'][idx], initial_result['k2'][idx])
-                k2v = max(initial_result['k2'][idx], initial_result['k2'][idx])
-                rv = np.clip(initial_result['r'][idx], 0.1, 0.9)
-                k1 = self.make_parameter('k1_{}'.format(i), value=k1v)
-                k2 = self.make_parameter('k2_{}'.format(i), value=k2v)
-                r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
+            k1v = min(initial_result['k1'][idx], initial_result['k2'][idx])
+            k2v = max(initial_result['k2'][idx], initial_result['k2'][idx])
+            rv = np.clip(initial_result['r'][idx], 0.1, 0.9)
+            k1 = self.make_parameter('k1_{}'.format(i), value=k1v)
+            k2 = self.make_parameter('k2_{}'.format(i), value=k2v)
+            r = self.make_parameter('r_{}'.format(i), max=1, min=0, value=rv)
+
+            if model_type == 'association':
                 term = (1 - (r * exp(-k1*t_var) + (1 - r) * exp(-k2*t_var)))
-                terms.append(term)
+            elif model_type == 'dissociation':
+                term = r * exp(-k1 * t_var) + (1 - r) * exp(-k2 * t_var)
+            else:
+                raise ValueError('Invalid choice of model: {}'.format(model_type))
+            terms.append(term)
 
         #Iterate over rows (peptides) and add terms together which make one peptide
         model_dict = {}
@@ -718,24 +924,24 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
 
         k_list = []
         for i, bl in enumerate(self.block_length):
-            if self.model == 'mono' or (self.model == 'mixed' and bl == 1):
-                k = params[self.names['k1_{}'.format(i)]]
-            else:
-                k1 = params[self.names['k1_{}'.format(i)]]
-                k2 = params[self.names['k2_{}'.format(i)]]
-                r = params[self.names['r_{}'.format(i)]]
-                #todo this code is duplicated in TwoComponentAssociationModel
-                x0 = k1 if r > 0.5 else k2
+            # if self.model == 'mono' or (self.model == 'mixed' and bl == 1):
+            #     k = params[self.names['k1_{}'.format(i)]]
+            #else:
+            k1 = params[self.names['k1_{}'.format(i)]]
+            k2 = params[self.names['k2_{}'.format(i)]]
+            r = params[self.names['r_{}'.format(i)]]
+            #todo this code is duplicated in TwoComponentAssociationModel
+            x0 = k1 if r > 0.5 else k2
 
-                # log of the time at which d-uptake is 50% for given k1, k2, and r
-                t_log = fsolve(self.min_func, np.log(x0), args=(k1, k2, r))
-                try:
-                    assert np.round(self.min_func(t_log, k1, k2, r), 5) == 0, 'Failed to find half life root'
-                except AssertionError:
-                    print('uhoh')
-                    print(k1, k2, r)
-                    print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
-                k = np.asscalar(np.log(2) / np.exp(t_log))
+            # log of the time at which d-uptake is 50% for given k1, k2, and r
+            t_log = fsolve(self.min_func, np.log(x0), args=(k1, k2, r))
+            try:
+                assert np.round(self.min_func(t_log, k1, k2, r), 5) == 0, 'Failed to find half life root'
+            except AssertionError:
+                print('uhoh')
+                print(k1, k2, r)
+                print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
+            k = np.asscalar(np.log(2) / np.exp(t_log))
 
                 #tau = r * tau1 + (1 - r) * tau2
             k_list += [k] * bl
