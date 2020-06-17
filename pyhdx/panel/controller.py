@@ -156,7 +156,7 @@ class Controller(param.Parameterized):
 
         return self.app.servable()
 
-    def serve(self):
+    def serve(self, **kwargs):
         js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
                     'goldenlayout': 'https://golden-layout.com/files/latest/js/goldenlayout.min.js',
                     'ngl': 'https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.33/dist/ngl.js'}
@@ -172,7 +172,7 @@ class Controller(param.Parameterized):
         }
         '''
         pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
-        pn.serve(self.app)
+        pn.serve(self.app, **kwargs)
 
     def get_rate_file_export(self):
         fmt, header = fmt_export(self.rates)
