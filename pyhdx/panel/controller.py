@@ -18,7 +18,6 @@ import os
 import numpy as np
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays, append_fields
-from .base import get_widget
 from .components import ASyncProgressBar
 from io import StringIO, BytesIO
 from dask.distributed import Client
