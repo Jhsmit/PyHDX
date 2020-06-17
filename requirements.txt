@@ -2,5 +2,7 @@ symfit
 numpy
 tqdm
 scikit-image
-
+panel
 matplotlib
+bokeh=2.0.1
+sympy=1.5.1
