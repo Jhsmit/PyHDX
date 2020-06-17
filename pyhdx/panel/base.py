@@ -100,5 +100,5 @@ class ControlPanel(PanelBase):
     def panel(self):
         return self._box
 
-get_widget = pn.Param.get_widget
+#get_widget = pn.Param.get_widget
 
