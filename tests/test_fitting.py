@@ -24,7 +24,7 @@ class TestDissociationFitting(object):
         pf = PeptideMasterTable(data, drop_first=1, ignore_prolines=True)
         pf.set_control(control_100, control_0)
         states = pf.groupby_state()
-        series = states[series_name]
+        series = states[state]
         split = list(series.split().items())[-1]
 
         kf = KineticsFitting(split)
@@ -33,7 +33,6 @@ class TestDissociationFitting(object):
 
         fr2  = kf.global_fit(arr1, model_type='dissociation')
         arr2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
-
 
 
 class TestSimulatedDataFit(object):
