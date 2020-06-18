@@ -10,6 +10,27 @@ from dask.distributed import Client
 
 
 class KineticsModel(object):
+    """
+    Base class for all Kinetics models. Main function is to generate :ref:`symfit` Variables and Parameters. The class
+    attributes `par_index` and `var_index` are used to make sure names used by :ref:`symfit` are unique and their
+    mapping to user-defined names are stored in the `names` dictionary.
+
+    Parameters
+    ----------
+
+    bounds : :obj:`tuple`
+        Tuple of default `min`, `max` parameters to use.
+
+    Attributes
+    ----------
+
+    names : :obj:`dict`
+        Dictionary which maps human-readable names (keys) to dummy names (values)
+    sf_model : :class:`~symfit.Model`
+        The `symfit` model which describes this model. Implemented by subclasses.
+
+    """
+
     par_index = 0
     var_index = 0
 
@@ -21,6 +42,25 @@ class KineticsModel(object):
         self.sf_model = None
 
     def make_parameter(self, name, value=None, min=None, max=None):
+        """
+        Create a new :class:~symfit.Parameter.
+
+        Parameters
+        ----------
+        name: :obj:`str`
+            Human-readable name for the parameter
+        value: :obj:`float`
+            Initial guess value
+        min: :obj:`float`
+            Lower bound value. If `None`, the value from `bounds` is used.
+        max: :obj:`float`
+            Lower bound value. If `None`, the value from `bounds` is used.
+
+        Returns
+        -------
+        p : :class:`~symfit.Parameter`
+
+        """
         min = min if min is not None else self.bounds[0]
         max = max if max is not None else self.bounds[1]
 
@@ -32,6 +72,19 @@ class KineticsModel(object):
         return p
 
     def make_variable(self, name):
+        """
+        Create a new :class:~symfit.Variable.
+
+        Parameters
+        ----------
+        name: :obj:`str`
+            Human-readable name for the variable
+
+        Returns
+        -------
+        p : :class:`~symfit.Variable`
+
+        """
         dummy_name = 'pyhdx_var_{}'.format(self.var_index)
         KineticsModel.var_index += 1
         v = Variable(dummy_name)
@@ -40,15 +93,28 @@ class KineticsModel(object):
 
     @property
     def r_names(self):
-        """ dictionary of dummy_name: name"""
+        """:obj:`dict`: Reverse dictionary of the variable and parameter names"""
         return {v: k for k, v in self.names.items()}
 
     def get_parameter(self, name):
-        """returns the parameter object with human-readable name name"""
+        """
+        Get the parameter with the Human-readable name `name`
+
+        Parameters
+        ----------
+        name : :obj:`str`
+            Name of the parameter to retrieve
+
+        Returns
+        -------
+        parameter : :class:`~symfit.Parameter`
+
+        """
         dummy_name = self.names[name]
         par_names = list([p.name for p in self.sf_model.params])
         idx = par_names.index(dummy_name)
-        return self.sf_model.params[idx]
+        parameter = self.sf_model.params[idx]
+        return parameter
 
 
 class SingleKineticModel(KineticsModel):
@@ -656,26 +722,6 @@ class KineticsFitting(object):
         -------
 
         """
-
-        # results = []
-        # models = []
-        # intervals = [] # Intervals; (start, end); (inclusive, exclusive)
-        # for k, series in self.k_series.split().items():
-        #     arr = series.scores_stack.T
-        #     i = 0
-        #
-        #     #because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
-        #     r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
-        #     for bl in series.cov.block_length:
-        #         intervals.append((r_excl[i], r_excl[i + bl]))
-        #         d = arr[i]
-        #         model = TwoComponentAssociationModel(self.bounds)
-        #         #res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
-        #         #res = fit_kinetics(series.times, d, model, chisq_thd=chisq_thd)
-        #
-        #         #results.append(res)
-        #         models.append(model)
-        #         i += bl  # increment in block length does not equal move to the next start position
 
         d_list, intervals, models = self._prepare_wt_avg_fit(model_type=model_type)
         if pbar:

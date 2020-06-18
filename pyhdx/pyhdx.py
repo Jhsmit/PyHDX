@@ -7,7 +7,6 @@ from operator import add
 from .math import solve_nnls
 from .support import reduce_inter, make_view
 
-#HEADER = 'Protein,Start,End,Sequence,Modification,Fragment,MaxUptake,MHP,State,Exposure,Center,Center SD,Uptake,Uptake SD,RT,RT SD'
 
 class PeptideMasterTable(object):
     """
