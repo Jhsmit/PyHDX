@@ -35,11 +35,11 @@ if refit:
     fr1 = kf.weighted_avg_fit()
     arr = fr1.get_output(['tau1', 'tau2', 'r'])
 
-    fr_orig = kf.global_fit(arr, block_func=get_original_blocks)
+    fr_orig = kf.blocks_fit(arr, block_func=get_original_blocks)
     out_orig = fr_orig.get_output(['rate', 'tau1', 'tau2'])
     np.save('fr_orig.npy', out_orig)
 
-    fr_red = kf.global_fit(arr)
+    fr_red = kf.blocks_fit(arr)
     out_red = fr_red.get_output(['rate', 'tau1', 'tau2'])
     np.save('fr_red.npy', out_red)
 

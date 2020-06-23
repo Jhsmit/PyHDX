@@ -496,7 +496,7 @@ class FittingControl(ControlPanel):
         # rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
 
     async def _fit2_async(self):
-        fit_result = await self.parent.fitting.global_fit_async(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(),
+        fit_result = await self.parent.fitting.blocks_fit_async(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(),
                                                                 pbar=self.pbar2, **self.fit_kwargs)
         print('fit res in async', fit_result)
         rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
@@ -510,7 +510,7 @@ class FittingControl(ControlPanel):
             self.pbar2.reset()
 
     def _fit2(self):
-        fit_result = self.parent.fitting.global_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
+        fit_result = self.parent.fitting.blocks_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
         rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
         self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
         self.parent.param.trigger('fit_results')  # Trigger plot update

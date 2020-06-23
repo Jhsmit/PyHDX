@@ -1,4 +1,5 @@
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, temporary_seed
+from pyhdx.fitting_tf import CurveFit, TFParameter, L1L2Differential, LossHistory, AssociationPFactFunc, AssociationRateFunc
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
@@ -7,6 +8,8 @@ from collections import namedtuple
 from functools import reduce, partial
 from operator import add
 from dask.distributed import Client
+import tensorflow as tf
+from tensorflow.keras.optimizers import Adagrad
 
 
 class KineticsModel(object):
@@ -593,7 +596,7 @@ class KineticsFitting(object):
 
         return b_lower, b_upper
 
-    def _prepare_global_fit(self, initial_result, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
+    def _prepare_blocks_fit(self, initial_result, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
         split = self.k_series.split()
 
         models = []
@@ -614,10 +617,10 @@ class KineticsFitting(object):
 
         return d_list, intervals, models
 
-    async def global_fit_async(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
+    async def blocks_fit_async(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
         """ initial_result: KineticsFitResult object from global_fitting"""
         assert self.k_series.uniform
-        d_list, intervals, models = self._prepare_global_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
+        d_list, intervals, models = self._prepare_blocks_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
         sf_models = list([m.sf_model for m in models])
 
         # for some reason if using the function fit_global from outer scope this doesnt work
@@ -637,12 +640,12 @@ class KineticsFitting(object):
 
         return fit_result
 
-    def global_fit(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
+    def blocks_fit(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
         """ initial_result: KineticsFitResult object from global_fitting"""
 
         assert self.k_series.uniform
 
-        d_list, intervals, models = self._prepare_global_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
+        d_list, intervals, models = self._prepare_blocks_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
 
         results = []
         for data, model in zip(d_list, models):
@@ -738,6 +741,64 @@ class KineticsFitting(object):
 
         fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
         return fit_result
+
+    def _prepare_global_fit_gen(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0.):
+        """
+
+        Parameters
+        ----------
+        initial_result numpy structured array with fields r_number, rate
+        k_int optional numpy structured array with fields r_number, k_int
+
+        Returns
+        -------
+
+        """
+        for section in self.k_series.split().items():
+                s, e = section.cov.start, section.cov.end  # inclusive, inclusive (source file)
+                interval = (s, e + 1)
+
+                indices = np.searchsorted(initial_result['r_number'], section.cov.r_number)
+                if not len(indices) == len(np.unique(indices)):
+                    raise ValueError('Invalid match between section r number and initial result r number')
+                init_rate = initial_result['rate'][indices]
+
+                regularizer = L1L2Differential(l1, l2)
+                if k_int:
+
+                    indices = np.searchsorted(k_int['r_number'], section.cov.r_number)
+                    if not len(indices) == len(np.unique(indices)):
+                        raise ValueError('Invalid match between section r number and k_int r number')
+                    k_int = k_int['k_int'][indices]
+
+                    p_guess = k_int / init_rate
+                    guess_vals = np.log10(p_guess)
+
+                    parameter = TFParameter('log_P', init_rate.shape, regularizer=regularizer)
+                    func = AssociationPFactFunc(section.timepoints, k_int)
+
+                else:
+                    parameter = TFParameter('k', init_rate.shape, regularizer=regularizer)
+                    func = AssociationRateFunc(section.timepoints)
+
+                    guess_vals = np.log10(init_rate)
+
+                layer = CurveFit([parameter], func, name='association')
+                layer.build(section.cov.X)
+                wts = np.expand_dims(guess_vals.astype(np.float32), -1)
+                layer.set_weights([wts])
+
+                model = tf.keras.Sequential([layer])
+                model.compile(loss='mse', optimizer=Adagrad(learning_rate=learning_rate))
+
+                input_data = np.expand_dims(section.cov.X, 0)
+                output_data = np.expand_dims(section.scores_peptides.T)
+
+
+
+
+                yield model, interval, input_data, output_data
+
 
 
 class KineticsFitResult(object):

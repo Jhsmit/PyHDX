@@ -446,7 +446,7 @@ class KineticsSeries(object):
     ----------
     state : :obj:`str`
         State of the kinetic series
-    times : :class:`~numpy.ndarray`
+    timepoints : :class:`~numpy.ndarray`
         Array with exposure times (sorted)
 
     """
@@ -454,12 +454,12 @@ class KineticsSeries(object):
         if isinstance(data, np.ndarray):
             assert len(np.unique(data['state'])) == 1
             self.state = data['state'][0]
-            self.times = np.sort(np.unique(data['exposure']))
+            self.timepoints = np.sort(np.unique(data['exposure']))
 
-            self.peptides = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.times]
+            self.peptides = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.timepoints]
 
             if self.uniform:
-                self.cov = Coverage(data[data['exposure'] == self.times[0]])
+                self.cov = Coverage(data[data['exposure'] == self.timepoints[0]])
             else:
                 self.cov = None
 

@@ -31,7 +31,7 @@ class TestDissociationFitting(object):
         fr1 = kf.weighted_avg_fit(model_type='dissociation')
         arr1 = fr1.get_output(['rate', 'k1', 'k2', 'r'])
 
-        fr2  = kf.global_fit(arr1, model_type='dissociation')
+        fr2  = kf.blocks_fit(arr1, model_type='dissociation')
         arr2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
 
 
@@ -56,7 +56,7 @@ class TestSimulatedDataFit(object):
         fr1 = kf.weighted_avg_fit()
         out1 = fr1.get_output(['rate', 'k1', 'k2', 'r'])
 
-        fr2 = kf.global_fit(out1)
+        fr2 = kf.blocks_fit(out1)
         out2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
 
         check1 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
