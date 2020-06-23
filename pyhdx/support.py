@@ -357,3 +357,9 @@ def multi_otsu(*rates, classes=3):
     thd_rates = np.log(all_rates[~np.isnan(all_rates)])
     thds = threshold_multiotsu(thd_rates, classes=classes)
     return tuple(np.e**thd for thd in thds)
+
+
+def scale(x, out_range=(-1, 1)):
+    domain = np.min(x), np.max(x)
+    y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
+    return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2

@@ -1,5 +1,5 @@
 import numpy as np
-from pyhdx import Coverage
+from pyhdx import Coverage, PeptideMasterTable
 from numpy.lib.recfunctions import stack_arrays, append_fields
 
 
@@ -87,8 +87,8 @@ def generate_data(peptides, sequence, timepoints, rates, state='state1'):
     data['state'][:] = 'state1'
     data['sequence'] = list([sequence[s:e + 1] for s, e in zip(start, end)])
 
-    cov = Coverage(data, ignore_prolines=False, drop_first=0)
-
+    pmt = PeptideMasterTable(data, drop_first=0, ignore_prolines=False, remove_nan=False)
+    cov = Coverage(pmt.data)
     #crop rates to the right size
     prot_rates = rates[:cov.prot_len]
 
@@ -111,4 +111,4 @@ def generate_data(peptides, sequence, timepoints, rates, state='state1'):
 
     stacked = stack_arrays(arrays, usemask=False, autoconvert=True)
 
-    return cov, stacked
+    return cov, stacked, prot_rates
