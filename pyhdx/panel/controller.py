@@ -450,7 +450,7 @@ class FittingControl(ControlPanel):
         return widget_list
 
     def _update_series(self, *events):
-        self.r_max = np.log(1 - 0.98) / -self.parent.series.times[1]  # todo user input 0.98
+        self.r_max = np.log(1 - 0.98) / -self.parent.series.timepoints[1]  # todo user input 0.98
 
     async def _fit1_async(self):
         #client = await Client(self.parent.cluster)

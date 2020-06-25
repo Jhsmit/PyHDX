@@ -139,13 +139,14 @@ class Report(object):
 class Output(object):
 
     def __init__(self, series, fit_results, **settings):
+        #todo series is now an attribute in fit_results
         self.series = series
         self.fit_results = fit_results # dictionary with name: KineticsFitresult
         self.settings = settings #dictionary with additional settings
 
     @property
     def fit_timepoints(self):
-        timepoints = self.series.times
+        timepoints = self.series.timepoints
         x_axis_type = self.settings.get('fit_time_axis', 'Log')
         if x_axis_type == 'Linear':
             time = np.linspace(0, timepoints.max(), num=250)
@@ -204,7 +205,7 @@ class Output(object):
         for k in self.fit_results.keys():
             ax.plot(self.fit_timepoints, self.call_fitresult(k)[index], label=k)
 
-        ax.scatter(self.series.times, self.series.scores_peptides.T[index], color='k')
+        ax.scatter(self.series.timepoints, self.series.scores_peptides.T[index], color='k')
         t_unit = fig_kwargs.get('time_unit', '')
         t_unit = f'({t_unit})' if t_unit else t_unit
         ax.set_xlabel(f'Time' + t_unit)

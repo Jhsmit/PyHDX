@@ -587,7 +587,8 @@ class KineticsFitting(object):
 
     def _get_bounds(self):
         #todo document
-        times = self.k_series.times
+        #todo this is now causing confusion when getting protection factors as output
+        times = self.k_series.timepoints
         nonzero_times = times[np.nonzero(times)]
         t_first = np.min(nonzero_times)
         t_last = np.max(nonzero_times)
@@ -610,7 +611,7 @@ class KineticsFitting(object):
             model = LSQKinetics(initial_result, section, blocks, self.bounds, model_type=model_type)
 
             data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, section.scores_peptides.T)}
-            data_dict[model.t_var.name] = section.times
+            data_dict[model.t_var.name] = section.timepoints
             d_list.append(data_dict)
 
             models.append(model)
@@ -700,7 +701,7 @@ class KineticsFitting(object):
         """
 
         d_list, intervals, models = self._prepare_wt_avg_fit(model_type=model_type)
-        fit_func = partial(fit_kinetics, self.k_series.times)
+        fit_func = partial(fit_kinetics, self.k_series.timepoints)
         client = await Client(self.cluster)
         futures = client.map(fit_func, d_list, models, chisq_thd=chisq_thd)
         if pbar:
@@ -709,7 +710,7 @@ class KineticsFitting(object):
 
         results = client.gather(futures)
 
-        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
 
     def weighted_avg_fit(self, chisq_thd=20, model_type='association', pbar=None):
@@ -735,12 +736,15 @@ class KineticsFitting(object):
 
         results = []
         for d, model in zip(d_list, models):
-            result = fit_kinetics(self.k_series.times, d, model, chisq_thd=chisq_thd)
+            result = fit_kinetics(self.k_series.timepoints, d, model, chisq_thd=chisq_thd)
             inc()
             results.append(result)
 
-        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
+
+    def global_fit(self):
+        pass
 
     def _prepare_global_fit_gen(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0.):
         """

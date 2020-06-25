@@ -161,7 +161,8 @@ class RateFigure(FigurePanel):
         print('rates array update, renew')
 
         #todo maybe not if the user has already set it
-        self.r_max = np.log(1 - 0.98) / - self.parent.series.times[1]
+        # todo renove this
+        self.r_max = np.log(1 - 0.98) / - self.parent.series.timepoints[1]
 
         #todo only redraw whats nessecary dependent on events?
         renderers = self.figure.select(tags='rate', type=GlyphRenderer)
@@ -273,7 +274,7 @@ class FitResultFigure(FigurePanel):
         return fig
 
     def _update_peptides(self, *events):
-        timepoints = self.parent.series.times
+        timepoints = self.parent.series.timepoints
         datapoints = self.parent.series.scores_peptides.T[self.ctrl.peptide_index]
         #datapoints = [pm.data[self.ctrl.peptide_index]['scores'] for pm in self.parent.series]
         renderer = self.figure.select('Exp')[0]
@@ -282,7 +283,7 @@ class FitResultFigure(FigurePanel):
 
     @property
     def fit_timepoints(self):
-        timepoints = self.parent.series.times
+        timepoints = self.parent.series.timepoints
         if self.ctrl.x_axis_type == 'Linear':
             time = np.linspace(0, timepoints.max(), num=250)
         elif self.ctrl.x_axis_type == 'Log':

@@ -470,7 +470,7 @@ class KineticsSeries(object):
                 assert elem.state == data[0].state, 'All peptide states must be equal'
             data_sort = sorted(data, key=lambda x: x.exposure)
             self.state = data[0].state
-            self.times = np.array([elem.exposure for elem in data_sort])
+            self.timepoints = np.array([elem.exposure for elem in data_sort])
             self.peptides = data
 
             if self.uniform:
@@ -552,7 +552,7 @@ class KineticsSeries(object):
         return output
 
     def __len__(self):
-        return len(self.times)
+        return len(self.timepoints)
 
     def __iter__(self):
         return self.peptides.__iter__()
