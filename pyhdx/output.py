@@ -171,20 +171,25 @@ class Output(object):
             Numpy array with fitted uptake values for each peptide per row
         """
         fit_timepoints = time or self.fit_timepoints
-        fit_result = self.fit_results[fit_name]
-        d_list = []
-        if fit_result.model_type == 'Single':
-            for time in fit_timepoints:
-                p = fit_result.get_p(time)
-                p = np.nan_to_num(p)
-                d = self.series.cov.X.dot(p)
-                d_list.append(d)
-        elif fit_result.model_type == 'Global':
-            for time in fit_timepoints:
-                d = fit_result.get_d(time)
-                d_list.append(d)
 
-        uptake = np.vstack(d_list).T
+        # Moved to fit results
+        # fit_result = self.fit_results[fit_name]
+        # d_list = []
+        # if fit_result.model_type == 'Single':
+        #     for time in fit_timepoints:
+        #         p = fit_result.get_p(time)
+        #         p = np.nan_to_num(p)
+        #         d = self.series.cov.X.dot(p)
+        #         d_list.append(d)
+        # elif fit_result.model_type == 'Global':
+        #     for time in fit_timepoints:
+        #         d = fit_result.get_d(time)
+        #         d_list.append(d)
+        #
+        # uptake = np.vstack(d_list).T
+
+        uptake = self.fit_results[fit_name](fit_timepoints)
+
         return uptake
 
     def add_peptide_fits(self, ax_scale='log', fit_names=None):
