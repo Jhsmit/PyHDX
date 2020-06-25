@@ -43,7 +43,7 @@ class PeptideMasterTable(object):
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
     ignore_prolines: :obj:`bool`
-        Boolean to toggle ignoring of prolines residues. When True these residues are treated as if they're not present
+        Boolean to toggle ignoring of proline residues. When True these residues are treated as if they're not present
         in the protein.
     sort: :obj:`bool`
         Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
