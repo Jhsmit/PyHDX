@@ -53,6 +53,7 @@ class PeptideMasterTable(object):
     """
 
     def __init__(self, data, drop_first=1, ignore_prolines=True, sort=True, remove_nan=True):
+        assert np.all(data['start'] < data['end']), 'All `start` entries must be smaller than their `end` entries'
         self.data = data.copy()
         if remove_nan:
             self.data = self.data[~np.isnan(self.data['uptake'])]
