@@ -637,7 +637,7 @@ class KineticsFitting(object):
             await pbar.run(futures)
 
         results = client.gather(futures)
-        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
 
         return fit_result
 
@@ -655,7 +655,7 @@ class KineticsFitting(object):
                 pbar.increment()
             results.append(result)
 
-        fit_result = KineticsFitResult(self.k_series.cov.r_number, intervals, results, models)
+        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
 
         return fit_result
 
@@ -758,64 +758,61 @@ class KineticsFitting(object):
         -------
 
         """
-        for section in self.k_series.split().items():
-                s, e = section.cov.start, section.cov.end  # inclusive, inclusive (source file)
-                interval = (s, e + 1)
+        for section in self.k_series.split().values():
+            s, e = section.cov.start, section.cov.end  # inclusive, inclusive (source file)
+            interval = (s, e + 1)
 
-                indices = np.searchsorted(initial_result['r_number'], section.cov.r_number)
+            indices = np.searchsorted(initial_result['r_number'], section.cov.r_number)
+            if not len(indices) == len(np.unique(indices)):
+                raise ValueError('Invalid match between section r number and initial result r number')
+            init_rate = initial_result['rate'][indices]
+
+            regularizer = L1L2Differential(l1, l2)
+            if k_int is not None:
+
+                indices = np.searchsorted(k_int['r_number'], section.cov.r_number)
                 if not len(indices) == len(np.unique(indices)):
-                    raise ValueError('Invalid match between section r number and initial result r number')
-                init_rate = initial_result['rate'][indices]
+                    raise ValueError('Invalid match between section r number and k_int r number')
+                k_int_section = k_int['k_int'][indices]
 
-                regularizer = L1L2Differential(l1, l2)
-                if k_int:
+                p_guess = k_int_section / init_rate
+                guess_vals = np.log10(p_guess)
 
-                    indices = np.searchsorted(k_int['r_number'], section.cov.r_number)
-                    if not len(indices) == len(np.unique(indices)):
-                        raise ValueError('Invalid match between section r number and k_int r number')
-                    k_int = k_int['k_int'][indices]
+                parameter = TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
+                func = AssociationPFactFunc(section.timepoints, k_int_section)
 
-                    p_guess = k_int / init_rate
-                    guess_vals = np.log10(p_guess)
+            else:
+                parameter = TFParameter('log_k', (len(init_rate), 1), regularizer=regularizer)
+                func = AssociationRateFunc(section.timepoints)
 
-                    parameter = TFParameter('log_P', init_rate.shape, regularizer=regularizer)
-                    func = AssociationPFactFunc(section.timepoints, k_int)
+                guess_vals = np.log10(init_rate)
 
-                else:
-                    parameter = TFParameter('k', init_rate.shape, regularizer=regularizer)
-                    func = AssociationRateFunc(section.timepoints)
+            layer = CurveFit([parameter], func, name='association')
+            layer.build(section.cov.X)
+            wts = np.expand_dims(guess_vals.astype(np.float32), -1)
+            layer.set_weights([wts])
 
-                    guess_vals = np.log10(init_rate)
+            model = tf.keras.Sequential([layer])
+            model.compile(loss='mse', optimizer=Adagrad(learning_rate=learning_rate))
 
-                layer = CurveFit([parameter], func, name='association')
-                layer.build(section.cov.X)
-                wts = np.expand_dims(guess_vals.astype(np.float32), -1)
-                layer.set_weights([wts])
+            input_data = np.expand_dims(section.cov.X, 0)
+            output_data = np.expand_dims(section.scores_peptides.T, 0)
 
-                model = tf.keras.Sequential([layer])
-                model.compile(loss='mse', optimizer=Adagrad(learning_rate=learning_rate))
-
-                input_data = np.expand_dims(section.cov.X, 0)
-                output_data = np.expand_dims(section.scores_peptides.T)
-
-
-
-
-                yield model, interval, input_data, output_data
-
+            yield model, interval, input_data, output_data
 
 
 class KineticsFitResult(object):
     """
     this fit results is only for wt avg fitting
     """
-    def __init__(self, r_number, intervals, results, models):
+    def __init__(self, series, intervals, results, models):
         """
         each model with corresponding interval covers a region in the protein corresponding to r_number
         """
         assert len(results) == len(models)
 #        assert len(models) == len(block_length)
-        self.r_number = r_number
+        self.series = series
+        self.r_number = series.cov.r_number
         self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
@@ -828,6 +825,23 @@ class KineticsFitResult(object):
             return 'Global'
         else:
             return 'Mixed'
+
+    def __call__(self, timepoints):
+        """call the result with timepoints to get fitted uptake per peptide back"""
+        d_list = []
+        if self.model_type == 'Single':
+            for time in timepoints:
+                p = self.get_p(time)
+                p = np.nan_to_num(p)
+                d = self.series.cov.X.dot(p)
+                d_list.append(d)
+        elif self.model_type == 'Global':
+            for time in timepoints:
+                d = self.get_d(time)
+                d_list.append(d)
+
+        uptake = np.vstack(d_list).T
+        return uptake
 
     def get_p(self, t):
         """
@@ -918,6 +932,7 @@ class KineticsFitResult(object):
         # return output
 
     def get_output(self, names):
+        # change to property which gives all parameters as output
         dtype = [('r_number', int)] + [(name, float) for name in names]
         array = np.full_like(self.r_number, np.nan, dtype=dtype)
         array['r_number'] = self.r_number

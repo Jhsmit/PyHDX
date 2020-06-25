@@ -4,7 +4,8 @@ from tensorflow.keras.constraints import Constraint
 from tensorflow.keras.regularizers import Regularizer
 from tensorflow.python.keras import backend as K
 from tensorflow.python.ops import math_ops
-
+import numpy as np
+import copy
 
 class L1L2Differential(Regularizer):
     def __init__(self, l1=0., l2=0.):  # pylint: disable=redefined-outer-name
@@ -17,9 +18,9 @@ class L1L2Differential(Regularizer):
         regularization = 0.
         diff = x[:-1] - x[1:]
         if self.l1:
-            regularization += self.d*math_ops.reduce_sum(math_ops.abs(diff))
+            regularization += self.l1*math_ops.reduce_sum(math_ops.abs(diff))
         if self.l2:
-            regularization += self.d * math_ops.reduce_sum(math_ops.square(diff))
+            regularization += self.l2*math_ops.reduce_sum(math_ops.square(diff))
 
         return regularization
 
@@ -95,27 +96,35 @@ class LossHistory(tf.keras.callbacks.Callback):
 
 
 class AssociationPFactFunc(object):
+    parameter_name = 'log_P'
 
     def __init__(self, timepoints, kint):
         self.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
         self.kint = tf.dtypes.cast(tf.expand_dims(kint, -1), tf.float32)
 
     def __call__(self, X, **parameters):
-        pfact = 10**parameters['log_P']
+        pfact = 10**parameters[self.parameter_name]
         uptake = 1 - tf.exp(-tf.matmul((self.kint/pfact), self.timepoints))
         return 100*tf.matmul(X, uptake)
 
     def compute_output_shape(self, input_shape):
         return input_shape[0], len(self.timepoints)
 
+    @staticmethod
+    def output(weights):
+        #todo perhaps input weights as dict (and store as such in HistoryCallback)
+        return {'pfact', 10**weights}
+
 
 class AssociationRateFunc(object):
+    parameter_name = 'log_k'
 
     def __init__(self, timepoints):
         self.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
 
     def __call__(self, X, **parameters):
-        k = 10**parameters['k']
+        #todo refactor parameter name to 'log_k'
+        k = 10**parameters[self.parameter_name]
         uptake = 1 - tf.exp(-tf.matmul(k, self.timepoints))
         return 100*tf.matmul(X, uptake)
 
@@ -123,24 +132,68 @@ class AssociationRateFunc(object):
         return input_shape[0], len(self.timepoints)
 
 
-
 class TFFitResult(object):
     """
-
 
     Parameters
     ----------
     r_number list or r numbers these results cover
-    intervals (inclusive, exclusive) intervals which map results, models to r numbers
-    results list of results returned from model.fit
-    models list of tensorflow models
+    intervals (inclusive, exclusive) intervals which map results, models to r numbers  (can be obtained from series)
+    funcs: assumed to be tghe same
+    assumed to be the same for all intervals
+    weights: list of weights (parameters) at lowest loss
     """
-    def __init__(self, r_number, intervals, results, models):
-        assert len(results) == len(models)
+    def __init__(self, series, intervals, funcs, weights, inputs):
+        #assert len(results) == len(weights)
         #        assert len(models) == len(block_length)
-        self.r_number = r_number
+        self.r_number = series.cov.r_number
+        self.series = series
         self.intervals = intervals  # inclusive, excluive
-        self.results = results
-        self.models = models
+        self.funcs = funcs
+        #self.results = results
+        self.weights = weights
+        self.inputs = inputs
+
+
+        #self.func = self.results[0].model.layers[0].function
+        #print(self.func_cls)
+
+    @property
+    def output(self):
+        #todo merge with KineticsFitresults get_param function
+
+        name = self.funcs[0].parameter_name
+        output = np.full_like(self.r_number, fill_value=np.nan, dtype=float)
+
+        for (s, e), wts in zip(self.intervals, self.weights):
+            i0, i1 = np.searchsorted(self.r_number, [s, e])
+            output[i0:i1] = wts
+
+        array = np.empty_like(self.r_number, dtype=[('r_number', int), (name, float)])
+        array['r_number'] = self.r_number
+        array[name] = output
+
+        return array
+
+    def __call__(self, timepoints):
+        """output: N x M array (peptides, timepoints)"""
+        d_list = []
+        for func, wts, ip in zip(self.funcs, self.weights, self.inputs):
+            f_copy = copy.copy(func)
+            f_copy.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
+
+            parameters = {func.parameter_name: tf.dtypes.cast(tf.expand_dims(wts, -1), tf.float32)}
+            X = tf.dtypes.cast(np.squeeze(ip), tf.float32)
+            d_out = f_copy(X, **parameters)
+            print(d_out.shape)
+
+            d = np.array(d_out)
+            print('hoi')
+            d_list.append(d)
+
+        full_output = np.concatenate(d_list)
+        print(full_output.shape)
+
+        return full_output
 
 
