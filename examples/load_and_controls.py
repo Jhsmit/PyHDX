@@ -25,6 +25,8 @@ series.make_uniform()
 print(series.cov.X.shape)
 
 
+
+
 kf = KineticsFitting(series)
 print(series[0].sequence)
 #ignore False: 163
@@ -54,9 +56,9 @@ original = np.load('tempresult.npy')
 #     pickle.dump(fr1, f)
 
 t0 = time.time()
-fr2 = kf.global_fit(original)
+fr2 = kf.blocks_fit(original)
 t1 = time.time()
-
+print(fr2)
 #original: 200s
 #TF no callable model: 180, bounds problems
 #original no callable model: > 15 minutes DNF
