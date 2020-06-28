@@ -1,5 +1,5 @@
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, temporary_seed
-from pyhdx.fitting_tf import CurveFit, TFParameter, L1L2Differential, LossHistory, AssociationPFactFunc, AssociationRateFunc
+from pyhdx.fitting_tf import CurveFit, TFParameter, L1L2Differential, LossHistory, AssociationPFactFunc, AssociationRateFunc, TFFitResult
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
@@ -713,7 +713,7 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
 
-    def weighted_avg_fit(self, chisq_thd=20, model_type='association', pbar=None):
+    def weighted_avg_fit(self, chisq_thd=20, model_type='association', pbar=None, callbacks=None):
         """
         Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
         is the same
@@ -743,8 +743,32 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
 
-    def global_fit(self):
-        pass
+    def global_fit(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0., epochs=5000):
+        intervals = []
+        weights = []
+        funcs = []
+        inputs = []
+        losses = []
+        gen = self._prepare_global_fit_gen(initial_result, k_int=k_int, learning_rate=learning_rate, l1=l1, l2=l2)
+        for model, interval, input_data, output_data in gen:
+            intervals.append(interval)
+            func = model.layers[0].function
+            funcs.append(func)
+            inputs.append(input_data)
+
+            cb = LossHistory()
+            early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
+
+            model.compile(loss='mse', optimizer=Adagrad(learning_rate=0.01))
+            result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=[cb, early_stop])
+            losses.append(result.history['loss'])
+            wts = np.squeeze(cb.weights[0][0])
+            weights.append(wts)
+
+        tf_fitresult = TFFitResult(self.k_series, intervals, funcs, weights, inputs, loss=losses)
+
+        return tf_fitresult
+
 
     def _prepare_global_fit_gen(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0.):
         """

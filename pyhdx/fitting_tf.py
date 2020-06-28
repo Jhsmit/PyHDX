@@ -143,7 +143,7 @@ class TFFitResult(object):
     assumed to be the same for all intervals
     weights: list of weights (parameters) at lowest loss
     """
-    def __init__(self, series, intervals, funcs, weights, inputs):
+    def __init__(self, series, intervals, funcs, weights, inputs, loss=None):
         #assert len(results) == len(weights)
         #        assert len(models) == len(block_length)
         self.r_number = series.cov.r_number
