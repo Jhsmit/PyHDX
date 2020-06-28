@@ -77,6 +77,7 @@ class Controller(param.Parameterized):
         self.fileinput = FileInputControl(self)
         self.coverage = CoverageControl(self)#CoveragePanel(self)
         self.fit_control = FittingControl(self)
+        self.tf_fit_control = TFFitControl(self)
         self.fit_quality = FittingQuality(self)
         #self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
@@ -100,6 +101,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('input', self.fileinput.panel)
         tmpl.add_panel('coverage', self.coverage.panel)
         tmpl.add_panel('fitting', self.fit_control.panel)
+        tmpl.add_panel('tf_fit', self.tf_fit_control)
         tmpl.add_panel('fit_quality', self.fit_quality.panel)
         tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('file_export', self.file_export.panel)
@@ -581,6 +583,54 @@ class FittingControl(ControlPanel):
             self._clear_block_kwargs()
             self.box_insert_after('block_mode', 'initial_block')
             self.box_insert_after('initial_block', 'block_size')
+
+
+class TFFitControl(ControlPanel):
+    header = 'Protection factor'
+
+    n_term = param.Integer(1, doc='Residue number to which the first amino acid in the sequence corresponds')  # remove
+
+    sequence = param.String('', doc='Primary protein sequence in capitalized one letter code') # remove
+
+
+    load_sequence = param.Action(lambda self: self._load_sequence())
+    temperature = param.Number(30., doc='Deuterium labelling temperature in Celsius')
+    pH = param.Number(8., doc='Deuterium labelling pH')
+
+    stop_loss = 0.1
+    stop_patience = 50
+    learning_rate = 0.01
+    epochs = 10000
+
+    def __init__(self, parent, **params):
+        self.pbar1 = ASyncProgressBar()
+        self.pbar2 = ASyncProgressBar()
+        super(TFFitControl, self).__init__(parent, **params)
+
+    def _load_sequence(self):
+        pass
+
+    @staticmethod
+    def _check_sequences(known, full, n_term=1):
+        """
+        Check if the `known` sequence from the PeptideMasterList matches the `full` sequence provided by the user
+        Parameters
+        ----------
+        known
+        full
+        n_term
+
+        Returns
+        -------
+
+        """
+        for i, s in enumerate(known):
+            if s == 'X':
+                continue
+            t = full[i - n_term + 1]
+            if t != s:
+                return False
+        return True
 
 
 class FittingQuality(ControlPanel):
