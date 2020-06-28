@@ -153,6 +153,8 @@ class TFFitResult(object):
         #self.results = results
         self.weights = weights
         self.inputs = inputs
+        
+        self.loss = loss
 
 
         #self.func = self.results[0].model.layers[0].function
@@ -183,7 +185,7 @@ class TFFitResult(object):
             f_copy.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
 
             parameters = {func.parameter_name: tf.dtypes.cast(tf.expand_dims(wts, -1), tf.float32)}
-            X = tf.dtypes.cast(np.squeeze(ip), tf.float32)
+            X = tf.dtypes.cast(np.squeeze(ip, axis=0), tf.float32)
             d_out = f_copy(X, **parameters)
             print(d_out.shape)
 
