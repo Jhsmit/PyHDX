@@ -6,6 +6,8 @@ from functools import reduce
 from operator import add
 from .math import solve_nnls
 from .support import reduce_inter, make_view
+from pyhdx.expfact.kint import calculate_kint_per_residue
+
 
 
 class PeptideMasterTable(object):
@@ -396,9 +398,45 @@ class Coverage(object):
         seq = np.full(self.end, 'X', dtype='U')
         for d in self.data:
             i = d['_start'] - 1
-            j = d['_end']
+            j = d['_end']  # end field is inclusive
             seq[i:j] = [s for s in d['_sequence']]
         return ''.join(seq)
+
+    def calc_kint(self, temperature, pH, c_term):
+        """
+        Calculates the intrinsic rate of the sequence. Values of no coverage or prolines are assigned a value of -1
+        The rates run are for the first residue (1) up to the last residue that is covered by peptides
+
+        When the previous residue is unknown the current residue is also assigned a value of -1.g
+
+        Parameters
+        ----------
+        temperature: : :obj:`float`
+            Temperature of the labelling reaction (Kelvin)
+        pH : :obj:`float`
+            pH of the labelling reaction
+        c_term : :obj:`int`
+            index of the last residue in the sequence (first residue is 1)
+
+        Returns
+        -------
+
+        k_int: :obj:`list`
+            List of intrisic exchange rates
+
+        """
+
+        c_term = len(self.sequence) + 1 if c_term is None else c_term
+        k_int_list = [-1.]
+        for i, (previous, current) in enumerate(zip(self.sequence[:-1], self.sequence[1:])):
+            if previous == 'X' or current == 'X':
+                k_int_list.append(-1)
+            elif current == 'P':
+                k_int_list.append(-1)
+            else:
+                k_int = calculate_kint_per_residue(previous, current, i + 2, c_term, temperature, pH)
+                k_int_list.append(k_int)
+        return k_int_list
 
     def split(self):
         """

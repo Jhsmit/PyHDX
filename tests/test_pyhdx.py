@@ -3,6 +3,7 @@ import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import np_from_txt
+from pyhdx.expfact.kint import calculate_kint_for_sequence, calculate_kint_per_residue
 import numpy as np
 from functools import reduce
 from operator import add
@@ -42,6 +43,7 @@ class TestUptakeFileModels(object):
         res_scores = np.arange(pm.prot_len)
         scores = pm.calc_scores(res_scores)
         assert len(scores) == len(pm)
+
 
     # def test_apply_controls(self):
     #     states_dict = self.pf1.groupby_state()
@@ -109,6 +111,29 @@ class TestUptakeFileModels(object):
         series = states['folding_4C_10secLabelling']
         assert ~np.all(np.isnan(series[0].scores_average))
         assert len(series[0]) == 79
+
+
+class TestSeries(object):
+    @classmethod
+    def setup_class(cls):
+        fpath = os.path.join(directory, 'test_data', 'ds1.csv')
+        cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
+
+    def test_coverage(self):
+        states = self.pf1.groupby_state()
+        series = states['PpiANative']
+        sequence = 'MFKSTLAAMAAVFALSALSPAAMAAKGDPHVLLTTSAGNIELELDKQKAPVSVQNFVDYVNSGFYNNTTFHRVIPGFMIQGGGFTEQMQQKKPNPPIKNEADNGLRNTRGTIAMARTADKDSATSQFFINVADNAFLDHGQRDFGYAVFGKVVKGMDVADKISQVPTHDVGPYQNVPSKPVVILSAKVLP'
+        k_full = calculate_kint_for_sequence(1, len(sequence), sequence, 300, 7)
+        k_part = series.cov.calc_kint(300, 7, None)
+
+        for s1, s2, k1, k2 in zip(sequence, series.cov.sequence, k_full, k_part):
+            if s2 == 'X':
+                continue
+            else:
+                assert s1 == s2
+                if s1 == 'P':
+                    continue
+                assert k1 == k2
 
 
 class TestSimulatedData(object):
