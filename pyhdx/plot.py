@@ -129,6 +129,7 @@ def plot_peptides(pm, wrap, ax, color=True, labels=False, cmap='jet', **kwargs):
     ax.set_xlim(0, pm.end + 5)
     ax.set_yticks([])
 
+
 def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8), labels=False, **kwargs):
     rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
     rect_kwargs.update(kwargs)

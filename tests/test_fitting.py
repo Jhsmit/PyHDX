@@ -31,7 +31,7 @@ class TestDissociationFitting(object):
         fr1 = kf.weighted_avg_fit(model_type='dissociation')
         arr1 = fr1.get_output(['rate', 'k1', 'k2', 'r'])
 
-        fr2  = kf.blocks_fit(arr1, model_type='dissociation')
+        fr2 = kf.blocks_fit(arr1, model_type='dissociation')
         arr2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
 
 

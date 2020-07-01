@@ -332,6 +332,7 @@ def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
     full_thds = [-np.inf] + list(thds) + [np.inf]
     for lower, upper, color in zip(full_thds[:-1], full_thds[1:], colors):
         b = (rates > lower) & (rates <= upper)
+
         output[b] = color
 
     return output
