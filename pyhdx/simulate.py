@@ -85,7 +85,7 @@ def generate_data(peptides, sequence, timepoints, rates, state='state1'):
     data['end'] = end
     data['exposure'][:] = 0.1
     data['state'][:] = 'state1'
-    data['sequence'] = list([sequence[s:e + 1] for s, e in zip(start, end)])
+    data['sequence'] = list([sequence[s-1:e] for s, e in zip(start, end)])
 
     pmt = PeptideMasterTable(data, drop_first=0, ignore_prolines=False, remove_nan=False)
     cov = Coverage(pmt.data)
