@@ -1,5 +1,6 @@
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, temporary_seed
-from pyhdx.fitting_tf import CurveFit, TFParameter, L1L2Differential, LossHistory, AssociationPFactFunc, AssociationRateFunc, TFFitResult
+# from pyhdx.fitting_tf import CurveFit, TFParameter, L1L2Differential, LossHistory, AssociationPFactFunc, \
+#     AssociationRateFunc, TFFitResult, EarlyStopping, Adagrad
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
@@ -8,8 +9,7 @@ from collections import namedtuple
 from functools import reduce, partial
 from operator import add
 from dask.distributed import Client
-import tensorflow as tf
-from tensorflow.keras.optimizers import Adagrad
+
 
 
 class KineticsModel(object):
@@ -744,6 +744,8 @@ class KineticsFitting(object):
         return fit_result
 
     def global_fit(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0., epochs=5000):
+        import pyhdx.fitting_tf as ftf
+
         intervals = []
         weights = []
         funcs = []
@@ -756,19 +758,18 @@ class KineticsFitting(object):
             funcs.append(func)
             inputs.append(input_data)
 
-            cb = LossHistory()
-            early_stop = tf.keras.callbacks.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
+            cb = ftf.LossHistory()
+            early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
 
-            model.compile(loss='mse', optimizer=Adagrad(learning_rate=0.01))
+            model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=0.01))
             result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=[cb, early_stop])
             losses.append(result.history['loss'])
             wts = np.squeeze(cb.weights[0][0])
             weights.append(wts)
 
-        tf_fitresult = TFFitResult(self.k_series, intervals, funcs, weights, inputs, loss=losses)
+        tf_fitresult = ftf.TFFitResult(self.k_series, intervals, funcs, weights, inputs, loss=losses)
 
         return tf_fitresult
-
 
     def _prepare_global_fit_gen(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0.):
         """
@@ -782,6 +783,8 @@ class KineticsFitting(object):
         -------
 
         """
+        import pyhdx.fitting_tf as ftf
+
         for section in self.k_series.split().values():
             s, e = section.cov.start, section.cov.end  # inclusive, inclusive (source file)
             interval = (s, e + 1)
@@ -791,7 +794,7 @@ class KineticsFitting(object):
                 raise ValueError('Invalid match between section r number and initial result r number')
             init_rate = initial_result['rate'][indices]
 
-            regularizer = L1L2Differential(l1, l2)
+            regularizer = ftf.L1L2Differential(l1, l2)
             if k_int is not None:
 
                 indices = np.searchsorted(k_int['r_number'], section.cov.r_number)
@@ -802,21 +805,21 @@ class KineticsFitting(object):
                 p_guess = k_int_section / init_rate
                 guess_vals = np.log10(p_guess)
 
-                parameter = TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
-                func = AssociationPFactFunc(section.timepoints, k_int_section)
+                parameter = ftf.TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
+                func = ftf.AssociationPFactFunc(section.timepoints, k_int_section)
 
             else:
-                parameter = TFParameter('log_k', (len(init_rate), 1), regularizer=regularizer)
-                func = AssociationRateFunc(section.timepoints)
+                parameter = ftf.TFParameter('log_k', (len(init_rate), 1), regularizer=regularizer)
+                func = ftf.AssociationRateFunc(section.timepoints)
 
                 guess_vals = np.log10(init_rate)
 
-            layer = CurveFit([parameter], func, name='association')
+            layer = ftf.CurveFit([parameter], func, name='association')
             layer.build(section.cov.X)
             wts = np.expand_dims(guess_vals.astype(np.float32), -1)
             layer.set_weights([wts])
 
-            model = tf.keras.Sequential([layer])
+            model = ftf.Sequential([layer])
             model.compile(loss='mse', optimizer=Adagrad(learning_rate=learning_rate))
 
             input_data = np.expand_dims(section.cov.X, 0)

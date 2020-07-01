@@ -4,8 +4,12 @@ from tensorflow.keras.constraints import Constraint
 from tensorflow.keras.regularizers import Regularizer
 from tensorflow.python.keras import backend as K
 from tensorflow.python.ops import math_ops
+from tensorflow.keras.optimizers import Adagrad
+from tensorflow.keras.callbacks import EarlyStopping
+from tensorflow.keras.models import Sequential
 import numpy as np
 import copy
+
 
 class L1L2Differential(Regularizer):
     def __init__(self, l1=0., l2=0.):  # pylint: disable=redefined-outer-name
@@ -153,7 +157,7 @@ class TFFitResult(object):
         #self.results = results
         self.weights = weights
         self.inputs = inputs
-        
+
         self.loss = loss
 
 
