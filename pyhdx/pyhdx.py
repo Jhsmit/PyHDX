@@ -421,8 +421,8 @@ class Coverage(object):
         Returns
         -------
 
-        k_int: :obj:`list`
-            List of intrisic exchange rates
+        k_int : ~class:`~numpy.ndarray`
+            Array of intrisic exchange rates
 
         """
 
@@ -436,7 +436,7 @@ class Coverage(object):
             else:
                 k_int = calculate_kint_per_residue(previous, current, i + 2, c_term, temperature, pH)
                 k_int_list.append(k_int)
-        return k_int_list
+        return np.array(k_int_list)
 
     def split(self):
         """
@@ -808,9 +808,6 @@ class PeptideMeasurements(Coverage):
 
         scores = self.X.dot(residue_scores)
         return scores
-
-
-
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
