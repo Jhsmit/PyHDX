@@ -322,9 +322,10 @@ class Coverage(object):
 
         self.data = data
         self.start = np.min(self.data['start'])
+        self._start = np.min(self.data['_start'])
         self.end = np.max(self.data['end'])
+        self._end = np.max(self.data['_end'])
         self.r_number = np.arange(self.start, self.end + 1)
-
 
         # Find all indices of prolines in the middle of sequences, remove from r_number array and from sequence
         p = [entry['_start'] + i - self.start for entry in self.data for i, s in enumerate(entry['sequence']) if s == 'p']
@@ -395,12 +396,22 @@ class Coverage(object):
     @property
     def sequence(self):
         """:obj:`str`: String of the full protein sequence. One letter coding where X marks regions of no coverage"""
-        seq = np.full(self.end, 'X', dtype='U')
+
+        r_number = self.sequence_r_number
+        seq = np.full_like(r_number, fill_value='X', dtype='U')
+
         for d in self.data:
-            i = d['_start'] - 1
-            j = d['_end']  # end field is inclusive
+            i, j = np.searchsorted(r_number, [d['_start'], d['_end'] + 1])
             seq[i:j] = [s for s in d['_sequence']]
         return ''.join(seq)
+
+    @property
+    def sequence_r_number(self):
+        """~class:`numpy.ndarray`: Array of r numbers corresponding to residues in sequence"""
+        start = min(self._start, 1)  # start at least at 1 unless the protein extends into negative numbers
+        r_number = np.arange(start, self._end + 1)
+
+        return r_number
 
     def calc_kint(self, temperature, pH, c_term):
         """
