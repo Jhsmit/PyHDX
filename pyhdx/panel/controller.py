@@ -872,115 +872,122 @@ class ClassificationControl(ControlPanel):
 
 class FileExportPanel(ControlPanel):
     header = "File Export"
-    #target = param.Selector(label='Target')
+    target = param.Selector(label='Target')
 
+    #todo link this number with the other one
     c_term = param.Integer(0, bounds=(0, None))
 
     def __init__(self, parent, **param):
+        self.export_linear_download = pn.widgets.FileDownload(filename='<no data>', callback=self.linear_export_callback)
+        self.pml_script_download = pn.widgets.FileDownload(filename='<no data>', callback=self.pml_export_callback)
         super(FileExportPanel, self).__init__(parent, **param)
-        self.parent.param.watch(self._rates_updated, ['fit_results'])
+
+        self.parent.param.watch(self._sources_updated, ['sources'])
         self.parent.param.watch(self._series_updated, ['series'])
 
-
     def make_list(self):
-        rates_export = pn.widgets.FileDownload(filename='Fit1_rates.txt', callback=self.fit1_export)
-        rates2_export = pn.widgets.FileDownload(filename='fit2_rates.txt', callback=self.fit2_export)
-
-        pml1_export = pn.widgets.FileDownload(filename='pml_rates1.txt', callback=self.pml1_export)
-        pml2_export = pn.widgets.FileDownload(filename='pml_rates2.txt', callback=self.pml2_export)
-
-        data_export = pn.widgets.FileDownload(filename='Peptides.csv', callback=self.data_export)
-
-        self._widget_dict.update(rates_export=rates_export, rates2_export=rates2_export, pml1_export=pml1_export,
-                                 pml2_export=pml2_export, data_export=data_export)
+        self._widget_dict.update(export_linear_download=self.export_linear_download, pml_script_download=self.pml_script_download)
         return super(FileExportPanel, self).make_list()
 
-    def _rates_updated(self, *events):
-        print('rates updated in fileexportpanel')
-        # #todo centralize this on parent? -> no child controls should hook into main controller
-        # objects = [k for k, v in self.parent.fit_results.items() if v['fitresult'] is not None]
-        # print(objects)
-        # self.param['target'].objects = objects
-        # #set target if its not set already
-        # if not self.target and objects:
-        #     self.target = objects[-1]
+    def _sources_updated(self, *events):
+        objects = list(self.parent.sources.keys())
+        self.param['target'].objects = objects
 
-    def _series_updated(self, events):
+        if not self.target and objects:
+            self.target = objects[0]
+
+    def _series_updated(self, *events):
+        print('rates updated in fileexportpanel')
         self.c_term = int(self.parent.series.cov.end)
+        # #todo centralize this on parent? -> no child controls should hook into main controller
+        ## TODO USE .link() function: https://github.com/holoviz/panel/issues/1462
 
     def _make_pml(self, target):
 #        try:
-        array = self.parent.fit_results[target]['rates']
-        bools = ~np.isnan(array['rate'])
-        color = self.parent.rate_colors[target]
-        script = colors_to_pymol(array['r_number'][bools], color[bools], c_term=self.c_term)
-        # except KeyError:
-        #     script = ''
+        data_dict = self.parent.sources[target].data
+        array = data_dict['y']
+        bools = ~np.isnan(array)
+        script = colors_to_pymol(data_dict['r_number'][bools], data_dict['color'][bools], c_term=self.c_term)
+
 
         return script
 
-    def pml1_export(self):
-        io = StringIO()
-        script = self._make_pml('fit1')
-        io.write(script)
-        io.seek(0)
-        return io
-
-    def pml2_export(self):
-        io = StringIO()
-        script = self._make_pml('fit2')
-        io.write(script)
-        io.seek(0)
-        return io
-
-    def fit1_export(self):
-        io = StringIO()
-#        print(self.target)
-        print('exporting fit1')
-
-        fit_arr = self.parent.fit_results['fit1']['rates']
-        if 'fit1' in self.parent.rate_colors:
-            colors = self.parent.rate_colors['fit1']
-            export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
-        else:
-            export_data = fit_arr
-
-        fmt, header = fmt_export(export_data)
-        np.savetxt(io, export_data, fmt=fmt, header=header)
-
-        io.seek(0)
-        return io
-
-    def fit2_export(self):
-        io = StringIO()
-        #        print(self.target)
-        print('exporting fit2')
-
-        fit_arr = self.parent.fit_results['fit2']['rates']
-        if 'fit2' in self.parent.rate_colors:  #todo this should be try/except
-            colors = self.parent.rate_colors['fit2']
-            export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
-        else:
-            export_data = fit_arr
-
-        fmt, header = fmt_export(export_data)
-        np.savetxt(io, export_data, fmt=fmt, header=header)
-
-        io.seek(0)
-        return io
+#     def pml1_export(self):
+#         io = StringIO()
+#         script = self._make_pml('fit1')
+#         io.write(script)
+#         io.seek(0)
+#         return io
+#
+#     def pml2_export(self):
+#         io = StringIO()
+#         script = self._make_pml('fit2')
+#         io.write(script)
+#         io.seek(0)
+#         return io
+#
+#     def fit1_export(self):
+#         io = StringIO()
+# #        print(self.target)
+#         print('exporting fit1')
+#
+#         fit_arr = self.parent.fit_results['fit1']['rates']
+#         if 'fit1' in self.parent.rate_colors:
+#             colors = self.parent.rate_colors['fit1']
+#             export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
+#         else:
+#             export_data = fit_arr
+#
+#         fmt, header = fmt_export(export_data)
+#         np.savetxt(io, export_data, fmt=fmt, header=header)
+#
+#         io.seek(0)
+#         return io
+#
+#     def fit2_export(self):
+#         io = StringIO()
+#         #        print(self.target)
+#         print('exporting fit2')
+#
+#         fit_arr = self.parent.fit_results['fit2']['rates']
+#         if 'fit2' in self.parent.rate_colors:  #todo this should be try/except
+#             colors = self.parent.rate_colors['fit2']
+#             export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
+#         else:
+#             export_data = fit_arr
+#
+#         fmt, header = fmt_export(export_data)
+#         np.savetxt(io, export_data, fmt=fmt, header=header)
+#
+#         io.seek(0)
+#         return io
+    @pn.depends('target', watch=True)
+    def _update_filename(self):
+        self.export_linear_download.filename = self.parent.series.state + '_' + self.target + 'linear.txt'
+        self.pml_script_download.filename = self.parent.series.state + '_' + self.target + 'pymol.pml'
 
     @pn.depends('target')
-    def rates_export(self):
+    def pml_export_callback(self):
+        if self.target:
+            io = StringIO()
+            script = self._make_pml(self.target)
+            io.write(script)
+            io.seek(0)
+            return io
+        else:
+            return None
+
+    @pn.depends('target')  # param.depends?
+    def linear_export_callback(self):
         io = StringIO()
         print(self.target)
         print('exporting')
         if self.target:
-            fit_arr = self.parent.fit_results[self.target]['rates']
-            if self.target in self.parent.rate_colors:
-                colors = self.parent.rate_colors[self.target]
-                export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
-            else:
-                export_data = fit_arr
+            export_dict = {k: v for k, v in self.parent.sources[self.target].data.items() if k != 'y'}
+            dtype = [(name, arr.dtype) for name, arr in export_dict.items()]
+            export_data = np.empty_like(self.parent.sources[self.target].data['r_number'], dtype=dtype)
+            for name, arr in export_dict.items():
+                export_data[name] = arr
 
             fmt, header = fmt_export(export_data)
             np.savetxt(io, export_data, fmt=fmt, header=header)
