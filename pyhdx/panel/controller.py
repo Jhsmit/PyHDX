@@ -89,7 +89,7 @@ class Controller(param.Parameterized):
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage, self.fit_control])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
-        self.pfact_figure = PFactFigure(self, [])
+        self.pfact_figure = PFactFigure(self, [self.fit_control, self.classification_panel])
 
         self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
         self.protein_figure = ProteinFigure(self, [])
@@ -285,7 +285,6 @@ class FileInputControl(ControlPanel):
         # b = np.isin(series.full_data['exposure'], self.exp_exposures)
         # data = series.full_data[b].copy()
 
-
         #series = KineticsSeries(data)
         #series.make_uniform()  #TODO add gui control for this
 
@@ -479,6 +478,7 @@ class FittingControl(ControlPanel):
         self.parent.fit_results['fit1'] = fit_result
         output = fit_result.output
         dic = {name: output[name] for name in output.dtype.names}
+        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'])
         self.parent.sources['fit1'] = ColumnDataSource(dic)
 
@@ -524,9 +524,10 @@ class FittingControl(ControlPanel):
         fit_result = self.parent.fitting.blocks_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
 
         self.parent.fit_results['fit2'] = fit_result
-        #todo lines below are repeating code, create func(self, fit_result, name) which does this job  (or func on parent controller?)
+        #todo lines below are repeating code, create func(self, fit_result, name, y=rate) which does this job  (or func on parent controller?)
         output = fit_result.output
         dic = {name: output[name] for name in output.dtype.names}
+        dic['y'] = output['rate']
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit2'], dtype='<U7')
         self.parent.sources['fit2'] = ColumnDataSource(dic)
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit2 is available as initial guesses
@@ -657,9 +658,11 @@ class TFFitControl(ControlPanel):
             k_dict = {'r_number': k_r_number, 'k_int': k_int}
 
             output_name = 'pfact'
+            var_name = 'log_P'
         elif self.fitting_type == 'Rates':
             k_dict = None
             output_name = 'TF_rate'
+            var_name = 'log_k'
 
         initial_result = self.parent.fit_results['fit1'].output
 
@@ -670,11 +673,7 @@ class TFFitControl(ControlPanel):
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=r'#16187d', dtype='<U7')
-
-        if self.fitting_type == 'Protection Factors':
-            output_dict['pfact'] = 10**output_dict['log_P']
-        elif self.fitting_type == 'Rates':
-            output_dict['rate'] = 10**output_dict['log_k']
+        output_dict['y'] = 10**output_dict[var_name]
 
         source = ColumnDataSource(output_dict)
         self.parent.sources[output_name] = source
@@ -683,7 +682,6 @@ class TFFitControl(ControlPanel):
         self.parent.param.trigger('sources') # dont need to trigger fit_results as its has no relevant watchers
         self.param['do_fit'].constant = False
     #
-
 
 
 class FittingQuality(ControlPanel):
@@ -725,17 +723,16 @@ class ClassificationControl(ControlPanel):
 
         self.param.trigger('values')
         self.param.trigger('colors')
-        #self.parent.param.watch(self._rates_updated, ['fit_results'])
+        self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
     def make_dict(self):
         return self.generate_widgets(num_classes=pn.widgets.Spinner)
 
-    def _rates_updated(self, *events):
-        print('rates')
+    def _parent_sources_updated(self, *events):
+        print('sources')
         print("UPDATE")
 
-        objects = [k for k, v in self.parent.fit_results.items() if v['fitresult'] is not None]
-        print(objects)
+        objects = list(self.parent.sources.keys())
         self.param['target'].objects = objects
 
         #set target if its not set already
@@ -744,9 +741,9 @@ class ClassificationControl(ControlPanel):
 
     def _action_threshold(self):
         if self.num_classes > 1:
-            rates = self.parent.fit_results[self.target]['rates']['rate']
-            thd_rates = rates[~np.isnan(rates)]
-            thds = threshold_multiotsu(np.log(thd_rates), classes=self.num_classes)
+            y_vals = self.parent.sources[self.target].data['y']
+            thd_vals = y_vals[~np.isnan(y_vals)]
+            thds = threshold_multiotsu(np.log(thd_vals), classes=self.num_classes)
             for thd, widget in zip(thds, self.values_widgets):
                 widget.value = np.exp(thd)
         self._do_thresholding()
@@ -764,22 +761,19 @@ class ClassificationControl(ControlPanel):
         elif np.any(np.diff(self.values)) < 0:
             return
 
-        #todo make rates a property
-        rates = self.parent.fit_results[self.target]['rates']['rate']
-        #todo use function in support
-        colors = np.empty(len(rates), dtype='U7')
+        y_vals = self.parent.sources[self.target].data['y']
+        colors = np.empty(len(y_vals), dtype='U7')
 
         if self.num_classes == 1:
             colors[:] = self.colors[0]
         else:
             full_thds = [-np.inf] + self.values + [np.inf]
             for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
-                b = (rates > lower) & (rates <= upper)
+                b = (y_vals > lower) & (y_vals <= upper)
                 colors[b] = color
 
        # if 'color' in self.parent.rates.dtype.names:
-        self.parent.rate_colors[self.target] = colors
-        self.parent.param.trigger('rate_colors')
+        self.parent.sources[self.target].data['color'] = colors  # this should trigger an update of the graph
 
     @param.depends('num_classes', watch=True)
     def _update_num_colors(self):
@@ -843,13 +837,14 @@ class ClassificationControl(ControlPanel):
             print(event)
             idx = list(self.colors_widgets).index(event.obj)
             self.colors[idx] = event.new
-            c_array = self.parent.rate_colors[self.target]
+            c_array = self.parent.sources[self.target].data['color'].copy()
             c_array[c_array == event.old] = event.new
-        self.param.trigger('colors')  # i dont think anyone listens to this
-        self.parent.param.trigger('rate_colors')
+            self.parent.sources[self.target].data['color'] = c_array
+        # self.param.trigger('colors')  # i dont think anyone listens to this
+        # self.parent.param.trigger('rate_colors')
 
     def _value_event(self, *events):
-        print('value even')
+        print('value event')
         for event in events:
             idx = list(self.values_widgets).index(event.obj)
             self.values[idx] = event.new
