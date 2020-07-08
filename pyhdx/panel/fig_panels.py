@@ -232,16 +232,29 @@ class RateFigureOld(FigurePanelOld):
             self.bk_pane.param.trigger('object')
 
 
-class RateFigure(FigurePanel):
-    accepted_sources = ['fit1', 'fit2', 'TF_rate']
+class ThdLogFigure(FigurePanel):
+    """base class for pfact / rates figure panels which both feature y log axis and thresholding"""
+
+    def __init__(self, parent, controllers, *args, **params):
+        #todo refactor controllers to dict (Or better yet get them yourself from parent)
+        self.ctrl = controllers[1]  # classification controller
+        self.fit_ctrl = controllers[0]
+        super(ThdLogFigure, self).__init__(parent, controllers, *args, **params)
+
+        self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
 
     def draw_figure(self):
-        fig = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
+        fig = super().draw_figure()
         fig.xaxis.axis_label = 'Residue number'
-        fig.yaxis.axis_label = 'Rate (min⁻¹)'  # todo units?
+
+        for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
+            sp = Span(location=0, dimension='width')
+            sp.tags = ['thd']
+            sp.visible = False
+            fig.add_layout(sp)
 
         hover = fig.select(dict(type=HoverTool))
-        hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@y')]
+        hover.tooltips = [('Residue', '@r_number{int}'), ('Y value', '@y')]
         hover.mode = 'vline'
 
         return fig
@@ -255,13 +268,33 @@ class RateFigure(FigurePanel):
             self.renderers[name] = renderer
         self.figure.legend.click_policy = 'hide'
 
+    def _draw_thds(self, *events):
+        # todo check events and draw according to those? (events are triggers)
+        if self.ctrl.target in self.accepted_sources:
+            spans = self.figure.select(tags='thd')
+            spans.sort(key=lambda x: x.id)
+            for i, span in enumerate(spans): # spanspanspam
+                if i < len(self.ctrl.values):
+                    span.location = self.ctrl.values[i]
+                    span.visible = self.ctrl.show_thds
+                else:
+                    span.visible = False
 
 
-class PFactFigure(FigurePanel):
+class RateFigure(ThdLogFigure):
+    accepted_sources = ['fit1', 'fit2', 'TF_rate']
+
+    def draw_figure(self):
+        figure = super().draw_figure()
+        hover = figure.select(dict(type=HoverTool))
+        hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@y')]
+
+        return figure
+
+class PFactFigure(ThdLogFigure):
     accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
 
     def __init__(self, parent, controllers, *args, **params):
-
         #todo refactor controllers to dict (Or better yet get them yourself from parent)
         self.ctrl = controllers[1]  # classification controller
         self.fit_ctrl = controllers[0]
@@ -269,11 +302,10 @@ class PFactFigure(FigurePanel):
 
         self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
 
-
     def draw_figure(self):
         fig = super().draw_figure()
         fig.xaxis.axis_label = 'Residue number'
-        fig.yaxis.axis_label = 'Log10(P)'  # Y axis log?
+        fig.yaxis.axis_label = 'Protection Factor'
 
         for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
             sp = Span(location=0, dimension='width')

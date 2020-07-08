@@ -2,8 +2,8 @@ import param
 import panel as pn
 from bokeh.plotting import figure
 
-DEFAULT_RENDERERS = {'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond'}
-DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red', 'TF_rate': 'green'}
+DEFAULT_RENDERERS = {'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
+DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red', 'TF_rate': 'green', 'pfact': '#16187d'}
 DEFAULT_CLASS_COLORS = ['#cc0c49', '#eded0e', '#1930e0']
 
 
@@ -33,6 +33,7 @@ class FigurePanel(PanelBase):
         self.add_sources(sources)
 
     def _parent_sources_updated(self, *events):
+        print('updated trigger')
         new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
         self.add_sources(new_items)
 
@@ -65,6 +66,7 @@ class FigurePanel(PanelBase):
         return {name: renderer.data_source for name, renderer in self.renderers.items()}
 
     def _data_updated_callback(self, attr, old, new):
+        print('data updated callbaçk')
         self.bk_pane.param.trigger('object')
 
     @property

@@ -9,7 +9,7 @@ from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_
 logger = setup_custom_logger('root')
 logger.debug('main message')
 
-
+from scipy import constants
 import param
 import panel as pn
 from jinja2 import Environment, FileSystemLoader
@@ -672,14 +672,18 @@ class TFFitControl(ControlPanel):
                                                 l2=self.l2_regularizer, epochs=self.epochs, callbacks=[early_stop])
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
-        output_dict['color'] = np.full_like(result.output, fill_value=r'#16187d', dtype='<U7')
+        output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
+
         output_dict['y'] = 10**output_dict[var_name]
+        if self.fitting_type == 'Protection Factors':
+            deltaG = constants.R * self.temperature * np.log(output_dict['y'])
+            output_dict['deltaG'] = deltaG
 
         source = ColumnDataSource(output_dict)
         self.parent.sources[output_name] = source
         self.parent.fit_results[output_name] = result
 
-        self.parent.param.trigger('sources') # dont need to trigger fit_results as its has no relevant watchers
+        self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
         self.param['do_fit'].constant = False
     #
 
@@ -739,8 +743,9 @@ class ClassificationControl(ControlPanel):
         if not self.target and objects:
             self.target = objects[-1]
 
+    @param.depends('values', watch=True)
     def _action_threshold(self):
-        if self.num_classes > 1:
+        if self.num_classes > 1 and self.target:
             y_vals = self.parent.sources[self.target].data['y']
             thd_vals = y_vals[~np.isnan(y_vals)]
             thds = threshold_multiotsu(np.log(thd_vals), classes=self.num_classes)
@@ -748,7 +753,6 @@ class ClassificationControl(ControlPanel):
                 widget.value = np.exp(thd)
         self._do_thresholding()
 
-    @param.depends('values', watch=True)
     def _do_thresholding(self):
         # perhaps we need a class to handle fitting output which has this method
         # yes we do. for all fitting not just fit1
@@ -773,6 +777,9 @@ class ClassificationControl(ControlPanel):
                 colors[b] = color
 
        # if 'color' in self.parent.rates.dtype.names:
+        print('values', self.values)
+        print(self.colors)
+        print(colors)
         self.parent.sources[self.target].data['color'] = colors  # this should trigger an update of the graph
 
     @param.depends('num_classes', watch=True)
@@ -791,6 +798,10 @@ class ClassificationControl(ControlPanel):
                 self._remove_value()
             elif len(self.values_widgets) < self.num_classes - 1:
                 self._add_value()
+        print('num classes trigger')
+        print(self.values)
+
+        #self._action_threshold()
         self.param.trigger('values')
 
     def _add_value(self):
@@ -805,8 +816,12 @@ class ClassificationControl(ControlPanel):
         widget.param.watch(self._value_event, ['value'])
 
     def _remove_value(self):
+        print('remove')
         widget = self.values_widgets.pop(-1)
         self.box_pop(widget)
+
+        self.values.pop()
+        print(self.values)
 
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
@@ -826,6 +841,7 @@ class ClassificationControl(ControlPanel):
 
     def _remove_color(self):
         widget = self.colors_widgets.pop(-1)
+        self.colors.pop()
         self.box_pop(widget)
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
@@ -848,6 +864,9 @@ class ClassificationControl(ControlPanel):
         for event in events:
             idx = list(self.values_widgets).index(event.obj)
             self.values[idx] = event.new
+        print(self.values)
+
+        #self._action_threshold()
         self.param.trigger('values')
 
 
