@@ -624,17 +624,16 @@ class TFFitControl(ControlPanel):
             self.param['do_fit'].constant = False
 
     def _do_fitting(self):
+        import pyhdx.fitting_tf as tft
         k_int = self.parent.series.cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
         k_r_number = self.parent.series.cov.sequence_r_number
         k_dict = {'r_number': k_r_number, 'k_int': k_int}
         initial_result = self.parent.fit_results['fit1']['rates']  # todo switch to new structure
 
-        print('preflight')
-        #todo add callbacks
+        early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
         result = self.parent.fitting.global_fit(initial_result=initial_result, k_int=k_dict,
                                                 learning_rate=self.learning_rate, l1=self.l1_regularizer,
-                                                l2=self.l2_regularizer, epochs=self.epochs)
-
+                                                l2=self.l2_regularizer, epochs=self.epochs, callbacks=[early_stop])
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=r'#16187d', dtype='<U7')

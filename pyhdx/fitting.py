@@ -743,7 +743,7 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
 
-    def global_fit(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0., epochs=5000):
+    def global_fit(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
         import pyhdx.fitting_tf as ftf
 
         intervals = []
@@ -752,6 +752,12 @@ class KineticsFitting(object):
         inputs = []
         losses = []
         gen = self._prepare_global_fit_gen(initial_result, k_int=k_int, learning_rate=learning_rate, l1=l1, l2=l2)
+
+        early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
+        callbacks = [early_stop] if callbacks is None else callbacks
+        if not np.any([isinstance(cb, ftf.EarlyStopping) for cb in callbacks]):
+            callbacks.append(early_stop)
+
         for model, interval, input_data, output_data in gen:
             intervals.append(interval)
             func = model.layers[0].function
@@ -759,10 +765,15 @@ class KineticsFitting(object):
             inputs.append(input_data)
 
             cb = ftf.LossHistory()
-            early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
+            #early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
+
+            full_cb = callbacks + [cb]
+            print(full_cb)
+
+            print('hoi')
 
             model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=0.01))
-            result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=[cb, early_stop])
+            result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
             losses.append(result.history['loss'])
             wts = np.squeeze(cb.weights[0][0])
             weights.append(wts)
