@@ -1,6 +1,6 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure
+from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure
 from pyhdx.pyhdx import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
@@ -20,15 +20,14 @@ from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays, append_fields
 from .components import ASyncProgressBar
 from io import StringIO, BytesIO
-from dask.distributed import Client
 from tornado.ioloop import IOLoop
 from bokeh.plotting import curdoc
 from bokeh.document import without_document_lock
 import matplotlib
 matplotlib.use('agg') # for panel mpl support
 from functools import partial
-
-
+from .widgets import NumericInput
+from bokeh.models import ColumnDataSource
 
 #dev only
 import pickle
@@ -41,6 +40,7 @@ env = Environment(loader=FileSystemLoader(pth))
 
 # todo dict comprehension
 
+#refactor rates to columndatasource?
 dic = {'rates': np.zeros(0, dtype=[('r_number', int), ('rate', float)]),
        'fitresult': None}
 
@@ -60,9 +60,10 @@ class Controller(param.Parameterized):
     data = param.Array()  # might not be needed, in favour of peptides
     #rates = param.Array(doc='Output rates data')
     fit_results = param.Dict(empty_results)
-    rate_colors = param.Dict({})
-    peptides = param.ClassSelector(PeptideMasterTable)  #class with all peptides to be considered
-    series = param.ClassSelector(KineticsSeries)
+    sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
+    rate_colors = param.Dict({})  #probably not used
+    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
+    series = param.ClassSelector(KineticsSeries, doc='Currently selected kinetic series of peptides')
     fitting = param.ClassSelector(KineticsFitting)
 
     def __init__(self, template, panels, cluster=None, **params):
@@ -88,6 +89,8 @@ class Controller(param.Parameterized):
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage, self.fit_control])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
+        self.pfact_figure = PFactFigure(self, [])
+
         self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
         self.protein_figure = ProteinFigure(self, [])
 
@@ -101,7 +104,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('input', self.fileinput.panel)
         tmpl.add_panel('coverage', self.coverage.panel)
         tmpl.add_panel('fitting', self.fit_control.panel)
-        tmpl.add_panel('tf_fit', self.tf_fit_control)
+        tmpl.add_panel('tf_fit', self.tf_fit_control.panel)
         tmpl.add_panel('fit_quality', self.fit_quality.panel)
         tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('file_export', self.file_export.panel)
@@ -109,7 +112,9 @@ class Controller(param.Parameterized):
         tmpl.add_panel('dev', self.dev.panel)
 
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
+
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
+        tmpl.add_panel('pfact_fig', self.pfact_figure.panel)
         tmpl.add_panel('fitres_fig', self.fit_result_figure.panel)
         tmpl.add_panel('slice_k', self.protein_figure.panel)
         #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
@@ -534,8 +539,6 @@ class FittingControl(ControlPanel):
         else:
             self._fit2()
 
-
-
     @property
     def fit_kwargs(self):
         if self.block_mode == 'reduced':
@@ -588,49 +591,84 @@ class FittingControl(ControlPanel):
 class TFFitControl(ControlPanel):
     header = 'Protection factor'
 
-    n_term = param.Integer(1, doc='Residue number to which the first amino acid in the sequence corresponds')  # remove
+    c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds')  # remove
+    temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
+    pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
-    sequence = param.String('', doc='Primary protein sequence in capitalized one letter code') # remove
+    #stop_loss = param.Number(0.1, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
+    #stop_patience = param.Integer(50, bounds=(1, None), doc= 'Number of epochs where stop loss should be satisfied before stopping')
+    learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
+    epochs = param.Number(10000, bounds=(1, None), doc='Maximum number of epochs (iterations')
 
+    l1_regularizer = param.Number(100, bounds=(0, None), doc='Value for l1 regularizer')
+    l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
 
-    load_sequence = param.Action(lambda self: self._load_sequence())
-    temperature = param.Number(30., doc='Deuterium labelling temperature in Celsius')
-    pH = param.Number(8., doc='Deuterium labelling pH')
-
-    stop_loss = 0.1
-    stop_patience = 50
-    learning_rate = 0.01
-    epochs = 10000
+    do_fit = param.Action(lambda self: self._do_fitting(), constant=True)
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
-        self.pbar2 = ASyncProgressBar()
         super(TFFitControl, self).__init__(parent, **params)
 
-    def _load_sequence(self):
-        pass
+        self.parent.param.watch(self._parent_fit_results_updated, ['fit_results'])
+        self.parent.param.watch(self._parent_series_updated, ['series'])
 
-    @staticmethod
-    def _check_sequences(known, full, n_term=1):
-        """
-        Check if the `known` sequence from the PeptideMasterList matches the `full` sequence provided by the user
-        Parameters
-        ----------
-        known
-        full
-        n_term
+    def make_dict(self):
+        return self.generate_widgets()
 
-        Returns
-        -------
+    def _parent_series_updated(self, *events):
+        end = self.parent.series.cov.end
+        self.c_term = int(end + 5)
 
-        """
-        for i, s in enumerate(known):
-            if s == 'X':
-                continue
-            t = full[i - n_term + 1]
-            if t != s:
-                return False
-        return True
+    def _parent_fit_results_updated(self, *events):
+        if 'fit1' in self.parent.fit_results:
+            self.param['do_fit'].constant = False
+
+    def _do_fitting(self):
+        k_int = self.parent.series.cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
+        k_r_number = self.parent.series.cov.sequence_r_number
+        k_dict = {'r_number': k_r_number, 'k_int': k_int}
+        initial_result = self.parent.fit_results['fit1']['rates']  # todo switch to new structure
+
+        print('preflight')
+        #todo add callbacks
+        result = self.parent.fitting.global_fit(initial_result=initial_result, k_int=k_dict,
+                                                learning_rate=self.learning_rate, l1=self.l1_regularizer,
+                                                l2=self.l2_regularizer, epochs=self.epochs)
+
+
+        output_dict = {name: result.output[name] for name in result.output.dtype.names}
+        output_dict['color'] = np.full_like(result.output, fill_value=r'#16187d', dtype='<U7')
+        source = ColumnDataSource(output_dict)
+        self.parent.sources['pfact'] = source
+        self.parent.fit_results['pfact'] = result
+
+        self.parent.param.trigger('sources') # fit_results should have no watchers
+
+    #
+    # def _load_sequence(self):
+    #     pass
+    #
+    # @staticmethod
+    # def _check_sequences(known, full, n_term=1):
+    #     """
+    #     Check if the `known` sequence from the PeptideMasterList matches the `full` sequence provided by the user
+    #     Parameters
+    #     ----------
+    #     known
+    #     full
+    #     n_term
+    #
+    #     Returns
+    #     -------
+    #
+    #     """
+    #     for i, s in enumerate(known):
+    #         if s == 'X':
+    #             continue
+    #         t = full[i - n_term + 1]
+    #         if t != s:
+    #             return False
+    #     return True
 
 
 class FittingQuality(ControlPanel):

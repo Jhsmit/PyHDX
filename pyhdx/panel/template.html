@@ -54,7 +54,7 @@ var config = {
                         componentName: 'view',
                         componentState: {
                             model: '{{ embed(roots.fitting) }}',
-                            title: 'Fitting',
+                            title: 'Fit Rates',
                             width: 350,
                             css_classes: ['scrollable']
                         },
@@ -65,7 +65,7 @@ var config = {
                         componentName: 'view',
                         componentState: {
                             model: '{{ embed(roots.tf_fit) }}',
-                            title: 'Fitting',
+                            title: 'Fit PF',
                             width: 350,
                             css_classes: ['scrollable']
                         },
@@ -155,6 +155,16 @@ var config = {
                                 componentState: {
                                     model: '{{ embed(roots.rate_fig) }}',
                                     title: 'Uptake rates',
+                                    height: 200
+                                },
+                                isClosable: false,
+                            },
+                            {
+                                type: 'component',
+                                componentName: 'view',
+                                componentState: {
+                                    model: '{{ embed(roots.pfact_fig) }}',
+                                    title: 'Protection Factors',
                                     height: 200
                                 },
                                 isClosable: false,

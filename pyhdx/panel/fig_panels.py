@@ -1,4 +1,4 @@
-from .base import FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS
+from .base import FigurePanelOld, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
@@ -8,6 +8,7 @@ import panel as pn
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import nglview
 
 NGL_HTML = """
 <div id="viewport" style="width:100%; height:100%;"></div>
@@ -18,7 +19,7 @@ stage.loadFile("rcsb://1NKT.mmtf", {defaultRepresentation: true});
 """
 
 
-class CoverageFigure(FigurePanel):
+class CoverageFigure(FigurePanelOld):
 
     def __init__(self, *args, **params):
         super(CoverageFigure, self).__init__(*args, **params)
@@ -111,7 +112,7 @@ class CoverageFigure(FigurePanel):
         return list(c)
 
 
-class RateFigure(FigurePanel):
+class RateFigure(FigurePanelOld):
     def __init__(self, *args, **params):
         super(RateFigure, self).__init__(*args, **params)
 
@@ -131,12 +132,10 @@ class RateFigure(FigurePanel):
         """makes bokeh figure and returns it"""
         fig = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
         fig.xaxis.axis_label = 'Residue number'
-        fig.yaxis.axis_label = 'Rate'  # oh boy  #todo units?
+        fig.yaxis.axis_label = 'Rate'  #todo units?
 
-        doc = curdoc()
-        print(doc)
 
-        #        DEFAULT_RENDERERS
+#        DEFAULT_RENDERERS
         for k, v in DEFAULT_RENDERERS.items():
             glyph_func = getattr(fig, v)
             source = ColumnDataSource({name: [] for name in ['r_number', 'rate', 'color']})
@@ -233,7 +232,27 @@ class RateFigure(FigurePanel):
             #self.bk_pane.object = self.figure
             self.bk_pane.param.trigger('object')
 
-class FitResultFigure(FigurePanel):
+
+class PFactFigure(FigurePanel):
+    accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
+
+
+    def __init__(self, *args, **params):
+        super(PFactFigure, self).__init__(*args, **params)
+
+    def draw_figure(self):
+        fig = super().draw_figure()
+        fig.xaxis.axis_label = 'Residue number'
+        fig.yaxis.axis_label = 'Log10(P)'  # Y axis log?
+        return fig
+
+    def render_sources(self, sources):
+        for name, source in sources.items():
+            renderer = self.figure.circle('r_number', 'log_P', color='color', source=source)
+            self.renderers[name] = renderer
+
+
+class FitResultFigure(FigurePanelOld):
     def __init__(self, *args, **params):
         super(FitResultFigure, self).__init__(*args, **params)
 
@@ -329,7 +348,7 @@ class FitResultFigure(FigurePanel):
         self.bk_pane.param.trigger('object')
 
 
-class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel
+class ProteinFigure(FigurePanelOld):  #todo maybe it shouldnt be a figurepanel (it shoulnntr)
 
     def __init__(self, *args, **params):
         super(ProteinFigure, self).__init__(*args, **params)
@@ -338,4 +357,6 @@ class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel
 
     @property
     def panel(self):
-        return pn.panel(self.html_panel)
+        view = nglview.show_pdbid("3pqr")
+        return pn.panel(view)
+        #return pn.panel(self.html_panel)

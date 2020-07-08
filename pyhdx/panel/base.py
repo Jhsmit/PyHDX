@@ -18,6 +18,61 @@ class PanelBase(param.Parameterized):
 
 
 class FigurePanel(PanelBase):
+    accepted_sources = []
+
+    def __init__(self, parent, controllers, sources=None, **params):
+        super(PanelBase, self).__init__(**params)
+        self.parent = parent  # main controller
+        self.parent.param.watch(self._parent_sources_updated, ['sources'])
+        self.controllers = controllers  # side controllers
+        self.figure = self.draw_figure()
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
+
+        sources = sources if sources is not None else {}
+        self.renderers = {}
+        self.add_sources(sources)
+
+    def _parent_sources_updated(self, *events):
+        new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
+        self.add_sources(new_items)
+
+    def add_sources(self, src_dict):
+        """add a columndatasource object to the figure
+        #todo: (if the source is already present it is updated)
+
+        """
+        #self.sources.update(src_dict)
+        for source in src_dict.values():
+            source.on_change('data', self._data_updated_callback)
+        self.render_sources(src_dict)
+
+    def remove_sources(self, names):
+        raise NotImplementedError('removing sources not implemented')
+
+    def render_sources(self, sources):
+        """override to customize how sources are rendered"""
+        for name, source in sources.items():
+            renderer = self.figure.line('x', 'y', source=source)
+            self.renderers[name] = renderer
+
+    def draw_figure(self):
+        """Override to create a custom figure with eg to specify axes labels"""
+        return figure()
+
+    @property
+    def sources(self):
+        """returns a dict of the current sources"""
+        return {name: renderer.data_source for name, renderer in self.renderers.items()}
+
+    def _data_updated_callback(self, attr, old, new):
+        self.bk_pane.param.trigger('object')
+
+    @property
+    def panel(self):
+        return self.bk_pane
+
+
+class FigurePanelOld(PanelBase):
     """"base class for figures"""
 
     _controlled_by = []  # list of panel controllers
@@ -25,9 +80,10 @@ class FigurePanel(PanelBase):
     def __init__(self, parent, controllers, **params):
         self.parent = parent  #main controller
         self.controllers = controllers  #side controllers
-        super(FigurePanel, self).__init__(**params)
+        super(FigurePanelOld, self).__init__(**params)
 
     def draw_figure(self):
+        """Override to create a custom figure with eg to specify axes labels"""
         return figure()
 
     def _update(self):
@@ -58,7 +114,7 @@ class ControlPanel(PanelBase):
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
-        return {k: v for k, v in zip(list(self.param)[1:], pn.Param(self.param, show_name=False, widgets=kwargs))}
+        return {k: v for k, v in zip(list(self.param)[1:], pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs))}
 
     def make_list(self):
         """override this method to modify mapping of dict to list"""

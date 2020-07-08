@@ -820,7 +820,7 @@ class KineticsFitting(object):
             layer.set_weights([wts])
 
             model = ftf.Sequential([layer])
-            model.compile(loss='mse', optimizer=Adagrad(learning_rate=learning_rate))
+            model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
 
             input_data = np.expand_dims(section.cov.X, 0)
             output_data = np.expand_dims(section.scores_peptides.T, 0)
@@ -969,6 +969,10 @@ class KineticsFitResult(object):
             except AttributeError:
                 array[name] = self.get_param(name)
         return array
+
+    @property
+    def output(self):
+        return self.get_output(['rate', 'k1', 'k2', 'r'])
 
 
 class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
