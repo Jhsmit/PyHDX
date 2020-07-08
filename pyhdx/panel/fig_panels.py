@@ -244,7 +244,7 @@ class ThdLogFigure(FigurePanel):
         self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
 
     def draw_figure(self):
-        fig = super().draw_figure()
+        fig = figure(y_axis_type='log')
         fig.xaxis.axis_label = 'Residue number'
 
         for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
@@ -290,6 +290,7 @@ class RateFigure(ThdLogFigure):
         hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@y')]
 
         return figure
+
 
 class PFactFigure(ThdLogFigure):
     accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
@@ -438,6 +439,6 @@ class ProteinFigure(FigurePanelOld):  #todo maybe it shouldnt be a figurepanel (
 
     @property
     def panel(self):
-        view = nglview.show_pdbid("3pqr")
+        view = nglview.show_file(r"C:\Users\jhsmi\pp\pyHDX_paper\fig4_real_proteins\structures\hPREP_2.pdb")
         return pn.panel(view)
         #return pn.panel(self.html_panel)
