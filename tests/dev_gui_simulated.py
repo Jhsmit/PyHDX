@@ -26,7 +26,7 @@ timepoints = [0.167, 0.5, 1, 5, 10, 30, 100]
 start, end = 5, 45  # total span of protein (inc, inc)
 nc_start, nc_end = 31, 34  # span of no coverage area (inc, inc)
 
-pmt = PeptideMasterTable(data, drop_first=0, ignore_prolines=False, remove_nan=False)
+pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
 states = pmt.groupby_state()
 series = states['state1']
 
@@ -52,9 +52,10 @@ ctrl.fit_results['fit2'] = fr2
 ctrl.fit_control.param['do_fit2'].constant = False
 ctrl.param.trigger('fit_results')
 
-
+ctrl.tf_fit_control.epochs=10
+ctrl.tf_fit_control._do_fitting()
 #
-# ctrl.tf_fit_control.param['do_fit'].constant = False
+ctrl.tf_fit_control.param['do_fit'].constant = False
 
 if __name__ == '__main__':
     ctrl.serve()
