@@ -476,10 +476,14 @@ class FittingControl(ControlPanel):
 
     def _fit1(self):
         fit_result = self.parent.fitting.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1, chisq_thd=self.chisq_thd)
-        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
+        self.parent.fit_results['fit1'] = fit_result
+        output = fit_result.output
+        dic = {name: output[name] for name in output.dtype.names}
+        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'])
+        self.parent.sources['fit1'] = ColumnDataSource(dic)
 
-        self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
-        self.parent.param.trigger('fit_results')  # Trigger plot update
+        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
+        self.parent.param.trigger('sources') # Informs listening plots that there is new data available
 
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
@@ -518,10 +522,17 @@ class FittingControl(ControlPanel):
 
     def _fit2(self):
         fit_result = self.parent.fitting.blocks_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
-        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
-        self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
-        self.parent.param.trigger('fit_results')  # Trigger plot update
 
+        self.parent.fit_results['fit2'] = fit_result
+        #todo lines below are repeating code, create func(self, fit_result, name) which does this job  (or func on parent controller?)
+        output = fit_result.output
+        dic = {name: output[name] for name in output.dtype.names}
+        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit2'], dtype='<U7')
+        self.parent.sources['fit2'] = ColumnDataSource(dic)
+        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit2 is available as initial guesses
+        self.parent.param.trigger('sources')  # Informs listening plots that there is new data available
+
+        #todo all fit buttons should globally constant during fitting (make some kind of global context manager)
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
         self.pbar2.reset()
@@ -589,14 +600,16 @@ class FittingControl(ControlPanel):
 
 
 class TFFitControl(ControlPanel):
-    header = 'Protection factor'
+    header = 'TF Single residue fit'
+
+    fitting_type = param.Selector(objects=['Protection Factors', 'Rates'], default='Protection Factors')
 
     c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds')  # remove
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
-    #stop_loss = param.Number(0.1, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
-    #stop_patience = param.Integer(50, bounds=(1, None), doc= 'Number of epochs where stop loss should be satisfied before stopping')
+    stop_loss = param.Number(0.1, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
+    stop_patience = param.Integer(50, bounds=(1, None), doc= 'Number of epochs where stop loss should be satisfied before stopping')
     learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
     epochs = param.Number(10000, bounds=(1, None), doc='Maximum number of epochs (iterations')
 
@@ -615,6 +628,17 @@ class TFFitControl(ControlPanel):
     def make_dict(self):
         return self.generate_widgets()
 
+    @param.depends('fitting_type', watch=True)
+    def _update_fitting_type(self):
+        if self.fitting_type == 'Protection Factors':
+            self.box_insert_after('fitting_type', 'c_term')
+            self.box_insert_after('c_term', 'temperature')
+            self.box_insert_after('temperature', 'pH')
+        elif self.fitting_type == 'Rates':
+            self.box_pop('c_term')
+            self.box_pop('temperature')
+            self.box_pop('pH')
+
     def _parent_series_updated(self, *events):
         end = self.parent.series.cov.end
         self.c_term = int(end + 5)
@@ -624,11 +648,20 @@ class TFFitControl(ControlPanel):
             self.param['do_fit'].constant = False
 
     def _do_fitting(self):
+        self.param['do_fit'].constant = True
+
         import pyhdx.fitting_tf as tft
-        k_int = self.parent.series.cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
-        k_r_number = self.parent.series.cov.sequence_r_number
-        k_dict = {'r_number': k_r_number, 'k_int': k_int}
-        initial_result = self.parent.fit_results['fit1']['rates']  # todo switch to new structure
+        if self.fitting_type == 'Protection Factors':
+            k_int = self.parent.series.cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
+            k_r_number = self.parent.series.cov.sequence_r_number
+            k_dict = {'r_number': k_r_number, 'k_int': k_int}
+
+            output_name = 'pfact'
+        elif self.fitting_type == 'Rates':
+            k_dict = None
+            output_name = 'TF_rate'
+
+        initial_result = self.parent.fit_results['fit1'].output
 
         early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
         result = self.parent.fitting.global_fit(initial_result=initial_result, k_int=k_dict,
@@ -637,37 +670,20 @@ class TFFitControl(ControlPanel):
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=r'#16187d', dtype='<U7')
+
+        if self.fitting_type == 'Protection Factors':
+            output_dict['pfact'] = 10**output_dict['log_P']
+        elif self.fitting_type == 'Rates':
+            output_dict['rate'] = 10**output_dict['log_k']
+
         source = ColumnDataSource(output_dict)
-        self.parent.sources['pfact'] = source
-        self.parent.fit_results['pfact'] = result
+        self.parent.sources[output_name] = source
+        self.parent.fit_results[output_name] = result
 
-        self.parent.param.trigger('sources') # fit_results should have no watchers
+        self.parent.param.trigger('sources') # dont need to trigger fit_results as its has no relevant watchers
+        self.param['do_fit'].constant = False
+    #
 
-    #
-    # def _load_sequence(self):
-    #     pass
-    #
-    # @staticmethod
-    # def _check_sequences(known, full, n_term=1):
-    #     """
-    #     Check if the `known` sequence from the PeptideMasterList matches the `full` sequence provided by the user
-    #     Parameters
-    #     ----------
-    #     known
-    #     full
-    #     n_term
-    #
-    #     Returns
-    #     -------
-    #
-    #     """
-    #     for i, s in enumerate(known):
-    #         if s == 'X':
-    #             continue
-    #         t = full[i - n_term + 1]
-    #         if t != s:
-    #             return False
-    #     return True
 
 
 class FittingQuality(ControlPanel):
@@ -709,7 +725,7 @@ class ClassificationControl(ControlPanel):
 
         self.param.trigger('values')
         self.param.trigger('colors')
-        self.parent.param.watch(self._rates_updated, ['fit_results'])
+        #self.parent.param.watch(self._rates_updated, ['fit_results'])
 
     def make_dict(self):
         return self.generate_widgets(num_classes=pn.widgets.Spinner)

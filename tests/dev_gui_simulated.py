@@ -12,6 +12,8 @@ from pyhdx.support import np_from_txt, fmt_export
 from pyhdx import PeptideMasterTable, KineticsFitting
 import pickle
 
+from bokeh.models import ColumnDataSource
+
 directory = os.path.dirname(__file__)
 np.random.seed(43)
 
@@ -44,16 +46,36 @@ for name in pickle_names:
         fit_results.append(fr)
 
 #
-fr1 = {'rates': fit_results[0].output, 'fitresult': fit_results[0]}
-ctrl.fit_results['fit1'] = fr1
-fr2 = {'rates': fit_results[1].output, 'fitresult': fit_results[1]}
+# fr1 = {'rates': fit_results[0].output, 'fitresult': fit_results[0]}
+# ctrl.fit_results['fit1'] = fr1
+# fr2 = {'rates': fit_results[1].output, 'fitresult': fit_results[1]}
 
-ctrl.fit_results['fit2'] = fr2
+i = 0
+output = fit_results[i].output
+dic = {name: output[name] for name in output.dtype.names}
+dic['color'] = np.full_like(output, fill_value='red', dtype='<U7')
+cds = ColumnDataSource(dic)
+ctrl.sources['fit1'] = cds
+ctrl.fit_results['fit1'] = fit_results[i]
+ctrl.param.trigger('sources')
+ctrl.param.trigger('fit_results')
+
+
+i = 1
+output = fit_results[i].output
+dic = {name: output[name] for name in output.dtype.names}
+dic['color'] = np.full_like(output, fill_value='blue', dtype='<U7')
+cds = ColumnDataSource(dic)
+ctrl.sources['fit2'] = cds
+ctrl.fit_results['fit2'] = fit_results[i]
+ctrl.param.trigger('sources')
+
+
 ctrl.fit_control.param['do_fit2'].constant = False
 ctrl.param.trigger('fit_results')
 
 ctrl.tf_fit_control.epochs=10
-ctrl.tf_fit_control._do_fitting()
+#ctrl.tf_fit_control._do_fitting()
 #
 ctrl.tf_fit_control.param['do_fit'].constant = False
 

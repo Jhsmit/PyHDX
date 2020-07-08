@@ -112,9 +112,33 @@ class CoverageFigure(FigurePanelOld):
         return list(c)
 
 
-class RateFigure(FigurePanelOld):
+class RateFigure(FigurePanel):
+    accepted_sources = ['fit1', 'fit2', 'TF_rate']
+
+    def draw_figure(self):
+        fig = figure(y_axis_type="log", tools='pan,wheel_zoom,box_zoom,save,reset,hover')
+        fig.xaxis.axis_label = 'Residue number'
+        fig.yaxis.axis_label = 'Rate (min⁻¹)'  # todo units?
+
+        hover = fig.select(dict(type=HoverTool))
+        hover.tooltips = [('Residue', '@r_number{int}'), ('Rate', '@rate')]
+        hover.mode = 'vline'
+
+        return fig
+
+    def render_sources(self, sources):
+        for name, source in sources.items():
+            func_name = DEFAULT_RENDERERS[name]
+            glyph_func = getattr(self.figure, func_name)
+            renderer = glyph_func(x='r_number', y='rate', color='color', source=source, legend_label=name,
+                                  size=10, name=name)
+            self.renderers[name] = renderer
+        self.figure.legend.click_policy = 'hide'
+
+
+class RateFigureOld(FigurePanelOld):
     def __init__(self, *args, **params):
-        super(RateFigure, self).__init__(*args, **params)
+        super(RateFigureOld, self).__init__(*args, **params)
 
         self.figure = self.draw_figure()
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
@@ -248,7 +272,8 @@ class PFactFigure(FigurePanel):
 
     def render_sources(self, sources):
         for name, source in sources.items():
-            renderer = self.figure.circle('r_number', 'log_P', color='color', source=source)
+            renderer = self.figure.circle('r_number', 'log_P', color='color', source=source, legend_label=name,
+                                          size=10, name=name)
             self.renderers[name] = renderer
 
 
@@ -262,7 +287,7 @@ class FitResultFigure(FigurePanelOld):
 
         self.ctrl.param.watch(self._update_index, ['peptide_index'])
         self.ctrl.param.watch(self._redraw, ['x_axis_type'])
-        self.parent.param.watch(self._update_fits, ['fit_results'])
+        #self.parent.param.watch(self._update_fits, ['fit_results'])
         self.parent.param.watch(self._update_peptides, ['series'])
         #self.parent.param.watch(self._update_colors, ['rate_colors'])
 
