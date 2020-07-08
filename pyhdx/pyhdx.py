@@ -287,6 +287,16 @@ class PeptideMasterTable(object):
         output_data = self.data[np.logical_and(self.data['state'] == state, self.data['exposure'] == exposure)]
         return output_data
 
+    @property
+    def states(self):
+        """:~classs:np.ndarray: Array with unique states"""
+        return np.unique(self.data['state'])
+
+    @property
+    def exposures(self):
+        """:~classs:np.ndarray: Array with unique exposures"""
+        return np.unique(self.data['exposure'])
+
 
 class Coverage(object):
     """
