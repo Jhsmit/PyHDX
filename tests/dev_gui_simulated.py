@@ -53,6 +53,7 @@ for name in pickle_names:
 i = 0
 output = fit_results[i].output
 dic = {name: output[name] for name in output.dtype.names}
+dic['y'] = output['rate']
 dic['color'] = np.full_like(output, fill_value='red', dtype='<U7')
 cds = ColumnDataSource(dic)
 ctrl.sources['fit1'] = cds
@@ -64,20 +65,24 @@ ctrl.param.trigger('fit_results')
 i = 1
 output = fit_results[i].output
 dic = {name: output[name] for name in output.dtype.names}
+dic['y'] = output['rate']
 dic['color'] = np.full_like(output, fill_value='blue', dtype='<U7')
 cds = ColumnDataSource(dic)
 ctrl.sources['fit2'] = cds
 ctrl.fit_results['fit2'] = fit_results[i]
 ctrl.param.trigger('sources')
 
-
 ctrl.fit_control.param['do_fit2'].constant = False
 ctrl.param.trigger('fit_results')
 
 ctrl.tf_fit_control.epochs=10
-#ctrl.tf_fit_control._do_fitting()
-#
+
+ctrl.tf_fit_control._do_fitting()
 ctrl.tf_fit_control.param['do_fit'].constant = False
 
-if __name__ == '__main__':
-    ctrl.serve()
+ctrl.classification_panel.target = 'pfact'
+ctrl.classification_panel._action_threshold()
+
+
+# if __name__ == '__main__':
+#     ctrl.serve()

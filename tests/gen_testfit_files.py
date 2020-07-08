@@ -51,10 +51,10 @@ k_int = series.cov.calc_kint(temperature, pH, c_term=None)
 k_r_number = series.cov.sequence_r_number
 k_dict = {'r_number': k_r_number, 'k_int': k_int}
 
-fr_pfact = kf.global_fit(out1)
-out_pfact = fr_rates.output
+fr_pfact = kf.global_fit(out1, k_int=k_dict)
+out_pfact = fr_pfact.output
 
-fmt, hdr = fmt_export(out_rates)
+fmt, hdr = fmt_export(out_pfact)
 np.savetxt(os.path.join(directory, 'test_data', 'fit_simulated_pfact.txt'), out_pfact, fmt=fmt, header=hdr)
 with open(os.path.join(directory, 'test_data', 'fit_simulated_pfact.pick'), 'wb') as f:
     pickle.dump(out_pfact, f)
