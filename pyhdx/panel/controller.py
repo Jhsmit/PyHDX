@@ -460,15 +460,24 @@ class FittingControl(ControlPanel):
 
     async def _fit1_async(self):
         #client = await Client(self.parent.cluster)
+
         fit_result = await self.parent.fitting.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
         print('fit res in async', fit_result)
-        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
-        self.parent.fit_results['fit1'] = {'rates': rates_array, 'fitresult': fit_result}
-        callback = partial(self.parent.param.trigger, 'fit_results')
-        self.parent.doc.add_next_tick_callback(callback)
+        self.parent.fit_results['fit1'] = fit_result
 
+        output = fit_result.output
+        #todo duplicate code in fit - > method on parent?
+        dic = {name: output[name] for name in output.dtype.names}
+        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
+        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
+        self.parent.sources['fit1'] = ColumnDataSource(dic)
+
+        #trigger plot update
+        callback = partial(self.parent.param.trigger, 'sources')
+        self.parent.doc.add_next_tick_callback(callback)
+        
         with pn.io.unlocked():
-        #     #self.parent.param.trigger('fit_results')
+             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
              self.pbar1.reset()
              self.param['do_fit1'].constant = False
              self.param['do_fit2'].constant = False
@@ -479,7 +488,7 @@ class FittingControl(ControlPanel):
         output = fit_result.output
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
-        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'])
+        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
         self.parent.sources['fit1'] = ColumnDataSource(dic)
 
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
@@ -997,15 +1006,15 @@ class FileExportPanel(ControlPanel):
         else:
             return None
 
-    def data_export(self):
-        io = StringIO()
-        delimiter = ','
-
-        #todo combine these lines into one function?
-        fmt, header = fmt_export(self.parent.data, delimiter=delimiter, width=0)
-        np.savetxt(io, self.parent.data, fmt=fmt, header=header, delimiter=delimiter)
-        io.seek(0)
-        return io
+    # def data_export(self):
+    #     io = StringIO()
+    #     delimiter = ','
+    #
+    #     #todo combine these lines into one function?
+    #     fmt, header = fmt_export(self.parent.data, delimiter=delimiter, width=0)
+    #     np.savetxt(io, self.parent.data, fmt=fmt, header=header, delimiter=delimiter)
+    #     io.seek(0)
+    #     return io
 
 
 class OptionsPanel(ControlPanel):
