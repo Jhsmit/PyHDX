@@ -303,21 +303,13 @@ class PFactFigure(ThdLogFigure):
         self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
 
     def draw_figure(self):
-        fig = super().draw_figure()
-        fig.xaxis.axis_label = 'Residue number'
-        fig.yaxis.axis_label = 'Protection Factor'
+        figure = super().draw_figure()
+        figure.yaxis.axis_label = 'Protection Factor'
 
-        for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
-            sp = Span(location=0, dimension='width')
-            sp.tags = ['thd']
-            sp.visible = False
-            fig.add_layout(sp)
-
-        hover = fig.select(dict(type=HoverTool))
+        hover = figure.select(dict(type=HoverTool))
         hover.tooltips = [('Residue', '@r_number{int}'), ('PFact', '@y')]
-        hover.mode = 'vline'
 
-        return fig
+        return figure
 
     def render_sources(self, sources):
         for name, source in sources.items():
