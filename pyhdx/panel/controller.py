@@ -415,33 +415,30 @@ class CoverageControl(ControlPanel):
 class FittingControl(ControlPanel):
     header = 'Rate Fitting'
 
-    r_max = param.Number(27, doc='Ceil value for rates')  # Update this value
+    #r_max = param.Number(27, doc='Ceil value for rates', precedence=-1)  # Update this value
     chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
 
     fitting_model = param.Selector(default='Association', objects=['Association', 'Dissociation'])
-
     do_fit1 = param.Action(lambda self: self._action_fit1())
     block_mode = param.ObjectSelector(default='reduced', objects=['reduced', 'original', 'constant'])
 
     #todo generate from func signature?
     #block mode reduced params
-    max_combine = param.Integer(2, doc='Neighbouring blocks up to and including this size are merged together')
-    max_join = param.Integer(5, doc='Blocks up to and including this size are joined with their smallest neighbour')
+    max_combine = param.Integer(2, doc='Neighbouring blocks up to and including this size are merged together', precedence=-1)
+    max_join = param.Integer(5, doc='Blocks up to and including this size are joined with their smallest neighbour', precedence=-1)
 
     #constant block params
-    block_size = param.Integer(10, doc='Size of the blocks in constant blocks mode')
-    initial_block = param.Integer(5, doc='Size of the initial block in constant block mode')
-    show_blocks = param.Boolean(False, doc='Show how blocks are defined with the current settings')
+    block_size = param.Integer(10, doc='Size of the blocks in constant blocks mode', precedence=-1)
+    initial_block = param.Integer(5, doc='Size of the initial block in constant block mode', precedence=-1)
+    show_blocks = param.Boolean(False, doc='Show how blocks are defined with the current settings', precedence=-1)
 
-    do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True)
+    do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True, precedence=-1)
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
         self.pbar2 = ASyncProgressBar()
         super(FittingControl, self).__init__(parent, **params)
-
-
-        #self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
+                #self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
         self.parent.param.watch(self._update_series, ['series'])
 
     def make_list(self):
@@ -449,8 +446,9 @@ class FittingControl(ControlPanel):
         text_f2 = pn.widgets.StaticText(value='Global fit (Fit 2)')
 
         self._widget_dict.update(text_f1=text_f1, text_f2=text_f2, pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-        parameters = ['r_max', 'fitting_model', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
-                      'max_join', 'show_blocks', 'do_fit2', 'pbar2']
+        # parameters = ['r_max', 'fitting_model', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
+        #               'max_join', 'show_blocks', 'do_fit2', 'pbar2']
+        parameters = ['fitting_model', 'do_fit1', 'pbar1']
 
         widget_list = list([self._widget_dict[par] for par in parameters])
         return widget_list
