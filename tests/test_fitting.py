@@ -60,7 +60,7 @@ class TestSimulatedDataFit(object):
         out2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
 
         check1 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
-        check2 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_global.txt'))
+        check2 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_blocks.txt'))
 
         for name in ['rate', 'k1', 'k2', 'r']:
             np.testing.assert_array_almost_equal(out1[name], check1[name], decimal=4)
