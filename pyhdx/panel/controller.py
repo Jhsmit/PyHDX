@@ -26,7 +26,7 @@ from bokeh.document import without_document_lock
 import matplotlib
 matplotlib.use('agg') # for panel mpl support
 from functools import partial
-from .widgets import NumericInput
+#from .widgets import NumericInput
 from bokeh.models import ColumnDataSource
 
 #dev only
