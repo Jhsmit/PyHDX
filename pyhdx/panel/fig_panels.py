@@ -259,8 +259,8 @@ class ThdLogFigure(FigurePanel):
 
         return fig
 
-    def render_sources(self, sources):
-        for name, source in sources.items():
+    def render_sources(self, src_dict):
+        for name, source in src_dict.items():
             func_name = DEFAULT_RENDERERS[name]
             glyph_func = getattr(self.figure, func_name)
             renderer = glyph_func(x='r_number', y='y', color='color', source=source, legend_label=name,
@@ -312,8 +312,8 @@ class PFactFigure(ThdLogFigure):
 
         return figure
 
-    def render_sources(self, sources):
-        for name, source in sources.items():
+    def render_sources(self, src_dict):
+        for name, source in src_dict.items():
             renderer = self.figure.circle('r_number', 'y', color='color', source=source, legend_label=name,
                                           size=10, name=name)
             self.renderers[name] = renderer
