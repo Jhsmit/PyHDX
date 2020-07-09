@@ -634,7 +634,8 @@ class TFFitControl(ControlPanel):
         self.parent.param.watch(self._parent_series_updated, ['series'])
 
     def make_dict(self):
-        return self.generate_widgets()
+        kwargs = {name: pn.param.LiteralInputTyped(param.Number(0.)) for name in ['temperature', 'pH', 'stop_loss', 'learning_rate', 'l1_regularizer', 'l2_regularizer']}
+        return self.generate_widgets(**kwargs)
 
     @param.depends('fitting_type', watch=True)
     def _update_fitting_type(self):
