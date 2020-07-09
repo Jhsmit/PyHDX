@@ -617,7 +617,7 @@ class TFFitControl(ControlPanel):
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
     stop_loss = param.Number(0.1, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
-    stop_patience = param.Integer(50, bounds=(1, None), doc= 'Number of epochs where stop loss should be satisfied before stopping')
+    stop_patience = param.Integer(50, bounds=(1, None), doc='Number of epochs where stop loss should be satisfied before stopping')
     learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
     epochs = param.Number(10000, bounds=(1, None), doc='Maximum number of epochs (iterations')
 

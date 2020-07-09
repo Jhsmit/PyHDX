@@ -768,13 +768,10 @@ class KineticsFitting(object):
             #early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
 
             full_cb = callbacks + [cb]
-            print(full_cb)
-
-            print('hoi')
-
             model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=0.01))
             result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
             losses.append(result.history['loss'])
+            print('number of epochs', len(result.history['loss']))
             wts = np.squeeze(cb.weights[0][0])
             weights.append(wts)
 
