@@ -37,6 +37,16 @@ class FigurePanel(PanelBase):
         new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
         self.add_sources(new_items)
 
+        # Items need to be rerendered if they are already in renderers but the source is a different object
+        updated_items = {k: v for k, v in self.parent.sources.items() if k in self.renderers and v != self.renderers[k].data_source}
+        print(updated_items.keys())
+        for name, source in updated_items.items():
+            self.renderers[name].data_source.data.update(**source.data)
+
+
+        # self.remove_sources(updated_items.keys())  # remove sources from plot and renderers
+        # self.render_sources(updated_items)
+
     def add_sources(self, src_dict):
         """add a columndatasource object to the figure
         #todo: (if the source is already present it is updated)
@@ -48,11 +58,15 @@ class FigurePanel(PanelBase):
         self.render_sources(src_dict)
 
     def remove_sources(self, names):
-        raise NotImplementedError('removing sources not implemented')
+        """remove source from renderers dict and figure"""
+        for name in names:
+            self.figure.renderers.remove(self.renderers[name])
+            self.renderers.pop(name)
 
-    def render_sources(self, sources):
+
+    def render_sources(self, src_dict):
         """override to customize how sources are rendered"""
-        for name, source in sources.items():
+        for name, source in src_dict.items():
             renderer = self.figure.line('x', 'y', source=source)
             self.renderers[name] = renderer
 
