@@ -244,7 +244,7 @@ class ThdLogFigure(FigurePanel):
         self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
 
     def draw_figure(self):
-        fig = figure(y_axis_type='log')
+        fig = figure(y_axis_type='log', tools='pan,wheel_zoom,box_zoom,save,reset,hover')
         fig.xaxis.axis_label = 'Residue number'
 
         for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
