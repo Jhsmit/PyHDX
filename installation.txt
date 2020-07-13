@@ -1,0 +1,32 @@
+batch file 1:
+C:\tmp\conda_wrappers\python.bat C:\Users\jhs\Desktop\pyRateHDX/run_cluster.py
+
+
+#cluster:
+from dask.distributed import LocalCluster
+import time
+
+if __name__ == '__main__':
+
+
+    cluster = LocalCluster(scheduler_port=52123, n_workers=10)
+    print(cluster)
+
+    try:
+        loop = True
+        while loop:
+            try:
+                time.sleep(2)
+                print(cluster)
+            except KeyboardInterrupt:
+                print('interrupted')
+                loop = False
+    finally:
+        print('closing')
+        cluster.close()
+
+
+batch file 2:
+C:\tmp\conda_wrappers\python.bat C:\Users\jhs\Programming\pyhdx_new\pyhdx\panel\main.py
+
+$ create-wrappers  -t conda --bin-dir C:\Users\jhs\Miniconda3\envs\py37_hdx --dest-dir C:/tmp/conda_wrappers --conda-env-dir C:\Users\jhs\Miniconda3\envs\py37_hdx
