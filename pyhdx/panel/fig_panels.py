@@ -439,6 +439,7 @@ class ProteinFigure(FigurePanelOld):  #todo maybe it shouldnt be a figurepanel (
 
     @property
     def panel(self):
-        view = nglview.show_file(r"C:\Users\jhsmi\pp\pyHDX_paper\fig4_real_proteins\structures\hPREP_2.pdb")
-        return pn.panel(view)
+        #view = nglview.show_file(r"C:\Users\jhsmi\pp\pyHDX_paper\fig4_real_proteins\structures\hPREP_2.pdb")
+        return None
+        #return pn.panel(view)
         #return pn.panel(self.html_panel)
