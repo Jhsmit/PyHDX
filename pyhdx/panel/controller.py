@@ -1011,9 +1011,6 @@ class FileExportPanel(ControlPanel):
         else:
             return None
 
-    @staticmethod
-    def _version_string():
-        return f'#pyHDX version {__version__}, dev {__dev_version__} ({__git_sha__}) \n'
 
     # def data_export(self):
     #     io = StringIO()
