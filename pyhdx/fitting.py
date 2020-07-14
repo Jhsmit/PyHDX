@@ -793,7 +793,7 @@ class KineticsFitting(object):
         """
         import pyhdx.fitting_tf as ftf
 
-        for section in self.k_series.split().values():
+        for section in self.k_series.split(gap_size=0).values():
             s, e = section.cov.start, section.cov.end  # inclusive, inclusive (source file)
             interval = (s, e + 1)
 
