@@ -108,7 +108,7 @@ class AssociationPFactFunc(object):
 
     def __call__(self, X, **parameters):
         pfact = 10**parameters[self.parameter_name]
-        uptake = 1 - tf.exp(-tf.matmul((self.kint/pfact), self.timepoints))
+        uptake = 1 - tf.exp(-tf.matmul((self.kint/(1 + pfact)), self.timepoints))
         return 100*tf.matmul(X, uptake)
 
     def compute_output_shape(self, input_shape):
