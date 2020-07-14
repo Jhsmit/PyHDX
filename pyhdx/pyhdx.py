@@ -459,7 +459,7 @@ class Coverage(object):
                 k_int_list.append(k_int)
         return np.array(k_int_list)
 
-    def split(self):
+    def split(self, gap_size=-1):
         """
         Splits the dataset into independent parts which have no overlapping peptides between them. To determine overlap,
         the modified 'start' and 'end' fields are used which take into account N-terminal non-exchanging residues and
@@ -471,15 +471,19 @@ class Coverage(object):
         output: :obj:`dict`
             Dictionary where keys are {start}_{end} (inclusive, exclusive) of the corresponding sections, values are
             of the ``type`` of the current instance.
-
+        gap_size: :obj:`int`
+            Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
+            with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
+            and larger values tolerate larger gap sizes.
         """
 
         klass = self.__class__
 
         intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
-        sections = reduce_inter(intervals)
+        sections = reduce_inter(intervals, gap_size=gap_size)
         output = {}
         for s, e in sections:
+
             b = np.logical_and(self.data['start'] >= s, self.data['end'] <= e)
             output[f'{s}_{e}'] = klass(self.data[b])
 
@@ -577,7 +581,7 @@ class KineticsSeries(object):
         full_data = np.concatenate([pm.data for pm in self])
         return full_data
 
-    def split(self):
+    def split(self, gap_size=-1):
         """
         Splits the dataset into independent parts which have no overlapping peptides between them
 
@@ -586,6 +590,10 @@ class KineticsSeries(object):
         output : :obj:`dict`
             Output dictionary with individual kinetic series. Keys are '{start}_{stop}', (including, excluding)
              values are :class:`~pyhdx.pyhdx.KineticSeries` objects.
+        gap_size: :obj:`int`
+            Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
+            with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
+            and larger values tolerate larger gap sizes.
 
         """
         if self.uniform:
@@ -596,7 +604,7 @@ class KineticsSeries(object):
             intervals = reduce(add, [[(s, e) for s, e in zip(pm.data['start'], pm.data['end'])] for pm in self])
 
 
-        split_list = [pm.split() for pm in self]
+        split_list = [pm.split(gap_size=gap_size) for pm in self]
         #accumulate all keys in the split list and sort them by start then end
         keys = sorted(np.unique([list(dic.keys()) for dic in split_list]), key=lambda x: tuple(int(c) for c in x.split('_')))
         #keys = ''

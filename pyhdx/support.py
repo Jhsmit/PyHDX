@@ -68,8 +68,14 @@ def get_original_blocks(coverage):
     return block_length
 
 
-def reduce_inter(args):
+def reduce_inter(args, gap_size=-1):
     """
+
+    gap_size: :obj:`int`
+            Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
+            with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
+            and larger values tolerate larger gap sizes.
+
     #  https://github.com/brentp/interlap/blob/3c4a5923c97a5d9a11571e0c9ea5bb7ea4e784ee/interlap.py#L224
     # MIT Liscence
     >>> reduce_inter([(2, 4), (4, 9)])
@@ -77,6 +83,9 @@ def reduce_inter(args):
     >>> reduce_inter([(2, 6), (4, 10)])
     [(2, 10)]
     """
+
+    gap_size += 1
+
     if len(args) < 2: return args
     args.sort()
     ret = [args[0]]
@@ -85,9 +94,9 @@ def reduce_inter(args):
             ret[-1] = ret[-1][0], max(ret[-1][1], e)
             break
 
-        ns, ne = args[next_i]
-        if e > ns or ret[-1][1] > ns:
-            ret[-1] = ret[-1][0], max(e, ne, ret[-1][1])
+        ns, ne = args[next_i] # next start, next end
+        if e + gap_size > ns or ret[-1][1] + gap_size > ns:  # if current end is further than next start (overlap), OR current inverterval end later then next start
+            ret[-1] = ret[-1][0], max(e, ne, ret[-1][1]) # extend the end value of the current inverval by the new end
         else:
             ret.append((ns, ne))
     return ret
