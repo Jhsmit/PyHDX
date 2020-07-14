@@ -4,8 +4,10 @@ from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigu
 from pyhdx.pyhdx import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
-from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, autowrap, colors_to_pymol
-from pyhdx import __version__, __dev_version__, __git_sha__
+from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, \
+    autowrap, colors_to_pymol
+
+from pyhdx import VERSION_STRING
 
 logger = setup_custom_logger('root')
 logger.debug('main message')
@@ -979,7 +981,7 @@ class FileExportPanel(ControlPanel):
     def pml_export_callback(self):
         if self.target:
             io = StringIO()
-            io.write(self._version_string())
+            io.write('# ' + VERSION_STRING + ' \n')
             script = self._make_pml(self.target)
             io.write(script)
             io.seek(0)
@@ -990,7 +992,7 @@ class FileExportPanel(ControlPanel):
     @pn.depends('target')  # param.depends?
     def linear_export_callback(self):
         io = StringIO()
-        io.write(self._version_string())
+        io.write('# ' + VERSION_STRING + ' \n')
 
         print(self.target)
         print('exporting')
