@@ -47,7 +47,8 @@ class TestSimulatedDataFit(object):
         cls.nc_start, cls.nc_end = 31, 34 # span of no coverage area (inc, inc)
 
     def test_fitting(self):
-        pmt = PeptideMasterTable(self.data, drop_first=0, ignore_prolines=False, remove_nan=False)
+        np.random.seed(43)
+        pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
         states = pmt.groupby_state()
         series = states['state1']
 
@@ -63,6 +64,28 @@ class TestSimulatedDataFit(object):
         check2 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_blocks.txt'))
 
         for name in ['rate', 'k1', 'k2', 'r']:
+            #indices = np.searchsorted(out1['r_number'], check1['r_number'])
+
             np.testing.assert_array_almost_equal(out1[name], check1[name], decimal=4)
             np.testing.assert_array_almost_equal(out2[name], check2[name], decimal=4)
 
+    def test_tf_pfact_fitting(self):
+        pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
+        states = pmt.groupby_state()
+        series = states['state1']
+
+        kf = KineticsFitting(series, bounds=(1e-2, 800))
+        initial_rates = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
+
+        temperature, pH = 300, 8
+        k_int = series.cov.calc_kint(temperature, pH, c_term=None)
+        k_r_number = series.cov.sequence_r_number
+        k_dict = {'r_number': k_r_number, 'k_int': k_int}
+
+        fr_pfact = kf.global_fit(initial_rates, k_int=k_dict)
+        out_pfact = fr_pfact.output
+
+        check_pfact = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_pfact.txt'))
+        indices = np.searchsorted(out_pfact['r_number'], check_pfact['r_number'])
+
+        np.testing.assert_array_almost_equal(out_pfact['log_P'][indices], check_pfact['log_P'], decimal=1)
