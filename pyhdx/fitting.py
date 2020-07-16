@@ -760,7 +760,7 @@ class KineticsFitting(object):
 
         for model, interval, input_data, output_data in gen:
             intervals.append(interval)
-            func = model.layers[0].function
+            func = model.layers[-1].function  # assuming the last layer is the fitting layer, other are input
             funcs.append(func)
             inputs.append(input_data)
 
@@ -771,7 +771,7 @@ class KineticsFitting(object):
             result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
             losses.append(result.history['loss'])
             print('number of epochs', len(result.history['loss']))
-            wts = np.squeeze(cb.weights[0][0])
+            wts = np.squeeze(cb.weights[-1][0])  # weights are the first weights from the last layer
             weights.append(wts)
 
         tf_fitresult = ftf.TFFitResult(self.k_series, intervals, funcs, weights, inputs, loss=losses)
@@ -813,23 +813,28 @@ class KineticsFitting(object):
                 guess_vals = np.log10(p_guess)
 
                 parameter = ftf.TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
-                func = ftf.AssociationPFactFunc(section.timepoints, k_int_section)
+                func = ftf.AssociationPFactFunc(section.timepoints)
+
+                # expand dimensions of k_int to allow outer product with time and match the shape of parameter
+                inputs_list = [section.cov.X, np.expand_dims(k_int_section, -1)]
 
             else:
                 parameter = ftf.TFParameter('log_k', (len(init_rate), 1), regularizer=regularizer)
                 func = ftf.AssociationRateFunc(section.timepoints)
 
                 guess_vals = np.log10(init_rate)
+                inputs_list = [section.cov.X]
 
+            input_layers = [ftf.Input(array.shape) for array in inputs_list]
             layer = ftf.CurveFit([parameter], func, name='association')
-            layer.build(section.cov.X)
+            outputs = layer(input_layers)
+
             wts = np.expand_dims(guess_vals.astype(np.float32), -1)
             layer.set_weights([wts])
 
-            model = ftf.Sequential([layer])
-            #model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
+            model = ftf.Model(inputs=input_layers, outputs=outputs)
 
-            input_data = np.expand_dims(section.cov.X, 0)
+            input_data = [np.expand_dims(array, 0) for array in inputs_list]       # np.expand_dims(section.cov.X, 0)
             output_data = np.expand_dims(section.scores_peptides.T, 0)
 
             yield model, interval, input_data, output_data

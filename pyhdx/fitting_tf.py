@@ -1,12 +1,12 @@
 import tensorflow as tf
-from tensorflow.keras.layers import Layer
+from tensorflow.keras.layers import Layer, Input
 from tensorflow.keras.constraints import Constraint
 from tensorflow.keras.regularizers import Regularizer
 from tensorflow.python.keras import backend as K
 from tensorflow.python.ops import math_ops
 from tensorflow.keras.optimizers import Adagrad
 from tensorflow.keras.callbacks import EarlyStopping
-from tensorflow.keras.models import Sequential
+from tensorflow.keras.models import Sequential, Model
 import numpy as np
 import copy
 
@@ -24,7 +24,7 @@ class L1L2Differential(Regularizer):
         if self.l1:
             regularization += self.l1*math_ops.reduce_sum(math_ops.abs(diff))
         if self.l2:
-            regularization += self.l2*math_ops.reduce_sum(math_ops.square(diff))
+            regularization += self.l2*math_ops.reduce_sum(math_ops.square(diff))  # should we take the sqrt of the sum?
 
         return regularization
 
@@ -102,14 +102,25 @@ class LossHistory(tf.keras.callbacks.Callback):
 class AssociationPFactFunc(object):
     parameter_name = 'log_P'
 
-    def __init__(self, timepoints, kint):
+    def __init__(self, timepoints):
         self.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
-        self.kint = tf.dtypes.cast(tf.expand_dims(kint, -1), tf.float32)
 
-    def __call__(self, X, **parameters):
+    def __call__(self, inputs, **parameters):
+        """
+
+        Parameters
+        ----------
+        inputs: :obj:`list`
+        list of X, k_int, shapes (N_peptides, N_residues), (N_peptides, 1)
+        parameters: dict with fit parameters
+
+        Returns
+        -------
+
+        """
         pfact = 10**parameters[self.parameter_name]
-        uptake = 1 - tf.exp(-tf.matmul((self.kint/(1 + pfact)), self.timepoints))
-        return 100*tf.matmul(X, uptake)
+        uptake = 1 - tf.exp(-tf.matmul((inputs[1]/(1 + pfact)), self.timepoints))
+        return 100*tf.matmul(inputs[0], uptake)
 
     def compute_output_shape(self, input_shape):
         return input_shape[0], len(self.timepoints)
@@ -127,7 +138,6 @@ class AssociationRateFunc(object):
         self.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
 
     def __call__(self, X, **parameters):
-        #todo refactor parameter name to 'log_k'
         k = 10**parameters[self.parameter_name]
         uptake = 1 - tf.exp(-tf.matmul(k, self.timepoints))
         return 100*tf.matmul(X, uptake)
