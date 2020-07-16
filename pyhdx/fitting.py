@@ -767,7 +767,6 @@ class KineticsFitting(object):
             cb = ftf.LossHistory()
             #early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
 
-            full_cb = callbacks + [cb]
             model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=0.01))
             result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
             losses.append(result.history['loss'])
