@@ -827,7 +827,7 @@ class KineticsFitting(object):
             layer.set_weights([wts])
 
             model = ftf.Sequential([layer])
-            model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
+            #model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
 
             input_data = np.expand_dims(section.cov.X, 0)
             output_data = np.expand_dims(section.scores_peptides.T, 0)
