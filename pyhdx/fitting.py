@@ -751,7 +751,7 @@ class KineticsFitting(object):
         funcs = []
         inputs = []
         losses = []
-        gen = self._prepare_global_fit_gen(initial_result, k_int=k_int, learning_rate=learning_rate, l1=l1, l2=l2)
+        gen = self._prepare_global_fit_gen(initial_result, k_int=k_int, l1=l1, l2=l2)
 
         early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
         callbacks = [early_stop] if callbacks is None else callbacks
@@ -767,7 +767,7 @@ class KineticsFitting(object):
             cb = ftf.LossHistory()
             #early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
 
-            model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=0.01))
+            model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
             result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
             losses.append(result.history['loss'])
             print('number of epochs', len(result.history['loss']))
@@ -778,7 +778,7 @@ class KineticsFitting(object):
 
         return tf_fitresult
 
-    def _prepare_global_fit_gen(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0.):
+    def _prepare_global_fit_gen(self, initial_result, k_int=None, l1=1e2, l2=0.):
         """
 
         Parameters
@@ -803,7 +803,6 @@ class KineticsFitting(object):
 
             regularizer = ftf.L1L2Differential(l1, l2)
             if k_int is not None:
-
                 indices = np.searchsorted(k_int['r_number'], section.cov.r_number)
                 if not len(indices) == len(np.unique(indices)):
                     raise ValueError('Invalid match between section r number and k_int r number')

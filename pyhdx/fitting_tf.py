@@ -122,8 +122,8 @@ class AssociationPFactFunc(object):
         uptake = 1 - tf.exp(-tf.matmul((inputs[1]/(1 + pfact)), self.timepoints))
         return 100*tf.matmul(inputs[0], uptake)
 
-    def compute_output_shape(self, input_shape):
-        return input_shape[0], len(self.timepoints)
+    # def compute_output_shape(self, input_shape):
+    #     return input_shape[0], len(self.timepoints)
 
     @staticmethod
     def output(weights):
@@ -134,16 +134,23 @@ class AssociationPFactFunc(object):
 class AssociationRateFunc(object):
     parameter_name = 'log_k'
 
+    """
+    Function passed to CurveFit layer to calculate forward propagation through the network
+
+
+
+    """
     def __init__(self, timepoints):
+
         self.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
 
-    def __call__(self, X, **parameters):
+    def __call__(self, inputs, **parameters):
         k = 10**parameters[self.parameter_name]
         uptake = 1 - tf.exp(-tf.matmul(k, self.timepoints))
-        return 100*tf.matmul(X, uptake)
+        return 100*tf.matmul(inputs[0], uptake)
 
-    def compute_output_shape(self, input_shape):
-        return input_shape[0], len(self.timepoints)
+    # def compute_output_shape(self, input_shape):
+    #     return input_shape[0], len(self.timepoints)
 
 
 class TFFitResult(object):
