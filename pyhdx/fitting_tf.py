@@ -22,9 +22,9 @@ class L1L2Differential(Regularizer):
         regularization = 0.
         diff = x[:-1] - x[1:]
         if self.l1:
-            regularization += self.l1*math_ops.reduce_sum(math_ops.abs(diff))
+            regularization += self.l1*tf.math.reduce_mean(math_ops.abs(diff))
         if self.l2:
-            regularization += self.l2*math_ops.reduce_sum(math_ops.square(diff))  # should we take the sqrt of the sum?
+            regularization += self.l2*tf.math.reduce_mean(math_ops.square(diff))  # should we take the sqrt of the sum?
 
         return regularization
 
