@@ -622,7 +622,7 @@ class TFFitControl(ControlPanel):
     learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
     epochs = param.Number(10000, bounds=(1, None), doc='Maximum number of epochs (iterations')
 
-    l1_regularizer = param.Number(100, bounds=(0, None), doc='Value for l1 regularizer')
+    l1_regularizer = param.Number(2000, bounds=(0, None), doc='Value for l1 regularizer')
     l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
 
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True)
