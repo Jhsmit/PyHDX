@@ -24,8 +24,6 @@ from numpy.lib.recfunctions import stack_arrays, append_fields
 from .components import ASyncProgressBar
 from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
-from bokeh.plotting import curdoc
-from bokeh.document import without_document_lock
 import matplotlib
 matplotlib.use('agg') # for panel mpl support
 from functools import partial
