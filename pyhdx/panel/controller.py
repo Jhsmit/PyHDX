@@ -7,7 +7,7 @@ from pyhdx.fileIO import read_dynamx
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, \
     autowrap, colors_to_pymol
 
-from pyhdx import VERSION_STRING
+from pyhdx import VERSION_STRING, VERSION_STRING_SHORT
 
 logger = setup_custom_logger('root')
 logger.debug('main message')
@@ -182,7 +182,7 @@ class Controller(param.Parameterized):
         }
         '''
         pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
-        pn.serve(self.app, **kwargs)
+        pn.serve(self.app, **kwargs, title=VERSION_STRING_SHORT)
 
     def get_rate_file_export(self):
         fmt, header = fmt_export(self.rates)

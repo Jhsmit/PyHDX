@@ -38,3 +38,4 @@ except Exception:  # Pbr throws very broad Exception, for some reason Distributi
 
 git_str = f' ({__git_sha__})' if __git_sha__ else ''
 VERSION_STRING = f'pyHDX version {__version__}, development version {__dev_version__}' + git_str
+VERSION_STRING_SHORT = f'pyHDX v{__version__} ({__dev_version__}, {git_str})'
