@@ -24,7 +24,7 @@ except Exception:  # Pbr throws very broad Exception, for some reason Distributi
     git_dir = Path(__file__).parent.parent / '.git'
     try:
         tagged = git._run_git_command(
-            ['describe'], git_dir,
+            ['describe', '--tags'], git_dir,
             throw_on_error=True).replace('-', '.')
         semantic_version = version.SemanticVersion.from_pip_string(tagged)
         __version__ = semantic_version.brief_string()
