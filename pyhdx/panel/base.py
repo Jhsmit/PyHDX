@@ -7,7 +7,6 @@ DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red', 'TF_rate': 'green', 'pfact': '#
 DEFAULT_CLASS_COLORS = ['#cc0c49', '#eded0e', '#1930e0']
 
 
-
 class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 
