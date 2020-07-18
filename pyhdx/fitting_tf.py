@@ -206,7 +206,7 @@ class TFFitResult(object):
             f_copy.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
 
             parameters = {func.parameter_name: tf.dtypes.cast(tf.expand_dims(wts, -1), tf.float32)}
-            X = tf.dtypes.cast(np.squeeze(ip, axis=0), tf.float32)
+            X = tf.dtypes.cast(np.squeeze(ip, axis=0), tf.float32)  # this no longer works
             d_out = f_copy(X, **parameters)
             print(d_out.shape)
 
