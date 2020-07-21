@@ -782,6 +782,7 @@ class KineticsFitting(object):
             cb = ftf.LossHistory()
             #early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
 
+            #loss_klass = ftf.NaNMeanSquaredError()
             model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
             result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
             losses.append(result.history['loss'])
@@ -884,13 +885,15 @@ class KineticsFitting(object):
 
         p_guess = k_int_section / init_rate
 
-        # fix nan's in p_guess from no coverage sections
-        idx = np.where(np.diff(np.isnan(p_guess)))[0]
+        # fix nan's (no coverage) or zeros (prolines) in p_guess from no coverage sections
+        bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
+
+        idx = np.where(np.diff(bools))[0]
         for start, stop in zip(idx[::2], idx[1::2]):
             replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
             p_guess[start + 1:stop + 1] = replacement[1:-1]
 
-        p_guess[p_guess == 0.] = 1.  # fix zeros in guesses
+        # p_guess[p_guess == 0.] = 1.  # fix zeros in guesses
 
         guess_vals = np.log10(p_guess)
 

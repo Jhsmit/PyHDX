@@ -167,7 +167,7 @@ class TFFitResult(object):
     def __init__(self, series, intervals, funcs, weights, inputs, loss=None):
         #assert len(results) == len(weights)
         #        assert len(models) == len(block_length)
-        self.r_number = series.cov.r_number
+        self.r_number = series.tf_cov.r_number
         self.series = series
         self.intervals = intervals  # inclusive, excluive
         self.funcs = funcs
