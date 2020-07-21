@@ -74,15 +74,10 @@ class TestSimulatedDataFit(object):
         states = pmt.groupby_state()
         series = states['state1']
 
-        kf = KineticsFitting(series, bounds=(1e-2, 800))
+        kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=300, pH=8)
         initial_rates = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
 
-        temperature, pH = 300, 8
-        k_int = series.cov.calc_kint(temperature, pH, c_term=None)
-        k_r_number = series.cov.sequence_r_number
-        k_dict = {'r_number': k_r_number, 'k_int': k_int}
-
-        fr_pfact = kf.global_fit(initial_rates, k_int=k_dict)
+        fr_pfact = kf.global_fit(initial_rates, use_kint=True)
         out_pfact = fr_pfact.output
 
         check_pfact = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_pfact.txt'))
