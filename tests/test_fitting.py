@@ -40,11 +40,12 @@ class TestSimulatedDataFit(object):
     def setup_class(cls):
         fpath = os.path.join(directory, 'test_data', 'simulated_data.csv')
         cls.data = np_from_txt(fpath, delimiter=',')
+        cls.data['end'] += 1  # because this simulated data is in old format of inclusive, inclusive
         cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
 
         cls.timepoints = [0.167, 0.5, 1, 5, 10, 30, 100]
-        cls.start, cls.end = 5, 45 # total span of protein (inc, inc)
-        cls.nc_start, cls.nc_end = 31, 34 # span of no coverage area (inc, inc)
+        cls.start, cls.end = 5, 46 # total span of protein (inc, ex)
+        cls.nc_start, cls.nc_end = 31, 35 # span of no coverage area (inc, ex)
 
     def test_fitting(self):
         np.random.seed(43)

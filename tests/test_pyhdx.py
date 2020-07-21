@@ -141,14 +141,15 @@ class TestSimulatedData(object):
     def setup_class(cls):
         fpath = os.path.join(directory, 'test_data', 'simulated_data.csv')
         cls.data = np_from_txt(fpath, delimiter=',')
+        cls.data['end'] += 1 # because this simulated data is in old format of inclusive, inclusive
         cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
 
         cls.timepoints = [0.167, 0.5, 1, 5, 10, 30, 100]
-        cls.start, cls.end = 5, 45  # total span of protein (inc, inc)
-        cls.nc_start, cls.nc_end = 31, 34  # span of no coverage area (inc, inc)
+        cls.start, cls.end = 5, 46  # total span of protein (inc, excl)
+        cls.nc_start, cls.nc_end = 31, 35  # span of no coverage area (inc, inc)
 
     def test_keep_prolines(self):
-        pcf = PeptideMasterTable(self.data, drop_first=0, ignore_prolines=False)
+        pcf = PeptideMasterTable(self.data, drop_first=0, ignore_prolines=False, remove_nan=False)
         states = pcf.groupby_state()
         assert len(states) == 1
         series = states['state1']
@@ -158,14 +159,14 @@ class TestSimulatedData(object):
 
         assert peptides.start == self.start
         assert peptides.end == self.end
-        assert len(peptides.r_number) == self.end - self.start + 1
+        assert len(peptides.r_number) == self.end - self.start
         assert np.all(np.diff(peptides.r_number) == 1)
-        assert peptides.prot_len == self.end - self.start + 1
+        assert peptides.prot_len == self.end - self.start
 
         blocks = [1, 4, 2, 4, 3, 2, 10, 4, 2, 3, 3, 2, 1]
         assert np.all(blocks == peptides.block_length)
 
-        lengths = peptides.data['end'] - peptides.data['start'] + 1
+        lengths = peptides.data['end'] - peptides.data['start']
         assert np.all(lengths == peptides.data['ex_residues'])
 
         block_coverage = [True, True, True, True, True, True, True, False, True, True, True, True, True]
@@ -173,7 +174,7 @@ class TestSimulatedData(object):
 
         for row in peptides.X:
             assert np.sum(row) == 1
-        assert peptides.X.shape == (len(self.data) / len(self.timepoints), self.end - self.start + 1)
+        assert peptides.X.shape == (len(self.data) / len(self.timepoints), self.end - self.start)
 
         assert np.all(np.sum(peptides.X, axis=1) == 1)
 
@@ -185,7 +186,7 @@ class TestSimulatedData(object):
         cov_blocks = [elem[0] for elem in unique_elems if len(elem) == 1]
         assert np.all(peptides.block_length[peptides.block_coverage] == cov_blocks)
 
-        assert peptides.block_length[~peptides.block_coverage] == self.nc_end - self.nc_start + 1
+        assert peptides.block_length[~peptides.block_coverage] == self.nc_end - self.nc_start
         assert np.sum(peptides.has_coverage) == self.nc_start - self.start + self.end - self.nc_end
 
         assert peptides.exposure == self.timepoints[3]
@@ -193,7 +194,7 @@ class TestSimulatedData(object):
         assert peptides.sequence == self.sequence
 
         # series keys are inclusive, exclusive
-        keys = [f'{self.start}_{self.nc_start}', f'{self.nc_end + 1}_{self.end + 1}']
+        keys = [f'{self.start}_{self.nc_start}', f'{self.nc_end}_{self.end}']
         split = series.split()
 
         for k1, k2 in zip(keys, split.keys()):
@@ -202,14 +203,14 @@ class TestSimulatedData(object):
         s1 = split[keys[0]]
         p1 = s1[3]
         assert p1.start == self.start
-        assert p1.end == self.nc_start - 1
+        assert p1.end == self.nc_start
         assert np.all(p1.r_number == np.arange(self.start, self.nc_start))
 
         s2 = split[keys[1]]
         p2 = s2[3]
-        assert p2.start == self.nc_end + 1
+        assert p2.start == self.nc_end
         assert p2.end == self.end
-        assert np.all(p2.r_number == np.arange(self.nc_end + 1, self.end + 1))
+        assert np.all(p2.r_number == np.arange(self.nc_end, self.end))
 
         for i, t in enumerate(self.timepoints):
             # Check all timepoints in both split series
@@ -222,7 +223,7 @@ class TestSimulatedData(object):
     def test_drop_first_prolines(self):
         for i, df in enumerate([1, 2, 3]):
             print('df', df)
-            pcf = PeptideMasterTable(self.data, drop_first=df, ignore_prolines=True)
+            pcf = PeptideMasterTable(self.data, drop_first=df, ignore_prolines=True, remove_nan=False)
             states = pcf.groupby_state()
             assert len(states) == 1
             series = states['state1']
@@ -240,7 +241,6 @@ class TestSimulatedData(object):
             ex_res = ''.join(list(peptides.sequence[i] for i in peptides.r_number - 1))
             # this only holds up to the first coverage break
             assert ex_res[:10] == self.sequence[peptides.start - 1:].replace('P', '')[:10]
-
 
 
             assert np.sum(peptides.block_length) == len(peptides.r_number)

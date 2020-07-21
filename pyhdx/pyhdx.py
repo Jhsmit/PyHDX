@@ -335,7 +335,7 @@ class Coverage(object):
         self._start = np.min(self.data['_start'])
         self.end = np.max(self.data['end'])
         self._end = np.max(self.data['_end'])
-        self.r_number = np.arange(self.start, self.end + 1)
+        self.r_number = np.arange(self.start, self.end)
 
         # Find all indices of prolines in the middle of sequences, remove from r_number array and from sequence
         p = [entry['_start'] + i - self.start for entry in self.data for i, s in enumerate(entry['sequence']) if s == 'p']
@@ -346,7 +346,7 @@ class Coverage(object):
         self.X = np.zeros((len(self.data), len(self.r_number)), dtype=float)
         for row, entry in enumerate(self.data):
             i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
-            self.X[row][i0:i1+1] = 1 / entry['ex_residues']
+            self.X[row][i0:i1] = 1 / entry['ex_residues']
 
     @property
     def block_length(self):
@@ -354,12 +354,12 @@ class Coverage(object):
             along the `r_number` axis"""
 
         # indices are start and stop values of blocks
-        indices = np.sort(np.concatenate([self.data['start'], self.data['end'] + 1]))
-
+        print(self.data['end'])
+        indices = np.sort(np.concatenate([self.data['start'], self.data['end']]))
+        print(indices)
         #indices of insertion into r_number vector gives us blocks with taking prolines into account.
         diffs = np.diff(np.searchsorted(self.r_number, indices))
 
-        #diffs = np.diff(indices)
         block_length = diffs[diffs != 0]
         return block_length
 
@@ -378,7 +378,7 @@ class Coverage(object):
         X_red = np.zeros((len(self.data), len(self.block_length)), dtype=float)
         for row, entry in enumerate(self.data):
             i0 = entry['start'] - self.start
-            i1 = entry['end'] - self.start + 1
+            i1 = entry['end'] - self.start
             p = np.searchsorted(cs, [i0, i1], side='right')
 
             X_red[row][p[0]:p[1]] = self.block_length[p[0]:p[1]]
@@ -411,7 +411,7 @@ class Coverage(object):
         seq = np.full_like(r_number, fill_value='X', dtype='U')
 
         for d in self.data:
-            i, j = np.searchsorted(r_number, [d['_start'], d['_end'] + 1])
+            i, j = np.searchsorted(r_number, [d['_start'], d['_end']])
             seq[i:j] = [s for s in d['_sequence']]
         return ''.join(seq)
 
@@ -419,7 +419,7 @@ class Coverage(object):
     def sequence_r_number(self):
         """~class:`numpy.ndarray`: Array of r numbers corresponding to residues in sequence"""
         start = min(self._start, 1)  # start at least at 1 unless the protein extends into negative numbers
-        r_number = np.arange(start, self._end + 1)
+        r_number = np.arange(start, self._end)
 
         return r_number
 
@@ -501,7 +501,7 @@ class Coverage(object):
         with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
         and larger values tolerate larger gap sizes.
         """
-        intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
+        intervals = [(s, e) for s, e in zip(self.data['start'], self.data['end'])]
         sections = reduce_inter(intervals, gap_size=gap_size)
 
         return sections

@@ -608,8 +608,8 @@ class KineticsFitting(object):
         intervals = []
         d_list = []
         for section in split.values():
-            s, e = section.cov.start, section.cov.end  #inclusive, inclusive (source file)
-            intervals.append((s, e + 1))  #inclusive, exclusive
+            s, e = section.cov.start, section.cov.end  #inclusive, exclusive
+            intervals.append((s, e))  #inclusive, exclusive
 
             blocks = block_func(section.cov, **block_kwargs)
             model = LSQKinetics(initial_result, section, blocks, self.bounds, model_type=model_type)
@@ -808,8 +808,8 @@ class KineticsFitting(object):
         import pyhdx.fitting_tf as ftf
 
         for section in self.k_series.split(gap_size=0).values():
-            s, e = section.cov.start, section.cov.end  # inclusive, inclusive (source file)
-            interval = (s, e + 1)
+            s, e = section.cov.start, section.cov.end  # inclusive, exclusive
+            interval = (s, e)
 
             indices = np.searchsorted(initial_result['r_number'], section.cov.r_number)
             if not len(indices) == len(np.unique(indices)):
