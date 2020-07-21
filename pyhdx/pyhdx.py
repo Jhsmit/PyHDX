@@ -479,8 +479,11 @@ class Coverage(object):
 
         klass = self.__class__
 
-        intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
-        sections = reduce_inter(intervals, gap_size=gap_size)
+        # intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
+        # sections = reduce_inter(intervals, gap_size=gap_size)
+
+        sections = self.get_sections(gap_size)
+
         output = {}
         for s, e in sections:
 
@@ -488,6 +491,20 @@ class Coverage(object):
             output[f'{s}_{e}'] = klass(self.data[b])
 
         return output
+
+    def get_sections(self, gap_size=-1):
+        """get the intervals of sections of coverage
+        intervals are inclusive, exclusive
+
+            gap_size: :obj:`int`
+        Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
+        with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
+        and larger values tolerate larger gap sizes.
+        """
+        intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
+        sections = reduce_inter(intervals, gap_size=gap_size)
+
+        return sections
 
     def __eq__(self, other):
         """Coverage objects are considered equal if both objects fully match between their start, end and sequence fields"""
