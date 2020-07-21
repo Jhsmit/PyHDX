@@ -578,12 +578,16 @@ def fit_global(data, model):
 
 class KineticsFitting(object):
 
-    def __init__(self, k_series, bounds=None, cluster=None):
+    def __init__(self, k_series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
         #todo check if coverage is the same!
         assert k_series.uniform
-        self.cluster = cluster
+
         self.k_series = k_series
         self.bounds = bounds or self._get_bounds()
+        self.temperature = temperature
+        self.pH = pH
+        self.c_term = c_term
+        self.cluster = cluster
 
     def _get_bounds(self):
         #todo document
@@ -743,15 +747,26 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
 
-    def global_fit(self, initial_result, k_int=None, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
+    def global_fit(self, initial_result, use_kint=True, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
         import pyhdx.fitting_tf as ftf
+
+        #todo sessions
+        #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
 
         intervals = []
         weights = []
         funcs = []
         inputs = []
         losses = []
-        gen = self._prepare_global_fit_gen(initial_result, k_int=k_int, l1=l1, l2=l2)
+
+        if use_kint:
+            k_int = self.k_series.cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
+            k_r_number = self.k_series.cov.sequence_r_number
+            k_dict = {'r_number': k_r_number, 'k_int': k_int}
+        else:
+            k_dict = None
+
+        gen = self._prepare_global_fit_gen(initial_result, k_int=k_dict, l1=l1, l2=l2)
 
         early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
         callbacks = [early_stop] if callbacks is None else callbacks
