@@ -120,7 +120,7 @@ class AssociationPFactFunc(object):
         """
         pfact = 10**parameters[self.parameter_name]
         uptake = 1 - tf.exp(-tf.matmul((inputs[1]/(1 + pfact)), self.timepoints))
-        return 100*tf.matmul(inputs[0], uptake)
+        return tf.matmul(inputs[0], uptake)
 
     # def compute_output_shape(self, input_shape):
     #     return input_shape[0], len(self.timepoints)
@@ -147,7 +147,7 @@ class AssociationRateFunc(object):
     def __call__(self, inputs, **parameters):
         k = 10**parameters[self.parameter_name]
         uptake = 1 - tf.exp(-tf.matmul(k, self.timepoints))
-        return 100*tf.matmul(inputs[0], uptake)
+        return tf.matmul(inputs[0], uptake)
 
     # def compute_output_shape(self, input_shape):
     #     return input_shape[0], len(self.timepoints)
