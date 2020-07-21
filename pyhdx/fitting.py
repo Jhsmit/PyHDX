@@ -853,6 +853,84 @@ class KineticsFitting(object):
 
             yield model, interval, input_data, output_data
 
+    def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
+        """TF global fitting using new coverage object"""
+        import pyhdx.fitting_tf as ftf
+
+        #todo sessions
+        #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
+
+        if use_kint:
+            k_int = self.k_series.tf_cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
+        else:
+            k_int = np.array([1. if s not in ['X', 'P'] else 0. for s in self.k_series.tf_cov.sequence])
+
+        k_r_number = self.k_series.cov.sequence_r_number
+        k_dict = {'r_number': k_r_number, 'k_int': k_int}  #todo get rid of this dict nonsense
+
+
+        indices = np.searchsorted(initial_result['r_number'], self.k_series.tf_cov.r_number)
+        if not len(indices) == len(np.unique(indices)):
+            print('WARNING')
+            #raise ValueError('Invalid match between section r number and initial result r number')
+        init_rate = initial_result['rate'][indices]
+
+        regularizer = ftf.L1L2Differential(l1, l2)
+
+        indices = np.searchsorted(k_dict['r_number'], self.k_series.tf_cov.r_number)
+        if not len(indices) == len(np.unique(indices)):
+            raise ValueError('Invalid match between section r number and k_int r number')
+        k_int_section = k_dict['k_int'][indices]
+
+        p_guess = k_int_section / init_rate
+
+        # fix nan's in p_guess from no coverage sections
+        idx = np.where(np.diff(np.isnan(p_guess)))[0]
+        for start, stop in zip(idx[::2], idx[1::2]):
+            replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
+            p_guess[start + 1:stop + 1] = replacement[1:-1]
+
+        p_guess[p_guess == 0.] = 1.  # fix zeros in guesses
+
+        guess_vals = np.log10(p_guess)
+
+        if np.any(np.isnan(guess_vals)):
+            raise ValueError('NaN values in initial guess values')
+
+        parameter = ftf.TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
+        func = ftf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
+
+        # expand dimensions of k_int to allow outer product with time and match the shape of parameter
+        inputs_list = [self.k_series.tf_cov.X, np.expand_dims(k_int_section, -1)]
+        input_layers = [ftf.Input(array.shape) for array in inputs_list]
+        layer = ftf.CurveFit([parameter], func, name='association')
+        outputs = layer(input_layers)
+
+        wts = np.expand_dims(guess_vals.astype(np.float32), -1)
+        layer.set_weights([wts])
+
+        model = ftf.Model(inputs=input_layers, outputs=outputs)
+
+        input_data = [np.expand_dims(array, 0) for array in inputs_list]  # np.expand_dims(section.cov.X, 0)
+        output_data = np.expand_dims(self.k_series.uptake_corrected.T, 0)
+
+        early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
+        callbacks = [early_stop] if callbacks is None else callbacks
+        if not np.any([isinstance(cb, ftf.EarlyStopping) for cb in callbacks]):
+            callbacks.append(early_stop)
+
+        cb = ftf.LossHistory()
+        model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
+        result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
+
+        print('number of epochs', len(result.history['loss']))
+        wts = np.squeeze(cb.weights[-1][0])  # weights are the first weights from the last layer
+
+        intervals = [(self.k_series.tf_cov.start, self.k_series.tf_cov.end)]
+        tf_fitresult = ftf.TFFitResult(self.k_series, intervals, [func], [wts], [input_data], loss=[result.history['loss']])
+
+        return tf_fitresult
+
 
 class KineticsFitResult(object):
     """

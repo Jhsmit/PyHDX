@@ -192,8 +192,9 @@ class PeptideMasterTable(object):
         # Sort both datasets by starting index and then by sequence to make sure they are both equal
         data_final = np.sort(data_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
-        #Apply controls for each sequence
+        #Apply controls for each sequence  (#todo there must be a better way to do this)
         scores = np.zeros(len(data_final), dtype=float)
+        uptake_corrected = np.zeros(len(data_final), dtype=float)
         for c_100, c_0 in zip(control_100_final, control_0_final):
             bs = data_final['start'] == c_100['start']
             be = data_final['end'] == c_100['end']
@@ -201,13 +202,19 @@ class PeptideMasterTable(object):
             uptake = data_final[b_all]['uptake']
             scores[b_all] = 100 * (uptake - c_0['uptake']) / (c_100['uptake'] - c_0['uptake'])
 
-        if 'scores' in data_final.dtype.names:
-            data_scores = data_final
-            data_scores['scores'] = scores
-        else:
-            data_scores = append_fields(data_final, 'scores', data=scores, usemask=False)
+            uptake_corrected[b_all] = (uptake / c_100['uptake']) * data_final[b_all]['ex_residues']
 
-        self.data = data_scores
+        if 'scores' in data_final.dtype.names:
+            data_final['scores'] = scores
+        else:
+            data_final = append_fields(data_final, 'scores', data=scores, usemask=False)
+
+        if 'uptake_corrected' in data_final.dtype.names:
+            data_final['uptake_corrected'] = uptake_corrected
+        else:
+            data_final = append_fields(data_final, 'uptake_corrected', data=uptake_corrected, usemask=False)
+
+        self.data = data_final
 
     def return_by_name(self, control_state, control_exposure):
         #todo return dictionary of kinetic series instead
@@ -296,6 +303,173 @@ class PeptideMasterTable(object):
     def exposures(self):
         """:~classs:np.ndarray: Array with unique exposures"""
         return np.unique(self.data['exposure'])
+
+
+class TFCoverage(object):
+    """
+    Object describing layout and coverage of peptides and generating the corresponding matrices. Peptides should all
+    belong to the same state and have the same exposure time.
+
+    Parameters
+    ----------
+    data : ~class:`~numpy.ndarray`
+        Numpy structured array with input peptides
+
+    Attributes
+    ----------
+        start : :obj:`int`
+            Index of residue first appearing in the peptides (first residue is 1)
+        end : :obj:`int`
+            Index of last residue appearing in the peptides (inclusive)
+        r_number : :class:`~numpy.ndarray`
+            Array of residue numbers which are covered by the peptides, excluding prolines if they are set to be ignored.
+        prot_len : :obj:`int`
+            Total number of residues the peptides covering, excluding prolines if they are set to be ignored.
+        X : :class:`~numpy.ndarray`
+            N x M matrix where N is the number of peptides and M equal to `prot_len`.
+            Values are 1/(ex_residues) where there is coverage, so that rows sum to 1
+    """
+
+    def __init__(self, data):
+        assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
+        assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
+
+
+        self.data = data
+        self.start = np.min(self.data['start'])
+        self._start = np.min(self.data['_start'])
+        self.end = np.max(self.data['end'])
+        self._end = np.max(self.data['_end'])
+        self.r_number = np.arange(self.start, self.end)
+
+        self.prot_len = len(self.r_number)
+
+        self.X = np.zeros((len(self.data), len(self.r_number)), dtype=np.int)  # cast to float for tf fit
+        for row, entry in enumerate(self.data):
+            i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
+            self.X[row][i0:i1] = 1
+
+    @property
+    def X_norm(self):
+        """:class:`~np.ndarray`: `X` coefficient matrix normalized column wise."""
+        return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
+
+    @property
+    def has_coverage(self):
+        """:class:`~np.ndarray`: Boolean array indicating if the residues along r_number have coverage"""
+        return np.sum(self.X, axis=0) > 0
+
+    def __len__(self):
+        return len(self.data)
+
+    @property
+    def sequence(self):
+        """:obj:`str`: String of the full protein sequence. One letter coding where X marks regions of no coverage"""
+
+        r_number = self.sequence_r_number
+        seq = np.full_like(r_number, fill_value='X', dtype='U')
+
+        for d in self.data:
+            i, j = np.searchsorted(r_number, [d['_start'], d['_end']])
+            seq[i:j] = [s for s in d['_sequence']]
+        return ''.join(seq)
+
+    @property
+    def sequence_r_number(self):
+        """~class:`numpy.ndarray`: Array of r numbers corresponding to residues in sequence"""
+        start = min(self._start, 1)  # start at least at 1 unless the protein extends into negative numbers
+        r_number = np.arange(start, self._end)
+
+        return r_number
+
+    def calc_kint(self, temperature, pH, c_term):
+        """
+        Calculates the intrinsic rate of the sequence. Values of no coverage or prolines are assigned a value of -1
+        The rates run are for the first residue (1) up to the last residue that is covered by peptides
+
+        When the previous residue is unknown the current residue is also assigned a value of -1.g
+
+        Parameters
+        ----------
+        temperature: : :obj:`float`
+            Temperature of the labelling reaction (Kelvin)
+        pH : :obj:`float`
+            pH of the labelling reaction
+        c_term : :obj:`int`
+            index of the last residue in the sequence (first residue is 1)
+
+        Returns
+        -------
+
+        k_int : ~class:`~numpy.ndarray`
+            Array of intrisic exchange rates
+
+        """
+
+        c_term = len(self.sequence) + 1 if c_term is None else c_term
+        k_int_list = [-1.]
+        for i, (previous, current) in enumerate(zip(self.sequence[:-1], self.sequence[1:])):
+            if previous == 'X' or current == 'X':
+                k_int_list.append(0.)
+            elif current == 'P':
+                k_int_list.append(0.)
+            else:
+                k_int = calculate_kint_per_residue(previous, current, i + 2, c_term, temperature, pH)
+                k_int_list.append(k_int)
+        return np.array(k_int_list)
+
+    def split(self, gap_size=-1):
+        """
+        Splits the dataset into independent parts which have no overlapping peptides between them. To determine overlap,
+        the modified 'start' and 'end' fields are used which take into account N-terminal non-exchanging residues and
+        prolines.
+
+        Returns
+        -------
+
+        output: :obj:`dict`
+            Dictionary where keys are {start}_{end} (inclusive, exclusive) of the corresponding sections, values are
+            of the ``type`` of the current instance.
+        gap_size: :obj:`int`
+            Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
+            with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
+            and larger values tolerate larger gap sizes.
+        """
+
+        klass = self.__class__
+
+        # intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
+        # sections = reduce_inter(intervals, gap_size=gap_size)
+
+        sections = self.get_sections(gap_size)
+
+        output = {}
+        for s, e in sections:
+
+            b = np.logical_and(self.data['start'] >= s, self.data['end'] <= e)
+            output[f'{s}_{e}'] = klass(self.data[b])
+
+        return output
+
+    def get_sections(self, gap_size=-1):
+        """get the intervals of sections of coverage
+        intervals are inclusive, exclusive
+
+            gap_size: :obj:`int`
+        Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
+        with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
+        and larger values tolerate larger gap sizes.
+        """
+        intervals = [(s, e) for s, e in zip(self.data['start'], self.data['end'])]
+        sections = reduce_inter(intervals, gap_size=gap_size)
+
+        return sections
+
+    def __eq__(self, other):
+        """Coverage objects are considered equal if both objects fully match between their start, end and sequence fields"""
+        assert isinstance(other, Coverage), "Other must be an instance of Coverage"
+        return len(self.data) == len(other.data) and np.all(self.data['start'] == other.data['start']) and \
+               np.all(self.data['end'] == other.data['end']) and np.all(self.data['sequence'] == other.data['sequence'])
 
 
 class Coverage(object):
@@ -556,6 +730,7 @@ class KineticsSeries(object):
             if self.uniform:
                 # Use first peptideset to create coverage object
                 self.cov = Coverage(data[0].data)
+                self.tf_cov = TFCoverage(data[0].data)
             else:
                 self.cov = None
 
@@ -581,6 +756,7 @@ class KineticsSeries(object):
         if in_place:
             self.peptides = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
             self.cov = Coverage(self[0].data)
+            self.tf_cov = TFCoverage(self[0].data)
 
 
         else:
@@ -688,6 +864,11 @@ class KineticsSeries(object):
         scores_peptides = np.stack([v.scores for v in self])
         return scores_peptides
 
+    @property
+    def uptake_corrected(self):
+        uptake_corrected = np.stack([v.uptake_corrected for v in self])
+        return uptake_corrected
+
 
 class PeptideMeasurements(Coverage):
     """
@@ -741,6 +922,10 @@ class PeptideMeasurements(Coverage):
             return self.data['scores']
         except ValueError:
             return self.data['uptake']
+
+    @property
+    def uptake_corrected(self):
+        return self.data['uptake_corrected']
 
     def set_control(self, control_100, control_0=None, remove_nan=True):
         """
