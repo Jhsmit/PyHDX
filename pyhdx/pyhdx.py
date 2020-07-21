@@ -418,6 +418,16 @@ class TFCoverage(object):
                 k_int_list.append(k_int)
         return np.array(k_int_list)
 
+    def get_kint_array(self, temperature, pH, c_term):
+        k_int = self.calc_kint(temperature, pH, c_term=c_term)
+        k_r_number = self.sequence_r_number
+
+        output = np.empty(len(k_int), dtype=[('r_number', np.int), ('k_int', np.float)])
+        output['r_number'] = k_r_number
+        output['k_int'] = k_int
+
+        return output
+
     def split(self, gap_size=-1):
         """
         Splits the dataset into independent parts which have no overlapping peptides between them. To determine overlap,
