@@ -154,7 +154,7 @@ class PeptideMasterTable(object):
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
         value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
-        control or vice versa are deleted. (#todo perhaps set to NaN instead)
+        control or vice versa are deleted.
         Optionally, ``control_zero`` can be specified which is a dataset whose uptake value will be used to zero
         the uptake.
 
@@ -166,7 +166,7 @@ class PeptideMasterTable(object):
             tuple with (`state`, `exposure`) for peptides to use for normalization to 100%
             Numpy structured array with control peptides to use for normalization to 100%
         control_0 : tuple, optional
-            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values
+            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values to 100%
 
         """
 
