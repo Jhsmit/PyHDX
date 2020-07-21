@@ -451,7 +451,7 @@ class Coverage(object):
         k_int_list = [-1.]
         for i, (previous, current) in enumerate(zip(self.sequence[:-1], self.sequence[1:])):
             if previous == 'X' or current == 'X':
-                k_int_list.append(-1)
+                k_int_list.append(0.)
             elif current == 'P':
                 k_int_list.append(-1)
             else:
