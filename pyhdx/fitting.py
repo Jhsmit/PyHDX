@@ -867,8 +867,7 @@ class KineticsFitting(object):
             k_int = np.array([1. if s not in ['X', 'P'] else 0. for s in self.k_series.tf_cov.sequence])
 
         k_r_number = self.k_series.cov.sequence_r_number
-        k_dict = {'r_number': k_r_number, 'k_int': k_int}  #todo get rid of this dict nonsense
-
+        k_dict = {'r_number': k_r_number, 'k_int': k_int}  #todo get rid of this dict nonsense self.k_series.get_kint_array?
 
         indices = np.searchsorted(initial_result['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):
@@ -876,30 +875,28 @@ class KineticsFitting(object):
             #raise ValueError('Invalid match between section r number and initial result r number')
         init_rate = initial_result['rate'][indices]
 
-        regularizer = ftf.L1L2Differential(l1, l2)
 
         indices = np.searchsorted(k_dict['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):
             raise ValueError('Invalid match between section r number and k_int r number')
         k_int_section = k_dict['k_int'][indices]
-
         p_guess = k_int_section / init_rate
 
         # fix nan's (no coverage) or zeros (prolines) in p_guess from no coverage sections
         bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
-
         idx = np.where(np.diff(bools))[0]
         for start, stop in zip(idx[::2], idx[1::2]):
             replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
             p_guess[start + 1:stop + 1] = replacement[1:-1]
-
-        # p_guess[p_guess == 0.] = 1.  # fix zeros in guesses
 
         guess_vals = np.log10(p_guess)
 
         if np.any(np.isnan(guess_vals)):
             raise ValueError('NaN values in initial guess values')
 
+        import pyhdx.fitting_tf as ftf
+
+        regularizer = ftf.L1L2Differential(l1, l2)
         parameter = ftf.TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
         func = ftf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
 
