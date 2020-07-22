@@ -916,6 +916,8 @@ class KineticsFitting(object):
 
         input_data = [np.expand_dims(array, 0) for array in inputs_list]  # np.expand_dims(section.cov.X, 0)
         output_data = np.expand_dims(self.k_series.uptake_corrected.T, 0)
+#        output_data = np.expand_dims(self.k_series.uptake_corrected.T, 0)
+
 
         early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
         callbacks = [early_stop] if callbacks is None else callbacks
