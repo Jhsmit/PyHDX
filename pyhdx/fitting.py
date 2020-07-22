@@ -936,6 +936,27 @@ class KineticsFitting(object):
 
         return tf_fitresult
 
+    def weighted_avg_t50(self):
+        """
+        Calculates exchange rates based on weighted averaging followed by interpolation to determine half-time, which is
+        then calculated to rates.
+
+        Returns
+        -------
+
+        output: :~class:np.ndarray
+            array with fields r_number, rate
+
+        """
+        #todo this is uing the soon to be depcrecated coverage object
+        interpolated = np.array([np.interp(50, d_uptake, self.k_series.timepoints) for d_uptake in self.k_series.scores_stack.T])
+
+        output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
+        output['r_number'] = self.k_series.cov.r_number
+        output['rate'] = np.log(2) / interpolated
+
+        return output
+
 
 class KineticsFitResult(object):
     """
