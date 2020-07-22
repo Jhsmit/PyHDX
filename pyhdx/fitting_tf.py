@@ -7,8 +7,20 @@ from tensorflow.python.ops import math_ops
 from tensorflow.keras.optimizers import Adagrad
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import Sequential, Model
+from tensorflow.keras.losses import Loss
 import numpy as np
 import copy
+
+
+class NaNMeanSquaredError(Loss):
+    """MSE which ignores nan entries"""
+    def call(self, y_true, y_pred):
+        y_pred = tf.convert_to_tensor(y_pred)
+        y_true = math_ops.cast(y_true, y_pred.dtype)
+        diff = math_ops.square(y_pred - y_true)  # has nans
+
+        nanmean = tf.reduce_mean(tf.boolean_mask(diff, ~tf.math.is_nan(diff)))
+        return nanmean
 
 
 class L1L2Differential(Regularizer):
