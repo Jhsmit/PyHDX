@@ -282,7 +282,7 @@ class ThdLogFigure(FigurePanel):
 
 
 class RateFigure(ThdLogFigure):
-    accepted_sources = ['fit1', 'fit2', 'TF_rate']
+    accepted_sources = ['half-life', 'fit1', 'fit2', 'TF_rate']
 
     def draw_figure(self):
         figure = super().draw_figure()

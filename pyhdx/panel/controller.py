@@ -29,7 +29,7 @@ matplotlib.use('agg') # for panel mpl support
 from functools import partial
 #from .widgets import NumericInput
 from bokeh.models import ColumnDataSource
-
+from collections import namedtuple
 #dev only
 import pickle
 
@@ -49,6 +49,8 @@ empty_results = {
     'fit1': dic.copy(),
     'fit2': dic.copy()
 }
+
+HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
 
 class Controller(param.Parameterized):
@@ -414,12 +416,12 @@ class CoverageControl(ControlPanel):
 
 
 class FittingControl(ControlPanel):
-    header = 'Rate Fitting'
+    header = 'Initial Guesses'
 
     #r_max = param.Number(27, doc='Ceil value for rates', precedence=-1)  # Update this value
     chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
 
-    fitting_model = param.Selector(default='Association', objects=['Association', 'Dissociation'])
+    fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association', 'Dissociation'])
     do_fit1 = param.Action(lambda self: self._action_fit1())
     block_mode = param.ObjectSelector(default='reduced', objects=['reduced', 'original', 'constant'])
 
@@ -503,13 +505,31 @@ class FittingControl(ControlPanel):
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
 
-        if self.parent.cluster:
-            print(self.parent.cluster)
-            self.parent.doc = pn.state.curdoc
-            loop = IOLoop.current()
-            loop.add_callback(self._fit1_async)
+        if self.fitting_model == 'Half-life (λ)':
+            kf = KineticsFitting(self.parent.series)
+            output = kf.weighted_avg_t50()
+            fit_result = HalfLifeFitResult(output=output)
+            dic = {name: output[name] for name in output.dtype.names}
+            dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
+            dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
+
+            self.parent.fit_results['half-life'] = fit_result
+            self.parent.sources['half-life'] = ColumnDataSource(dic)
+
+            self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
+            self.parent.param.trigger('sources')  # Informs listening plots that there is new data available
+
+            self.param['do_fit1'].constant = False
+            self.param['do_fit2'].constant = False
         else:
-            self._fit1()
+
+            if self.parent.cluster:
+                print(self.parent.cluster)
+                self.parent.doc = pn.state.curdoc
+                loop = IOLoop.current()
+                loop.add_callback(self._fit1_async)
+            else:
+                self._fit1()
 
         # fit_result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
         # rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
@@ -611,7 +631,9 @@ class FittingControl(ControlPanel):
 class TFFitControl(ControlPanel):
     header = 'TF Single residue fit'
 
-    fitting_type = param.Selector(objects=['Protection Factors', 'Rates'], default='Protection Factors')
+    #fitting_type = param.Selector(objects=['Protection Factors', 'Rates'], default='Protection Factors')
+
+    initial_guess = param.Selector()
 
     c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds')  # remove
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
@@ -620,7 +642,7 @@ class TFFitControl(ControlPanel):
     stop_loss = param.Number(0.1, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
     stop_patience = param.Integer(50, bounds=(1, None), doc='Number of epochs where stop loss should be satisfied before stopping')
     learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
-    epochs = param.Number(10000, bounds=(1, None), doc='Maximum number of epochs (iterations')
+    epochs = param.Number(100000, bounds=(1, None), doc='Maximum number of epochs (iterations')
 
     l1_regularizer = param.Number(2000, bounds=(0, None), doc='Value for l1 regularizer')
     l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
@@ -638,55 +660,56 @@ class TFFitControl(ControlPanel):
         kwargs = {name: pn.param.LiteralInputTyped(param.Number(0.)) for name in ['temperature', 'pH', 'stop_loss', 'learning_rate', 'l1_regularizer', 'l2_regularizer']}
         return self.generate_widgets(**kwargs)
 
-    @param.depends('fitting_type', watch=True)
-    def _update_fitting_type(self):
-        if self.fitting_type == 'Protection Factors':
-            self.box_insert_after('fitting_type', 'c_term')
-            self.box_insert_after('c_term', 'temperature')
-            self.box_insert_after('temperature', 'pH')
-        elif self.fitting_type == 'Rates':
-            self.box_pop('c_term')
-            self.box_pop('temperature')
-            self.box_pop('pH')
+    # @param.depends('fitting_type', watch=True)
+    # def _update_fitting_type(self):
+    #     # (temporarily) removed
+    #     if self.fitting_type == 'Protection Factors':
+    #         self.box_insert_after('fitting_type', 'c_term')
+    #         self.box_insert_after('c_term', 'temperature')
+    #         self.box_insert_after('temperature', 'pH')
+    #     elif self.fitting_type == 'Rates':
+    #         self.box_pop('c_term')
+    #         self.box_pop('temperature')
+    #         self.box_pop('pH')
 
     def _parent_series_updated(self, *events):
         end = self.parent.series.cov.end
         self.c_term = int(end + 5)
 
     def _parent_fit_results_updated(self, *events):
-        if 'fit1' in self.parent.fit_results:
+        possible_initial_guesses = ['half-life', 'fit1']
+        objects = [name for name in possible_initial_guesses if name in self.parent.fit_results.keys()]
+        if objects:
             self.param['do_fit'].constant = False
+
+
+        self.param['initial_guess'].objects = objects
+        if not self.initial_guess and objects:
+            self.initial_guess = objects[0]
 
     def _do_fitting(self):
         self.param['do_fit'].constant = True
-
         import pyhdx.fitting_tf as tft
-        if self.fitting_type == 'Protection Factors':
-            k_int = self.parent.series.cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
-            k_r_number = self.parent.series.cov.sequence_r_number
-            k_dict = {'r_number': k_r_number, 'k_int': k_int}
 
-            output_name = 'pfact'
-            var_name = 'log_P'
-        elif self.fitting_type == 'Rates':
-            k_dict = None
-            output_name = 'TF_rate'
-            var_name = 'log_k'
-
-        initial_result = self.parent.fit_results['fit1'].output
-
+        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
+        initial_result = self.parent.fit_results[self.initial_guess].output
         early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
-        result = self.parent.fitting.global_fit(initial_result=initial_result, k_int=k_dict,
-                                                learning_rate=self.learning_rate, l1=self.l1_regularizer,
-                                                l2=self.l2_regularizer, epochs=self.epochs, callbacks=[early_stop])
+        result = kf.global_fit_new(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
+                                   l1=self.l1_regularizer, l2=self.l2_regularizer, callbacks=[early_stop])
+
+        output_name = 'pfact'
+        var_name = 'log_P'
+
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-
+        output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
+        #todo this should be moved to TFFitresults object
+        output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
         output_dict['y'] = 10**output_dict[var_name]
-        if self.fitting_type == 'Protection Factors':
-            deltaG = constants.R * self.temperature * np.log(output_dict['y'])
-            output_dict['deltaG'] = deltaG
+        # if self.fitting_type == 'Protection Factors':
+        deltaG = constants.R * self.temperature * np.log(output_dict['y'])
+        output_dict['deltaG'] = deltaG
 
         source = ColumnDataSource(output_dict)
         self.parent.sources[output_name] = source

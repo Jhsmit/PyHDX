@@ -2,8 +2,8 @@ import param
 import panel as pn
 from bokeh.plotting import figure
 
-DEFAULT_RENDERERS = {'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
-DEFAULT_COLORS = {'fit1': 'blue', 'fit2': 'red', 'TF_rate': 'green', 'pfact': '#16187d'}
+DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
+DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': 'blue', 'fit2': 'red', 'TF_rate': 'green', 'pfact': '#16187d'}
 DEFAULT_CLASS_COLORS = ['#cc0c49', '#eded0e', '#1930e0']
 
 
