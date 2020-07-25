@@ -854,9 +854,9 @@ class KineticsFitting(object):
 
             yield model, interval, input_data, output_data
 
-    def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
+    def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
         """TF global fitting using new coverage object"""
-        import pyhdx.fitting_tf as ftf
+        #todo split off in get_model function?
 
         #todo sessions
         #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
