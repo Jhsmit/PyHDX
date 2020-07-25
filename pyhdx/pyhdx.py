@@ -146,7 +146,10 @@ class PeptideMasterTable(object):
 
         back_exchange /= 100
         scores = 100*self.data['uptake'] / ((1-back_exchange)*self.data['ex_residues'])
-        self.data = append_fields(self.data, 'scores', data=scores, usemask=False)
+
+        uptake_corrected = self.data['uptake'] / (1 - back_exchange)
+
+        self.data = append_fields(self.data, ['scores', 'uptake_corrected'], data=[scores, uptake_corrected], usemask=False)
 
         #raise NotImplementedError()
 
