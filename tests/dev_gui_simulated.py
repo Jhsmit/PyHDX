@@ -84,14 +84,14 @@ ctrl.param.trigger('sources')
 ctrl.fit_control.param['do_fit2'].constant = False
 ctrl.param.trigger('fit_results')
 
-ctrl.tf_fit_control.epochs=10
+# ctrl.tf_fit_control.epochs=10
 
-ctrl.tf_fit_control._do_fitting()
-ctrl.tf_fit_control.param['do_fit'].constant = False
+# ctrl.tf_fit_control._do_fitting()
+# ctrl.tf_fit_control.param['do_fit'].constant = False
+#
+# ctrl.classification_panel.target = 'pfact'
+# ctrl.classification_panel._action_threshold()
 
-ctrl.classification_panel.target = 'pfact'
-ctrl.classification_panel._action_threshold()
 
-
-# if __name__ == '__main__':
-#     ctrl.serve()
+if __name__ == '__main__':
+    ctrl.serve()
