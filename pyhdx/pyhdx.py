@@ -9,7 +9,6 @@ from .support import reduce_inter, make_view
 from pyhdx.expfact.kint import calculate_kint_per_residue
 
 
-
 class PeptideMasterTable(object):
     """
     Main peptide input object. The input numpy structured array `data` must have the following entires for each peptide:
@@ -74,7 +73,6 @@ class PeptideMasterTable(object):
         #Mark ignored prolines with lower case letters
         if ignore_prolines:
             self.data['sequence'] = [s.replace('P', 'p') for s in self.data['sequence']]
-
 
         # Find the total number of n terminal / c_terminal residues to remove
         # Todo: edge cases such as pure prolines or overlap between c terminal prolines and drop_first section (issue 32)
