@@ -11,8 +11,11 @@ class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 
     position = ''
+    panel_name = ''#param.String('', doc="Display name for this panel's tab")''
+
     @property
     def panel(self):
+
         return None
 
 
@@ -25,7 +28,7 @@ class FigurePanel(PanelBase):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
         self.controllers = controllers  # side controllers
         self.figure = self.draw_figure()
-        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.panel_name)
 
         sources = sources if sources is not None else {}
         self.renderers = {}

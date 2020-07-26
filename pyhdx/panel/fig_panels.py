@@ -20,7 +20,6 @@ stage.loadFile("rcsb://1NKT.mmtf", {defaultRepresentation: true});
 
 
 class CoverageFigure(FigurePanelOld):
-
     def __init__(self, *args, **params):
         super(CoverageFigure, self).__init__(*args, **params)
 
@@ -29,7 +28,7 @@ class CoverageFigure(FigurePanelOld):
 
         self.layout = column(*self.figures, sizing_mode='stretch_both')
         self.label_set = LabelSet()
-        self.bk_pane = pn.pane.Bokeh(self.layout, sizing_mode='stretch_both')
+        self.bk_pane = pn.pane.Bokeh(self.layout, sizing_mode='stretch_both', name='Coverage')
 
         #hook up main controller watchers
        # self.parent.param.watch(self._update, ['series'])
@@ -283,6 +282,7 @@ class ThdLogFigure(FigurePanel):
 
 class RateFigure(ThdLogFigure):
     accepted_sources = ['half-life', 'fit1', 'fit2', 'TF_rate']
+    panel_name = 'Exchange Rates'
 
     def draw_figure(self):
         figure = super().draw_figure()
@@ -293,7 +293,9 @@ class RateFigure(ThdLogFigure):
 
 
 class PFactFigure(ThdLogFigure):
-    accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
+    accepted_sources = ['pfact']
+    # list of names of sources which this plot accepts from parent controller
+    panel_name = 'Protection Factors'
 
     def __init__(self, parent, controllers, *args, **params):
         #todo refactor controllers to dict (Or better yet get them yourself from parent)
