@@ -124,8 +124,8 @@ class ControlPanel(PanelBase):
         self._box = self.make_box()
 
     def make_box(self):
-        md = pn.pane.Markdown(f'### {self.header}')
-        return pn.WidgetBox(*([md] + self._widget_list))
+        #md = pn.pane.Markdown(f'### {self.header}')
+        return pn.Card(title = self.header, collapsed=True, *self._widget_list)
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""

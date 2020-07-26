@@ -31,101 +31,14 @@ var config = {
                         type: 'component',
                         componentName: 'view',
                         componentState: {
-                            model: '{{ embed(roots.input) }}',
+                            model: '{{ embed(roots.controls) }}',
                             title: 'Input',
                             width: 350,
                             css_classes: ['scrollable']
                         },
                         isClosable: false,
                     },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.coverage) }}',
-                            title: 'Coverage',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.fitting) }}',
-                            title: 'Fit Rates',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.tf_fit) }}',
-                            title: 'Fit PF',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.fit_quality) }}',
-                            title: 'Fit Quality',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.classification) }}',
-                            title: 'Classification',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.file_export) }}',
-                            title: 'Export',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.options) }}',
-                            title: 'Options',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    },
-                    {
-                        type: 'component',
-                        componentName: 'view',
-                        componentState: {
-                            model: '{{ embed(roots.dev) }}',
-                            title: 'Dev',
-                            width: 350,
-                            css_classes: ['scrollable']
-                        },
-                        isClosable: false,
-                    }
+
                         ]
             },
             {
