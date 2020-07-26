@@ -74,7 +74,9 @@ class Controller(param.Parameterized):
 
     def __init__(self, template, panels, cluster=None, **params):
         super(Controller, self).__init__(**params)
-        template = env.get_template('template.html')
+        #pn.config.sizing_mode = 'stretch_both'
+
+        #template = env.get_template('template.html')
         self.cluster = cluster
         self.doc = pn.state.curdoc
         tmpl = ExtendedGoldenTemplate(title=VERSION_STRING_SHORT, theme=ExtendedGoldenDarkTheme)

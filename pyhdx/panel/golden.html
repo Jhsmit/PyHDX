@@ -46,6 +46,7 @@
 </div>
 
 <script>
+  {% block config %}
   var config = {
     content: [
       {
@@ -86,6 +87,8 @@
       }
     ]
   };
+  {% endblock %}
+
 
   var myLayout = new GoldenLayout(config, $('#main-content'));
   var resizing = false;

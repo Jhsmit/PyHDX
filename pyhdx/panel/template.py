@@ -2,7 +2,6 @@ import pathlib
 
 from panel.template import GoldenTemplate
 
-print(pathlib.Path(__file__).parent)
 
 class ExtendedGoldenTemplate(GoldenTemplate):
 
