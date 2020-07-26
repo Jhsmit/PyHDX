@@ -10,6 +10,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import nglview
 
+import param
+
 NGL_HTML = """
 <div id="viewport" style="width:100%; height:100%;"></div>
 <script>
@@ -234,6 +236,8 @@ class RateFigureOld(FigurePanelOld):
 class ThdLogFigure(FigurePanel):
     """base class for pfact / rates figure panels which both feature y log axis and thresholding"""
 
+
+
     def __init__(self, parent, controllers, *args, **params):
         #todo refactor controllers to dict (Or better yet get them yourself from parent)
         self.ctrl = controllers[1]  # classification controller
@@ -323,6 +327,7 @@ class PFactFigure(ThdLogFigure):
         if self.renderers:
             self.figure.legend.click_policy = 'hide'
 
+    #todo in parent class already
     def _draw_thds(self, *events):
         # todo check events and draw according to those? (events are triggers)
         if self.ctrl.target == 'pfact':
