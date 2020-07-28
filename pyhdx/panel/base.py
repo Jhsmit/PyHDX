@@ -65,9 +65,10 @@ class FigurePanel(PanelBase):
     def remove_sources(self, names):
         """remove source from renderers dict and figure"""
         for name in names:
-            self.figure.renderers.remove(self.renderers[name])
+            renderer = self.renderers[name]
+            renderer.data_source.remove_on_change('data', self._data_updated_callback)
+            self.figure.renderers.remove(renderer)
             self.renderers.pop(name)
-
 
     def render_sources(self, src_dict):
         """override to customize how sources are rendered"""
