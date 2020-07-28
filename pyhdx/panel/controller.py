@@ -775,7 +775,6 @@ class ClassificationControl(ControlPanel):
         if not self.target and objects:
             self.target = objects[-1]
 
-    @param.depends('values', watch=True)
     def _action_threshold(self):
         if self.num_classes > 1 and self.target:
             y_vals = self.parent.sources[self.target].data['y']
@@ -785,6 +784,7 @@ class ClassificationControl(ControlPanel):
                 widget.value = np.exp(thd)
         self._do_thresholding()
 
+    @param.depends('values', watch=True)
     def _do_thresholding(self):
         # perhaps we need a class to handle fitting output which has this method
         # yes we do. for all fitting not just fit1
