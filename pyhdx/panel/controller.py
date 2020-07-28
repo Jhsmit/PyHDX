@@ -536,7 +536,6 @@ class FittingControl(ControlPanel):
             self.parent.fit_results['half-life'] = fit_result
 
             self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-            self.parent.param.trigger('sources')  # Informs listening plots that there is new data available
 
             self.param['do_fit1'].constant = False
             self.param['do_fit2'].constant = False
@@ -714,14 +713,13 @@ class TFFitControl(ControlPanel):
         import pyhdx.fitting_tf as tft
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
-        initial_result = self.parent.fit_results[self.initial_guess].output
+        initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
         early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
         result = kf.global_fit_new(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
                                    l1=self.l1_regularizer, l2=self.l2_regularizer, callbacks=[early_stop])
 
         output_name = 'pfact'
         var_name = 'log_P'
-
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
@@ -733,12 +731,6 @@ class TFFitControl(ControlPanel):
         deltaG = constants.R * self.temperature * np.log(output_dict['y'])
         output_dict['deltaG'] = deltaG
 
-        # if output_name in
-
-        # #todo sources needs to be a special object which has an update/add fuction which does the logic below
-        # if output_name in self.parent.sources:
-        #     self.parent.sources[output_name].data.update(**source.data)
-        # self.parent.sources[output_name] = source
         self.parent.fit_results[output_name] = result
         self.parent.publish_data(output_name, output_dict)
 
