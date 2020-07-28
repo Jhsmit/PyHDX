@@ -62,7 +62,7 @@ class Controller(param.Parameterized):
 
     data = param.Array()  # might not be needed, in favour of peptides
     #rates = param.Array(doc='Output rates data')
-    fit_results = param.Dict(empty_results)
+    fit_results = param.Dict({})
     sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
     rate_colors = param.Dict({})  #probably not used
     peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
@@ -678,6 +678,7 @@ class TFFitControl(ControlPanel):
 
     def _parent_fit_results_updated(self, *events):
         possible_initial_guesses = ['half-life', 'fit1']
+        print(self.parent.fit_results.keys())
         objects = [name for name in possible_initial_guesses if name in self.parent.fit_results.keys()]
         if objects:
             self.param['do_fit'].constant = False
