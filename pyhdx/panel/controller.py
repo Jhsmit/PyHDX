@@ -45,10 +45,10 @@ env = Environment(loader=FileSystemLoader(pth))
 dic = {'rates': np.zeros(0, dtype=[('r_number', int), ('rate', float)]),
        'fitresult': None}
 
-empty_results = {
-    'fit1': dic.copy(),
-    'fit2': dic.copy()
-}
+# empty_results = {
+#     'fit1': dic.copy(),
+#     'fit2': dic.copy()
+#}
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
