@@ -129,6 +129,7 @@ class Controller(param.Parameterized):
         tmpl.main.append(self.coverage_figure.panel)
         tmpl.main.append(self.rate_figure.panel)
         tmpl.main.append(self.pfact_figure.panel)
+        tmpl.main.append(self.protein_figure.panel)
         # tmpl.main.append()
         #
         #
