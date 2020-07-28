@@ -794,6 +794,10 @@ class ClassificationControl(ControlPanel):
         if not self.target and objects:
             self.target = objects[-1]
 
+        if self.values:
+            self._do_thresholding()
+
+
     def _action_threshold(self):
         if self.num_classes > 1 and self.target:
             y_vals = self.parent.sources[self.target].data['y']
