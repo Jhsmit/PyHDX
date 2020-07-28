@@ -36,12 +36,18 @@ class FigurePanel(PanelBase):
         new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
         self.add_sources(new_items)
 
-        # Items need to be rerendered if they are already in renderers but the source is a different object
-        updated_items = {k: v for k, v in self.parent.sources.items() if k in self.renderers and v != self.renderers[k].data_source}
-        print(updated_items.keys())
-        for name, source in updated_items.items():
-            self.renderers[name].data_source.data.update(**source.data)
+        # # Items need to be rerendered if they are already in renderers but the source is a different object
+        # updated_items = {k: v for k, v in self.parent.sources.items() if k in self.renderers and v != self.renderers[k].data_source}
+        # print(updated_items.keys())
+        # for name, source in updated_items.items():
+        #     self.renderers[name].data_source.data.update(**source.data)  # update data
+        #     self.parent.sources[name] = self.renderers[name].data_source
 
+
+
+        #     self.remove_sources(name)
+        # self.remove_sources(updated_items.keys())
+        # self.add_sources(updated_items)
 
         # self.remove_sources(updated_items.keys())  # remove sources from plot and renderers
         # self.render_sources(updated_items)

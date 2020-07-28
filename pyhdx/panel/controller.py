@@ -146,6 +146,26 @@ class Controller(param.Parameterized):
         #
         # self.rates = rates  # this assignement triggers downstream watchers? manual trigger?
 
+    def publish_data(self, name, dic):
+        """
+        Publish dataset to be available for client figure to plot
+
+        Parameters
+        ----------
+        name: :obj:`str`
+            Name of the dataset
+        dic: :obj:`dict`
+            Data dictionary, where every key, value pair corresponds to a data column to plot
+        """
+        source = ColumnDataSource(dic)
+        try:  # update existing source
+            src = self.sources[name]
+            src.data.update(**source.data)
+        except KeyError:
+            self.sources[name] = source
+
+        self.param.trigger('sources')
+
     def servable(self):
 
         js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
@@ -471,7 +491,7 @@ class FittingControl(ControlPanel):
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-        self.parent.sources['fit1'] = ColumnDataSource(dic)
+        self.parent.publish_data('fit1', dic)
 
         #trigger plot update
         callback = partial(self.parent.param.trigger, 'sources')
@@ -490,10 +510,9 @@ class FittingControl(ControlPanel):
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-        self.parent.sources['fit1'] = ColumnDataSource(dic)
 
+        self.parent.publish_data('fit1', dic)
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-        self.parent.param.trigger('sources') # Informs listening plots that there is new data available
 
         self.param['do_fit1'].constant = False
         self.param['do_fit2'].constant = False
@@ -513,8 +532,8 @@ class FittingControl(ControlPanel):
             dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
             dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
 
+            self.parent.publish_data('half-life', dic)
             self.parent.fit_results['half-life'] = fit_result
-            self.parent.sources['half-life'] = ColumnDataSource(dic)
 
             self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
             self.parent.param.trigger('sources')  # Informs listening plots that there is new data available
@@ -712,11 +731,16 @@ class TFFitControl(ControlPanel):
         deltaG = constants.R * self.temperature * np.log(output_dict['y'])
         output_dict['deltaG'] = deltaG
 
-        source = ColumnDataSource(output_dict)
-        self.parent.sources[output_name] = source
-        self.parent.fit_results[output_name] = result
+        # if output_name in
 
-        self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
+        # #todo sources needs to be a special object which has an update/add fuction which does the logic below
+        # if output_name in self.parent.sources:
+        #     self.parent.sources[output_name].data.update(**source.data)
+        # self.parent.sources[output_name] = source
+        self.parent.fit_results[output_name] = result
+        self.parent.publish_data(output_name, output_dict)
+
+        #self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
         self.param['do_fit'].constant = False
     #
 
