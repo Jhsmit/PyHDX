@@ -568,6 +568,7 @@ class FittingControl(ControlPanel):
             self.pbar2.reset()
 
     def _fit2(self):
+        raise DeprecationWarning()
         fit_result = self.parent.fitting.blocks_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
 
         self.parent.fit_results['fit2'] = fit_result
@@ -576,9 +577,10 @@ class FittingControl(ControlPanel):
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit2'], dtype='<U7')
-        self.parent.sources['fit2'] = ColumnDataSource(dic)
+
+        self.parent.publish_data('fit2', dic)
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit2 is available as initial guesses
-        self.parent.param.trigger('sources')  # Informs listening plots that there is new data available
+
 
         #todo all fit buttons should globally constant during fitting (make some kind of global context manager)
         self.param['do_fit1'].constant = False
