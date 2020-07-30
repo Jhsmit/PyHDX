@@ -204,8 +204,9 @@ def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwarg
     x = pm.data['start'] - 0.5 + (width / 2)
     label_x = pm.data['start']
     names = [str(i) for i in range(len(pm.data))]
-    source = ColumnDataSource(dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names, start=pm.data['start'],
-                                   end=pm.data['end'], sequence=pm.data['sequence'], uptake=pm.data['uptake'], scores=pm.data['scores']))
+    plot_dict = dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names)
+    prop_dict = {name: pm.data[name] for name in pm.data.dtype.names}
+    source = ColumnDataSource({**plot_dict, **prop_dict})
     glyph = Rect(x='x', y='y', width='width', height=1, fill_color='c')
     labels = LabelSet(x='label_x', y='y', text='names', source=source, text_baseline='middle', text_align='left')
 
@@ -219,11 +220,11 @@ def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwarg
         hover = fig.select(dict(type=HoverTool))
         hover.tooltips = [('Pos', '$x{int}'),
                           ('Index', '@names'),
-                          ('Start', '@start'),
-                          ('End', '@end'),
+                          ('Start', '@start (@_start)'),
+                          ('End', '@end (@_end)'),
                           ('Sequence', '@sequence'),
                           ('Score', '@scores'),
-                          ('Uptake', '@uptake')]
+                          ('Uptake', '@uptake (@uptake_corrected / @ex_residues, @maxuptake)')]
 
         figures.append(fig)
 
