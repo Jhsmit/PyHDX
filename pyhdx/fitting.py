@@ -954,6 +954,27 @@ class KineticsFitting(object):
 
         return output
 
+    def weighted_avg_linearize(self):
+        rates = []
+        output = np.empty_like(self.k_series.cov.r_number, dtype=[('r_number', int), ('rate', float)])
+        output['r_number'] = self.k_series.cov.r_number
+
+        for i, dpts in enumerate(self.k_series.scores_stack.T):
+            if np.any(np.isnan(dpts)):
+                output['rate'][i] = np.nan
+                rates.append(np.nan)
+            else:
+                y_lin = np.log(1 - (dpts / 100))
+                b = ~np.isnan(y_lin)
+                try:
+                    rate, offset = np.polyfit(self.k_series.timepoints[b], -y_lin[b], 1)
+                except np.linalg.LinAlgError:
+                    t50 = np.interp(50, dpts, self.k_series.timepoints)
+                    rate = np.log(2) / t50
+                output['rate'][i] = rate
+
+        return output
+
 
 class KineticsFitResult(object):
     """
