@@ -1,6 +1,7 @@
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, temporary_seed
 # from pyhdx.fitting_tf import CurveFit, TFParameter, L1L2Differential, LossHistory, AssociationPFactFunc, \
 #     AssociationRateFunc, TFFitResult, EarlyStopping, Adagrad
+
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
@@ -882,7 +883,7 @@ class KineticsFitting(object):
             raise ValueError('Invalid match between section r number and k_int r number')
         k_int_section = k_dict['k_int'][indices]
         p_guess = np.clip((k_int_section / init_rate) - 1, a_min=np.e, a_max=None)
-        print(p_guess.min(), p_guess.max())
+        print(np.nanmin(p_guess)), print(np.nanmax(p_guess))
 
         # fix nan's (no coverage) or zeros (prolines) in p_guess from no coverage sections
         bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
