@@ -880,7 +880,8 @@ class KineticsFitting(object):
         if not len(indices) == len(np.unique(indices)):
             raise ValueError('Invalid match between section r number and k_int r number')
         k_int_section = k_dict['k_int'][indices]
-        p_guess = k_int_section / init_rate
+        p_guess = np.clip((k_int_section / init_rate) - 1, a_min=np.e, a_max=None)
+        print(p_guess.min(), p_guess.max())
 
         # fix nan's (no coverage) or zeros (prolines) in p_guess from no coverage sections
         bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
