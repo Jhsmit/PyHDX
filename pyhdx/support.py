@@ -5,15 +5,14 @@ import contextlib
 from functools import reduce
 from io import StringIO
 from skimage.filters import threshold_multiotsu
-
-import pyhdx.pyhdx
+import pyhdx.models as models
 
 def series_intersection(series_list):
-    """finds and returns series where peptides are the interection of all series"""
+    """finds and returns series where peptides are the intersection of all series"""
     full_arrays = [series.full_data for series in series_list]
     arrays = [fields_view(full_data, ['start', 'end']) for full_data in full_arrays]
     reduced = reduce(np.intersect1d, arrays)
-    intersecting_series = [pyhdx.KineticsSeries(f_array[np.isin(array, reduced)]) for f_array, array in
+    intersecting_series = [models.KineticsSeries(f_array[np.isin(array, reduced)]) for f_array, array in
                            zip(full_arrays, arrays)]
 
     return intersecting_series
