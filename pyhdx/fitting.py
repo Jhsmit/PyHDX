@@ -748,6 +748,7 @@ class KineticsFitting(object):
         return fit_result
 
     def global_fit(self, initial_result, use_kint=True, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
+        raise DeprecationWarning('global fit is deprecated in favour of global_fit_new')
         import pyhdx.fitting_tf as ftf
 
         #todo sessions
