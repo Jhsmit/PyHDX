@@ -4,8 +4,8 @@ import itertools
 import scipy
 from functools import reduce
 from operator import add
-from .math import solve_nnls
-from .support import reduce_inter, make_view
+from pyhdx.math import solve_nnls
+from pyhdx.support import reduce_inter, make_view
 from pyhdx.expfact.kint import calculate_kint_per_residue
 
 
