@@ -97,10 +97,9 @@ class Controller(param.Parameterized):
         self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
         self.protein_figure = ProteinFigure(self, [])
 
-
         #setup options  #todo automate figure out cross dependencies
         self.options.cov_fig_panel = self.coverage_figure
-        self.options.rate_fig_panel = self.rate_figure
+        self.options.rate_fig_panel = self.pfact_figure
         self.options.coverage_ctrl = self.coverage
 
         # tmpl = pn.Template(template)
@@ -1101,6 +1100,8 @@ class OptionsPanel(ControlPanel):
 
     @param.depends('link_xrange', watch=True)
     def _update_link(self):
+        print('link_xrangek')
+        print(self.enabled)
         if self.enabled:
             if self.link_xrange:
                 self._link()
