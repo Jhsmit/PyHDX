@@ -1,4 +1,4 @@
-from .base import FigurePanelOld, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS
+from .base import FigurePanelOld, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
@@ -26,6 +26,8 @@ class CoverageFigure(FigurePanelOld):
 
         self.figures = [figure()]  #todo deprecate multiple figures
         self.figures[0].xaxis.axis_label = 'Residue number'
+        self.figures[0].min_border_left = MIN_BORDER_LEFT
+
 
         self.layout = column(*self.figures, sizing_mode='stretch_both')
         self.label_set = LabelSet()
@@ -81,6 +83,7 @@ class CoverageFigure(FigurePanelOld):
         print('series change on coverage fig')
         self.layout, self.figures, self.label_set = \
             _bokeh_coverage(self.peptide_measurement, self.ctrl.wrap, self.ctrl.aa_per_subplot)
+        self.figures[0].min_border_left = MIN_BORDER_LEFT
         self.figures[-1].xaxis.axis_label = 'Residue number'
 
         self.label_set.visible = self.ctrl.labels
@@ -252,7 +255,7 @@ class ThdLogFigure(FigurePanel):
       #$  tooltips = [('Residue', '@r_number{int}'), ('Y value', '@y')]
 
         fig = figure(y_axis_type='log', tools='pan,wheel_zoom,box_zoom,save,reset')
-
+        fig.min_border_left = MIN_BORDER_LEFT
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = self.y_label
 
