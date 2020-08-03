@@ -79,7 +79,7 @@ class TestUptakeFileModels(object):
             s, e = np.array(k.split('_')).astype(int)
             pm = v[0]
             assert np.min(pm.data['start']) == s
-            assert np.all(pm.data['end'] < e)
+            assert np.all(pm.data['end'] < e + 1)
 
     def test_uniform(self):
         control_100 = ("Full Deuteration control", 0.167)
@@ -100,13 +100,13 @@ class TestUptakeFileModels(object):
         assert l1 == l2
 
     def test_ds2(self):
-        self.pf2.set_control(('FD', 0.001), ('Native folded', 60.000004), remove_nan=False)
+        self.pf2.set_control(('FD', 0.001), ('Native folded', 60.000004))
         states = self.pf2.groupby_state()
         series = states['folding_4C_10secLabelling']
         assert len(series[0]) == 80
         assert np.all(np.isnan(series[0].scores_average))
 
-        self.pf2.set_control(('FD', 0.001), ('Native folded', 60.000004), remove_nan=True)
+        self.pf2.set_control(('FD', 0.001), ('Native folded', 60.000004))
         states = self.pf2.groupby_state()
         series = states['folding_4C_10secLabelling']
         assert ~np.all(np.isnan(series[0].scores_average))
