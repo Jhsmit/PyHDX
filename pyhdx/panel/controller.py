@@ -1,7 +1,7 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure
-from pyhdx.pyhdx import PeptideMasterTable, KineticsSeries
+from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, \

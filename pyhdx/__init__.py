@@ -1,6 +1,6 @@
 """Top-level package for PyHDX."""
 
-from .pyhdx import PeptideMasterTable, PeptideMeasurements, KineticsSeries, Coverage
+from .models import PeptideMasterTable, PeptideMeasurements, KineticsSeries, Coverage
 from .fitting import KineticsFitting
 from .fileIO import read_dynamx
 from .output import Output
