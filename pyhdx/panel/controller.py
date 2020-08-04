@@ -463,8 +463,6 @@ class FittingControl(ControlPanel):
         text_f2 = pn.widgets.StaticText(value='Global fit (Fit 2)')
 
         self._widget_dict.update(text_f1=text_f1, text_f2=text_f2, pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-        # parameters = ['r_max', 'fitting_model', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
-        #               'max_join', 'show_blocks', 'do_fit2', 'pbar2']
         parameters = ['fitting_model', 'do_fit1', 'pbar1']
 
         widget_list = list([self._widget_dict[par] for par in parameters])
@@ -495,7 +493,6 @@ class FittingControl(ControlPanel):
              self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
              self.pbar1.reset()
              self.param['do_fit1'].constant = False
-             self.param['do_fit2'].constant = False
 
     def _fit1(self):
         fit_result = self.parent.fitting.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1, chisq_thd=self.chisq_thd)
@@ -509,14 +506,12 @@ class FittingControl(ControlPanel):
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
 
         self.param['do_fit1'].constant = False
-        self.param['do_fit2'].constant = False
         self.pbar1.reset()
 
     def _action_fit(self):
         print('fitting')
         #todo context manager?
         self.param['do_fit1'].constant = True
-        self.param['do_fit2'].constant = True
 
         if self.fitting_model == 'Half-life (λ)':
             kf = KineticsFitting(self.parent.series)
@@ -532,7 +527,6 @@ class FittingControl(ControlPanel):
             self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
 
             self.param['do_fit1'].constant = False
-            self.param['do_fit2'].constant = False
         else:
 
             if self.parent.cluster:
