@@ -78,19 +78,18 @@ class Controller(param.Parameterized):
      #   tmpl.nb_template.globals['get_id'] = make_globally_unique_id
 
         # Controllers
-        self.fileinput = FileInputControl(self)
+        self.file_input = FileInputControl(self)
         self.coverage = CoverageControl(self)#CoveragePanel(self)
         self.fit_control = FittingControl(self)
         self.tf_fit_control = TFFitControl(self)
         self.fit_quality = FittingQuality(self)
-        #self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
         self.file_export = FileExportPanel(self)
         self.options = OptionsPanel(self)
         self.dev = DeveloperPanel(self)
 
         #Figures
-        self.coverage_figure = CoverageFigure(self, [self.coverage, self.fit_control])  #parent, [controllers]
+        self.coverage_figure = CoverageFigureNew(self, [self.coverage, self.fit_control])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
         self.pfact_figure = PFactFigure(self, [self.fit_control, self.classification_panel])
 
@@ -119,22 +118,22 @@ class Controller(param.Parameterized):
         tmpl.add_panel('pfact_fig', self.pfact_figure.panel)
         tmpl.add_panel('fitres_fig', self.fit_result_figure.panel)
         tmpl.add_panel('slice_k', self.protein_figure.panel)
-        #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
 
         self.app = tmpl
-      #  self.panels = [panel(self) for panel in panels]
 
     @param.depends('series', watch=True)
     def _series_changed(self):
+
+        pass
         # This is triggered if the fileinput child panel yields a new KineticSeries
-        print('series changed')
-
-        self.fitting = KineticsFitting(self.series, cluster=self.cluster)
-        for key in ['fit1', 'fit2']:    # todo this list of names somewhere?
-            self.rate_colors[key] = [DEFAULT_COLORS[key]]*len(self.series.cov.r_number)
-        self.param.trigger('rate_colors')
-
-        # #todo add errors here
+        # print('series changed')
+        #
+        # self.fitting = KineticsFitting(self.series, cluster=self.cluster)
+        # for key in ['fit1', 'fit2']:    # todo this list of names somewhere?
+        #     self.rate_colors[key] = [DEFAULT_COLORS[key]]*len(self.series.cov.r_number)
+        # self.param.trigger('rate_colors')
+        #
+        # # #todo add errors here
         # rate_fields = ['fit1', 'fit1_r1', 'fit1_r2', 'fit2', 'fit2_r1', 'fit2_r2']
         # color_fields = ['fit1_color', 'fit2_color']
         # dtype = [('r_number', int)] + [(name, float) for name in rate_fields] + [(name, 'U7') for name in color_fields]
@@ -382,8 +381,9 @@ class CoverageControl(ControlPanel):
     header = 'Coverage'
 
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
-    aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
-    labels = param.Boolean(False, label='Labels')
+    color_map = param.Selector(objects=['jet', 'inferno', 'viridis'], default='jet')
+    #aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
+    #labels = param.Boolean(False, label='Labels')
     index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time')
 
     def __init__(self, parent, **params):
@@ -405,33 +405,67 @@ class CoverageControl(ControlPanel):
         else:
             return None
 
+    @property
+    def coverage(self):
+        """Coverage object describing the peptide layout"""
+        return self.parent.series.cov
+
+    @property
+    def color_mapper(self):
+        """not used"""
+        cmap = mpl.cm.get_cmap(self.color_map)
+        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 256, endpoint=True))
+        color_mapper = LinearColorMapper(palette=pal, low=0, high=100)
+
+        return color_mapper
+
+    @property
+    def colors(self):
+        """~class:`np.ndarray`: array of color for each peptide based on their uptake score"""
+        cmap = mpl.cm.get_cmap(self.color_map)
+        c_rgba = cmap(self.peptide_measurement.data['scores'] / 100)
+        c = [mpl.colors.to_hex(color) for color in c_rgba]
+
+        return np.array(c)
+
     def _update_series(self, event):
         print('coverage new series update index bounds')
-        #also update aa per subplot
 
+        # must be uniform
+        self.wrap = autowrap(self.coverage)
         self.param['index'].bounds = (0, len(event.new) - 1)
-        self.exposure_str.value = str(self.peptide_measurement.exposure)
 
-        step = 25
-        value = int(step*(self.parent.series.cov.end // step + 1))
-        self.aa_per_subplot = value# triggers redraw
-
-        #must be uniform
-        self.wrap = autowrap(self.parent.series.cov)
-
-        #set index to zero
+        # set index to zero
         self.index = 0
+        # self.exposure_str.value = str(self.peptide_measurement.exposure) # this should be triggered
 
-    @param.depends('index', watch=True)
-    def _update_index(self):
-        self.exposure_str.value = str(self.peptide_measurement.exposure)
+        width = self.coverage.data['end'] - self.coverage.data['start'] + 1 # Bars are inclusive, inclusive
+        x = self.coverage.data['start'] - 0.5 + (width / 2)
+        y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
+        index = [str(i) for i in range(len(self.coverage))]
 
-    # @property
-    # def panel(self):
-    #     col = pn.Column(self.param, self.exposure_str)
-    #     #p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput}) for exposure
-    #     return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'],
-    #                         sizing_mode='stretch_height')
+        plot_dict = dict(x=x, y=y, width=width, color=self.colors, index=index)
+        prop_dict = {name: self.peptide_measurement.data[name] for name in self.peptide_measurement.data.dtype.names}
+        dic = {**plot_dict, **prop_dict}
+
+        self.parent.publish_data('coverage', dic)
+
+    @param.depends('wrap', watch=True)
+    def _update_wrap(self):
+        y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
+        try:
+            self.parent.sources['coverage'].data.update(y=y)
+        except KeyError:
+            pass
+
+    @param.depends('index', 'color_map', watch=True)
+    def _update_colors(self):
+        self.exposure_str.value = str(self.peptide_measurement.exposure)  #todo this should be an js_link?
+        try:
+            self.parent.sources['coverage'].data.update(color=self.colors)
+        except KeyError:
+            pass
+
 
 
 class FittingControl(ControlPanel):
@@ -1015,10 +1049,21 @@ class FileExportPanel(ControlPanel):
 #
 #         io.seek(0)
 #         return io
+    @property
+    def export_dict(self):
+        return self.parent.sources[self.target].data
+
     @pn.depends('target', watch=True)
     def _update_filename(self):
-        self.export_linear_download.filename = self.parent.series.state + '_' + self.target + 'linear.txt'
-        self.pml_script_download.filename = self.parent.series.state + '_' + self.target + 'pymol.pml'
+        self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
+        if 'r_number' in self.export_dict.keys():
+            self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
+            self.pml_script_download.disabled = False
+            print(self.pml_script_download.disabled)
+
+        else:
+            self.pml_script_download.filename = 'Not Available'
+            self.pml_script_download.disabled = True
 
     @pn.depends('target')
     def pml_export_callback(self):
@@ -1040,9 +1085,9 @@ class FileExportPanel(ControlPanel):
         print(self.target)
         print('exporting')
         if self.target:
-            export_dict = {k: v for k, v in self.parent.sources[self.target].data.items() if k != 'y'}
+            export_dict = {k: np.array(v) for k, v in self.parent.sources[self.target].data.items() if k != 'y'}  #todo generalize export
             dtype = [(name, arr.dtype) for name, arr in export_dict.items()]
-            export_data = np.empty_like(self.parent.sources[self.target].data['r_number'], dtype=dtype)
+            export_data = np.empty_like(next(iter(export_dict.values())), dtype=dtype)
             for name, arr in export_dict.items():
                 export_data[name] = arr
 

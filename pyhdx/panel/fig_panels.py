@@ -2,7 +2,7 @@ from .base import FigurePanelOld, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
-from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span
+from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span, Rect, Range1d
 from bokeh.models.markers import Triangle, Circle, Diamond
 import panel as pn
 import numpy as np
@@ -17,6 +17,38 @@ stage = new NGL.Stage("viewport");
 stage.loadFile("rcsb://1NKT.mmtf", {defaultRepresentation: true});
 </script>
 """
+
+
+class CoverageFigureNew(FigurePanel):
+    accepted_sources = ['coverage']
+
+    def __init__(self, *args, **params):
+        super(CoverageFigureNew, self).__init__(*args, **params)
+
+    def draw_figure(self):
+        fig = figure(title=None, min_border=0, tools='pan,wheel_zoom,box_zoom,save,reset')
+        fig.min_border_left = MIN_BORDER_LEFT
+        fig.xaxis.axis_label = 'Residue number'
+
+        return fig
+
+    def render_sources(self, src_dict):
+        tooltips = [('Pos', '$x{int}'),
+                    ('Index', '@index'),
+                    ('Start', '@start (@_start)'),
+                    ('End', '@end (@_end)'),
+                    ('Sequence', '@sequence'),
+                    ('Score', '@scores'),
+                    ('Uptake', '@uptake (@uptake_corrected / @ex_residues, @maxuptake)')]
+
+        for name, source in src_dict.items():
+            glyph = Rect(x='x', y='y', width='width', height=1, fill_color='color')
+            renderer = self.figure.add_glyph(source, glyph)
+            self.renderers[name] = renderer
+
+            hovertool = HoverTool(renderers=[renderer], tooltips=tooltips)
+            self.figure.add_tools(hovertool)
+            self.figure.x_range = Range1d(source.data['start'].min() - 5, source.data['end'].max() + 5)
 
 
 class CoverageFigure(FigurePanelOld):
