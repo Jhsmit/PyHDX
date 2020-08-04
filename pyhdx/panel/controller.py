@@ -441,7 +441,9 @@ class CoverageControl(ControlPanel):
     def _update_colors(self):
         self.exposure_str.value = str(self.peptide_measurement.exposure)  #todo this should be an js_link?
         try:
-            self.parent.sources['coverage'].data.update(color=self.colors)
+            tooltip_fields = {field: self.peptide_measurement.data[field] for field in ['scores', 'uptake', 'uptake_corrected']}
+            self.parent.sources['coverage'].data.update(color=self.colors, **tooltip_fields)
+
         except KeyError:
             pass
 
