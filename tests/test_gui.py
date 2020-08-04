@@ -43,3 +43,10 @@ class TestGui(object):
     def test_coverage(self):
         ctrl = Controller('template', ['asdf'])
         ctrl.series = self.series
+
+    def test_initial_guesses(self):
+        ctrl = Controller('template', ['asdf'])
+        ctrl.series = self.series
+
+        ctrl.fit_control._action_fit()
+        assert 'half-life' in ctrl.sources.keys()
