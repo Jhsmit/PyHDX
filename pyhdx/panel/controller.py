@@ -28,11 +28,12 @@ import matplotlib
 matplotlib.use('agg') # for panel mpl support
 from functools import partial
 #from .widgets import NumericInput
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, LinearColorMapper
 from collections import namedtuple
 #dev only
 import pickle
-
+import matplotlib as mpl
+import itertools
 
 from bokeh.util.serialization import make_globally_unique_id
 pth = os.path.dirname(__file__)
