@@ -99,9 +99,12 @@ class Controller(param.Parameterized):
         self.protein_figure = ProteinFigure(self, [])
 
         #setup options  #todo automate figure out cross dependencies
-        self.options.cov_fig_panel = self.coverage_figure
-        self.options.rate_fig_panel = self.pfact_figure
-        self.options.coverage_ctrl = self.coverage
+        self.options.master_figure = self.coverage_figure.figure
+        self.options.client_figures = [self.rate_figure.figure, self.pfact_figure.figure]
+
+        # self.options.cov_fig_panel = self.coverage_figure
+        # self.options.rate_fig_panel = self.pfact_figure
+        # self.options.coverage_ctrl = self.coverage
 
         # tmpl = pn.Template(template)
         tmpl.add_panel('input', self.file_input.panel)
@@ -1146,24 +1149,14 @@ class OptionsPanel(ControlPanel):
 
     link_xrange = param.Boolean(False)
 
-    def __init__(self, parent, **param):
+    def __init__(self, parent, master_figure=None, client_figures=None, **param):
         super(OptionsPanel, self).__init__(parent, **param)
-        self.cov_fig_panel = None
-        self.rate_fig_panel = None
-        self.coverage_ctrl = None
-
-
-    @property
-    def fig1(self):
-        return self.cov_fig_panel.figures[0]
-
-    @property
-    def fig2(self):
-        return self.rate_fig_panel.figure
+        self.master_figure = master_figure
+        self.client_figures = client_figures if client_figures is not None else []
 
     @property
     def enabled(self):
-        return self.fig1 is not None and self.fig1 is not None and self.coverage_ctrl is not None
+        return self.master_figure is not None and self.client_figures is not None
 
     @param.depends('link_xrange', watch=True)
     def _update_link(self):
@@ -1175,28 +1168,23 @@ class OptionsPanel(ControlPanel):
             else:
                 self._unlink()
 
-    def _unlink(self):
-        self.coverage_ctrl.param['aa_per_subplot'].constant = False
-        self.fig1.x_range.js_property_callbacks.pop('change:start')
-        self.fig1.x_range.js_property_callbacks.pop('change:end')
+    @property
+    def figures(self):
+        return [self.master_figure] + self.client_figures
 
-        self.fig2.x_range.js_property_callbacks.pop('change:start')
-        self.fig2.x_range.js_property_callbacks.pop('change:end')
+    def _unlink(self):
+        for fig in self.figures:
+            fig.x_range.js_property_callbacks.pop('change:start')
+            fig.x_range.js_property_callbacks.pop('change:end')
 
     def _link(self):
-        step = 25  #todo global config
-        value = int(step*(self.parent.series.cov.end // step + 1))
-        self.coverage_ctrl.aa_per_subplot = value# triggers redraw
-        self.coverage_ctrl.param['aa_per_subplot'].constant = True
+        for client in self.client_figures:
+            self.master_figure.x_range.js_link('start',  client.x_range, 'start')
+            self.master_figure.x_range.js_link('end', client.x_range, 'end')
 
-        self.fig1.x_range.js_link('start', self.fig2.x_range, 'start')
-        self.fig1.x_range.js_link('end', self.fig2.x_range, 'end')
+            client.x_range.js_link('start', self.master_figure.x_range, 'start')
+            client.x_range.js_link('end', self.master_figure.x_range, 'end')
 
-        self.fig2.x_range.js_link('start', self.fig1.x_range, 'start')
-        self.fig2.x_range.js_link('end', self.fig1.x_range, 'end')
-
-    # def panel(self):
-    #     return pn.WidgetBox(pn.Param(self.param))
 
 
 class DeveloperPanel(ControlPanel):
