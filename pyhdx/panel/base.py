@@ -72,6 +72,9 @@ class FigurePanel(PanelBase):
         print('data updated callbaçk')
         self.bk_pane.param.trigger('object')
 
+    def update(self):
+        self.bk_pane.param.trigger('object')
+
     @property
     def panel(self):
         return self.bk_pane

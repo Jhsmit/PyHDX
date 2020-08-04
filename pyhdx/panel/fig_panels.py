@@ -48,8 +48,10 @@ class CoverageFigure(FigurePanel):
 
             hovertool = HoverTool(renderers=[renderer], tooltips=tooltips)
             self.figure.add_tools(hovertool)
-            self.figure.x_range.start = source.data['start'].min() - 5
-            self.figure.x_range.end = source.data['end'].max() + 5
+            # with pn.io.unlocked():
+            #     self.figure.x_range.start = source.data['start'].min() - 50
+            #     self.figure.x_range.end = source.data['end'].max() + 50
+            #     self.update()
 
 
 class ThdLogFigure(FigurePanel):
