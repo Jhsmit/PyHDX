@@ -1,6 +1,6 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure
+from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure, CoverageFigureNew
 from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
