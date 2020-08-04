@@ -119,7 +119,8 @@ class ControlPanel(PanelBase):
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
-        return {k: v for k, v in zip(list(self.param)[1:], pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs))}
+        return {k: v for k, v in zip(list(self.param)[1:],
+                                     pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs))}
 
     def make_list(self):
         """override this method to modify mapping of dict to list"""
