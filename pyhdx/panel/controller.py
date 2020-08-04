@@ -28,7 +28,8 @@ import matplotlib
 matplotlib.use('agg') # for panel mpl support
 from functools import partial
 #from .widgets import NumericInput
-from bokeh.models import ColumnDataSource, LinearColorMapper
+from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
+from bokeh.plotting import figure
 from collections import namedtuple
 #dev only
 import pickle
@@ -373,22 +374,55 @@ class CoverageControl(ControlPanel):
     header = 'Coverage'
 
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
-    color_map = param.Selector(objects=['jet', 'inferno', 'viridis'], default='jet')
+    color_map = param.Selector(objects=['jet', 'inferno', 'viridis', 'cividis', 'plasma'], default='jet')
     #aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
     #labels = param.Boolean(False, label='Labels')
     index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time')
 
     def __init__(self, parent, **params):
         self.exposure_str = pn.widgets.StaticText(name='Exposure', value='0') # todo update to some param?
+
+        # We need a reference to color mapper to update it when the cmap changes
+        self.color_mapper = LinearColorMapper(palette=self.palette, low=0, high=100)
+        self.color_bar = self.get_color_bar()
+
         super(CoverageControl, self).__init__(parent, **params)
         self.parent.param.watch(self._update_series, ['series'])
 
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
-        return lst + [self.exposure_str]
+        return lst + [self.exposure_str, self.color_bar]
 
     def make_dict(self):
         return self.generate_widgets(index=pn.widgets.IntSlider)
+
+    @param.depends('color_map', watch=True)
+    def _update_cbar(self):
+        cmap = mpl.cm.get_cmap(self.color_map)
+        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
+        self.color_mapper.palette = pal
+
+    def get_color_bar(self):
+        """pn.pane.Bokeh: bokeh pane with empty figure and only a color bar"""
+        color_bar = ColorBar(color_mapper=self.color_mapper, location=(0, 0), orientation='horizontal',
+                             background_fill_color='#f5f5f5')
+                             #title='D uptake percentage',  title_text_align='center')
+        fig = figure(toolbar_location=None, title='D uptake percentage')
+        fig.title.align = 'center'
+        fig.background_fill_color = '#f5f5f5'
+        fig.border_fill_color = '#f5f5f5'
+        fig.outline_line_color = None
+        fig.add_layout(color_bar, 'above')
+        # f5f5f5
+        # from default value in panel css
+        #https://github.com/holoviz/panel/blob/67bf192ea4138825ab9682c8f38bfe2d696a4e9b/panel/_styles/widgets.css
+        return pn.pane.Bokeh(fig, height=100, width=350)
+
+    @property
+    def palette(self):
+        cmap = mpl.cm.get_cmap(self.color_map)
+        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
+        return pal
 
     @property
     def peptide_measurement(self):
@@ -403,10 +437,10 @@ class CoverageControl(ControlPanel):
         return self.parent.series.cov
 
     @property
-    def color_mapper(self):
-        """not used"""
+    def dep_color_mapper(self):
+        """ not used"""
         cmap = mpl.cm.get_cmap(self.color_map)
-        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 256, endpoint=True))
+        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
         color_mapper = LinearColorMapper(palette=pal, low=0, high=100)
 
         return color_mapper
