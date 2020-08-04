@@ -418,7 +418,7 @@ class CoverageControl(ControlPanel):
         self.index = 0
         # self.exposure_str.value = str(self.peptide_measurement.exposure) # this should be triggered
 
-        width = self.coverage.data['end'] - self.coverage.data['start'] + 1 # Bars are inclusive, inclusive
+        width = self.coverage.data['end'] - self.coverage.data['start'] # Bars are inclusive, inclusive
         x = self.coverage.data['start'] - 0.5 + (width / 2)
         y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
         index = [str(i) for i in range(len(self.coverage))]
