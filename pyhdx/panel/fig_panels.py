@@ -133,7 +133,6 @@ class FitResultFigure(FigurePanelOld):
 
         self.fit_data = {} # Dictionary with uptake values for peptides from fits
 
-
     def _redraw(self, *events):
         print('redraw')
         print(self.ctrl.x_axis_type.lower())

@@ -626,6 +626,7 @@ class TFFitControl(ControlPanel):
         self.param['do_fit'].constant = False
     #
 
+
 class FittingQuality(ControlPanel):
     header = 'Fitting Quality'
 
