@@ -856,6 +856,54 @@ class KineticsFitting(object):
 
             yield model, interval, input_data, output_data
 
+    def _initial_guess(self, initial_rates, k_int):
+        """
+
+        Parameters
+        ----------
+        initial_rates: dict-like object
+            has r_number, rate as keys, values are numpy arrays
+        k_int
+            has r_number, k_int as keys, values are numpy arrays
+
+        Returns
+        -------
+
+        """
+
+        dtype = [('r_number', int), ('rate', float), ('k_int', float), ('p_guess_raw', float), ('p_guess', float), ('p_guess_flat', float)]
+        output = np.empty_like(self.k_series.tf_cov.r_number, dtype=dtype)
+        indices = np.searchsorted(initial_rates['r_number'], self.k_series.tf_cov.r_number)
+        if not len(indices) == len(np.unique(indices)):
+            print('WARNING')
+            # raise ValueError('Invalid match between section r number and initial result r number')
+        init_rate = initial_rates['rate'][indices]
+
+        indices = np.searchsorted(k_int['r_number'], self.k_series.tf_cov.r_number)
+        if not len(indices) == len(np.unique(indices)):
+            raise ValueError('Invalid match between section r number and k_int r number')
+        k_int_section = k_int['k_int'][indices]
+
+        p_guess_raw = (k_int_section / init_rate) - 1
+        k_int_mean = np.mean(k_int_section[k_int_section != -1.])
+        p_guess_flat = (k_int_mean / init_rate) - 1
+        p_guess = p_guess_raw.copy()
+        bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
+        idx = np.where(np.diff(bools))[0]
+        for start, stop in zip(idx[::2], idx[1::2]):
+            replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
+            p_guess[start + 1:stop + 1] = replacement[1:-1]
+
+        output['r_number'] = self.k_series.tf_cov.r_number
+        output['rate'] = init_rate
+        output['k_int'] = k_int_section
+        output['p_guess_raw'] = p_guess_raw
+        output['p_guess'] = p_guess
+        output['p_guess_flat'] = p_guess_flat
+
+        return output
+
+
     def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
         """TF global fitting using new coverage object"""
         #todo split off in get_model function?
@@ -876,7 +924,6 @@ class KineticsFitting(object):
             print('WARNING')
             #raise ValueError('Invalid match between section r number and initial result r number')
         init_rate = initial_result['rate'][indices]
-
 
         indices = np.searchsorted(k_dict['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):
