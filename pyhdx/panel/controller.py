@@ -611,122 +611,23 @@ class FittingControl(ControlPanel):
             else:
                 self._fit1()
 
-        # fit_result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
-        # rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
-
-    async def _fit2_async(self):
-        fit_result = await self.parent.fitting.blocks_fit_async(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(),
-                                                                pbar=self.pbar2, **self.fit_kwargs)
-        print('fit res in async', fit_result)
-        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
-        self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
-        callback = partial(self.parent.param.trigger, 'fit_results')
-        self.parent.doc.add_next_tick_callback(callback)
-
-        with pn.io.unlocked():
-            self.param['do_fit1'].constant = False
-            self.param['do_fit2'].constant = False
-            self.pbar2.reset()
-
-    def _fit2(self):
-        raise DeprecationWarning()
-        fit_result = self.parent.fitting.blocks_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
-
-        self.parent.fit_results['fit2'] = fit_result
-        #todo lines below are repeating code, create func(self, fit_result, name, y=rate) which does this job  (or func on parent controller?)
-        output = fit_result.output
-        dic = {name: output[name] for name in output.dtype.names}
-        dic['y'] = output['rate']
-        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit2'], dtype='<U7')
-
-        self.parent.publish_data('fit2', dic)
-        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit2 is available as initial guesses
-
-
-        #todo all fit buttons should globally constant during fitting (make some kind of global context manager)
-        self.param['do_fit1'].constant = False
-        self.param['do_fit2'].constant = False
-        self.pbar2.reset()
-
-    def _action_fit2(self):
-        print('fitting 2')
-        #todo context manager
-        self.param['do_fit1'].constant = True
-        self.param['do_fit2'].constant = True
-
-        if self.parent.cluster:
-            self.parent.doc = pn.state.curdoc
-            loop = IOLoop.current()
-            loop.add_callback(self._fit2_async)
-        else:
-            self._fit2()
-
-    @property
-    def fit_kwargs(self):
-        if self.block_mode == 'reduced':
-            fit_kwargs = {'block_func': get_reduced_blocks, 'max_combine': self.max_combine, 'max_join': self.max_join}
-        elif self.block_mode == 'original':
-            fit_kwargs = {'block_func': get_original_blocks}
-        elif self.block_mode == 'constant':
-            fit_kwargs = {'block_func': get_constant_blocks, 'block_size': self.block_size, 'initial_block': self.initial_block}
-        return fit_kwargs
-
-    @property
-    def fit_block_edges(self):
-        """returns the position of block edges from the current block func"""
-        kwargs = self.fit_kwargs
-        func = kwargs.pop('block_func')
-        all_edges = []
-        for series in self.parent.series.split().values():
-            blocks = np.array(func(series.cov, **kwargs))
-            indices = list(np.cumsum(blocks) - 1)
-            edges = [series.cov.start - 0.5] + list(series.cov.r_number[[indices]] + 0.5)
-            all_edges += edges
-
-        all_edges = np.array(all_edges)
-        return all_edges
-
-    def _clear_block_kwargs(self):
-        """removes all block func kwarg widgets from the box"""
-        parameters = ['max_combine', 'max_join', 'initial_block', 'block_size']
-        for par in parameters:
-            try:
-                self.box_pop(par)
-            except ValueError:
-                pass
-
-    @param.depends('block_mode', watch=True)
-    def _update_block_mode(self):
-        print('block mode updated')
-        if self.block_mode == 'reduced':
-            self._clear_block_kwargs()
-            self.box_insert_after('block_mode', 'max_combine')
-            self.box_insert_after('max_combine', 'max_join')
-        elif self.block_mode == 'original':
-            self._clear_block_kwargs()
-        elif self.block_mode == 'constant':
-            self._clear_block_kwargs()
-            self.box_insert_after('block_mode', 'initial_block')
-            self.box_insert_after('initial_block', 'block_size')
-
 
 class TFFitControl(ControlPanel):
-    header = 'TF Single residue fit'
+    header = 'Fitting'
 
     #fitting_type = param.Selector(objects=['Protection Factors', 'Rates'], default='Protection Factors')
-
     initial_guess = param.Selector()
 
     c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds')  # remove
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
-    stop_loss = param.Number(0.1, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
+    stop_loss = param.Number(0.01, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
     stop_patience = param.Integer(50, bounds=(1, None), doc='Number of epochs where stop loss should be satisfied before stopping')
     learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
     epochs = param.Number(100000, bounds=(1, None), doc='Maximum number of epochs (iterations')
 
-    l1_regularizer = param.Number(2000, bounds=(0, None), doc='Value for l1 regularizer')
+    l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer')
     l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
 
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True)
