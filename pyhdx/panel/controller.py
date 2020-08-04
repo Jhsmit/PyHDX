@@ -1,6 +1,6 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure, CoverageFigureNew
+from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure, CoverageFigure
 from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
@@ -62,8 +62,6 @@ class Controller(param.Parameterized):
 
     """
 
-    #data = param.Array()  # might not be needed, in favour of peptides
-    #rates = param.Array(doc='Output rates data')
     fit_results = param.Dict({})
     sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
     rate_colors = param.Dict({})  #probably not used
@@ -81,7 +79,7 @@ class Controller(param.Parameterized):
 
         # Controllers
         self.file_input = FileInputControl(self)
-        self.coverage = CoverageControl(self)#CoveragePanel(self)
+        self.coverage = CoverageControl(self)
         self.fit_control = FittingControl(self)
         self.tf_fit_control = TFFitControl(self)
         self.fit_quality = FittingQuality(self)
@@ -91,7 +89,7 @@ class Controller(param.Parameterized):
         self.dev = DeveloperPanel(self)
 
         #Figures
-        self.coverage_figure = CoverageFigureNew(self, [self.coverage, self.fit_control])  #parent, [controllers]
+        self.coverage_figure = CoverageFigure(self, [self.coverage, self.fit_control])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
         self.pfact_figure = PFactFigure(self, [self.fit_control, self.classification_panel])
 
@@ -102,11 +100,6 @@ class Controller(param.Parameterized):
         self.options.master_figure = self.coverage_figure.figure
         self.options.client_figures = [self.rate_figure.figure, self.pfact_figure.figure]
 
-        # self.options.cov_fig_panel = self.coverage_figure
-        # self.options.rate_fig_panel = self.pfact_figure
-        # self.options.coverage_ctrl = self.coverage
-
-        # tmpl = pn.Template(template)
         tmpl.add_panel('input', self.file_input.panel)
         tmpl.add_panel('coverage', self.coverage.panel)
         tmpl.add_panel('fitting', self.fit_control.panel)
@@ -118,36 +111,12 @@ class Controller(param.Parameterized):
         tmpl.add_panel('dev', self.dev.panel)
 
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
-
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
         tmpl.add_panel('pfact_fig', self.pfact_figure.panel)
         tmpl.add_panel('fitres_fig', self.fit_result_figure.panel)
         tmpl.add_panel('slice_k', self.protein_figure.panel)
 
         self.app = tmpl
-
-    @param.depends('series', watch=True)
-    def _series_changed(self):
-
-        pass
-        # This is triggered if the fileinput child panel yields a new KineticSeries
-        # print('series changed')
-        #
-        # self.fitting = KineticsFitting(self.series, cluster=self.cluster)
-        # for key in ['fit1', 'fit2']:    # todo this list of names somewhere?
-        #     self.rate_colors[key] = [DEFAULT_COLORS[key]]*len(self.series.cov.r_number)
-        # self.param.trigger('rate_colors')
-        #
-        # # #todo add errors here
-        # rate_fields = ['fit1', 'fit1_r1', 'fit1_r2', 'fit2', 'fit2_r1', 'fit2_r2']
-        # color_fields = ['fit1_color', 'fit2_color']
-        # dtype = [('r_number', int)] + [(name, float) for name in rate_fields] + [(name, 'U7') for name in color_fields]
-        # rates = np.zeros(self.series.cov.prot_len, dtype=dtype)
-        # rates['r_number'] = self.series.cov.r_number
-        # rates['fit1_color'][:] = 'blue'
-        # rates['fit2_color'][:] = 'red'
-        #
-        # self.rates = rates  # this assignement triggers downstream watchers? manual trigger?
 
     def publish_data(self, name, dic):
         """
@@ -295,16 +264,6 @@ class FileInputControl(ControlPanel):
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
-        # states = self.parent.peptides.groupby_state()
-        # series = states[self.exp_state]
-        # series.make_uniform()
-
-        # b = np.isin(series.full_data['exposure'], self.exp_exposures)
-        # data = series.full_data[b].copy()
-
-        #series = KineticsSeries(data)
-        #series.make_uniform()  #TODO add gui control for this
-
         series = KineticsSeries(data)
         series.make_uniform()
         self.parent.series = series
@@ -377,9 +336,7 @@ class CoverageControl(ControlPanel):
     header = 'Coverage'
 
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
-    color_map = param.Selector(objects=['jet', 'inferno', 'viridis', 'cividis', 'plasma'], default='jet')
-    #aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
-    #labels = param.Boolean(False, label='Labels')
+    color_map = param.Selector(objects=['jet', 'inferno', 'viridis', 'cividis', 'plasma', 'cubehelix'], default='jet')
     index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time')
 
     def __init__(self, parent, **params):
@@ -407,6 +364,9 @@ class CoverageControl(ControlPanel):
 
     def get_color_bar(self):
         """pn.pane.Bokeh: bokeh pane with empty figure and only a color bar"""
+        # f5f5f5
+        # from default value in panel css
+        #https://github.com/holoviz/panel/blob/67bf192ea4138825ab9682c8f38bfe2d696a4e9b/panel/_styles/widgets.css
         color_bar = ColorBar(color_mapper=self.color_mapper, location=(0, 0), orientation='horizontal',
                              background_fill_color='#f5f5f5')
                              #title='D uptake percentage',  title_text_align='center')
@@ -416,13 +376,12 @@ class CoverageControl(ControlPanel):
         fig.border_fill_color = '#f5f5f5'
         fig.outline_line_color = None
         fig.add_layout(color_bar, 'above')
-        # f5f5f5
-        # from default value in panel css
-        #https://github.com/holoviz/panel/blob/67bf192ea4138825ab9682c8f38bfe2d696a4e9b/panel/_styles/widgets.css
+
         return pn.pane.Bokeh(fig, height=100, width=350)
 
     @property
     def palette(self):
+        """"""
         cmap = mpl.cm.get_cmap(self.color_map)
         pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
         return pal
@@ -438,15 +397,6 @@ class CoverageControl(ControlPanel):
     def coverage(self):
         """Coverage object describing the peptide layout"""
         return self.parent.series.cov
-
-    @property
-    def dep_color_mapper(self):
-        """ not used"""
-        cmap = mpl.cm.get_cmap(self.color_map)
-        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
-        color_mapper = LinearColorMapper(palette=pal, low=0, high=100)
-
-        return color_mapper
 
     @property
     def colors(self):
@@ -496,28 +446,10 @@ class CoverageControl(ControlPanel):
             pass
 
 
-
 class FittingControl(ControlPanel):
     header = 'Initial Guesses'
-
-    #r_max = param.Number(27, doc='Ceil value for rates', precedence=-1)  # Update this value
-    chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
-
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association', 'Dissociation'])
-    do_fit1 = param.Action(lambda self: self._action_fit1())
-    block_mode = param.ObjectSelector(default='reduced', objects=['reduced', 'original', 'constant'])
-
-    #todo generate from func signature?
-    #block mode reduced params
-    max_combine = param.Integer(2, doc='Neighbouring blocks up to and including this size are merged together', precedence=-1)
-    max_join = param.Integer(5, doc='Blocks up to and including this size are joined with their smallest neighbour', precedence=-1)
-
-    #constant block params
-    block_size = param.Integer(10, doc='Size of the blocks in constant blocks mode', precedence=-1)
-    initial_block = param.Integer(5, doc='Size of the initial block in constant block mode', precedence=-1)
-    show_blocks = param.Boolean(False, doc='Show how blocks are defined with the current settings', precedence=-1)
-
-    do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True, precedence=-1)
+    do_fit1 = param.Action(lambda self: self._action_fit())
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
@@ -580,8 +512,8 @@ class FittingControl(ControlPanel):
         self.param['do_fit2'].constant = False
         self.pbar1.reset()
 
-    def _action_fit1(self):
-        print('fitting 1')
+    def _action_fit(self):
+        print('fitting')
         #todo context manager?
         self.param['do_fit1'].constant = True
         self.param['do_fit2'].constant = True
@@ -666,7 +598,6 @@ class TFFitControl(ControlPanel):
         if objects:
             self.param['do_fit'].constant = False
 
-
         self.param['initial_guess'].objects = objects
         if not self.initial_guess and objects:
             self.initial_guess = objects[0]
@@ -700,7 +631,6 @@ class TFFitControl(ControlPanel):
         #self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
         self.param['do_fit'].constant = False
     #
-
 
 class FittingQuality(ControlPanel):
     header = 'Fitting Quality'
@@ -1046,8 +976,6 @@ class OptionsPanel(ControlPanel):
 
     """panel for various options and settings"""
 
-    #todo this needs to access other panels as well
-
     link_xrange = param.Boolean(False)
 
     def __init__(self, parent, master_figure=None, client_figures=None, **param):
@@ -1085,7 +1013,6 @@ class OptionsPanel(ControlPanel):
 
             client.x_range.js_link('start', self.master_figure.x_range, 'start')
             client.x_range.js_link('end', self.master_figure.x_range, 'end')
-
 
 
 class DeveloperPanel(ControlPanel):
