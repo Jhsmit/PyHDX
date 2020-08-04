@@ -284,8 +284,6 @@ class ThdLogFigure(FigurePanel):
         self.ctrl.param.watch(self._draw_thds, ['values', 'show_thds'])
 
     def draw_figure(self):
-      #$  tooltips = [('Residue', '@r_number{int}'), ('Y value', '@y')]
-
         fig = figure(y_axis_type='log', tools='pan,wheel_zoom,box_zoom,save,reset')
         fig.min_border_left = MIN_BORDER_LEFT
         fig.xaxis.axis_label = 'Residue number'

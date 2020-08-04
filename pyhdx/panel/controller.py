@@ -61,7 +61,7 @@ class Controller(param.Parameterized):
 
     """
 
-    data = param.Array()  # might not be needed, in favour of peptides
+    #data = param.Array()  # might not be needed, in favour of peptides
     #rates = param.Array(doc='Output rates data')
     fit_results = param.Dict({})
     sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
@@ -103,7 +103,7 @@ class Controller(param.Parameterized):
         self.options.coverage_ctrl = self.coverage
 
         # tmpl = pn.Template(template)
-        tmpl.add_panel('input', self.fileinput.panel)
+        tmpl.add_panel('input', self.file_input.panel)
         tmpl.add_panel('coverage', self.coverage.panel)
         tmpl.add_panel('fitting', self.fit_control.panel)
         tmpl.add_panel('tf_fit', self.tf_fit_control.panel)
@@ -202,15 +202,6 @@ class Controller(param.Parameterized):
         '''
         pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
         pn.serve(self.app, **kwargs, title=VERSION_STRING_SHORT)
-
-    def get_rate_file_export(self):
-        fmt, header = fmt_export(self.rates)
-        s = StringIO()
-        np.savetxt(s, fmt=fmt, header=header)
-
-    @param.depends('data')
-    def _test(self):
-        print("hoi, data changed")
 
 
 class FileInputControl(ControlPanel):
@@ -1127,10 +1118,6 @@ class OptionsPanel(ControlPanel):
         self.rate_fig_panel = None
         self.coverage_ctrl = None
 
-    #
-    # def setup(self, fig1, fig2, coverage_ctrl):
-    #     self.fig1 = fig1,
-    #     self.fig2 = fig2
 
     @property
     def fig1(self):
