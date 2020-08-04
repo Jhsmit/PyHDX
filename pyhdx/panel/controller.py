@@ -644,6 +644,8 @@ class FittingQuality(ControlPanel):
 
 
 class ClassificationControl(ControlPanel):
+    accepted_sources = ['']
+
     header = 'Classification'
     num_classes = param.Number(3, bounds=(1, 10), doc='Number of classification classes')
     target = param.Selector(label='Target')
@@ -674,8 +676,9 @@ class ClassificationControl(ControlPanel):
         print('sources')
         print("UPDATE")
 
-        objects = list(self.parent.sources.keys())
-        self.param['target'].objects = objects
+        excluded = ['coverage']
+        objects = [key for key in self.parent.sources.keys() if key not in excluded]
+        self.param['target'].objects = list(objects)
 
         #set target if its not set already
         if not self.target and objects:
@@ -683,7 +686,6 @@ class ClassificationControl(ControlPanel):
 
         if self.values:
             self._do_thresholding()
-
 
     def _action_threshold(self):
         if self.num_classes > 1 and self.target:
