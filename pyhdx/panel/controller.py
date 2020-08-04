@@ -183,7 +183,7 @@ class FileInputControl(ControlPanel):
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
     drop_first = param.Integer(1, bounds=(0, None))
-    ignore_prolines = param.Boolean(True, doc='Set to True to ignore prolines in the sequence')
+    ignore_prolines = param.Boolean(True, constant=True, doc='Set to True to ignore prolines in the sequence')
     load_button = param.Action(lambda self: self._action_load(), doc='Load Files', label='Load Files')
 
     norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
