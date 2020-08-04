@@ -533,6 +533,9 @@ class Coverage(object):
             i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
             self.X[row][i0:i1] = 1 / entry['ex_residues']
 
+    def __len__(self):
+        return len(self.data)
+
     @property
     def block_length(self):
         """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
@@ -585,8 +588,7 @@ class Coverage(object):
         """:class:`~np.ndarray`: Boolean array indicating if the residues along r_number have coverage"""
         return np.sum(self.X, axis=0) > 0
 
-    def __len__(self):
-        return len(self.data)
+
 
     @property
     def sequence(self):

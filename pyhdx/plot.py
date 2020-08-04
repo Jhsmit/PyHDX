@@ -185,16 +185,12 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8),
 
 
 def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwargs):
-    TOTAL_HEIGHT = 600
-
-
     num_axes = pm.end // aa_per_subplot + 1
     cmap = mpl.cm.get_cmap('jet')
     c_rgba = cmap(pm.data['scores'] / 100)
     c = [mpl.colors.to_hex(color) for color in c_rgba]
 
     pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 256, endpoint=True))
-
     color_mapper = LinearColorMapper(palette=pal, low=0, high=100)
     color_bar = ColorBar(color_mapper=color_mapper)
 

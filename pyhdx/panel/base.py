@@ -23,7 +23,7 @@ class FigurePanel(PanelBase):
         super(PanelBase, self).__init__(**params)
         self.parent = parent  # main controller
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
-        self.controllers = controllers  # side controllers
+        self.controllers = controllers  # side controllers (update)
         self.figure = self.draw_figure()
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
 

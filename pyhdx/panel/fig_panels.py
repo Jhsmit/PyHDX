@@ -298,6 +298,7 @@ class ThdLogFigure(FigurePanel):
         return fig
 
     def render_sources(self, src_dict):
+        #todo perhaps refactor to single source
         for name, source in src_dict.items():
             func_name = DEFAULT_RENDERERS[name]
             glyph_func = getattr(self.figure, func_name)
