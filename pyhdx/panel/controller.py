@@ -613,9 +613,9 @@ class TFFitControl(ControlPanel):
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-        output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
-        #todo this should be moved to TFFitresults object
-        output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
+        # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
+        # #todo this should be moved to TFFitresults object
+        # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
         output_dict['y'] = 10**output_dict[var_name]
         # if self.fitting_type == 'Protection Factors':
         deltaG = constants.R * self.temperature * np.log(output_dict['y'])

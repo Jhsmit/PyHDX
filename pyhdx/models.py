@@ -363,7 +363,14 @@ class TFCoverage(object):
     def __len__(self):
         return len(self.data)
 
-    @property
+    @property  #todo refactor to sequence
+    def cov_sequence(self):
+        """amino acids one letter codes corresponding to r_number array"""
+        idx = np.searchsorted(self.sequence_r_number, self.r_number)
+        seq_arr = np.array([s for s in self.sequence])
+        return seq_arr[idx]
+
+    @property  #todo refactor to full sequence. Perhaps also return as array
     def sequence(self):
         """:obj:`str`: String of the full protein sequence. One letter coding where X marks regions of no coverage"""
 
@@ -376,7 +383,7 @@ class TFCoverage(object):
         return ''.join(seq)
 
     @property
-    def sequence_r_number(self):
+    def sequence_r_number(self):  #todo refactor to: full_r_number
         """~class:`numpy.ndarray`: Array of r numbers corresponding to residues in sequence"""
         start = min(self._start, 1)  # start at least at 1 unless the protein extends into negative numbers
         r_number = np.arange(start, self._end)

@@ -200,13 +200,17 @@ class TFFitResult(object):
         name = self.funcs[0].parameter_name
         output = np.full_like(self.r_number, fill_value=np.nan, dtype=float)
 
-        for (s, e), wts in zip(self.intervals, self.weights):
+        for (s, e), wts in zip(self.intervals, self.weights):  #there is only one interval in the current implementation
             i0, i1 = np.searchsorted(self.r_number, [s, e])
             output[i0:i1] = wts
 
-        array = np.empty_like(self.r_number, dtype=[('r_number', int), (name, float)])
+        array = np.empty_like(self.r_number, dtype=[('r_number', int), (f'{name}_full', float), (name, float)])
         array['r_number'] = self.r_number
-        array[name] = output
+        array[f'{name}_full'] = output
+
+        bools = np.array([s in ['X', 'P'] for s in self.series.tf_cov.cov_sequence])
+        array[name] = output.copy()
+        array[name][bools] = np.nan # set no coverage or prolines resiudes to nan
 
         return array
 
