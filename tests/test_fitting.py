@@ -73,6 +73,7 @@ class TestSimulatedDataFit(object):
 
     def test_tf_pfact_fitting(self):
         pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
+        pmt.set_backexchange(0.)
         states = pmt.groupby_state()
         series = states['state1']
         series.make_uniform()
