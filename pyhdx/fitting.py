@@ -857,6 +857,7 @@ class KineticsFitting(object):
             yield model, interval, input_data, output_data
 
     def _initial_guess(self, initial_rates, k_int):
+        #todo refactor prepare_initial_guess?
         """
 
         Parameters
@@ -884,10 +885,13 @@ class KineticsFitting(object):
             raise ValueError('Invalid match between section r number and k_int r number')
         k_int_section = k_int['k_int'][indices]
 
-        p_guess_raw = (k_int_section / init_rate) - 1
-        k_int_mean = np.mean(k_int_section[k_int_section != -1.])
-        p_guess_flat = (k_int_mean / init_rate) - 1
-        p_guess = p_guess_raw.copy()
+        #p_guess_raw = (k_int_section / init_rate) - 1
+        #k_int_mean = np.mean(k_int_section[k_int_section != -1.])
+        #p_guess_flat = (k_int_mean / init_rate) - 1
+        #p_guess = p_guess_raw.copy()
+        p_guess = np.clip((k_int_section / init_rate) - 1, a_min=np.e, a_max=None)
+        #todo do i really need this line!!?!
+
         bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
         idx = np.where(np.diff(bools))[0]
         for start, stop in zip(idx[::2], idx[1::2]):
@@ -897,11 +901,11 @@ class KineticsFitting(object):
         output['r_number'] = self.k_series.tf_cov.r_number
         output['rate'] = init_rate
         output['k_int'] = k_int_section
-        output['p_guess_raw'] = p_guess_raw
-        output['p_guess'] = p_guess
-        output['p_guess_flat'] = p_guess_flat
+        # output['p_guess_raw'] = p_guess_raw
+        # output['p_guess'] = p_guess
+        # output['p_guess_flat'] = p_guess_flat
 
-        return output
+        return p_guess
 
 
     def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
@@ -919,25 +923,31 @@ class KineticsFitting(object):
         k_r_number = self.k_series.cov.sequence_r_number
         k_dict = {'r_number': k_r_number, 'k_int': k_int}  #todo get rid of this dict nonsense self.k_series.get_kint_array?
 
-        indices = np.searchsorted(initial_result['r_number'], self.k_series.tf_cov.r_number)
-        if not len(indices) == len(np.unique(indices)):
-            print('WARNING')
-            #raise ValueError('Invalid match between section r number and initial result r number')
-        init_rate = initial_result['rate'][indices]
+        # indices = np.searchsorted(initial_result['r_number'], self.k_series.tf_cov.r_number)
+        # if not len(indices) == len(np.unique(indices)):
+        #     print('WARNING')
+        #     #raise ValueError('Invalid match between section r number and initial result r number')
+        # init_rate = initial_result['rate'][indices]
+        #
 
+        #todo move this elsewhere
         indices = np.searchsorted(k_dict['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):
             raise ValueError('Invalid match between section r number and k_int r number')
         k_int_section = k_dict['k_int'][indices]
-        p_guess = np.clip((k_int_section / init_rate) - 1, a_min=np.e, a_max=None)
-        print(np.nanmin(p_guess)), print(np.nanmax(p_guess))
+        # p_guess = np.clip((k_int_section / init_rate) - 1, a_min=np.e, a_max=None)
+
 
         # fix nan's (no coverage) or zeros (prolines) in p_guess from no coverage sections
-        bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
-        idx = np.where(np.diff(bools))[0]
-        for start, stop in zip(idx[::2], idx[1::2]):
-            replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
-            p_guess[start + 1:stop + 1] = replacement[1:-1]
+        # bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
+        # idx = np.where(np.diff(bools))[0]
+        # for start, stop in zip(idx[::2], idx[1::2]):
+        #     replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
+        #     p_guess[start + 1:stop + 1] = replacement[1:-1]
+
+
+        p_guess = self._initial_guess(initial_result, k_dict)
+        print(np.nanmin(p_guess)), print(np.nanmax(p_guess))
 
         guess_vals = np.log10(p_guess)
 
@@ -947,7 +957,7 @@ class KineticsFitting(object):
         import pyhdx.fitting_tf as ftf
 
         regularizer = ftf.L1L2Differential(l1, l2)
-        parameter = ftf.TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
+        parameter = ftf.TFParameter('log_P', (len(p_guess), 1), regularizer=regularizer)
         func = ftf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
 
         # expand dimensions of k_int to allow outer product with time and match the shape of parameter
