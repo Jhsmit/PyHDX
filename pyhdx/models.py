@@ -91,10 +91,15 @@ class PeptideMasterTable(object):
     def __len__(self):
         return len(self.data)
 
-    def groupby_state(self):
+    def groupby_state(self, make_uniform=True):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a
         :class:`~pyhdx.pyhdx.KineticSeries`.
+
+        Parameters
+        ----------
+        make_uniform : :obj:`bool`
+            If `True` the returned :class:`~pyhdx.pyhdx.KineticSeries` is made uniform
 
         Returns
         -------
@@ -103,7 +108,7 @@ class PeptideMasterTable(object):
         """
 
         states = np.unique(self.data['state'])
-        return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
+        return {state: KineticsSeries(self.data[self.data['state'] == state], make_uniform=make_uniform) for state in states}
 
     @staticmethod
     def isin_by_idx(array, test_array):
@@ -725,13 +730,16 @@ class KineticsSeries(object):
         Array with exposure times (sorted)
 
     """
-    def __init__(self, data):
+    def __init__(self, data, make_uniform=True, **metadata):
         if isinstance(data, np.ndarray):
             assert len(np.unique(data['state'])) == 1
             self.state = data['state'][0]
             self.timepoints = np.sort(np.unique(data['exposure']))
 
             self.peptides = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.timepoints]
+
+            if make_uniform:
+                self.make_uniform()
 
             if self.uniform:
                 self.cov = Coverage(data[data['exposure'] == self.timepoints[0]])
