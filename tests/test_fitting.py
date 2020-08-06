@@ -39,7 +39,7 @@ class TestDissociationFitting(object):
 class TestSimulatedDataFit(object):
     @classmethod
     def setup_class(cls):
-        fpath = os.path.join(directory, 'test_data', 'simulated_data.csv')
+        fpath = os.path.join(directory, 'test_data', 'simulated_data_uptake.csv')
         cls.data = np_from_txt(fpath, delimiter=',')
         cls.data['end'] += 1  # because this simulated data is in old format of inclusive, inclusive
         cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
@@ -75,6 +75,7 @@ class TestSimulatedDataFit(object):
         pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
         states = pmt.groupby_state()
         series = states['state1']
+        series.make_uniform()
 
         kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=300, pH=8)
         initial_rates = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
