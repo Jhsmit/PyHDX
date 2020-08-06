@@ -361,6 +361,7 @@ def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
 
 def multi_otsu(*rates, classes=3):
     """
+    global otsu thesholding of multiple rate arrays in log space
 
     Parameters
     ----------
@@ -382,6 +383,7 @@ def multi_otsu(*rates, classes=3):
 
 
 def scale(x, out_range=(-1, 1)):
-    domain = np.min(x), np.max(x)
+    """rescale input array x to range `out_range`"""
+    domain = np.nanmin(x), np.nanmax(x)
     y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
     return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
