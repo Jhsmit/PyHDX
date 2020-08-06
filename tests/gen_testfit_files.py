@@ -17,6 +17,7 @@ start, end = 5, 45  # total span of protein (inc, inc)
 nc_start, nc_end = 31, 34  # span of no coverage area (inc, inc)
 
 pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
+pmt.set_backexchange(0.)
 states = pmt.groupby_state()
 series = states['state1']
 series.make_uniform()
@@ -30,6 +31,8 @@ fmt, hdr = fmt_export(out1)
 np.savetxt(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.txt'), out1, fmt=fmt, header=hdr)
 with open(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.pick'), 'wb') as f:
     pickle.dump(fr1, f)
+
+
 #
 # fr2 = kf.blocks_fit(out1)
 # out2 = fr2.output
@@ -58,4 +61,4 @@ out_pfact = fr_pfact.output
 fmt, hdr = fmt_export(out_pfact)
 np.savetxt(os.path.join(directory, 'test_data', 'fit_simulated_pfact.txt'), out_pfact, fmt=fmt, header=hdr)
 with open(os.path.join(directory, 'test_data', 'fit_simulated_pfact.pick'), 'wb') as f:
-    pickle.dump(out_pfact, f)
+    pickle.dump(fr_pfact, f)

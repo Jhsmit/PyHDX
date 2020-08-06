@@ -189,7 +189,6 @@ class TFFitResult(object):
 
         self.loss = loss
 
-
         #self.func = self.results[0].model.layers[0].function
         #print(self.func_cls)
 
@@ -222,16 +221,14 @@ class TFFitResult(object):
             f_copy.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
 
             parameters = {func.parameter_name: tf.dtypes.cast(tf.expand_dims(wts, -1), tf.float32)}
-            X = tf.dtypes.cast(np.squeeze(ip, axis=0), tf.float32)  # this no longer works
-            d_out = f_copy(X, **parameters)
-            print(d_out.shape)
+            X = tf.dtypes.cast(np.squeeze(ip[0], axis=0), tf.float32)
+            k_int = tf.dtypes.cast(np.squeeze(ip[1], axis=0), tf.float32)
+            d_out = f_copy([X, k_int], **parameters)
 
             d = np.array(d_out)
-            print('hoi')
             d_list.append(d)
 
         full_output = np.concatenate(d_list)
-        print(full_output.shape)
 
         return full_output
 

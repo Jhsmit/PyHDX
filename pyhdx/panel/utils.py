@@ -39,7 +39,6 @@ def reload_previous(dic, ctrl=None):
     # Apply back exchange correction
     ctrl.file_input._action_parse()
 
-
     if 'sources' not in dic.keys():
         dic['sources'] = {}
     try:
@@ -55,7 +54,7 @@ def reload_previous(dic, ctrl=None):
         ctrl.publish_data(k, v)
 
     try:
-        for k, v in dic['fit_results']:
+        for k, v in dic['fit_results'].items():
             ctrl.fit_results[k] = v  #trigger?
     except KeyError:
         pass

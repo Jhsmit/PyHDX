@@ -21,6 +21,7 @@ geometry_options = {
     "rmargin": "1.5in"
     }
 
+
 class Report(object):
     """
 

@@ -7,6 +7,7 @@ DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 
 DEFAULT_CLASS_COLORS = ['#cc0c49', '#eded0e', '#1930e0']
 MIN_BORDER_LEFT = 65
 
+
 class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 
@@ -18,6 +19,8 @@ class PanelBase(param.Parameterized):
 
 class FigurePanel(PanelBase):
     accepted_sources = []
+    x_label = ''
+    y_label = ''
 
     def __init__(self, parent, controllers, sources=None, **params):
         super(PanelBase, self).__init__(**params)
@@ -61,7 +64,12 @@ class FigurePanel(PanelBase):
 
     def draw_figure(self):
         """Override to create a custom figure with eg to specify axes labels"""
-        return figure()
+
+        fig = figure()
+        fig.xaxis.axis_label = self.x_label
+        fig.yaxis.axis_label = self.y_label
+
+        return fig
 
     @property
     def sources(self):

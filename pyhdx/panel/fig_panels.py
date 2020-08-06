@@ -117,9 +117,22 @@ class PFactFigure(ThdLogFigure):
     y_label = 'Protection factor'
 
 
-class FitResultFigure(FigurePanelOld):
+class FitResultFigure(FigurePanel):
+    accepted_sources = ['fr_pfact']
+    y_label = 'Uptake'
+    x_label = 'Time'
+
+    def render_sources(self, src_dict):
+        for name, source in src_dict.items():
+            func_name = 'line' if 'fr' in name else 'circle'
+            glyph_func = getattr(self.figure, func_name)
+            renderer = glyph_func(x='time', y='uptake', legend_label=name, source=source)
+            self.renderers[name] = renderer
+
+
+class FitResultFigureOld(FigurePanelOld):
     def __init__(self, *args, **params):
-        super(FitResultFigure, self).__init__(*args, **params)
+        super(FitResultFigureOld, self).__init__(*args, **params)
 
         self.ctrl = self.controllers[0]  #update to dict
         self.figure = self.draw_figure()

@@ -496,6 +496,8 @@ class FittingControl(ControlPanel):
              self.pbar1.reset()
              self.param['do_fit1'].constant = False
 
+
+
     def _fit1(self):
         fit_result = self.parent.fitting.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1, chisq_thd=self.chisq_thd)
         self.parent.fit_results['fit1'] = fit_result
@@ -614,7 +616,7 @@ class TFFitControl(ControlPanel):
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
         # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
-        # #todo this should be moved to TFFitresults object
+        # #todo this should be moved to TFFitresults object (or shoud it?)
         # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
         output_dict['y'] = 10**output_dict[var_name]
         # if self.fitting_type == 'Protection Factors':
@@ -634,16 +636,40 @@ class FittingQuality(ControlPanel):
 
     peptide_index = param.Number(0, bounds=(0, None))
     x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'])
-    chi_sq = param.Number(0., bounds=(0, None))
 
     def __init__(self, parent, **param):
         super(FittingQuality, self).__init__(parent, **param)
 
+        self.d_uptake = {}  ## Dictionary of arrays (N_p, N_t) with results of fit result model calls
         self.parent.param.watch(self._series_updated, ['series'])
+        self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
     def _series_updated(self, *events):
+        self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
 
-        self.param['peptide_index'].bounds =(0, len(self.parent.series.cov.data))
+    @property
+    def fit_timepoints(self):
+        time = np.logspace(-2, np.log10(self.parent.series.timepoints.max()), num=250)
+        time = np.insert(time, 0, 0.)
+        return time
+
+    def _fit_results_updated(self, *events):
+        print('fit results updated in fitting quality')
+        #todo wrappertje which checks with a cached previous version of this particular param what the changes are even it a manual trigger
+        for name, fit_result in self.parent.fit_results.items():
+            D_upt = fit_result(self.fit_timepoints)
+            self.d_uptake[name] = D_upt
+
+        # push results to graph
+        self._peptide_index_updated()
+
+    @param.depends('peptide_index', watch=True)
+    def _peptide_index_updated(self):
+        for name, array in self.d_uptake.items():
+            dic = {'time': self.fit_timepoints, 'uptake': array[self.peptide_index, :]}
+            self.parent.publish_data(name, dic)
+
+        print('keys', self.parent.sources.keys())
 
 
 class ClassificationControl(ControlPanel):

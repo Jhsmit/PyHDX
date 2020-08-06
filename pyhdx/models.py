@@ -420,7 +420,7 @@ class TFCoverage(object):
         """
 
         c_term = len(self.sequence) + 1 if c_term is None else c_term
-        k_int_list = [-1.]
+        k_int_list = [-1.]  # first residue
         for i, (previous, current) in enumerate(zip(self.sequence[:-1], self.sequence[1:])):
             if previous == 'X' or current == 'X':
                 k_int_list.append(0.)
@@ -721,6 +721,8 @@ class KineticsSeries(object):
     data : :class:`~numpy.ndarray` or :obj:`list`
         Numpy structured array with peptide entries corresponding to a single state,
         or list of :class:`~pyhdx.pyhdx.PeptideMeasurements`
+    make_uniform : :obj:`bool`
+        If `True` the returned :class:`~pyhdx.pyhdx.KineticSeries` is made uniform
 
     Attributes
     ----------
@@ -731,6 +733,7 @@ class KineticsSeries(object):
 
     """
     def __init__(self, data, make_uniform=True, **metadata):
+        self.metadata = metadata
         if isinstance(data, np.ndarray):
             assert len(np.unique(data['state'])) == 1
             self.state = data['state'][0]
@@ -764,6 +767,39 @@ class KineticsSeries(object):
 
         else:
             raise TypeError('Invalid data type')
+
+    @property
+    def temperature(self):
+        try:
+            return self.metadata['temperature']
+        except KeyError:
+            return None
+
+    @temperature.setter
+    def temperature(self, value):
+        self.metadata['temperature'] = value
+
+    @property
+    def pH(self):
+        try:
+            return self.metadata['pH']
+        except KeyError:
+            return None
+
+    @pH.setter
+    def pH(self, value):
+        self.metadata['pH'] = value
+
+    @property
+    def c_term(self):
+        try:
+            return self.metadata['c_term']
+        except KeyError:
+            return None
+
+    @c_term.setter
+    def c_term(self, value):
+        self.metadata['c_term'] = value
 
     def make_uniform(self, in_place=True):
         """
@@ -847,6 +883,16 @@ class KineticsSeries(object):
 
     def __getitem__(self, item):
         return self.peptides.__getitem__(item)
+
+    @property
+    def k_int(self):
+        """this might need to move somewhere else, eg coverage object
+        although if series are not uniform, k_int has to be on the main object as it wont
+        have global coverages
+        """
+
+        return self.tf_cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
+
 
     def set_control(self, control_100, control_zero=None, remove_nan=True):
         """
