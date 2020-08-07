@@ -118,17 +118,34 @@ class PFactFigure(ThdLogFigure):
 
 
 class FitResultFigure(FigurePanel):
-    accepted_sources = ['fr_pfact']
-    y_label = 'Uptake'
+    accepted_sources = ['fr_pfact', 'uptake_corrected']
+    y_label = 'Uptake corrected'
     x_label = 'Time'
+
+    def __init__(self, parent, controllers, *args, **params):
+        #todo refactor controllers to dict (Or better yet get them yourself from parent)
+        super(FitResultFigure, self).__init__(parent, controllers, *args, **params)
+
+        self.controllers[0].param.watch(self._redraw_event, ['x_axis_type'])
+
+    def _redraw_event(self, *events):
+        self.redraw(x_axis_type=self.controllers[0].x_axis_type.lower())
+
+    def draw_figure(self, **kwargs):
+        fig = super().draw_figure(x_axis_type=self.controllers[0].x_axis_type.lower())
+
+        return fig
 
     def render_sources(self, src_dict):
         for name, source in src_dict.items():
-            func_name = 'line' if 'fr' in name else 'circle'
+            func_name = 'line' if 'fr' in name else 'circle'  #todo default renderers
             glyph_func = getattr(self.figure, func_name)
-            renderer = glyph_func(x='time', y='uptake', legend_label=name, source=source)
+            color = DEFAULT_COLORS[name]
+            renderer = glyph_func(x='time', y='uptake', color=color, legend_label=name, source=source)
             self.renderers[name] = renderer
 
+        if self.renderers:
+            self.figure.legend.location = "bottom_right"
 
 class FitResultFigureOld(FigurePanelOld):
     def __init__(self, *args, **params):

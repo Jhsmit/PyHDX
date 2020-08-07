@@ -347,7 +347,7 @@ class CoverageControl(ControlPanel):
         self.color_bar = self.get_color_bar()
 
         super(CoverageControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._update_series, ['series'])
+        self.parent.param.watch(self._series_updated, ['series'])
 
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
@@ -407,7 +407,7 @@ class CoverageControl(ControlPanel):
 
         return np.array(c)
 
-    def _update_series(self, event):
+    def _series_updated(self, event):
         print('coverage new series update index bounds')
 
         # must be uniform
@@ -616,7 +616,7 @@ class TFFitControl(ControlPanel):
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
         # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
-        # #todo this should be moved to TFFitresults object (or shoud it?)
+        # #todo this should be moved to TFFitresults object (or shoud it?) -> DataObject class (see base) (does coloring)
         # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
         output_dict['y'] = 10**output_dict[var_name]
         # if self.fitting_type == 'Protection Factors':
@@ -646,6 +646,7 @@ class FittingQuality(ControlPanel):
 
     def _series_updated(self, *events):
         self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
+        self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
 
     @property
     def fit_timepoints(self):
@@ -666,7 +667,8 @@ class FittingQuality(ControlPanel):
     @param.depends('peptide_index', watch=True)
     def _peptide_index_updated(self):
         for name, array in self.d_uptake.items():
-            dic = {'time': self.fit_timepoints, 'uptake': array[self.peptide_index, :]}
+            timepoints = self.parent.series.timepoints if name == 'uptake_corrected' else self.fit_timepoints
+            dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
             self.parent.publish_data(name, dic)
 
         print('keys', self.parent.sources.keys())
