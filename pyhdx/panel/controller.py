@@ -99,6 +99,7 @@ class Controller(param.Parameterized):
         #setup options  #todo automate figure out cross dependencies
         self.options.master_figure = self.coverage_figure.figure
         self.options.client_figures = [self.rate_figure.figure, self.pfact_figure.figure]
+        self.options.link_xrange = True
 
         tmpl.add_panel('input', self.file_input.panel)
         tmpl.add_panel('coverage', self.coverage.panel)
