@@ -907,7 +907,6 @@ class KineticsFitting(object):
 
         return p_guess
 
-
     def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
         """TF global fitting using new coverage object"""
         #todo split off in get_model function?
@@ -916,6 +915,7 @@ class KineticsFitting(object):
         #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
 
         if use_kint:
+            #todo property on series
             k_int = self.k_series.tf_cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
         else:
             k_int = np.array([1. if s not in ['X', 'P'] else 0. for s in self.k_series.tf_cov.sequence])
