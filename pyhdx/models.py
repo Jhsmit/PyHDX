@@ -940,6 +940,7 @@ class KineticsSeries(object):
 
     @property
     def uptake_corrected(self):
+        """matrix shape  N_t, N_p"""
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
 
