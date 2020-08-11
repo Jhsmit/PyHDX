@@ -7,6 +7,7 @@ import shutil
 from functools import lru_cache, partial
 from pyhdx.support import grouper, autowrap
 from pyhdx.plot import plot_peptides
+import tqdm
 
 try:
     import pylatex as pyl
@@ -28,12 +29,12 @@ class Report(object):
     .pdf output document
     """
 
-    def __init__(self, output, name=None, doc=None):
+    def __init__(self, output, name=None, doc=None, add_date=True):
         if not pyl:
             raise ModuleNotFoundError('pylatex module not installed')
         name = name or output.series.state
         self.output = output
-        self.doc = doc or self._init_doc(name)
+        self.doc = doc or self._init_doc(name, add_date=add_date)
         self._temp_dir = self.make_temp_dir()
 
     def make_temp_dir(self):
@@ -43,11 +44,12 @@ class Report(object):
             os.makedirs(_tmp_path)
         return _tmp_path
 
-    def _init_doc(self, name):
+    def _init_doc(self, name, add_date=True):
         doc = pyl.Document(name, geometry_options=geometry_options)
         doc.packages.append(pyl.Package('hyperref'))
-        doc.preamble.append(pyl.Command('title', f'Supplementary Figures for {self.output.series.state}'))
-        doc.preamble.append(pyl.Command('date', pyl.NoEscape(r'\today')))
+        doc.preamble.append(pyl.Command('title', f'Supplementary Figures for {name}'))
+        if add_date:
+            doc.preamble.append(pyl.Command('date', pyl.NoEscape(r'\today')))
         doc.append(pyl.NoEscape(r'\maketitle'))
         doc.append(pyl.NewPage())
 
@@ -56,7 +58,6 @@ class Report(object):
     def _save_fig(self, fig, *args, extension='pdf', **kwargs):
         filename = '{}.{}'.format(str(uuid.uuid4()), extension.strip('.'))
         filepath = os.path.join(self._temp_dir, filename)
-        print(filepath)
         fig.savefig(filepath, *args, **kwargs)
         return filepath
 
@@ -79,7 +80,7 @@ class Report(object):
         funcs = [partial(self.output._make_peptide_graph, i, **kwargs) for i in range(len(self.output.series.cov))]
         self.make_subfigure(funcs, layout=layout, close=close)
 
-    def make_subfigure(self, fig_funcs, layout=(6, 4), close=True):
+    def make_subfigure(self, fig_funcs, layout=(5, 4), close=True):
         #todo figure out how to iterate properly
         n = np.product(layout)
         chunks = grouper(n, fig_funcs)
@@ -204,14 +205,13 @@ class Output(object):
         """yield single peptide grpahs"""
 
         fig, ax = plt.subplots(figsize=figsize)
-        print('make figure')
         if ax_scale == 'log':
             ax.set_xscale('log')
 
         for k in self.fit_results.keys():
             ax.plot(self.fit_timepoints, self.call_fitresult(k)[index], label=k)
 
-        ax.scatter(self.series.timepoints, self.series.scores_peptides.T[index], color='k')
+        ax.scatter(self.series.timepoints, self.series.uptake_corrected.T[index], color='k')
         t_unit = fig_kwargs.get('time_unit', '')
         t_unit = f'({t_unit})' if t_unit else t_unit
         ax.set_xlabel(f'Time' + t_unit)
