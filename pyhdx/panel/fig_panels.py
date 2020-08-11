@@ -71,7 +71,7 @@ class ThdLogFigure(FigurePanel):
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = self.y_label
 
-        for _ in range(self.controllers[1].param['num_classes'].bounds[1] - 1):  # todo refactor controller access
+        for _ in range(self.controllers[1].param['num_colors'].bounds[1] - 1):  # todo refactor controller access
             sp = Span(location=0, dimension='width')
             sp.tags = ['thd']
             sp.visible = False

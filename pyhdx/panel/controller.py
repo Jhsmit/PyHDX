@@ -5,7 +5,7 @@ from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, \
-    autowrap, colors_to_pymol
+    autowrap, colors_to_pymol, rgb_to_hex
 
 from pyhdx import VERSION_STRING, VERSION_STRING_SHORT
 
@@ -24,8 +24,8 @@ from numpy.lib.recfunctions import stack_arrays, append_fields
 from .components import ASyncProgressBar
 from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
-import matplotlib
-matplotlib.use('agg') # for panel mpl support
+#import matplotlib
+#matplotlib.use('agg') # for panel mpl support
 from functools import partial
 #from .widgets import NumericInput
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
@@ -34,8 +34,12 @@ from collections import namedtuple
 #dev only
 import pickle
 import matplotlib as mpl
+import matplotlib.pyplot as plt
 import itertools
 
+
+#tmep
+from panel.pane.vtk.enums import PRESET_CMAPS
 from bokeh.util.serialization import make_globally_unique_id
 pth = os.path.dirname(__file__)
 
@@ -676,12 +680,18 @@ class FittingQuality(ControlPanel):
 
 
 class ClassificationControl(ControlPanel):
-    accepted_sources = ['']
+    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects)
 
     header = 'Classification'
-    num_classes = param.Number(3, bounds=(1, 10), doc='Number of classification classes')
     target = param.Selector(label='Target')
-    otsu_thd = param.Action(lambda self: self._action_threshold(), label='Otsu')
+
+    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'])#, 'ColorMap'])
+    num_colors = param.Number(3, bounds=(1, 10), doc='Number of classification colors')
+    #cmap = param.Selector(objects=PRESET_CMAPS)
+    otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu')
+    linear_thd = param.Action(lambda self: self._action_linear(), label='Linear')
+    log_space = param.Boolean(True, constant=True, doc='Boolean to set whether to apply colors in log space or not')
+
     show_thds = param.Boolean(True, label='Show Thresholds')
     values = param.List(precedence=-1)
     colors = param.List(precedence=-1)
@@ -690,11 +700,11 @@ class ClassificationControl(ControlPanel):
         super(ClassificationControl, self).__init__(parent, **param)
 
         self.values_widgets = []
-        for _ in range(self.num_classes - 1):
+        for _ in range(self.num_colors - 1):
             self._add_value()
 
         self.colors_widgets = []
-        for _ in range(self.num_classes):
+        for _ in range(self.num_colors):
             self._add_color()
 
         self.param.trigger('values')
@@ -702,14 +712,14 @@ class ClassificationControl(ControlPanel):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
     def make_dict(self):
-        return self.generate_widgets(num_classes=pn.widgets.Spinner)
+        return self.generate_widgets(num_colors=pn.widgets.Spinner, mode=pn.widgets.RadioButtonGroup)
 
     def _parent_sources_updated(self, *events):
         print('sources')
         print("UPDATE")
 
         excluded = ['coverage']
-        objects = [key for key in self.parent.sources.keys() if key not in excluded]
+        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
         self.param['target'].objects = list(objects)
 
         #set target if its not set already
@@ -717,67 +727,99 @@ class ClassificationControl(ControlPanel):
             self.target = objects[-1]
 
         if self.values:
-            self._do_thresholding()
+            self._get_colors()
 
-    def _action_threshold(self):
-        if self.num_classes > 1 and self.target:
-            y_vals = self.parent.sources[self.target].data['y']
-            thd_vals = y_vals[~np.isnan(y_vals)]
-            thds = threshold_multiotsu(np.log(thd_vals), classes=self.num_classes)
+    @property
+    def target_array(self):
+        """returns the array to calculate colors from"""
+
+        y_vals = self.parent.sources[self.target].data['y']
+        return y_vals[~np.isnan(y_vals)]
+
+    def _action_otsu(self):
+        if self.num_colors > 1 and self.target:
+            #y_vals = self.parent.sources[self.target].data['y']
+            #thd_vals = y_vals[~np.isnan(y_vals)]
+            func = np.log if self.log_space else lambda x: x
+            thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
             for thd, widget in zip(thds, self.values_widgets):
                 widget.value = np.exp(thd)
         self._do_thresholding()
 
-    @param.depends('values', watch=True)
-    def _do_thresholding(self):
-        # perhaps we need a class to handle fitting output which has this method
-        # yes we do. for all fitting not just fit1
-        # alright great. now stop talking to yourself and get back to worK!
-        # #quarantine
+    def _action_linear(self):
+        if self.log_space:
+            thds = np.logspace(np.log(np.min(self.target_array)), np.log(np.max(self.target_array)), num=self.num_colors, endpoint=True, base=np.e)
+            for thd, widget in zip(thds, self.values_widgets):
+                widget.value = thd
 
-        # dont do thresholding if the following criteria are met
+    @param.depends('mode', watch=True)
+    def _mode_updated(self):
+        if self.mode == 'Discrete':
+            self.otsu_thd.constant = False
+        elif self.mode == 'Continuous':
+            self.otsu_thd.constant = True
+        elif self.mode == 'ColorMap':
+            self.num_colors = 2
+            #todo adjust add/ remove color widgets methods
+
+        self.param.trigger('num_colors')
+
+    @param.depends('values', 'colors', watch=True)
+    def _get_colors(self):
+        pass
+
         if 0 in self.values:
             return
         elif np.any(np.diff(self.values)) < 0:
             return
 
-        y_vals = self.parent.sources[self.target].data['y']
-        colors = np.empty(len(y_vals), dtype='U7')
+        y_vals = self.parent.sources[self.target].data['y'] # full array with nan entries
 
-        if self.num_classes == 1:
-            colors[:] = self.colors[0]
-        else:
+        if self.num_colors == 1:
+            colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
+        elif self.mode == 'Discrete':
             full_thds = [-np.inf] + self.values + [np.inf]
+            colors = np.empty(len(y_vals), dtype='U7')
             for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
                 b = (y_vals > lower) & (y_vals <= upper)
                 colors[b] = color
+        elif self.mode == 'Continuous':
 
-       # if 'color' in self.parent.rates.dtype.names:
+            func = np.log if self.log_space else lambda x: x
+
+            vals_sorted = np.sort(func(self.values))
+            norm = plt.Normalize(vals_sorted[0], vals_sorted[-1])#, clip=True) currently there is never anythin clipped?
+            nodes = norm(vals_sorted)
+            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors)))
+            colors_rgba = cmap(norm(func(y_vals)))
+            colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
+
+        # if 'color' in self.parent.rates.dtype.names:
         print('values', self.values)
         print(self.colors)
-        print(colors)
-        self.parent.sources[self.target].data['color'] = colors  # this should trigger an update of the graph
+        self.parent.sources[self.target].data['color'] = colors  # this triggers an update of the graph
 
-    @param.depends('num_classes', watch=True)
+    @param.depends('num_colors', watch=True)
     def _update_num_colors(self):
-        while len(self.colors_widgets) != self.num_classes:
-            if len(self.colors_widgets) > self.num_classes:
+        while len(self.colors_widgets) != self.num_colors:
+            if len(self.colors_widgets) > self.num_colors:
                 self._remove_color()
-            elif len(self.colors_widgets) < self.num_classes:
+            elif len(self.colors_widgets) < self.num_colors:
                 self._add_color()
         self.param.trigger('colors')
 
-    @param.depends('num_classes', watch=True)
+    @param.depends('num_colors', watch=True)
     def _update_num_values(self):
-        while len(self.values_widgets) != self.num_classes - 1:
-            if len(self.values_widgets) > self.num_classes - 1:
+        diff = 1 if self.mode == 'Discrete' else 0
+        while len(self.values_widgets) != self.num_colors - diff:
+            if len(self.values_widgets) > self.num_colors - diff:
                 self._remove_value()
-            elif len(self.values_widgets) < self.num_classes - 1:
+            elif len(self.values_widgets) < self.num_colors - diff:
                 self._add_value()
         print('num classes trigger')
         print(self.values)
 
-        #self._action_threshold()
+        #self._action_otsu()
         self.param.trigger('values')
 
     def _add_value(self):
@@ -822,16 +864,22 @@ class ClassificationControl(ControlPanel):
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
 
-    #todo jslink?
+    #todo jslink? (no also link to coloring function)
     def _color_event(self, *events):
-        print('color event')
+
         for event in events:
-            print(event)
             idx = list(self.colors_widgets).index(event.obj)
             self.colors[idx] = event.new
-            c_array = self.parent.sources[self.target].data['color'].copy()
-            c_array[c_array == event.old] = event.new
-            self.parent.sources[self.target].data['color'] = c_array
+
+        self.param.trigger('colors')
+        print('color event')
+        # for event in events:
+        #     print(event)
+        #     idx = list(self.colors_widgets).index(event.obj)
+        #     self.colors[idx] = event.new
+        #     c_array = self.parent.sources[self.target].data['color'].copy()
+        #     c_array[c_array == event.old] = event.new
+        #     self.parent.sources[self.target].data['color'] = c_array
         # self.param.trigger('colors')  # i dont think anyone listens to this
         # self.parent.param.trigger('rate_colors')
 
@@ -842,7 +890,7 @@ class ClassificationControl(ControlPanel):
             self.values[idx] = event.new
         print(self.values)
 
-        #self._action_threshold()
+        #self._action_otsu()
         self.param.trigger('values')
 
 
