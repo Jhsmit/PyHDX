@@ -137,6 +137,11 @@ class AssociationPFactFunc(object):
     # def compute_output_shape(self, input_shape):
     #     return input_shape[0], len(self.timepoints)
 
+    def call_numpy(self, inputs, **parameters):
+        pfact = 10**parameters[self.parameter_name]
+        uptake = 1 - np.exp(-np.matmul((inputs[1]/(1 + pfact)), np.array(self.timepoints)))
+        return np.matmul(inputs[0], uptake)
+
     @staticmethod
     def output(weights):
         #todo perhaps input weights as dict (and store as such in HistoryCallback)
