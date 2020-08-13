@@ -7,7 +7,7 @@ import shutil
 from functools import lru_cache, partial
 from pyhdx.support import grouper, autowrap
 from pyhdx.plot import plot_peptides
-import tqdm
+from tqdm.auto import tqdm
 
 try:
     import pylatex as pyl
@@ -50,6 +50,8 @@ class Report(object):
         doc.preamble.append(pyl.Command('title', f'Supplementary Figures for {name}'))
         if add_date:
             doc.preamble.append(pyl.Command('date', pyl.NoEscape(r'\today')))
+        else:
+            doc.preamble.append(pyl.Command('date', pyl.NoEscape(r'')))
         doc.append(pyl.NoEscape(r'\maketitle'))
         doc.append(pyl.NewPage())
 
@@ -72,11 +74,11 @@ class Report(object):
             plot.add_image(pyl.NoEscape(file_path), width=pyl.NoEscape(r'1\textwidth'))
             plot.add_caption('I am a caption.')
 
-    def add_coverage_figures(self, layout=(4, 2), close=True, **kwargs):
+    def add_coverage_figures(self, layout=(6, 2), close=True, **kwargs):
         funcs = [partial(self.output._make_coverage_graph, i, **kwargs) for i in range(len(self.output.series))]
         self.make_subfigure(funcs, layout=layout, close=close)
 
-    def add_peptide_figures(self, layout=(6, 4), close=True, **kwargs):
+    def add_peptide_figures(self, layout=(5, 4), close=True, **kwargs):
         funcs = [partial(self.output._make_peptide_graph, i, **kwargs) for i in range(len(self.output.series.cov))]
         self.make_subfigure(funcs, layout=layout, close=close)
 
@@ -85,6 +87,7 @@ class Report(object):
         n = np.product(layout)
         chunks = grouper(n, fig_funcs)
         w = str(1/layout[1])
+        pbar = tqdm(total=len(fig_funcs))
         for chunk in chunks:
             with self.doc.create(pyl.Figure(position='ht')) as tex_fig:
                 for i, fig_func in enumerate(chunk):
@@ -98,6 +101,7 @@ class Report(object):
                         subfig.add_image(file_path, width=pyl.NoEscape(r'\linewidth'))
                     if i % layout[1] == layout[1] - 1:
                         self.doc.append('\n')
+                    pbar.update(1)
 
             self.doc.append(pyl.NewPage())
 
@@ -119,13 +123,6 @@ class Report(object):
                     left_kitten.add_caption(f'Kitten on the {i}')
                 if i % 4 == 3:
                     self.doc.append('\n')
-            # with doc.create(SubFigure(
-            #         position='b',
-            #         width=NoEscape(r'0.45\linewidth'))) as right_kitten:
-            #
-            #     right_kitten.add_image(image_filename,
-            #                            width=NoEscape(r'\linewidth'))
-            #     right_kitten.add_caption('Kitten on the right')
             kittens.add_caption("Two kittens")
 
     def rm_temp_dir(self):
@@ -215,8 +212,9 @@ class Output(object):
         t_unit = fig_kwargs.get('time_unit', '')
         t_unit = f'({t_unit})' if t_unit else t_unit
         ax.set_xlabel(f'Time' + t_unit)
-        ax.set_ylabel('Uptake (%)')
-        ax.set_title(self.series.cov.data['sequence'][index])
+        ax.set_ylabel('Corrected D-uptake')
+        start, end = self.series.cov.data['_start'][index], self.series.cov.data['_end'][index]
+        ax.set_title(f'peptide_{start}_{end}')
         ax.legend()
         plt.tight_layout()
 
