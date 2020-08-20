@@ -113,7 +113,7 @@ class Controller(param.Parameterized):
         tmpl.add_panel('classification', self.classification_panel.panel)
         tmpl.add_panel('file_export', self.file_export.panel)
         tmpl.add_panel('options', self.options.panel)
-        tmpl.add_panel('dev', self.dev.panel)
+     #   tmpl.add_panel('dev', self.dev.panel)
 
         tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
         tmpl.add_panel('rate_fig', self.rate_figure.panel)
@@ -501,8 +501,6 @@ class FittingControl(ControlPanel):
              self.pbar1.reset()
              self.param['do_fit1'].constant = False
 
-
-
     def _fit1(self):
         fit_result = self.parent.fitting.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1, chisq_thd=self.chisq_thd)
         self.parent.fit_results['fit1'] = fit_result
@@ -661,13 +659,16 @@ class FittingQuality(ControlPanel):
 
     def _fit_results_updated(self, *events):
         print('fit results updated in fitting quality')
+        accepted_fitresults = ['pfact']
         #todo wrappertje which checks with a cached previous version of this particular param what the changes are even it a manual trigger
         for name, fit_result in self.parent.fit_results.items():
-            D_upt = fit_result(self.fit_timepoints)
-            self.d_uptake[name] = D_upt
-
+            if name in accepted_fitresults:
+                D_upt = fit_result(self.fit_timepoints)
+                self.d_uptake[name] = D_upt
+            else:
+                continue
         # push results to graph
-        self._peptide_index_updated()
+            self._peptide_index_updated()
 
     @param.depends('peptide_index', watch=True)
     def _peptide_index_updated(self):
@@ -744,7 +745,7 @@ class ClassificationControl(ControlPanel):
             thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
             for thd, widget in zip(thds, self.values_widgets):
                 widget.value = np.exp(thd)
-        self._do_thresholding()
+        self._get_colors()
 
     def _action_linear(self):
         if self.log_space:
