@@ -2,24 +2,10 @@
 PyHDX
 =====
 
+.. raw:: html
 
+    <img src="images/readme_img.png" width="400" />
 
+PyHDX is a software package that extract protection factors from HDX-MS data.
 
-
-
-PyHDX contains all code related to HDX data processing
-
-
-
-Features
---------
-
-* TODO
-
-Credits
--------
-
-This package was created with Cookiecutter_ and the `audreyr/cookiecutter-pypackage`_ project template.
-
-.. _Cookiecutter: https://github.com/audreyr/cookiecutter
-.. _`audreyr/cookiecutter-pypackage`: https://github.com/audreyr/cookiecutter-pypackage
+Currently the project functional but in beta. Please refer to docs/installation.rst for installation instructions.

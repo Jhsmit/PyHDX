@@ -5,42 +5,6 @@ Fitting
 The main feature of pyHDX is the fitting of rate equations describing deuterium uptake to a kinetic series of measured
 peptides each covering a section of residues with a corresponding amount of deuterium uptake per peptide-timepoint.
 
-Definition of residue blocks
-----------------------------
-
-The overall coverage and the spatial distribution of peptides along a protein sequences ultimately determines the residue
-level resolution that can be reached. Theoretically, by combining the information from multiple peptides each reporting
-on the deuterium uptake of a different part of the protein, the limit of spatial resolution that can be reached is
-limited to 'blocks' or 'subfragments' (XX) of amino acids whose sets of peptides they appear in is unique (Figure XX).
-(REF Gessner XX)
-
-.. _blocks_original:
-.. figure:: figures/blocks_original.png
-    :scale: 25 %
-    :figclass: align-center
-
-    Blocks of residues from overlapping peptides.
-
-Figure :numref:`blocks_original` shows an example of a set of peptides obtained for the protein SecB. This particular
-peptide coverage configuration results in a total of 16 blocks of amino acids.
-
-However, in practise, we found that in this limit of spatial resolution, the model will have too many fit parameters and
-overfitting will occur. This phenomenon manifests itself as narrow spikes of one or several amino acids being assigned an
-exchange rate at extrema of the kinetic limits.
-
-.. _blocks_reduced:
-.. figure:: figures/blocks_reduced.png
-    :scale: 25 %
-    :figclass: align-center
-
-    Reduced blocks of residues to reduce the number of fitting parameters.
-
-To circumvent this, some of the spatial resolution is sacrificed by combining blocks of residues and thereby lowering the
-amount of fit parameters. pyHDX offers a default algorithms for this block reduction but either the algorithms to do so or
-the exact layout of the blocks can be customized. The resulting blocks using this default algorithm can be seen in Figure
-:numref:`blocks_reduced`.
-
-
 Overfitting
 -----------
 
@@ -75,32 +39,6 @@ kinetic rates by fitting the uptake curve, it is impossible to assign these kine
 is referred to as the non-identifyability issue (XX REF) and this can only be overcome by increasing the number of peptides
 such that each amino acid occurs in a unique set of peptides.
 
-Building the model
-------------------
-
-In the global fitting step, a model is defined for each peptide which is build from global fitting parameters as defined
-by the blocks of residues as defined in :numref:`blocks_reduced`. The deuterium uptake of block :math:`b_1` is approximated
-by a two-component association model:
-
-.. math::
-    D_{1}(t) = 100 (1 - r_{1} e^{-k_{1,1}t} - (1 - r_{1}) e^{-k_{1,2}t})
-
-Where :math:`k_{0,1}` and :math:`k_{1,1}` are the first and second exchange rates for block :math:`b_1`, respectively, and
-:math:`r_{1}` is the relative amplitude ratio between them.
-
-If we consider the peptide marked in red in :numref:`blocks_reduced` we can see it has a total length of 14 amino acids,
-with 4 residues in block :math:`b_1`, 8 residues in block :math:`b_2` and 2 residues in block :math:`b_3`. The deuterium
-uptake is the modelled by:
-(perhaps this P needs another label)
-
-.. math::
-    P_{6}(t) = \frac{4}{14} D_{0}(t) + \frac{8}{14} D_{1}(t) + \frac{2}{14} D_{2}(t)
-
-Where :math:`P_{6}(t)` is the deuterium uptake of peptide 6 at time :math:`t`. The find the best fit parameters, the squared
-difference between the experimental deuterium uptake and modelled deuterium uptake is minimized.
-
-.. math::
-    \sum_{j, t} (D_{j, exp}(t) - P_{j}(t))^{2}
 
 
 

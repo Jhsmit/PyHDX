@@ -2,9 +2,22 @@ import param
 import panel as pn
 from bokeh.plotting import figure
 
+
+#todo reformat this to one dict of availble datasets with
+# {'half-life':
+#      {'color': sadf,
+#       'renderer': asdfasdf
+#       'export'=True,
+#       'description'=}}
+# OR make it a param.Parameterized class? This will make autodoc easier
+# and we can add methods which will make wildcard names easier
+
+
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
-DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': 'blue', 'fit2': 'red', 'TF_rate': 'green', 'pfact': '#16187d'}
-DEFAULT_CLASS_COLORS = ['#cc0c49', '#eded0e', '#1930e0']
+DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
+                  'uptake_corrected': '#000000', 'fr_pfact': '#ba0912'}
+DEFAULT_CLASS_COLORS = ['#0e1875', '#fdaf61', '#d73027']  # rigid to flexible
+MIN_BORDER_LEFT = 65
 
 
 class PanelBase(param.Parameterized):
@@ -21,12 +34,14 @@ class PanelBase(param.Parameterized):
 
 class FigurePanel(PanelBase):
     accepted_sources = []
+    x_label = ''
+    y_label = ''
 
     def __init__(self, parent, controllers, sources=None, **params):
         super(PanelBase, self).__init__(**params)
         self.parent = parent  # main controller
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
-        self.controllers = controllers  # side controllers
+        self.controllers = controllers  # side controllers (update)
         self.figure = self.draw_figure()
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.panel_name)
 
@@ -39,20 +54,9 @@ class FigurePanel(PanelBase):
         new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
         self.add_sources(new_items)
 
-        # Items need to be rerendered if they are already in renderers but the source is a different object
-        updated_items = {k: v for k, v in self.parent.sources.items() if k in self.renderers and v != self.renderers[k].data_source}
-        print(updated_items.keys())
-        for name, source in updated_items.items():
-            self.renderers[name].data_source.data.update(**source.data)
-
-
-        # self.remove_sources(updated_items.keys())  # remove sources from plot and renderers
-        # self.render_sources(updated_items)
-
     def add_sources(self, src_dict):
         """add a columndatasource object to the figure
         #todo: (if the source is already present it is updated)
-
         """
         #self.sources.update(src_dict)
         for source in src_dict.values():
@@ -62,9 +66,10 @@ class FigurePanel(PanelBase):
     def remove_sources(self, names):
         """remove source from renderers dict and figure"""
         for name in names:
-            self.figure.renderers.remove(self.renderers[name])
+            renderer = self.renderers[name]
+            renderer.data_source.remove_on_change('data', self._data_updated_callback)
+            self.figure.renderers.remove(renderer)
             self.renderers.pop(name)
-
 
     def render_sources(self, src_dict):
         """override to customize how sources are rendered"""
@@ -72,9 +77,25 @@ class FigurePanel(PanelBase):
             renderer = self.figure.line('x', 'y', source=source)
             self.renderers[name] = renderer
 
-    def draw_figure(self):
+    def draw_figure(self, **kwargs):
         """Override to create a custom figure with eg to specify axes labels"""
-        return figure()
+
+        fig = figure(**kwargs)
+        fig.xaxis.axis_label = self.x_label
+        fig.yaxis.axis_label = self.y_label
+
+        return fig
+
+    def redraw(self, **kwargs):
+        """calls draw_figure to make a new figure and then redraws all renderers"""
+
+        src_dict = self.sources
+        self.figure = self.draw_figure(**kwargs)  # todo does the old figure linger on?
+
+        self.renderers = {}
+        self.render_sources(src_dict)
+
+        self.bk_pane.object = self.figure
 
     @property
     def sources(self):
@@ -83,6 +104,9 @@ class FigurePanel(PanelBase):
 
     def _data_updated_callback(self, attr, old, new):
         print('data updated callbaçk')
+        self.bk_pane.param.trigger('object')
+
+    def update(self):
         self.bk_pane.param.trigger('object')
 
     @property
@@ -132,7 +156,8 @@ class ControlPanel(PanelBase):
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
-        return {k: v for k, v in zip(list(self.param)[1:], pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs))}
+        return {k: v for k, v in zip(list(self.param)[1:],
+                                     pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs))}
 
     def make_list(self):
         """override this method to modify mapping of dict to list"""

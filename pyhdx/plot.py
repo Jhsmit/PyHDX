@@ -185,16 +185,12 @@ def make_coverage_figure(pm, wrap, aa_per_subplot, color=False, figsize=(10, 8),
 
 
 def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwargs):
-    TOTAL_HEIGHT = 600
-
-
     num_axes = pm.end // aa_per_subplot + 1
     cmap = mpl.cm.get_cmap('jet')
     c_rgba = cmap(pm.data['scores'] / 100)
     c = [mpl.colors.to_hex(color) for color in c_rgba]
 
     pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 256, endpoint=True))
-
     color_mapper = LinearColorMapper(palette=pal, low=0, high=100)
     color_bar = ColorBar(color_mapper=color_mapper)
 
@@ -204,8 +200,9 @@ def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwarg
     x = pm.data['start'] - 0.5 + (width / 2)
     label_x = pm.data['start']
     names = [str(i) for i in range(len(pm.data))]
-    source = ColumnDataSource(dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names, start=pm.data['start'],
-                                   end=pm.data['end'], sequence=pm.data['sequence'], uptake=pm.data['uptake'], scores=pm.data['scores']))
+    plot_dict = dict(x=x, label_x=label_x, y=y, width=width, c=c, names=names)
+    prop_dict = {name: pm.data[name] for name in pm.data.dtype.names}
+    source = ColumnDataSource({**plot_dict, **prop_dict})
     glyph = Rect(x='x', y='y', width='width', height=1, fill_color='c')
     labels = LabelSet(x='label_x', y='y', text='names', source=source, text_baseline='middle', text_align='left')
 
@@ -219,11 +216,11 @@ def _bokeh_coverage(pm, wrap, aa_per_subplot, color=False, labels=False, **kwarg
         hover = fig.select(dict(type=HoverTool))
         hover.tooltips = [('Pos', '$x{int}'),
                           ('Index', '@names'),
-                          ('Start', '@start'),
-                          ('End', '@end'),
+                          ('Start', '@start (@_start)'),
+                          ('End', '@end (@_end)'),
                           ('Sequence', '@sequence'),
                           ('Score', '@scores'),
-                          ('Uptake', '@uptake')]
+                          ('Uptake', '@uptake (@uptake_corrected / @ex_residues, @maxuptake)')]
 
         figures.append(fig)
 

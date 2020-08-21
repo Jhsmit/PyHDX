@@ -1,11 +1,11 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure
-from pyhdx.pyhdx import PeptideMasterTable, KineticsSeries
+from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure, CoverageFigure
+from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, \
-    autowrap, colors_to_pymol
+    autowrap, colors_to_pymol, rgb_to_hex
 
 from pyhdx import VERSION_STRING, VERSION_STRING_SHORT
 
@@ -24,19 +24,25 @@ from numpy.lib.recfunctions import stack_arrays, append_fields
 from .components import ASyncProgressBar
 from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
-import matplotlib
-matplotlib.use('agg') # for panel mpl support
+#import matplotlib
+#matplotlib.use('agg') # for panel mpl support
 from functools import partial
 #from .widgets import NumericInput
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
+from bokeh.plotting import figure
 from collections import namedtuple
 #dev only
 import pickle
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import itertools
 
 from .template import ExtendedGoldenTemplate
 from .theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from .widgets import ColoredStaticText
 
+#tmep
+from panel.pane.vtk.enums import PRESET_CMAPS
 from bokeh.util.serialization import make_globally_unique_id
 pth = os.path.dirname(__file__)
 
@@ -48,10 +54,10 @@ env = Environment(loader=FileSystemLoader(pth))
 dic = {'rates': np.zeros(0, dtype=[('r_number', int), ('rate', float)]),
        'fitresult': None}
 
-empty_results = {
-    'fit1': dic.copy(),
-    'fit2': dic.copy()
-}
+# empty_results = {
+#     'fit1': dic.copy(),
+#     'fit2': dic.copy()
+#}
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
@@ -63,9 +69,7 @@ class Controller(param.Parameterized):
 
     """
 
-    data = param.Array()  # might not be needed, in favour of peptides
-    #rates = param.Array(doc='Output rates data')
-    fit_results = param.Dict(empty_results)
+    fit_results = param.Dict({})
     sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
     rate_colors = param.Dict({})  #probably not used
     peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
@@ -85,12 +89,11 @@ class Controller(param.Parameterized):
 
 
         # Controllers
-        self.fileinput = FileInputControl(self)
-        self.coverage = CoverageControl(self)#CoveragePanel(self)
+        self.file_input = FileInputControl(self)
+        self.coverage = CoverageControl(self)
         self.fit_control = FittingControl(self)
         self.tf_fit_control = TFFitControl(self)
         self.fit_quality = FittingQuality(self)
-        #self.rate_panel = RateConstantPanel(self)
         self.classification_panel = ClassificationControl(self)
         self.file_export = FileExportPanel(self)
         self.options = OptionsPanel(self)
@@ -107,11 +110,11 @@ class Controller(param.Parameterized):
         self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
         self.protein_figure = ProteinFigure(self, [])
 
-
         #setup options  #todo automate figure out cross dependencies
-        self.options.cov_fig_panel = self.coverage_figure
-        self.options.rate_fig_panel = self.rate_figure
-        self.options.coverage_ctrl = self.coverage
+        self.options.master_figure = self.coverage_figure.figure
+        self.options.client_figures = [self.rate_figure.figure, self.pfact_figure.figure]
+        self.options.link_xrange = True
+
 
         # tmpl = pn.Template(template)
         tmpl.sidebar.append(controls)
@@ -141,28 +144,26 @@ class Controller(param.Parameterized):
         #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
 
         self.app = tmpl
-      #  self.panels = [panel(self) for panel in panels]
 
-    @param.depends('series', watch=True)
-    def _series_changed(self):
-        # This is triggered if the fileinput child panel yields a new KineticSeries
-        print('series changed')
+    def publish_data(self, name, dic):
+        """
+        Publish dataset to be available for client figure to plot
 
-        self.fitting = KineticsFitting(self.series, cluster=self.cluster)
-        for key in ['fit1', 'fit2']:    # todo this list of names somewhere?
-            self.rate_colors[key] = [DEFAULT_COLORS[key]]*len(self.series.cov.r_number)
-        self.param.trigger('rate_colors')
+        Parameters
+        ----------
+        name: :obj:`str`
+            Name of the dataset
+        dic: :obj:`dict`
+            Data dictionary, where every key, value pair corresponds to a data column to plot
+        """
+        source = ColumnDataSource(dic)
+        try:  # update existing source
+            src = self.sources[name]
+            src.data.update(**source.data)
+        except KeyError:
+            self.sources[name] = source
 
-        # #todo add errors here
-        # rate_fields = ['fit1', 'fit1_r1', 'fit1_r2', 'fit2', 'fit2_r1', 'fit2_r2']
-        # color_fields = ['fit1_color', 'fit2_color']
-        # dtype = [('r_number', int)] + [(name, float) for name in rate_fields] + [(name, 'U7') for name in color_fields]
-        # rates = np.zeros(self.series.cov.prot_len, dtype=dtype)
-        # rates['r_number'] = self.series.cov.r_number
-        # rates['fit1_color'][:] = 'blue'
-        # rates['fit2_color'][:] = 'red'
-        #
-        # self.rates = rates  # this assignement triggers downstream watchers? manual trigger?
+        self.param.trigger('sources')
 
     def servable(self):
 
@@ -202,15 +203,6 @@ class Controller(param.Parameterized):
         pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
         pn.serve(self.app, **kwargs, title=VERSION_STRING_SHORT)
 
-    def get_rate_file_export(self):
-        fmt, header = fmt_export(self.rates)
-        s = StringIO()
-        np.savetxt(s, fmt=fmt, header=header)
-
-    @param.depends('data')
-    def _test(self):
-        print("hoi, data changed")
-
 
 class FileInputControl(ControlPanel):
     header = 'Input'
@@ -218,7 +210,7 @@ class FileInputControl(ControlPanel):
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
     drop_first = param.Integer(1, bounds=(0, None))
-    ignore_prolines = param.Boolean(True, doc='Set to True to ignore prolines in the sequence')
+    ignore_prolines = param.Boolean(True, constant=True, doc='Set to True to ignore prolines in the sequence')
     load_button = param.Action(lambda self: self._action_load(), doc='Load Files', label='Load Files')
 
     norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
@@ -299,16 +291,6 @@ class FileInputControl(ControlPanel):
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
-        # states = self.parent.peptides.groupby_state()
-        # series = states[self.exp_state]
-        # series.make_uniform()
-
-        # b = np.isin(series.full_data['exposure'], self.exp_exposures)
-        # data = series.full_data[b].copy()
-
-        #series = KineticsSeries(data)
-        #series.make_uniform()  #TODO add gui control for this
-
         series = KineticsSeries(data)
         series.make_uniform()
         self.parent.series = series
@@ -381,21 +363,56 @@ class CoverageControl(ControlPanel):
     header = 'Coverage'
 
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
-    aa_per_subplot = param.Integer(100, label='Amino acids per subplot')
-    labels = param.Boolean(False, label='Labels')
+    color_map = param.Selector(objects=['jet', 'inferno', 'viridis', 'cividis', 'plasma', 'cubehelix'], default='jet')
     index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time')
 
     def __init__(self, parent, **params):
         self.exposure_str = ColoredStaticText(name='Exposure', value='0')  # todo update to some param?
+
+
+        # We need a reference to color mapper to update it when the cmap changes
+        self.color_mapper = LinearColorMapper(palette=self.palette, low=0, high=100)
+        self.color_bar = self.get_color_bar()
+
         super(CoverageControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._update_series, ['series'])
+        self.parent.param.watch(self._series_updated, ['series'])
 
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
-        return lst + [self.exposure_str]
+        return lst + [self.exposure_str, self.color_bar]
 
     def make_dict(self):
         return self.generate_widgets(index=pn.widgets.IntSlider)
+
+    @param.depends('color_map', watch=True)
+    def _update_cbar(self):
+        cmap = mpl.cm.get_cmap(self.color_map)
+        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
+        self.color_mapper.palette = pal
+
+    def get_color_bar(self):
+        """pn.pane.Bokeh: bokeh pane with empty figure and only a color bar"""
+        # f5f5f5
+        # from default value in panel css
+        #https://github.com/holoviz/panel/blob/67bf192ea4138825ab9682c8f38bfe2d696a4e9b/panel/_styles/widgets.css
+        color_bar = ColorBar(color_mapper=self.color_mapper, location=(0, 0), orientation='horizontal',
+                             background_fill_color='#f5f5f5')
+                             #title='D uptake percentage',  title_text_align='center')
+        fig = figure(toolbar_location=None, title='D uptake percentage')
+        fig.title.align = 'center'
+        fig.background_fill_color = '#f5f5f5'
+        fig.border_fill_color = '#f5f5f5'
+        fig.outline_line_color = None
+        fig.add_layout(color_bar, 'above')
+
+        return pn.pane.Bokeh(fig, height=100, width=350)
+
+    @property
+    def palette(self):
+        """"""
+        cmap = mpl.cm.get_cmap(self.color_map)
+        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
+        return pal
 
     @property
     def peptide_measurement(self):
@@ -404,56 +421,65 @@ class CoverageControl(ControlPanel):
         else:
             return None
 
-    def _update_series(self, event):
+    @property
+    def coverage(self):
+        """Coverage object describing the peptide layout"""
+        return self.parent.series.cov
+
+    @property
+    def colors(self):
+        """~class:`np.ndarray`: array of color for each peptide based on their uptake score"""
+        cmap = mpl.cm.get_cmap(self.color_map)
+        c_rgba = cmap(self.peptide_measurement.data['scores'] / 100)
+        c = [mpl.colors.to_hex(color) for color in c_rgba]
+
+        return np.array(c)
+
+    def _series_updated(self, event):
         print('coverage new series update index bounds')
-        #also update aa per subplot
 
+        # must be uniform
+        self.wrap = autowrap(self.coverage)
         self.param['index'].bounds = (0, len(event.new) - 1)
-        self.exposure_str.value = str(self.peptide_measurement.exposure)
 
-        step = 25
-        value = int(step*(self.parent.series.cov.end // step + 1))
-        self.aa_per_subplot = value# triggers redraw
-
-        #must be uniform
-        self.wrap = autowrap(self.parent.series.cov)
-
-        #set index to zero
+        # set index to zero
         self.index = 0
+        # self.exposure_str.value = str(self.peptide_measurement.exposure) # this should be triggered
 
-    @param.depends('index', watch=True)
-    def _update_index(self):
-        self.exposure_str.value = str(self.peptide_measurement.exposure)
+        width = self.coverage.data['end'] - self.coverage.data['start'] # Bars are inclusive, inclusive
+        x = self.coverage.data['start'] - 0.5 + (width / 2)
+        y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
+        index = [str(i) for i in range(len(self.coverage))]
 
-    # @property
-    # def panel(self):
-    #     col = pn.Column(self.param, self.exposure_str)
-    #     #p = pn.Param(self.param, widgets={'file': pn.widgets.FileInput}) for exposure
-    #     return pn.WidgetBox(col, pn.layout.VSpacer(), css_classes=['widget-box', 'custom-wbox'],
-    #                         sizing_mode='stretch_height')
+        plot_dict = dict(x=x, y=y, width=width, color=self.colors, index=index)
+        prop_dict = {name: self.peptide_measurement.data[name] for name in self.peptide_measurement.data.dtype.names}
+        dic = {**plot_dict, **prop_dict}
+
+        self.parent.publish_data('coverage', dic)
+
+    @param.depends('wrap', watch=True)
+    def _update_wrap(self):
+        y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
+        try:
+            self.parent.sources['coverage'].data.update(y=y)
+        except KeyError:
+            pass
+
+    @param.depends('index', 'color_map', watch=True)
+    def _update_colors(self):
+        self.exposure_str.value = str(self.peptide_measurement.exposure)  #todo this should be an js_link?
+        try:
+            tooltip_fields = {field: self.peptide_measurement.data[field] for field in ['scores', 'uptake', 'uptake_corrected']}
+            self.parent.sources['coverage'].data.update(color=self.colors, **tooltip_fields)
+
+        except KeyError:
+            pass
 
 
 class FittingControl(ControlPanel):
     header = 'Initial Guesses'
-
-    #r_max = param.Number(27, doc='Ceil value for rates', precedence=-1)  # Update this value
-    chisq_thd = param.Number(20, doc='Threshold for chi2 to switch to Differential evolution')
-
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association', 'Dissociation'])
-    do_fit1 = param.Action(lambda self: self._action_fit1())
-    block_mode = param.ObjectSelector(default='reduced', objects=['reduced', 'original', 'constant'])
-
-    #todo generate from func signature?
-    #block mode reduced params
-    max_combine = param.Integer(2, doc='Neighbouring blocks up to and including this size are merged together', precedence=-1)
-    max_join = param.Integer(5, doc='Blocks up to and including this size are joined with their smallest neighbour', precedence=-1)
-
-    #constant block params
-    block_size = param.Integer(10, doc='Size of the blocks in constant blocks mode', precedence=-1)
-    initial_block = param.Integer(5, doc='Size of the initial block in constant block mode', precedence=-1)
-    show_blocks = param.Boolean(False, doc='Show how blocks are defined with the current settings', precedence=-1)
-
-    do_fit2 = param.Action(lambda self: self._action_fit2(), constant=True, precedence=-1)
+    do_fit1 = param.Action(lambda self: self._action_fit())
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
@@ -467,8 +493,6 @@ class FittingControl(ControlPanel):
         text_f2 = pn.widgets.StaticText(value='Global fit (Fit 2)')
 
         self._widget_dict.update(text_f1=text_f1, text_f2=text_f2, pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-        # parameters = ['r_max', 'fitting_model', 'text_f1', 'chisq_thd', 'do_fit1', 'pbar1', 'text_f2', 'block_mode', 'max_combine',
-        #               'max_join', 'show_blocks', 'do_fit2', 'pbar2']
         parameters = ['fitting_model', 'do_fit1', 'pbar1']
 
         widget_list = list([self._widget_dict[par] for par in parameters])
@@ -489,7 +513,7 @@ class FittingControl(ControlPanel):
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-        self.parent.sources['fit1'] = ColumnDataSource(dic)
+        self.parent.publish_data('fit1', dic)
 
         #trigger plot update
         callback = partial(self.parent.param.trigger, 'sources')
@@ -499,7 +523,6 @@ class FittingControl(ControlPanel):
              self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
              self.pbar1.reset()
              self.param['do_fit1'].constant = False
-             self.param['do_fit2'].constant = False
 
     def _fit1(self):
         fit_result = self.parent.fitting.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1, chisq_thd=self.chisq_thd)
@@ -508,20 +531,17 @@ class FittingControl(ControlPanel):
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-        self.parent.sources['fit1'] = ColumnDataSource(dic)
 
+        self.parent.publish_data('fit1', dic)
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-        self.parent.param.trigger('sources') # Informs listening plots that there is new data available
 
         self.param['do_fit1'].constant = False
-        self.param['do_fit2'].constant = False
         self.pbar1.reset()
 
-    def _action_fit1(self):
-        print('fitting 1')
+    def _action_fit(self):
+        print('fitting')
         #todo context manager?
         self.param['do_fit1'].constant = True
-        self.param['do_fit2'].constant = True
 
         if self.fitting_model == 'Half-life (λ)':
             kf = KineticsFitting(self.parent.series)
@@ -531,14 +551,12 @@ class FittingControl(ControlPanel):
             dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
             dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
 
+            self.parent.publish_data('half-life', dic)
             self.parent.fit_results['half-life'] = fit_result
-            self.parent.sources['half-life'] = ColumnDataSource(dic)
 
             self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-            self.parent.param.trigger('sources')  # Informs listening plots that there is new data available
 
             self.param['do_fit1'].constant = False
-            self.param['do_fit2'].constant = False
         else:
 
             if self.parent.cluster:
@@ -549,120 +567,23 @@ class FittingControl(ControlPanel):
             else:
                 self._fit1()
 
-        # fit_result = self.parent.fitting.weighted_avg_fit(chisq_thd=self.chisq_thd)
-        # rates_array = fit_result.get_output(['rate', 'tau', 'tau1', 'tau2', 'r'])
-
-    async def _fit2_async(self):
-        fit_result = await self.parent.fitting.blocks_fit_async(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(),
-                                                                pbar=self.pbar2, **self.fit_kwargs)
-        print('fit res in async', fit_result)
-        rates_array = fit_result.get_output(['rate', 'tau', 'k1', 'k2', 'r'])
-        self.parent.fit_results['fit2'] = {'rates': rates_array, 'fitresult': fit_result}
-        callback = partial(self.parent.param.trigger, 'fit_results')
-        self.parent.doc.add_next_tick_callback(callback)
-
-        with pn.io.unlocked():
-            self.param['do_fit1'].constant = False
-            self.param['do_fit2'].constant = False
-            self.pbar2.reset()
-
-    def _fit2(self):
-        fit_result = self.parent.fitting.blocks_fit(self.parent.fit_results['fit1']['rates'], model_type=self.fitting_model.lower(), **self.fit_kwargs)
-
-        self.parent.fit_results['fit2'] = fit_result
-        #todo lines below are repeating code, create func(self, fit_result, name, y=rate) which does this job  (or func on parent controller?)
-        output = fit_result.output
-        dic = {name: output[name] for name in output.dtype.names}
-        dic['y'] = output['rate']
-        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit2'], dtype='<U7')
-        self.parent.sources['fit2'] = ColumnDataSource(dic)
-        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit2 is available as initial guesses
-        self.parent.param.trigger('sources')  # Informs listening plots that there is new data available
-
-        #todo all fit buttons should globally constant during fitting (make some kind of global context manager)
-        self.param['do_fit1'].constant = False
-        self.param['do_fit2'].constant = False
-        self.pbar2.reset()
-
-    def _action_fit2(self):
-        print('fitting 2')
-        #todo context manager
-        self.param['do_fit1'].constant = True
-        self.param['do_fit2'].constant = True
-
-        if self.parent.cluster:
-            self.parent.doc = pn.state.curdoc
-            loop = IOLoop.current()
-            loop.add_callback(self._fit2_async)
-        else:
-            self._fit2()
-
-    @property
-    def fit_kwargs(self):
-        if self.block_mode == 'reduced':
-            fit_kwargs = {'block_func': get_reduced_blocks, 'max_combine': self.max_combine, 'max_join': self.max_join}
-        elif self.block_mode == 'original':
-            fit_kwargs = {'block_func': get_original_blocks}
-        elif self.block_mode == 'constant':
-            fit_kwargs = {'block_func': get_constant_blocks, 'block_size': self.block_size, 'initial_block': self.initial_block}
-        return fit_kwargs
-
-    @property
-    def fit_block_edges(self):
-        """returns the position of block edges from the current block func"""
-        kwargs = self.fit_kwargs
-        func = kwargs.pop('block_func')
-        all_edges = []
-        for series in self.parent.series.split().values():
-            blocks = np.array(func(series.cov, **kwargs))
-            indices = list(np.cumsum(blocks) - 1)
-            edges = [series.cov.start - 0.5] + list(series.cov.r_number[[indices]] + 0.5)
-            all_edges += edges
-
-        all_edges = np.array(all_edges)
-        return all_edges
-
-    def _clear_block_kwargs(self):
-        """removes all block func kwarg widgets from the box"""
-        parameters = ['max_combine', 'max_join', 'initial_block', 'block_size']
-        for par in parameters:
-            try:
-                self.box_pop(par)
-            except ValueError:
-                pass
-
-    @param.depends('block_mode', watch=True)
-    def _update_block_mode(self):
-        print('block mode updated')
-        if self.block_mode == 'reduced':
-            self._clear_block_kwargs()
-            self.box_insert_after('block_mode', 'max_combine')
-            self.box_insert_after('max_combine', 'max_join')
-        elif self.block_mode == 'original':
-            self._clear_block_kwargs()
-        elif self.block_mode == 'constant':
-            self._clear_block_kwargs()
-            self.box_insert_after('block_mode', 'initial_block')
-            self.box_insert_after('initial_block', 'block_size')
-
 
 class TFFitControl(ControlPanel):
-    header = 'TF Single residue fit'
+    header = 'Fitting'
 
     #fitting_type = param.Selector(objects=['Protection Factors', 'Rates'], default='Protection Factors')
-
     initial_guess = param.Selector()
 
     c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds')  # remove
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
-    stop_loss = param.Number(0.1, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
+    stop_loss = param.Number(0.01, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
     stop_patience = param.Integer(50, bounds=(1, None), doc='Number of epochs where stop loss should be satisfied before stopping')
     learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
     epochs = param.Number(100000, bounds=(1, None), doc='Maximum number of epochs (iterations')
 
-    l1_regularizer = param.Number(2000, bounds=(0, None), doc='Value for l1 regularizer')
+    l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer')
     l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
 
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True)
@@ -696,10 +617,10 @@ class TFFitControl(ControlPanel):
 
     def _parent_fit_results_updated(self, *events):
         possible_initial_guesses = ['half-life', 'fit1']
+        print(self.parent.fit_results.keys())
         objects = [name for name in possible_initial_guesses if name in self.parent.fit_results.keys()]
         if objects:
             self.param['do_fit'].constant = False
-
 
         self.param['initial_guess'].objects = objects
         if not self.initial_guess and objects:
@@ -710,7 +631,7 @@ class TFFitControl(ControlPanel):
         import pyhdx.fitting_tf as tft
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
-        initial_result = self.parent.fit_results[self.initial_guess].output
+        initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
         early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
         result = kf.global_fit_new(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
                                    l1=self.l1_regularizer, l2=self.l2_regularizer, callbacks=[early_stop])
@@ -718,22 +639,20 @@ class TFFitControl(ControlPanel):
         output_name = 'pfact'
         var_name = 'log_P'
 
-
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-        output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
-        #todo this should be moved to TFFitresults object
-        output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
+        # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
+        # #todo this should be moved to TFFitresults object (or shoud it?) -> DataObject class (see base) (does coloring)
+        # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
         output_dict['y'] = 10**output_dict[var_name]
         # if self.fitting_type == 'Protection Factors':
         deltaG = constants.R * self.temperature * np.log(output_dict['y'])
         output_dict['deltaG'] = deltaG
 
-        source = ColumnDataSource(output_dict)
-        self.parent.sources[output_name] = source
         self.parent.fit_results[output_name] = result
+        self.parent.publish_data(output_name, output_dict)
 
-        self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
+        #self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
         self.param['do_fit'].constant = False
     #
 
@@ -743,23 +662,60 @@ class FittingQuality(ControlPanel):
 
     peptide_index = param.Number(0, bounds=(0, None))
     x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'])
-    chi_sq = param.Number(0., bounds=(0, None))
 
     def __init__(self, parent, **param):
         super(FittingQuality, self).__init__(parent, **param)
 
+        self.d_uptake = {}  ## Dictionary of arrays (N_p, N_t) with results of fit result model calls
         self.parent.param.watch(self._series_updated, ['series'])
+        self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
     def _series_updated(self, *events):
+        self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
+        self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
 
-        self.param['peptide_index'].bounds =(0, len(self.parent.series.cov.data))
+    @property
+    def fit_timepoints(self):
+        time = np.logspace(-2, np.log10(self.parent.series.timepoints.max()), num=250)
+        time = np.insert(time, 0, 0.)
+        return time
+
+    def _fit_results_updated(self, *events):
+        print('fit results updated in fitting quality')
+        accepted_fitresults = ['pfact']
+        #todo wrappertje which checks with a cached previous version of this particular param what the changes are even it a manual trigger
+        for name, fit_result in self.parent.fit_results.items():
+            if name in accepted_fitresults:
+                D_upt = fit_result(self.fit_timepoints)
+                self.d_uptake[name] = D_upt
+            else:
+                continue
+        # push results to graph
+            self._peptide_index_updated()
+
+    @param.depends('peptide_index', watch=True)
+    def _peptide_index_updated(self):
+        for name, array in self.d_uptake.items():
+            timepoints = self.parent.series.timepoints if name == 'uptake_corrected' else self.fit_timepoints
+            dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
+            self.parent.publish_data(name, dic)
+
+        print('keys', self.parent.sources.keys())
 
 
 class ClassificationControl(ControlPanel):
+    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects)
+
     header = 'Classification'
-    num_classes = param.Number(3, bounds=(1, 10), doc='Number of classification classes')
     target = param.Selector(label='Target')
-    otsu_thd = param.Action(lambda self: self._action_threshold(), label='Otsu')
+
+    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'])#, 'ColorMap'])
+    num_colors = param.Number(3, bounds=(1, 10), doc='Number of classification colors')
+    #cmap = param.Selector(objects=PRESET_CMAPS)
+    otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu')
+    linear_thd = param.Action(lambda self: self._action_linear(), label='Linear')
+    log_space = param.Boolean(True, constant=True, doc='Boolean to set whether to apply colors in log space or not')
+
     show_thds = param.Boolean(True, label='Show Thresholds')
     values = param.List(precedence=-1)
     colors = param.List(precedence=-1)
@@ -768,11 +724,11 @@ class ClassificationControl(ControlPanel):
         super(ClassificationControl, self).__init__(parent, **param)
 
         self.values_widgets = []
-        for _ in range(self.num_classes - 1):
+        for _ in range(self.num_colors - 1):
             self._add_value()
 
         self.colors_widgets = []
-        for _ in range(self.num_classes):
+        for _ in range(self.num_colors):
             self._add_color()
 
         self.param.trigger('values')
@@ -780,78 +736,114 @@ class ClassificationControl(ControlPanel):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
     def make_dict(self):
-        return self.generate_widgets(num_classes=pn.widgets.Spinner)
+        return self.generate_widgets(num_colors=pn.widgets.Spinner, mode=pn.widgets.RadioButtonGroup)
 
     def _parent_sources_updated(self, *events):
         print('sources')
         print("UPDATE")
 
-        objects = list(self.parent.sources.keys())
-        self.param['target'].objects = objects
+        excluded = ['coverage']
+        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
+        self.param['target'].objects = list(objects)
 
         #set target if its not set already
         if not self.target and objects:
             self.target = objects[-1]
 
-    @param.depends('values', watch=True)
-    def _action_threshold(self):
-        if self.num_classes > 1 and self.target:
-            y_vals = self.parent.sources[self.target].data['y']
-            thd_vals = y_vals[~np.isnan(y_vals)]
-            thds = threshold_multiotsu(np.log(thd_vals), classes=self.num_classes)
+        if self.values:
+            self._get_colors()
+
+    @property
+    def target_array(self):
+        """returns the array to calculate colors from"""
+
+        y_vals = self.parent.sources[self.target].data['y']
+        return y_vals[~np.isnan(y_vals)]
+
+    def _action_otsu(self):
+        if self.num_colors > 1 and self.target:
+            #y_vals = self.parent.sources[self.target].data['y']
+            #thd_vals = y_vals[~np.isnan(y_vals)]
+            func = np.log if self.log_space else lambda x: x
+            thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
             for thd, widget in zip(thds, self.values_widgets):
                 widget.value = np.exp(thd)
-        self._do_thresholding()
+        self._get_colors()
 
-    def _do_thresholding(self):
-        # perhaps we need a class to handle fitting output which has this method
-        # yes we do. for all fitting not just fit1
-        # alright great. now stop talking to yourself and get back to worK!
-        # #quarantine
+    def _action_linear(self):
+        if self.log_space:
+            thds = np.logspace(np.log(np.min(self.target_array)), np.log(np.max(self.target_array)), num=self.num_colors, endpoint=True, base=np.e)
+            for thd, widget in zip(thds, self.values_widgets):
+                widget.value = thd
 
-        # dont do thresholding if the following criteria are met
+    @param.depends('mode', watch=True)
+    def _mode_updated(self):
+        if self.mode == 'Discrete':
+            self.otsu_thd.constant = False
+        elif self.mode == 'Continuous':
+            self.otsu_thd.constant = True
+        elif self.mode == 'ColorMap':
+            self.num_colors = 2
+            #todo adjust add/ remove color widgets methods
+
+        self.param.trigger('num_colors')
+
+    @param.depends('values', 'colors', watch=True)
+    def _get_colors(self):
+        pass
+
         if 0 in self.values:
             return
         elif np.any(np.diff(self.values)) < 0:
             return
 
-        y_vals = self.parent.sources[self.target].data['y']
-        colors = np.empty(len(y_vals), dtype='U7')
+        y_vals = self.parent.sources[self.target].data['y'] # full array with nan entries
 
-        if self.num_classes == 1:
-            colors[:] = self.colors[0]
-        else:
+        if self.num_colors == 1:
+            colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
+        elif self.mode == 'Discrete':
             full_thds = [-np.inf] + self.values + [np.inf]
+            colors = np.empty(len(y_vals), dtype='U7')
             for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
                 b = (y_vals > lower) & (y_vals <= upper)
                 colors[b] = color
+        elif self.mode == 'Continuous':
 
-       # if 'color' in self.parent.rates.dtype.names:
+            func = np.log if self.log_space else lambda x: x
+
+            vals_sorted = np.sort(func(self.values))
+            norm = plt.Normalize(vals_sorted[0], vals_sorted[-1])#, clip=True) currently there is never anythin clipped?
+            nodes = norm(vals_sorted)
+            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors)))
+            colors_rgba = cmap(norm(func(y_vals)))
+            colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
+
+        # if 'color' in self.parent.rates.dtype.names:
         print('values', self.values)
         print(self.colors)
-        print(colors)
-        self.parent.sources[self.target].data['color'] = colors  # this should trigger an update of the graph
+        self.parent.sources[self.target].data['color'] = colors  # this triggers an update of the graph
 
-    @param.depends('num_classes', watch=True)
+    @param.depends('num_colors', watch=True)
     def _update_num_colors(self):
-        while len(self.colors_widgets) != self.num_classes:
-            if len(self.colors_widgets) > self.num_classes:
+        while len(self.colors_widgets) != self.num_colors:
+            if len(self.colors_widgets) > self.num_colors:
                 self._remove_color()
-            elif len(self.colors_widgets) < self.num_classes:
+            elif len(self.colors_widgets) < self.num_colors:
                 self._add_color()
         self.param.trigger('colors')
 
-    @param.depends('num_classes', watch=True)
+    @param.depends('num_colors', watch=True)
     def _update_num_values(self):
-        while len(self.values_widgets) != self.num_classes - 1:
-            if len(self.values_widgets) > self.num_classes - 1:
+        diff = 1 if self.mode == 'Discrete' else 0
+        while len(self.values_widgets) != self.num_colors - diff:
+            if len(self.values_widgets) > self.num_colors - diff:
                 self._remove_value()
-            elif len(self.values_widgets) < self.num_classes - 1:
+            elif len(self.values_widgets) < self.num_colors - diff:
                 self._add_value()
         print('num classes trigger')
         print(self.values)
 
-        #self._action_threshold()
+        #self._action_otsu()
         self.param.trigger('values')
 
     def _add_value(self):
@@ -896,16 +888,22 @@ class ClassificationControl(ControlPanel):
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
 
-    #todo jslink?
+    #todo jslink? (no also link to coloring function)
     def _color_event(self, *events):
-        print('color event')
+
         for event in events:
-            print(event)
             idx = list(self.colors_widgets).index(event.obj)
             self.colors[idx] = event.new
-            c_array = self.parent.sources[self.target].data['color'].copy()
-            c_array[c_array == event.old] = event.new
-            self.parent.sources[self.target].data['color'] = c_array
+
+        self.param.trigger('colors')
+        print('color event')
+        # for event in events:
+        #     print(event)
+        #     idx = list(self.colors_widgets).index(event.obj)
+        #     self.colors[idx] = event.new
+        #     c_array = self.parent.sources[self.target].data['color'].copy()
+        #     c_array[c_array == event.old] = event.new
+        #     self.parent.sources[self.target].data['color'] = c_array
         # self.param.trigger('colors')  # i dont think anyone listens to this
         # self.parent.param.trigger('rate_colors')
 
@@ -916,7 +914,7 @@ class ClassificationControl(ControlPanel):
             self.values[idx] = event.new
         print(self.values)
 
-        #self._action_threshold()
+        #self._action_otsu()
         self.param.trigger('values')
 
 
@@ -1011,10 +1009,21 @@ class FileExportPanel(ControlPanel):
 #
 #         io.seek(0)
 #         return io
+    @property
+    def export_dict(self):
+        return self.parent.sources[self.target].data
+
     @pn.depends('target', watch=True)
     def _update_filename(self):
-        self.export_linear_download.filename = self.parent.series.state + '_' + self.target + 'linear.txt'
-        self.pml_script_download.filename = self.parent.series.state + '_' + self.target + 'pymol.pml'
+        self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
+        if 'r_number' in self.export_dict.keys():
+            self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
+            self.pml_script_download.disabled = False
+            print(self.pml_script_download.disabled)
+
+        else:
+            self.pml_script_download.filename = 'Not Available'
+            self.pml_script_download.disabled = True
 
     @pn.depends('target')
     def pml_export_callback(self):
@@ -1036,9 +1045,9 @@ class FileExportPanel(ControlPanel):
         print(self.target)
         print('exporting')
         if self.target:
-            export_dict = {k: v for k, v in self.parent.sources[self.target].data.items() if k != 'y'}
+            export_dict = {k: np.array(v) for k, v in self.parent.sources[self.target].data.items() if k != 'y'}  #todo generalize export
             dtype = [(name, arr.dtype) for name, arr in export_dict.items()]
-            export_data = np.empty_like(self.parent.sources[self.target].data['r_number'], dtype=dtype)
+            export_data = np.empty_like(next(iter(export_dict.values())), dtype=dtype)
             for name, arr in export_dict.items():
                 export_data[name] = arr
 
@@ -1067,63 +1076,43 @@ class OptionsPanel(ControlPanel):
 
     """panel for various options and settings"""
 
-    #todo this needs to access other panels as well
-
     link_xrange = param.Boolean(False)
 
-    def __init__(self, parent, **param):
+    def __init__(self, parent, master_figure=None, client_figures=None, **param):
         super(OptionsPanel, self).__init__(parent, **param)
-        self.cov_fig_panel = None
-        self.rate_fig_panel = None
-        self.coverage_ctrl = None
-
-    #
-    # def setup(self, fig1, fig2, coverage_ctrl):
-    #     self.fig1 = fig1,
-    #     self.fig2 = fig2
-
-    @property
-    def fig1(self):
-        return self.cov_fig_panel.figures[0]
-
-    @property
-    def fig2(self):
-        return self.rate_fig_panel.figure
+        self.master_figure = master_figure
+        self.client_figures = client_figures if client_figures is not None else []
 
     @property
     def enabled(self):
-        return self.fig1 is not None and self.fig1 is not None and self.coverage_ctrl is not None
+        return self.master_figure is not None and self.client_figures is not None
 
     @param.depends('link_xrange', watch=True)
     def _update_link(self):
+        print('link_xrangek')
+        print(self.enabled)
         if self.enabled:
             if self.link_xrange:
                 self._link()
             else:
                 self._unlink()
 
-    def _unlink(self):
-        self.coverage_ctrl.param['aa_per_subplot'].constant = False
-        self.fig1.x_range.js_property_callbacks.pop('change:start')
-        self.fig1.x_range.js_property_callbacks.pop('change:end')
+    @property
+    def figures(self):
+        return [self.master_figure] + self.client_figures
 
-        self.fig2.x_range.js_property_callbacks.pop('change:start')
-        self.fig2.x_range.js_property_callbacks.pop('change:end')
+    def _unlink(self):
+        for fig in self.figures:
+            fig.x_range.js_property_callbacks.pop('change:start')
+            fig.x_range.js_property_callbacks.pop('change:end')
 
     def _link(self):
-        step = 25  #todo global config
-        value = int(step*(self.parent.series.cov.end // step + 1))
-        self.coverage_ctrl.aa_per_subplot = value# triggers redraw
-        self.coverage_ctrl.param['aa_per_subplot'].constant = True
+        for client in self.client_figures:
+            self.master_figure.x_range.js_link('start',  client.x_range, 'start')
+            self.master_figure.x_range.js_link('end', client.x_range, 'end')
 
-        self.fig1.x_range.js_link('start', self.fig2.x_range, 'start')
-        self.fig1.x_range.js_link('end', self.fig2.x_range, 'end')
-
-        self.fig2.x_range.js_link('start', self.fig1.x_range, 'start')
-        self.fig2.x_range.js_link('end', self.fig1.x_range, 'end')
-
-    # def panel(self):
-    #     return pn.WidgetBox(pn.Param(self.param))
+            client.x_range.js_link('start', self.master_figure.x_range, 'start')
+            client.x_range.js_link('end', self.master_figure.x_range, 'end')
 
 
 class DeveloperPanel(ControlPanel):

@@ -6,8 +6,7 @@ scikit-image
 scipy
 panel
 matplotlib
-bokeh#=2.0.1
-#sympy=1.5.1 requirement of symfit
+bokeh
 dask[distributed]
-(nglview)
 tensorflow
+expfact

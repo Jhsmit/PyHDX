@@ -1,6 +1,7 @@
 from pyhdx.support import get_constant_blocks, get_reduced_blocks, temporary_seed
 # from pyhdx.fitting_tf import CurveFit, TFParameter, L1L2Differential, LossHistory, AssociationPFactFunc, \
 #     AssociationRateFunc, TFFitResult, EarlyStopping, Adagrad
+
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
@@ -748,6 +749,7 @@ class KineticsFitting(object):
         return fit_result
 
     def global_fit(self, initial_result, use_kint=True, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
+        raise DeprecationWarning('global fit is deprecated in favour of global_fit_new')
         import pyhdx.fitting_tf as ftf
 
         #todo sessions
@@ -854,6 +856,57 @@ class KineticsFitting(object):
 
             yield model, interval, input_data, output_data
 
+    def _initial_guess(self, initial_rates, k_int):
+        #todo refactor prepare_initial_guess?
+        """
+
+        Parameters
+        ----------
+        initial_rates: dict-like object
+            has r_number, rate as keys, values are numpy arrays
+        k_int
+            has r_number, k_int as keys, values are numpy arrays
+
+        Returns
+        -------
+
+        """
+
+        dtype = [('r_number', int), ('rate', float), ('k_int', float), ('p_guess_raw', float), ('p_guess', float), ('p_guess_flat', float)]
+        output = np.empty_like(self.k_series.tf_cov.r_number, dtype=dtype)
+        indices = np.searchsorted(initial_rates['r_number'], self.k_series.tf_cov.r_number)
+        if not len(indices) == len(np.unique(indices)):
+            print('WARNING')
+            # raise ValueError('Invalid match between section r number and initial result r number')
+        init_rate = initial_rates['rate'][indices]
+
+        indices = np.searchsorted(k_int['r_number'], self.k_series.tf_cov.r_number)
+        if not len(indices) == len(np.unique(indices)):
+            raise ValueError('Invalid match between section r number and k_int r number')
+        k_int_section = k_int['k_int'][indices]
+
+        #p_guess_raw = (k_int_section / init_rate) - 1
+        #k_int_mean = np.mean(k_int_section[k_int_section != -1.])
+        #p_guess_flat = (k_int_mean / init_rate) - 1
+        #p_guess = p_guess_raw.copy()
+        p_guess = np.clip((k_int_section / init_rate) - 1, a_min=np.e, a_max=None)
+        #todo do i really need this line!!?!
+
+        bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
+        idx = np.where(np.diff(bools))[0]
+        for start, stop in zip(idx[::2], idx[1::2]):
+            replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
+            p_guess[start + 1:stop + 1] = replacement[1:-1]
+
+        output['r_number'] = self.k_series.tf_cov.r_number
+        output['rate'] = init_rate
+        output['k_int'] = k_int_section
+        # output['p_guess_raw'] = p_guess_raw
+        # output['p_guess'] = p_guess
+        # output['p_guess_flat'] = p_guess_flat
+
+        return p_guess
+
     def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
         """TF global fitting using new coverage object"""
         #todo split off in get_model function?
@@ -862,6 +915,7 @@ class KineticsFitting(object):
         #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
 
         if use_kint:
+            #todo property on series
             k_int = self.k_series.tf_cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
         else:
             k_int = np.array([1. if s not in ['X', 'P'] else 0. for s in self.k_series.tf_cov.sequence])
@@ -869,25 +923,31 @@ class KineticsFitting(object):
         k_r_number = self.k_series.cov.sequence_r_number
         k_dict = {'r_number': k_r_number, 'k_int': k_int}  #todo get rid of this dict nonsense self.k_series.get_kint_array?
 
-        indices = np.searchsorted(initial_result['r_number'], self.k_series.tf_cov.r_number)
-        if not len(indices) == len(np.unique(indices)):
-            print('WARNING')
-            #raise ValueError('Invalid match between section r number and initial result r number')
-        init_rate = initial_result['rate'][indices]
+        # indices = np.searchsorted(initial_result['r_number'], self.k_series.tf_cov.r_number)
+        # if not len(indices) == len(np.unique(indices)):
+        #     print('WARNING')
+        #     #raise ValueError('Invalid match between section r number and initial result r number')
+        # init_rate = initial_result['rate'][indices]
+        #
 
-
+        #todo move this elsewhere
         indices = np.searchsorted(k_dict['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):
             raise ValueError('Invalid match between section r number and k_int r number')
         k_int_section = k_dict['k_int'][indices]
-        p_guess = k_int_section / init_rate
+        # p_guess = np.clip((k_int_section / init_rate) - 1, a_min=np.e, a_max=None)
+
 
         # fix nan's (no coverage) or zeros (prolines) in p_guess from no coverage sections
-        bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
-        idx = np.where(np.diff(bools))[0]
-        for start, stop in zip(idx[::2], idx[1::2]):
-            replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
-            p_guess[start + 1:stop + 1] = replacement[1:-1]
+        # bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
+        # idx = np.where(np.diff(bools))[0]
+        # for start, stop in zip(idx[::2], idx[1::2]):
+        #     replacement = np.linspace(p_guess[start], p_guess[stop + 1], endpoint=True, num=stop - start + 2)
+        #     p_guess[start + 1:stop + 1] = replacement[1:-1]
+
+
+        p_guess = self._initial_guess(initial_result, k_dict)
+        print(np.nanmin(p_guess)), print(np.nanmax(p_guess))
 
         guess_vals = np.log10(p_guess)
 
@@ -897,7 +957,7 @@ class KineticsFitting(object):
         import pyhdx.fitting_tf as ftf
 
         regularizer = ftf.L1L2Differential(l1, l2)
-        parameter = ftf.TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
+        parameter = ftf.TFParameter('log_P', (len(p_guess), 1), regularizer=regularizer)
         func = ftf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
 
         # expand dimensions of k_int to allow outer product with time and match the shape of parameter
@@ -951,6 +1011,27 @@ class KineticsFitting(object):
         output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
         output['r_number'] = self.k_series.cov.r_number
         output['rate'] = np.log(2) / interpolated
+
+        return output
+
+    def weighted_avg_linearize(self):
+        rates = []
+        output = np.empty_like(self.k_series.cov.r_number, dtype=[('r_number', int), ('rate', float)])
+        output['r_number'] = self.k_series.cov.r_number
+
+        for i, dpts in enumerate(self.k_series.scores_stack.T):
+            if np.any(np.isnan(dpts)):
+                output['rate'][i] = np.nan
+                rates.append(np.nan)
+            else:
+                y_lin = np.log(1 - (dpts / 100))
+                b = ~np.isnan(y_lin)
+                try:
+                    rate, offset = np.polyfit(self.k_series.timepoints[b], -y_lin[b], 1)
+                except np.linalg.LinAlgError:
+                    t50 = np.interp(50, dpts, self.k_series.timepoints)
+                    rate = np.log(2) / t50
+                output['rate'][i] = rate
 
         return output
 

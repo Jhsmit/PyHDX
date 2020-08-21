@@ -137,6 +137,11 @@ class AssociationPFactFunc(object):
     # def compute_output_shape(self, input_shape):
     #     return input_shape[0], len(self.timepoints)
 
+    def call_numpy(self, inputs, **parameters):
+        pfact = 10**parameters[self.parameter_name]
+        uptake = 1 - np.exp(-np.matmul((inputs[1]/(1 + pfact)), np.array(self.timepoints)))
+        return np.matmul(inputs[0], uptake)
+
     @staticmethod
     def output(weights):
         #todo perhaps input weights as dict (and store as such in HistoryCallback)
@@ -189,7 +194,6 @@ class TFFitResult(object):
 
         self.loss = loss
 
-
         #self.func = self.results[0].model.layers[0].function
         #print(self.func_cls)
 
@@ -200,13 +204,17 @@ class TFFitResult(object):
         name = self.funcs[0].parameter_name
         output = np.full_like(self.r_number, fill_value=np.nan, dtype=float)
 
-        for (s, e), wts in zip(self.intervals, self.weights):
+        for (s, e), wts in zip(self.intervals, self.weights):  #there is only one interval in the current implementation
             i0, i1 = np.searchsorted(self.r_number, [s, e])
             output[i0:i1] = wts
 
-        array = np.empty_like(self.r_number, dtype=[('r_number', int), (name, float)])
+        array = np.empty_like(self.r_number, dtype=[('r_number', int), (f'{name}_full', float), (name, float)])
         array['r_number'] = self.r_number
-        array[name] = output
+        array[f'{name}_full'] = output
+
+        bools = np.array([s in ['X', 'P'] for s in self.series.tf_cov.cov_sequence])
+        array[name] = output.copy()
+        array[name][bools] = np.nan # set no coverage or prolines resiudes to nan
 
         return array
 
@@ -218,16 +226,14 @@ class TFFitResult(object):
             f_copy.timepoints = tf.dtypes.cast(tf.expand_dims(timepoints, 0), tf.float32)
 
             parameters = {func.parameter_name: tf.dtypes.cast(tf.expand_dims(wts, -1), tf.float32)}
-            X = tf.dtypes.cast(np.squeeze(ip, axis=0), tf.float32)  # this no longer works
-            d_out = f_copy(X, **parameters)
-            print(d_out.shape)
+            X = tf.dtypes.cast(np.squeeze(ip[0], axis=0), tf.float32)
+            k_int = tf.dtypes.cast(np.squeeze(ip[1], axis=0), tf.float32)
+            d_out = f_copy([X, k_int], **parameters)
 
             d = np.array(d_out)
-            print('hoi')
             d_list.append(d)
 
         full_output = np.concatenate(d_list)
-        print(full_output.shape)
 
         return full_output
 

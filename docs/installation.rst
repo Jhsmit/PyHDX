@@ -69,5 +69,18 @@ To launch the web application:
 
     $ panel serve panel/main.py
 
+
+
+
+Dependencies
+------------
+
+The requirements for PyHDX are listed in requirements.txt and can be installed from
+either pip or conda, with the exception of `expfact`_. This is a GPL package and at the moments
+it is recommended to manually install this by downloading the `constants.py` and `kint.py` files
+from `expfact/python` directory on the GitHub repository and placing them in pyhdx/expfact
+
+
 .. _Github repo: https://github.com/Jhsmit/pyhdx
 .. _tarball: https://github.com/Jhsmit/pyhdx/tarball/master
+.. _expfact: https://github.com/skinnersp/exPfact.git

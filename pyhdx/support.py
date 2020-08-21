@@ -5,15 +5,14 @@ import contextlib
 from functools import reduce
 from io import StringIO
 from skimage.filters import threshold_multiotsu
-
-import pyhdx.pyhdx
+import pyhdx.models as models
 
 def series_intersection(series_list):
-    """finds and returns series where peptides are the interection of all series"""
+    """finds and returns series where peptides are the intersection of all series"""
     full_arrays = [series.full_data for series in series_list]
     arrays = [fields_view(full_data, ['start', 'end']) for full_data in full_arrays]
     reduced = reduce(np.intersect1d, arrays)
-    intersecting_series = [pyhdx.KineticsSeries(f_array[np.isin(array, reduced)]) for f_array, array in
+    intersecting_series = [models.KineticsSeries(f_array[np.isin(array, reduced)]) for f_array, array in
                            zip(full_arrays, arrays)]
 
     return intersecting_series
@@ -362,6 +361,7 @@ def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
 
 def multi_otsu(*rates, classes=3):
     """
+    global otsu thesholding of multiple rate arrays in log space
 
     Parameters
     ----------
@@ -383,6 +383,7 @@ def multi_otsu(*rates, classes=3):
 
 
 def scale(x, out_range=(-1, 1)):
-    domain = np.min(x), np.max(x)
+    """rescale input array x to range `out_range`"""
+    domain = np.nanmin(x), np.nanmax(x)
     y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
     return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2

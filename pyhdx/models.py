@@ -4,8 +4,8 @@ import itertools
 import scipy
 from functools import reduce
 from operator import add
-from .math import solve_nnls
-from .support import reduce_inter, make_view
+from pyhdx.math import solve_nnls
+from pyhdx.support import reduce_inter, make_view
 from pyhdx.expfact.kint import calculate_kint_per_residue
 
 
@@ -91,10 +91,15 @@ class PeptideMasterTable(object):
     def __len__(self):
         return len(self.data)
 
-    def groupby_state(self):
+    def groupby_state(self, make_uniform=True):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a
         :class:`~pyhdx.pyhdx.KineticSeries`.
+
+        Parameters
+        ----------
+        make_uniform : :obj:`bool`
+            If `True` the returned :class:`~pyhdx.pyhdx.KineticSeries` is made uniform
 
         Returns
         -------
@@ -103,7 +108,7 @@ class PeptideMasterTable(object):
         """
 
         states = np.unique(self.data['state'])
-        return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
+        return {state: KineticsSeries(self.data[self.data['state'] == state], make_uniform=make_uniform) for state in states}
 
     @staticmethod
     def isin_by_idx(array, test_array):
@@ -363,7 +368,14 @@ class TFCoverage(object):
     def __len__(self):
         return len(self.data)
 
-    @property
+    @property  #todo refactor to sequence
+    def cov_sequence(self):
+        """amino acids one letter codes corresponding to r_number array"""
+        idx = np.searchsorted(self.sequence_r_number, self.r_number)
+        seq_arr = np.array([s for s in self.sequence])
+        return seq_arr[idx]
+
+    @property  #todo refactor to full sequence. Perhaps also return as array
     def sequence(self):
         """:obj:`str`: String of the full protein sequence. One letter coding where X marks regions of no coverage"""
 
@@ -376,7 +388,7 @@ class TFCoverage(object):
         return ''.join(seq)
 
     @property
-    def sequence_r_number(self):
+    def sequence_r_number(self):  #todo refactor to: full_r_number
         """~class:`numpy.ndarray`: Array of r numbers corresponding to residues in sequence"""
         start = min(self._start, 1)  # start at least at 1 unless the protein extends into negative numbers
         r_number = np.arange(start, self._end)
@@ -408,7 +420,7 @@ class TFCoverage(object):
         """
 
         c_term = len(self.sequence) + 1 if c_term is None else c_term
-        k_int_list = [-1.]
+        k_int_list = [-1.]  # first residue
         for i, (previous, current) in enumerate(zip(self.sequence[:-1], self.sequence[1:])):
             if previous == 'X' or current == 'X':
                 k_int_list.append(0.)
@@ -533,6 +545,9 @@ class Coverage(object):
             i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
             self.X[row][i0:i1] = 1 / entry['ex_residues']
 
+    def __len__(self):
+        return len(self.data)
+
     @property
     def block_length(self):
         """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
@@ -585,8 +600,7 @@ class Coverage(object):
         """:class:`~np.ndarray`: Boolean array indicating if the residues along r_number have coverage"""
         return np.sum(self.X, axis=0) > 0
 
-    def __len__(self):
-        return len(self.data)
+
 
     @property
     def sequence(self):
@@ -707,6 +721,8 @@ class KineticsSeries(object):
     data : :class:`~numpy.ndarray` or :obj:`list`
         Numpy structured array with peptide entries corresponding to a single state,
         or list of :class:`~pyhdx.pyhdx.PeptideMeasurements`
+    make_uniform : :obj:`bool`
+        If `True` the returned :class:`~pyhdx.pyhdx.KineticSeries` is made uniform
 
     Attributes
     ----------
@@ -716,13 +732,17 @@ class KineticsSeries(object):
         Array with exposure times (sorted)
 
     """
-    def __init__(self, data):
+    def __init__(self, data, make_uniform=True, **metadata):
+        self.metadata = metadata
         if isinstance(data, np.ndarray):
             assert len(np.unique(data['state'])) == 1
             self.state = data['state'][0]
             self.timepoints = np.sort(np.unique(data['exposure']))
 
             self.peptides = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.timepoints]
+
+            if make_uniform:
+                self.make_uniform()
 
             if self.uniform:
                 self.cov = Coverage(data[data['exposure'] == self.timepoints[0]])
@@ -747,6 +767,39 @@ class KineticsSeries(object):
 
         else:
             raise TypeError('Invalid data type')
+
+    @property
+    def temperature(self):
+        try:
+            return self.metadata['temperature']
+        except KeyError:
+            return None
+
+    @temperature.setter
+    def temperature(self, value):
+        self.metadata['temperature'] = value
+
+    @property
+    def pH(self):
+        try:
+            return self.metadata['pH']
+        except KeyError:
+            return None
+
+    @pH.setter
+    def pH(self, value):
+        self.metadata['pH'] = value
+
+    @property
+    def c_term(self):
+        try:
+            return self.metadata['c_term']
+        except KeyError:
+            return None
+
+    @c_term.setter
+    def c_term(self, value):
+        self.metadata['c_term'] = value
 
     def make_uniform(self, in_place=True):
         """
@@ -831,6 +884,16 @@ class KineticsSeries(object):
     def __getitem__(self, item):
         return self.peptides.__getitem__(item)
 
+    @property
+    def k_int(self):
+        """this might need to move somewhere else, eg coverage object
+        although if series are not uniform, k_int has to be on the main object as it wont
+        have global coverages
+        """
+
+        return self.tf_cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
+
+
     def set_control(self, control_100, control_zero=None, remove_nan=True):
         """
         Apply a control dataset to the underlying PeptideMeasurements of this object. A `scores` attribute is added to
@@ -877,6 +940,7 @@ class KineticsSeries(object):
 
     @property
     def uptake_corrected(self):
+        """matrix shape  N_t, N_p"""
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
 
