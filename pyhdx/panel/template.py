@@ -9,11 +9,6 @@ class ExtendedGoldenTemplate(GoldenTemplate):
 
     _template = pathlib.Path(__file__).parent / 'golden.html'
 
-#    _css = pathlib.Path(__file__).parent / 'golden.css'
-
-    # def _apply_root(self, name, model, tags):
-    #     pass
-
 
 class ReadString(str):
     """
@@ -61,7 +56,6 @@ class GoldenElvis(object):
         self.title = title
 
         self.panels = {}
-        #self.template = template(title=title, theme=theme)
 
     @property
     def jinja_base_string_template(self):
@@ -90,7 +84,7 @@ class GoldenElvis(object):
 
         return template
 
-    def view(self, view, title=None, width=None, height=None, scrollable=True):
+    def view(self, fig_panel, title=None, width=None, height=None, scrollable=True):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
@@ -104,10 +98,10 @@ class GoldenElvis(object):
 
         # It seems that these unique names cannot start with a number or they cannot be referenced directly
         # Therefore, currently tmpl.main.append cannot be used as this generates
-        panel_ID = 'ID' + str(id(view))
-        print('title, id', title, panel_ID)
+        panel_ID = 'ID' + str(id(fig_panel))
+        title = title or getattr(fig_panel, 'title', None)
 
-        self.panels[panel_ID] = view
+        self.panels[panel_ID] = fig_panel.panel
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""
         height_str = "height: %s," % str(height) if height is not None else ""
@@ -115,22 +109,22 @@ class GoldenElvis(object):
         settings = title_str + height_str + width_str + scroll_str
         return self.VIEW % (panel_ID, settings)
 
-    def _block(self, *args, type='stack'):
+    def _block(self, *args, container='stack'):
         """
         Creates nestable js code strings. Note that 'stack', 'colum' and 'row' are the
         strings dictated by the golden layout js code.
         """
         content = ''.join(arg for arg in args)
-        return self.NESTABLE % (type, content)
+        return self.NESTABLE % (container, content)
 
     def stack(self, *args):
         """ Adds a 'tab' element."""
-        return self._block(*args, type='stack')
+        return self._block(*args, container='stack')
 
     def column(self, *args):
         """ Vertically aligned panels"""
-        return self._block(*args, type='column')
+        return self._block(*args, container='column')
 
     def row(self, *args):
         """ Horizontally aligned panels"""
-        return self._block(*args, type='row')
+        return self._block(*args, container='row')

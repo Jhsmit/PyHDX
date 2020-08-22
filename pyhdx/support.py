@@ -387,3 +387,10 @@ def scale(x, out_range=(-1, 1)):
     domain = np.nanmin(x), np.nanmax(x)
     y = (x - (domain[1] + domain[0]) / 2) / (domain[1] - domain[0])
     return y * (out_range[1] - out_range[0]) + (out_range[1] + out_range[0]) / 2
+
+
+def gen_subclasses(cls):
+    """Recursively find all subclasses of cls"""
+    for sub_cls in cls.__subclasses__():
+        yield sub_cls
+        yield from gen_subclasses(sub_cls)
