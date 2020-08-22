@@ -42,11 +42,6 @@ logger = setup_custom_logger('root')
 logger.debug('main message')
 
 
-# todo dict comprehension
-
-#refactor rates to columndatasource?
-dic = {'rates': np.zeros(0, dtype=[('r_number', int), ('rate', float)]),
-       'fitresult': None}
 
 # empty_results = {
 #     'fit1': dic.copy(),
@@ -95,33 +90,6 @@ class Controller(param.Parameterized):
                                           )
                                       ))
 
-        # # tmpl = pn.Template(template)
-        # tmpl.sidebar.append(controls)
-        # #
-        # # tmpl.add_panel('input', self.fileinput.panel)
-        # # tmpl.add_panel('coverage', self.coverage.panel)
-        # # tmpl.add_panel('fitting', self.fit_control.panel)
-        # # tmpl.add_panel('tf_fit', self.tf_fit_control.panel)
-        # # tmpl.add_panel('fit_quality', self.fit_quality.panel)
-        # # tmpl.add_panel('classification', self.classification_panel.panel)
-        # # tmpl.add_panel('file_export', self.file_export.panel)
-        # # tmpl.add_panel('options', self.options.panel)
-        # # tmpl.add_panel('dev', self.dev.panel)
-        #
-        # tmpl.main.append(self.coverage_figure.panel)
-        # tmpl.main.append(self.rate_figure.panel)
-        # tmpl.main.append(self.pfact_figure.panel)
-        # tmpl.main.append(self.protein_figure.panel)
-        # tmpl.main.append()
-        #
-        #
-        # tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
-        # tmpl.add_panel('rate_fig', self.rate_figure.panel)
-        # tmpl.add_panel('pfact_fig', self.pfact_figure.panel)
-        # tmpl.add_panel('fitres_fig', self.fit_result_figure.panel)
-        # tmpl.add_panel('slice_k', self.protein_figure.panel)
-        #tmpl.add_panel('B', hv.Curve([1, 2, 3]))
-
         self.app = tmpl
 
     def publish_data(self, name, dic):
@@ -143,44 +111,6 @@ class Controller(param.Parameterized):
             self.sources[name] = source
 
         self.param.trigger('sources')
-
-    def servable(self):
-
-        # js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
-        #             'goldenlayout': 'https://golden-layout.com/files/latest/js/goldenlayout.min.js',
-        #             'ngl': 'https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.33/dist/ngl.js'}
-        # css_files = ['https://golden-layout.com/files/latest/css/goldenlayout-base.css',
-        #              'https://golden-layout.com/files/latest/css/goldenlayout-dark-theme.css']
-        #
-        # css = '''
-        # .custom-wbox > div.bk {
-        #     padding-right: 10px;
-        # }
-        # .scrollable {
-        #     overflow: auto !important;
-        # }
-        # '''
-        # pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
-
-        return self.app.servable()
-
-    def serve(self, **kwargs):
-        js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
-                    'goldenlayout': 'https://golden-layout.com/files/latest/js/goldenlayout.min.js',
-                    'ngl': 'https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.33/dist/ngl.js'}
-        css_files = ['https://golden-layout.com/files/latest/css/goldenlayout-base.css',
-                     'https://golden-layout.com/files/latest/css/goldenlayout-dark-theme.css']
-
-        css = '''
-        .custom-wbox > div.bk {
-            padding-right: 10px;
-        }
-        .scrollable {
-            overflow: auto !important;
-        }
-        '''
-        pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
-        pn.serve(self.app, **kwargs, title=VERSION_STRING_SHORT)
 
 
 class FileInputControl(ControlPanel):
