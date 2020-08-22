@@ -91,13 +91,13 @@ class ThdLogFigure(FigurePanel):
 
     def _draw_thds(self, *events):
         # todo check events and draw according to those? (events are triggers)
-        if self.ctrl.target in self.accepted_sources:
+        if self.control_panels['ClassificationControl'].target in self.accepted_sources:
             spans = self.figure.select(tags='thd')
             spans.sort(key=lambda x: x.id)
             for i, span in enumerate(spans): # spanspanspam
-                if i < len(self.ctrl.values):
-                    span.location = self.ctrl.values[i]
-                    span.visible = self.ctrl.show_thds
+                if i < len(self.control_panels['ClassificationControl'].values):
+                    span.location = self.control_panels['ClassificationControl'].values[i]
+                    span.visible = self.control_panels['ClassificationControl'].show_thds
                 else:
                     span.visible = False
 

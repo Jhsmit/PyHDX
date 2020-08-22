@@ -42,12 +42,6 @@ logger = setup_custom_logger('root')
 logger.debug('main message')
 
 
-
-# empty_results = {
-#     'fit1': dic.copy(),
-#     'fit2': dic.copy()
-#}
-
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
 
@@ -65,7 +59,7 @@ class Controller(param.Parameterized):
     series = param.ClassSelector(KineticsSeries, doc='Currently selected kinetic series of peptides')
     fitting = param.ClassSelector(KineticsFitting)
 
-    def __init__(self, control_panels, figure_panels, elvis_template, cluster=None, **params):
+    def __init__(self, control_panels, figure_panels, cluster=None, **params):
         super(Controller, self).__init__(**params)
         self.cluster = cluster
         self.doc = pn.state.curdoc
@@ -78,19 +72,6 @@ class Controller(param.Parameterized):
 
         #setup options  #todo automate figure out cross dependencies (via parent?)
         self.control_panels['OptionsPanel'].link_xrange = True
-
-        #todo move this outside of controller
-        tmpl = elvis_template.compose(self.control_panels.values(),
-                                      elvis_template.column(
-                                          elvis_template.view(self.figure_panels['CoverageFigure']),
-                                          elvis_template.stack(
-                                              elvis_template.view(self.figure_panels['RateFigure']),
-                                              elvis_template.view(self.figure_panels['PFactFigure']),
-                                              elvis_template.view(self.figure_panels['FitResultFigure'])
-                                          )
-                                      ))
-
-        self.app = tmpl
 
     def publish_data(self, name, dic):
         """
@@ -558,10 +539,11 @@ class TFFitControl(ControlPanel):
         output_dict['deltaG'] = deltaG
 
         self.parent.fit_results[output_name] = result
+
         self.parent.publish_data(output_name, output_dict)
 
-        #self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
         self.param['do_fit'].constant = False
+        self.parent.param.trigger('fit_results')
     #
 
 
