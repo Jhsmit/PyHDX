@@ -24,8 +24,6 @@ from numpy.lib.recfunctions import stack_arrays, append_fields
 from .components import ASyncProgressBar
 from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
-#import matplotlib
-#matplotlib.use('agg') # for panel mpl support
 from functools import partial
 #from .widgets import NumericInput
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
@@ -41,12 +39,6 @@ from .template import ExtendedGoldenTemplate
 from .theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from .widgets import ColoredStaticText
 
-#tmep
-from panel.pane.vtk.enums import PRESET_CMAPS
-from bokeh.util.serialization import make_globally_unique_id
-pth = os.path.dirname(__file__)
-
-env = Environment(loader=FileSystemLoader(pth))
 
 # todo dict comprehension
 
@@ -76,7 +68,7 @@ class Controller(param.Parameterized):
     series = param.ClassSelector(KineticsSeries, doc='Currently selected kinetic series of peptides')
     fitting = param.ClassSelector(KineticsFitting)
 
-    def __init__(self, template, panels, cluster=None, **params):
+    def __init__(self, cluster=None, **params):
         super(Controller, self).__init__(**params)
         #pn.config.sizing_mode = 'stretch_both'
 
@@ -86,7 +78,6 @@ class Controller(param.Parameterized):
         tmpl = ExtendedGoldenTemplate(title=VERSION_STRING_SHORT, theme=ExtendedGoldenDarkTheme)
 
         #tmpl = pn.template.GoldenTemplate(title=VERSION_STRING_SHORT, theme=pn.template.DarkTheme)
-
 
         # Controllers
         self.file_input = FileInputControl(self)
@@ -99,14 +90,14 @@ class Controller(param.Parameterized):
         self.options = OptionsPanel(self)
         self.dev = DeveloperPanel(self)
 
-        attrs = ['fileinput', 'coverage', 'fit_control', 'tf_fit_control', 'fit_quality', 'classification_panel', 'file_export', 'options']
+        attrs = ['file_input', 'coverage', 'fit_control', 'tf_fit_control', 'fit_quality', 'classification_panel', 'file_export', 'options']
         controls = pn.Column(*[getattr(self, attr).panel for attr in attrs])
+        #controls = self.file_input.panel
 
         #Figures
         self.coverage_figure = CoverageFigure(self, [self.coverage, self.fit_control])  #parent, [controllers]
         self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
         self.pfact_figure = PFactFigure(self, [self.fit_control, self.classification_panel])
-
         self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
         self.protein_figure = ProteinFigure(self, [])
 
@@ -132,7 +123,7 @@ class Controller(param.Parameterized):
         tmpl.main.append(self.coverage_figure.panel)
         tmpl.main.append(self.rate_figure.panel)
         tmpl.main.append(self.pfact_figure.panel)
-        tmpl.main.append(self.protein_figure.panel)
+        # tmpl.main.append(self.protein_figure.panel)
         # tmpl.main.append()
         #
         #
@@ -369,7 +360,6 @@ class CoverageControl(ControlPanel):
     def __init__(self, parent, **params):
         self.exposure_str = ColoredStaticText(name='Exposure', value='0')  # todo update to some param?
 
-
         # We need a reference to color mapper to update it when the cmap changes
         self.color_mapper = LinearColorMapper(palette=self.palette, low=0, high=100)
         self.color_bar = self.get_color_bar()
@@ -379,7 +369,7 @@ class CoverageControl(ControlPanel):
 
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
-        return lst + [self.exposure_str, self.color_bar]
+        return lst + [self.exposure_str]#, self.color_bar]
 
     def make_dict(self):
         return self.generate_widgets(index=pn.widgets.IntSlider)

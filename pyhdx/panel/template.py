@@ -2,6 +2,7 @@ import pathlib
 
 from panel.template import GoldenTemplate
 import panel as pn
+import string
 
 
 class ExtendedGoldenTemplate(GoldenTemplate):
@@ -10,12 +11,15 @@ class ExtendedGoldenTemplate(GoldenTemplate):
 
 #    _css = pathlib.Path(__file__).parent / 'golden.css'
 
+    # def _apply_root(self, name, model, tags):
+    #     pass
 
-class SubString(str):
+
+class ReadString(str):
     """
     Extends the `string` class such that it can be used to monkey-patch the _template class attribute of GoldenTemplate
     """
-    def read_into(self):
+    def read_text(self):
         return str(self)
 
 
@@ -52,30 +56,39 @@ class GoldenElvis(object):
         """
 
     def __init__(self, template, theme, title=None):
-        
-        self.template = template(title=title, theme=theme)
+        self.template_cls = template
+        self.theme_cls = theme
+        self.title = title
+
+        self.panels = {}
+        #self.template = template(title=title, theme=theme)
 
     @property
-    def jinja_base(self):
+    def jinja_base_string_template(self):
         _base = pathlib.Path(__file__).parent / 'jinja_base.html'
+        base_string_template = string.Template(_base.read_text())
 
-        return _base.read_text()
+        return base_string_template
 
-    def make_sidebar(self, controllers):
-        controls = pn.Column(*[controller.panel for controller in controllers])
-        self.template.sidebar.append(controls)
-
-
-    def compose(self, golden_layout_string):
+    def compose(self, controllers, golden_layout_string):
         """
         Creates a servable template from a golden layout js code string.
         :param golden_layout_string: Result of nesting stacks, columns, rows, and panels
                                      using the methods in this class.
         """
-        template = self.jinja_base % golden_layout_string
-        self.app = pn.Template(template=template)
+
+        template_code = ReadString(self.jinja_base_string_template.substitute(main_body=golden_layout_string))
+        self.template_cls._template = template_code
+
+        template = self.template_cls(title=self.title, theme=self.theme_cls)
+        controls = pn.Column(*[controller.panel for controller in controllers])
+
+        template.sidebar.append(controls)
+
         for panel_ID, panel in self.panels.items():
-            self.app.add_panel(panel_ID, panel)
+            template._render_items[panel_ID] = (panel, ['main'])
+
+        return template
 
     def view(self, view, title=None, width=None, height=None, scrollable=True):
         """
@@ -88,15 +101,19 @@ class GoldenElvis(object):
 
         # We need to register every panel with a unique name such that after
         # composing the jinja2 template, we can add them (see compose function).
-        self.counter = self.counter + 1
-        panel_ID = "panel_" + str(self.counter)
-        self.panels[panel_ID] = pn.panel(view, sizing_mode='stretch_both')
+
+        # It seems that these unique names cannot start with a number or they cannot be referenced directly
+        # Therefore, currently tmpl.main.append cannot be used as this generates
+        panel_ID = 'ID' + str(id(view))
+        print('title, id', title, panel_ID)
+
+        self.panels[panel_ID] = view
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""
         height_str = "height: %s," % str(height) if height is not None else ""
         scroll_str = "css_classes: ['not_scrollable']" if not scrollable else ""
         settings = title_str + height_str + width_str + scroll_str
-        return ClientSideCodeStrings.VIEW % (panel_ID, settings)
+        return self.VIEW % (panel_ID, settings)
 
     def _block(self, *args, type='stack'):
         """

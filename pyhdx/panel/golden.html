@@ -46,7 +46,6 @@
 </div>
 
 <script>
-  {% block config %}
   var config = {
     content: [
       {
@@ -87,8 +86,6 @@
       }
     ]
   };
-  {% endblock %}
-
 
   var myLayout = new GoldenLayout(config, $('#main-content'));
   var resizing = false;
@@ -131,5 +128,6 @@
 </script>
 
 {{ embed(roots.js_area) }}
+{{ embed(roots.location) }}
 
 {% endblock %}

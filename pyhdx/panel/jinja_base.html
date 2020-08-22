@@ -62,13 +62,13 @@
             },
             width: 20
           },
-          %s
+          $main_body
         ]
       }
     ]
   };
 
-  var myLayout = new GoldenLayout(config, $('#main-content'));
+  var myLayout = new GoldenLayout(config, $$('#main-content'));
   var resizing = false;
   var resize_dispatcher = () => {
     resizing = true;
