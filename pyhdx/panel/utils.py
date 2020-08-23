@@ -2,42 +2,43 @@ from pyhdx.panel.controller import Controller
 from pyhdx.support import np_from_txt
 
 
-def reload_previous(dic, ctrl=None):
+
+def reload_previous(dic, ctrl):
     cluster = dic['cluster'] if 'cluster' in dic else None
-    ctrl = Controller('template', ['asdf'], cluster=cluster) if ctrl is None else ctrl
+    file_input = ctrl.control_panels['FileInputControl']
 
     if 'file_paths' not in dic.keys() and 'file_path' in dic.keys():
         dic['file_paths'] = [dic['file_path']]
 
-    while len(ctrl.file_input.file_selectors) < len(dic['file_paths']):
+    while len(file_input.file_selectors) < len(dic['file_paths']):
         ctrl._action_add()
 
     # Read files and add them into the file widgets
-    for fs, file_path in zip(ctrl.file_input.file_selectors, dic['file_paths']):
+    for fs, file_path in zip(file_input.file_selectors, dic['file_paths']):
         with open(file_path, 'rb') as f:
             binary = f.read()
         fs.value = binary
 
     #todo prolines, drop_first
 
-    ctrl.file_input._action_load()
+    file_input._action_load()
 
     # Set back exchange parameters
     try:
-        ctrl.file_input.norm_mode = dic['norm_mode']
+        file_input.norm_mode = dic['norm_mode']
     except KeyError:
         pass
 
-    if ctrl.file_input.norm_mode == 'Exp':
-        ctrl.file_input.norm_state = dic['norm_state']
-        ctrl.file_input.norm_exposure = dic['norm_exposure']
+    if file_input.norm_mode == 'Exp':
+        file_input.norm_state = dic['norm_state']
+        file_input.norm_exposure = dic['norm_exposure']
     else:
-        ctrl.file_input.be_percent = dic['be_percent']
+        file_input.be_percent = dic['be_percent']
 
-    ctrl.file_input.exp_state = dic['exp_state']
+    file_input.exp_state = dic['exp_state']
 
     # Apply back exchange correction
-    ctrl.file_input._action_parse()
+    file_input._action_parse()
 
     if 'sources' not in dic.keys():
         dic['sources'] = {}

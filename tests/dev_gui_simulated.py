@@ -3,6 +3,8 @@ from pyhdx.support import np_from_txt
 import os
 import numpy as np
 from pyhdx.panel.base import DEFAULT_COLORS
+from pyhdx.panel.main import tmpl, ctrl
+import panel as pn
 import pickle
 
 dic = {}
@@ -30,7 +32,8 @@ with open(os.path.join(directory, 'test_data', 'fit_simulated_pfact.pick'), 'rb'
 dic['fit_results'] = {}
 dic['fit_results']['fr_pfact'] = fit_result
 
-ctrl = reload_previous(dic)
+
+ctrl = reload_previous(dic, ctrl)
 
 if __name__ == '__main__':
-    ctrl.serve()
+    pn.serve(tmpl)
