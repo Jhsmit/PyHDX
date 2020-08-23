@@ -135,7 +135,7 @@ class FileInputControl(ControlPanel):
     def _action_add(self):
         print('action_add')
         widget = pn.widgets.FileInput(accept='.csv')
-        i = len(self.file_selectors) + 1 # position to insert the new file selector into the widget box
+        i = len(self.file_selectors)  # position to insert the new file selector into the widget box
         self.file_selectors.append(widget)
         self._box.insert(i, widget)
 
