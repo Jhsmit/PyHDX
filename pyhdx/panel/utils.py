@@ -2,9 +2,7 @@ from pyhdx.panel.controller import Controller
 from pyhdx.support import np_from_txt
 
 
-
 def reload_previous(dic, ctrl):
-    cluster = dic['cluster'] if 'cluster' in dic else None
     file_input = ctrl.control_panels['FileInputControl']
 
     if 'file_paths' not in dic.keys() and 'file_path' in dic.keys():
@@ -36,6 +34,8 @@ def reload_previous(dic, ctrl):
         file_input.be_percent = dic['be_percent']
 
     file_input.exp_state = dic['exp_state']
+
+    #todo add exp_exposures
 
     # Apply back exchange correction
     file_input._action_parse()
