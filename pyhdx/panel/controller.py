@@ -538,7 +538,7 @@ class TFFitControl(ControlPanel):
         deltaG = constants.R * self.temperature * np.log(output_dict['y'])
         output_dict['deltaG'] = deltaG
 
-        self.parent.fit_results[output_name] = result
+        self.parent.fit_results['fr_' + output_name] = result
 
         self.parent.publish_data(output_name, output_dict)
 
