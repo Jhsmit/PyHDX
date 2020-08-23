@@ -563,6 +563,7 @@ class FittingQuality(ControlPanel):
     def _series_updated(self, *events):
         self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
         self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
+        self._update_sources()
 
     @property
     def fit_timepoints(self):
@@ -572,7 +573,7 @@ class FittingQuality(ControlPanel):
 
     def _fit_results_updated(self, *events):
         print('fit results updated in fitting quality')
-        accepted_fitresults = ['pfact']
+        accepted_fitresults = ['fr_pfact']
         #todo wrappertje which checks with a cached previous version of this particular param what the changes are even it a manual trigger
         for name, fit_result in self.parent.fit_results.items():
             if name in accepted_fitresults:
@@ -581,10 +582,10 @@ class FittingQuality(ControlPanel):
             else:
                 continue
         # push results to graph
-            self._peptide_index_updated()
+            self._update_sources()
 
     @param.depends('peptide_index', watch=True)
-    def _peptide_index_updated(self):
+    def _update_sources(self):
         for name, array in self.d_uptake.items():
             timepoints = self.parent.series.timepoints if name == 'uptake_corrected' else self.fit_timepoints
             dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
