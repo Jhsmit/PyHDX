@@ -127,8 +127,7 @@ class NGLViewer(HTML):
             stage.setSpin({'true' if self.spin else 'false'});
             </script>
             """
-        # print('000000000000000')
-        # print(html)
+        
         self.object = html
 
     @param.depends('pdb_string', watch=True)
