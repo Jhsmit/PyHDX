@@ -705,7 +705,7 @@ class ClassificationControl(ControlPanel):
             vals_sorted = np.sort(func(self.values))
             norm = plt.Normalize(vals_sorted[0], vals_sorted[-1])#, clip=True) currently there is never anythin clipped?
             nodes = norm(vals_sorted)
-            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors)))
+            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
             colors_rgba = cmap(norm(func(y_vals)))
             colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
             colors[np.isnan(y_vals)] = np.nan
