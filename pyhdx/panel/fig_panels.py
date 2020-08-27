@@ -139,6 +139,8 @@ class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel (it 
     title = 'Protein View'
     accepted_sources = ['pfact']
 
+    js_files = {'ngl': "https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.37/dist/ngl.js"}
+
     def __init__(self, *args, **params):
         super(ProteinFigure, self).__init__(*args, **params)
         self.ngl_view = NGLViewer(sizing_mode='stretch_both')

@@ -38,6 +38,8 @@ class FigurePanel(PanelBase):
     x_label = ''
     y_label = ''
 
+    js_files = {}
+
     def __init__(self, parent, sources=None, **params):
         super(PanelBase, self).__init__(**params)
         self.parent = parent  # main controller

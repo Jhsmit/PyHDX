@@ -4,7 +4,6 @@ from pyhdx.panel.controller import Controller
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
 
-pn.config.js_files["ngl"] = "https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"
 control_panels = [
     'FileInputControl',
     'CoverageControl',
