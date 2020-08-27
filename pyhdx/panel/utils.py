@@ -62,6 +62,10 @@ def reload_previous(dic, ctrl):
 
     ctrl.param.trigger('fit_results')
 
+    #make this a yaml file
+    rcsb_id = dic.get('rcsb_id', '')
+    ctrl.control_panels['ProteinViewControl'].rcsb_id = rcsb_id
+
     return ctrl
 
     #todo future make JSON from parameter objects
