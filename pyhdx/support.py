@@ -220,17 +220,33 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
 
 #move to fileIO?
 def np_from_txt(file_path, delimiter='\t'):
-    if isinstance(file_path, StringIO):
-        header = file_path.readline().strip()
-        file_path.seek(0)
-    else:
-        with open(file_path, 'r') as f:
-            header = f.readline()
 
-    if header.startswith('#'):
-        names = header[2:].split(delimiter)
+    if isinstance(file_path, StringIO):
+        file_obj = file_path
     else:
-        names = None
+        file_obj = open(file_path, 'r')
+
+    names = None
+    header_lines = 0
+    while True:
+        header = file_obj.readline().strip()
+        if header.startswith('#'):
+            names = header[2:].split(delimiter)
+            header_lines += 1
+        else:
+            break
+    file_obj.seek(0)
+    # if isinstance(file_path, StringIO):
+    #     header = file_path.readline().strip()
+    #     file_path.seek(0)
+    # else:
+    #     with open(file_path, 'r') as f:
+    #         header = f.readline()
+    #
+    # if header.startswith('#'):
+    #     names = header[2:].split(delimiter)
+    # else:
+    #     names = None
 
     return np.genfromtxt(file_path, dtype=None, names=names, skip_header=1, delimiter=delimiter, encoding=None, autostrip=True)
 
