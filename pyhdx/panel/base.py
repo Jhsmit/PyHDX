@@ -33,6 +33,7 @@ class PanelBase(param.Parameterized):
 
 
 class FigurePanel(PanelBase):
+    #todo make subclass for bokeh specific figures, abstract the rest
     accepted_sources = []
     x_label = ''
     y_label = ''

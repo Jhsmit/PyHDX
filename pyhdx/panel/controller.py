@@ -560,6 +560,7 @@ class FittingQuality(ControlPanel):
         self.parent.param.watch(self._series_updated, ['series'])
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
+    #@depends(parent.series) will this work? parent should be a classselector param? does that accept subclasses?
     def _series_updated(self, *events):
         self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
         self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
@@ -595,9 +596,9 @@ class FittingQuality(ControlPanel):
 
 
 class ClassificationControl(ControlPanel):
+    header = 'Classification'
     accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects)
 
-    header = 'Classification'
     target = param.Selector(label='Target')
 
     mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'])#, 'ColorMap'])
