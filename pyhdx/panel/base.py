@@ -13,6 +13,8 @@ from bokeh.plotting import figure
 # and we can add methods which will make wildcard names easier
 
 
+
+
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
                   'uptake_corrected': '#000000', 'fr_pfact': '#ba0912'}
@@ -21,10 +23,9 @@ MIN_BORDER_LEFT = 65
 
 
 class PanelBase(param.Parameterized):
-    """base class for mixin panels"""
+    """base class for all panel classes"""
 
-    position = ''
-    panel_name = ''#param.String('', doc="Display name for this panel's tab")''
+    title = ''
 
     @property
     def panel(self):
@@ -32,9 +33,8 @@ class PanelBase(param.Parameterized):
         return None
 
 
-
 class FigurePanel(PanelBase):
-    #todo make subclass for bokeh specific figures, abstract the rest
+    """Base class for figure panels"""
     accepted_sources = []
     js_files = {}
 
@@ -45,6 +45,7 @@ class FigurePanel(PanelBase):
 
         sources = sources if sources is not None else {}
         self.renderers = {}
+
         self.add_sources(sources)
 
     @property
@@ -94,13 +95,16 @@ class FigurePanel(PanelBase):
 
 
 class BokehFigurePanel(FigurePanel):
+    """
+    Base class of bokeh-based figure panels
+    """
     x_label = ''
     y_label = ''
 
     def __init__(self, parent, sources=None, **params):
         super(BokehFigurePanel, self).__init__(parent, sources=sources, **params)
         self.figure = self.draw_figure()
-        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.panel_name)
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.title)
 
     def draw_figure(self, **kwargs):
         """Overload to create a custom figure"""
@@ -126,28 +130,6 @@ class BokehFigurePanel(FigurePanel):
         self.bk_pane.param.trigger('object')
 
     def update(self):
-        self.bk_pane.param.trigger('object')
-
-    @property
-    def panel(self):
-        return self.bk_pane
-
-class FigurePanelOld(PanelBase):
-    """"base class for figures"""
-
-    _controlled_by = []  # list of panel controllers
-
-    def __init__(self, parent, controllers, **params):
-        self.parent = parent  #main controller
-        self.controllers = controllers  #side controllers
-        super(FigurePanelOld, self).__init__(**params)
-
-    def draw_figure(self):
-        """Override to create a custom figure with eg to specify axes labels"""
-        return figure()
-
-    def _update(self):
-        """redraw the graph"""
         self.bk_pane.param.trigger('object')
 
     @property
@@ -216,5 +198,4 @@ class ControlPanel(PanelBase):
     def panel(self):
         return self._box
 
-#get_widget = pn.Param.get_widget
 
