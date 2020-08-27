@@ -93,7 +93,6 @@ class GoldenElvis(object):
         :param height: Initial height.
         """
 
-
         pn.config.js_files.update(fig_panel.js_files)
 
         # We need to register every panel with a unique name such that after
