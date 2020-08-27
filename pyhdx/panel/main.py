@@ -31,14 +31,17 @@ ctrl = Controller(control_panels, figure_panels, cluster=cluster)
 
 tmpl = elvis.compose(ctrl.control_panels.values(),
                               elvis.column(
-                                  elvis.view(ctrl.figure_panels['CoverageFigure']),
+                                  elvis.stack(
+                                    elvis.view(ctrl.figure_panels['CoverageFigure']),
+                                    elvis.view(ctrl.figure_panels['ProteinFigure'])
+                                  ),
                                   elvis.stack(
                                       elvis.view(ctrl.figure_panels['RateFigure']),
                                       elvis.view(ctrl.figure_panels['PFactFigure']),
-                                      elvis.view(ctrl.figure_panels['FitResultFigure']),
-                                      elvis.view(ctrl.figure_panels['ProteinFigure'])
+                                      elvis.view(ctrl.figure_panels['FitResultFigure'])
                                   )
-                              ))
+                              )
+                          )
 
 
 if __name__ == '__main__':
