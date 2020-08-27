@@ -27,8 +27,9 @@ src_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dtyp
 dic['sources'] = {}
 dic['sources']['pfact'] = src_dict
 
-cluster = None
+dic['rcsb_id'] = '1qyn'
 
+cluster = None
 ctrl = reload_previous(dic, ctrl)
 
 
