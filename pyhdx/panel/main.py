@@ -4,7 +4,7 @@ from pyhdx.panel.controller import Controller
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
 
-
+pn.config.js_files["ngl"] = "https://unpkg.com/ngl@2.0.0-dev.37/dist/ngl.js"
 control_panels = [
     'FileInputControl',
     'CoverageControl',
@@ -13,6 +13,7 @@ control_panels = [
     'FittingQuality',
     'ClassificationControl',
     'FileExportPanel',
+    'ProteinViewControl',
     'OptionsPanel'
 ]
 
@@ -20,7 +21,8 @@ figure_panels = [
     'CoverageFigure',
     'RateFigure',
     'PFactFigure',
-    'FitResultFigure'
+    'FitResultFigure',
+    'ProteinFigure'
 ]
 
 elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
@@ -33,7 +35,8 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
                                   elvis.stack(
                                       elvis.view(ctrl.figure_panels['RateFigure']),
                                       elvis.view(ctrl.figure_panels['PFactFigure']),
-                                      elvis.view(ctrl.figure_panels['FitResultFigure'])
+                                      elvis.view(ctrl.figure_panels['FitResultFigure']),
+                                      elvis.view(ctrl.figure_panels['ProteinFigure'])
                                   )
                               ))
 

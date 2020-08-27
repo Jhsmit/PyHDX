@@ -1,4 +1,5 @@
 from .base import FigurePanelOld, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
+from .widgets import NGLViewer
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
@@ -8,17 +9,8 @@ import panel as pn
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import nglview
 
 import param
-
-NGL_HTML = """
-<div id="viewport" style="width:100%; height:100%;"></div>
-<script>
-stage = new NGL.Stage("viewport");
-stage.loadFile("rcsb://1NKT.mmtf", {defaultRepresentation: true});
-</script>
-"""
 
 
 class CoverageFigure(FigurePanel):
@@ -143,16 +135,46 @@ class FitResultFigure(FigurePanel):
             self.figure.legend.location = "bottom_right"
 
 
-class ProteinFigure(FigurePanelOld):  #todo maybe it shouldnt be a figurepanel (it shoulnntr)
+class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel (it shoulnntr)
+    title = 'Protein View'
+    accepted_sources = ['pfact']
 
     def __init__(self, *args, **params):
         super(ProteinFigure, self).__init__(*args, **params)
+        self.ngl_view = NGLViewer(sizing_mode='stretch_both')
 
-        self.html_panel = pn.pane.HTML(NGL_HTML, height=500, width=500)
+        params = ['rcsb_id', 'no_coverage', 'representation', 'spin']
+        self.parent.control_panels['ProteinViewControl'].param.watch(self._update_event, params)
+
+    def _data_updated_callback(self, attr, old, new):
+        self._update_colors(new['r_number'], new['color'])
+
+    def render_sources(self, src_dict):
+        for name, source in src_dict.items():
+            self._update_colors(source.data['r_number'], source.data['color'])
+
+    @property
+    def no_coverage(self):
+        return self.parent.control_panels['ProteinViewControl'].no_coverage
+
+    def _update_colors(self, r_number, color_arr):
+        r_start = r_number[0]
+      #  color_arr[np.isnan(color_arr)] = self.no_coverage
+        #color_list = list(color_arr)#[color if not np.isnan(color) else self.no_coverage for color in color_arr]
+        color_list = [color if color != 'nan' else self.no_coverage for color in color_arr]
+        #color_list = list(color_arr)
+        if r_start < 1:
+            remove_num = 1 - r_start
+            color_list = color_list[remove_num:]
+        else:
+            fill_num = r_start - 1
+            color_list = fill_num*[self.parent.control_panels['ProteinViewControl'].no_coverage] + color_list
+
+        self.ngl_view.color_list = color_list
+
+    def _update_event(self, event):
+        setattr(self.ngl_view, event.name, event.new)
 
     @property
     def panel(self):
-        view = nglview.show_file(r"C:\Users\jhsmi\pp\pyHDX_paper\v1\fig4_real_proteins\structures\hPREP.pdb")
-        return pn.pane.IPyWidget(view)
-        #return pn.panel(view)
-        #return pn.panel(self.html_panel)
+        return self.ngl_view

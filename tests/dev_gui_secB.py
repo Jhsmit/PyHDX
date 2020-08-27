@@ -5,7 +5,9 @@ import pickle
 import os
 from pyhdx.panel.main import tmpl, ctrl
 from pyhdx.panel.utils import reload_previous
+from pyhdx.panel.base import DEFAULT_COLORS
 import panel as pn
+import numpy as np
 
 directory = os.path.dirname(__file__)
 

@@ -692,26 +692,23 @@ class ClassificationControl(ControlPanel):
 
         if self.num_colors == 1:
             colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
+            colors[np.isnan(y_vals)] = np.nan
         elif self.mode == 'Discrete':
             full_thds = [-np.inf] + self.values + [np.inf]
-            colors = np.empty(len(y_vals), dtype='U7')
+            colors = np.full(len(y_vals), fill_value = np.nan, dtype='U7')
             for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
                 b = (y_vals > lower) & (y_vals <= upper)
                 colors[b] = color
         elif self.mode == 'Continuous':
-
             func = np.log if self.log_space else lambda x: x
-
             vals_sorted = np.sort(func(self.values))
             norm = plt.Normalize(vals_sorted[0], vals_sorted[-1])#, clip=True) currently there is never anythin clipped?
             nodes = norm(vals_sorted)
             cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors)))
             colors_rgba = cmap(norm(func(y_vals)))
             colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
+            colors[np.isnan(y_vals)] = np.nan
 
-        # if 'color' in self.parent.rates.dtype.names:
-        print('values', self.values)
-        print(self.colors)
         self.parent.sources[self.target].data['color'] = colors  # this triggers an update of the graph
 
     @param.depends('num_colors', watch=True)
@@ -1040,3 +1037,55 @@ class DeveloperPanel(ControlPanel):
                     self.parent.fit_results[name]['fitresult'] = result
         self.parent.param.trigger('fit_results')
 
+
+class ProteinViewControl(ControlPanel):
+    header = 'Protein Viewer'
+    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects) (refactor to dataset/object)
+    #also linked sources dutn work yet
+    target_dataset = param.Selector()
+
+    input_option = param.Selector(default='Upload File', objects=['Upload File', 'RCSB PDB'])
+    rcsb_id = param.String()
+    load_structure = param.Action(lambda self: self._load_structure())
+    no_coverage = param.Color(default='#8c8c8c')
+    representation = param.Selector(default='cartoon',
+                                    objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
+                                             'ribbon', 'rope', 'spacefill', 'surface'])
+    spin = param.Boolean(default=False)
+
+    def __init__(self, parent, **params):
+        self.file_input = pn.widgets.FileInput(accept='.pdb')
+        super(ProteinViewControl, self).__init__(parent, **params)
+
+        self.parent.param.watch(self._parent_sources_updated, ['sources'])
+        self.input_option = 'RCSB PDB'
+
+    def make_list(self):
+        lst = super().make_list()
+        lst.pop(2)  # Remove RCSB ID input field
+        lst.insert(2, self.file_input)  # add File input widget
+        return lst
+
+    def _parent_sources_updated(self, *events):
+        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
+        self.param['target_dataset'].objects = list(objects)
+
+    @param.depends('input_option', watch=True)
+    def _update_input_option(self):
+        if self.input_option == 'Upload File':
+            self.box_pop('rcsb_id')
+            self.box_insert_after('input_option', self.file_input)
+        elif self.input_option == 'RCSB PDB':
+            self.box_pop(self.file_input)
+            self.box_insert_after('input_option', 'rcsb_id')
+
+    # def _load_structure(self):
+    #     if self.input_option == 'Upload File':
+    #         if self.file_widget.value:
+    #             string = self.file_widget.value.decode()
+    #             self.ngl_html.pdb_string = string
+    #         else:
+    #             pass
+
+        elif self.input_option == 'RCSB PDB':
+            self.ngl_html.rcsb_id = self.rcsb_id
