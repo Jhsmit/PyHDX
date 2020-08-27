@@ -32,20 +32,16 @@ class PanelBase(param.Parameterized):
         return None
 
 
+
 class FigurePanel(PanelBase):
     #todo make subclass for bokeh specific figures, abstract the rest
     accepted_sources = []
-    x_label = ''
-    y_label = ''
-
     js_files = {}
 
     def __init__(self, parent, sources=None, **params):
-        super(PanelBase, self).__init__(**params)
+        super(FigurePanel, self).__init__(**params)
         self.parent = parent  # main controller
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
-        self.figure = self.draw_figure()
-        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.panel_name)
 
         sources = sources if sources is not None else {}
         self.renderers = {}
@@ -56,15 +52,12 @@ class FigurePanel(PanelBase):
         return self.parent.control_panels
 
     def _parent_sources_updated(self, *events):
-        print('updated trigger')
         new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
         self.add_sources(new_items)
 
     def add_sources(self, src_dict):
         """add a columndatasource object to the figure
-        #todo: (if the source is already present it is updated)
         """
-        #self.sources.update(src_dict)
         for source in src_dict.values():
             source.on_change('data', self._data_updated_callback)
         self.render_sources(src_dict)
@@ -83,8 +76,34 @@ class FigurePanel(PanelBase):
             renderer = self.figure.line('x', 'y', source=source)
             self.renderers[name] = renderer
 
+    @property
+    def sources(self):
+        """returns a dict of the current sources"""
+        return {name: renderer.data_source for name, renderer in self.renderers.items()}
+
+    def _data_updated_callback(self, attr, old, new):
+        """overload for custom callback when data updates"""
+        pass
+
+    def update(self):
+        self.bk_pane.param.trigger('object')
+
+    @property
+    def panel(self):
+        raise NotImplementedError('panel property not implemented')
+
+
+class BokehFigurePanel(FigurePanel):
+    x_label = ''
+    y_label = ''
+
+    def __init__(self, parent, sources=None, **params):
+        super(BokehFigurePanel, self).__init__(parent, sources=sources, **params)
+        self.figure = self.draw_figure()
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.panel_name)
+
     def draw_figure(self, **kwargs):
-        """Override to create a custom figure with eg to specify axes labels"""
+        """Overload to create a custom figure"""
 
         fig = figure(**kwargs)
         fig.xaxis.axis_label = self.x_label
@@ -103,13 +122,7 @@ class FigurePanel(PanelBase):
 
         self.bk_pane.object = self.figure
 
-    @property
-    def sources(self):
-        """returns a dict of the current sources"""
-        return {name: renderer.data_source for name, renderer in self.renderers.items()}
-
     def _data_updated_callback(self, attr, old, new):
-        print('data updated callbaçk')
         self.bk_pane.param.trigger('object')
 
     def update(self):
@@ -118,7 +131,6 @@ class FigurePanel(PanelBase):
     @property
     def panel(self):
         return self.bk_pane
-
 
 class FigurePanelOld(PanelBase):
     """"base class for figures"""

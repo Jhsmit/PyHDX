@@ -1,4 +1,4 @@
-from .base import FigurePanelOld, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
+from .base import BokehFigurePanel, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
 from .widgets import NGLViewer
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 import param
 
 
-class CoverageFigure(FigurePanel):
+class CoverageFigure(BokehFigurePanel):
     title = 'Coverage'
     accepted_sources = ['coverage']
 
@@ -45,7 +45,7 @@ class CoverageFigure(FigurePanel):
             self.figure.add_tools(hovertool)
 
 
-class ThdLogFigure(FigurePanel):
+class ThdLogFigure(BokehFigurePanel):
     """base class for pfact / rates figure panels which both feature y log axis and thresholding"""
 
     def __init__(self, parent, *args, **params):
@@ -105,7 +105,7 @@ class PFactFigure(ThdLogFigure):
     y_label = 'Protection factor'
 
 
-class FitResultFigure(FigurePanel):
+class FitResultFigure(BokehFigurePanel):
     title = 'Fit Result'
     accepted_sources = ['fr_pfact', 'uptake_corrected']
     y_label = 'Uptake corrected'
