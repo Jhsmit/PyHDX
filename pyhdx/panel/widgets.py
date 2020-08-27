@@ -98,8 +98,7 @@ class NGLViewer(HTML):
         window.addEventListener( "resize", function( event ){{
             stage.handleResize();
         }}, false );
-        stage.loadFile("rcsb://1NKT.mmtf", {{defaultRepresentation: true}})"""
-        #self.color_array = 10*['#ff0000', '#a0b376', '#44de01', '#ffffff', '#ffffff', '#ffffff', '#ffffff', '#ffffff']
+        stage.loadFile("")""" # this currently gives an error
         self._update_object_from_parameters()
 
     @param.depends('representation', 'spin', 'color_list', 'no_coverage', watch=True)
