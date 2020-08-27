@@ -24,27 +24,34 @@ class PanelBase(param.Parameterized):
     """base class for mixin panels"""
 
     position = ''
+    panel_name = ''#param.String('', doc="Display name for this panel's tab")''
+
     @property
     def panel(self):
+
         return None
 
 
 class FigurePanel(PanelBase):
+    #todo make subclass for bokeh specific figures, abstract the rest
     accepted_sources = []
     x_label = ''
     y_label = ''
 
-    def __init__(self, parent, controllers, sources=None, **params):
+    def __init__(self, parent, sources=None, **params):
         super(PanelBase, self).__init__(**params)
         self.parent = parent  # main controller
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
-        self.controllers = controllers  # side controllers (update)
         self.figure = self.draw_figure()
-        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both')
+        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.panel_name)
 
         sources = sources if sources is not None else {}
         self.renderers = {}
         self.add_sources(sources)
+
+    @property
+    def control_panels(self):
+        return self.parent.control_panels
 
     def _parent_sources_updated(self, *events):
         print('updated trigger')
@@ -148,8 +155,7 @@ class ControlPanel(PanelBase):
         self._box = self.make_box()
 
     def make_box(self):
-        md = pn.pane.Markdown(f'### {self.header}')
-        return pn.WidgetBox(*([md] + self._widget_list))
+        return pn.Card(title=self.header, collapsed=True, *self._widget_list)
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""

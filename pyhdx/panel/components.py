@@ -4,7 +4,6 @@ import param
 import panel as pn
 
 
-
 class ASyncProgressBar(param.Parameterized):
     completed = param.Integer(default=0)
     num_tasks = param.Integer(default=10, bounds=(1, None))

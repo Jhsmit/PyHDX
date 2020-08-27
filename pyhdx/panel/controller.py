@@ -1,16 +1,14 @@
 from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import CoverageFigure, RateFigure, ProteinFigure, FitResultFigure, PFactFigure, CoverageFigure
+from .fig_panels import FigurePanel
 from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
-from pyhdx.support import get_constant_blocks, get_reduced_blocks, get_original_blocks, fmt_export, np_from_txt, \
-    autowrap, colors_to_pymol, rgb_to_hex
+from pyhdx.support import fmt_export, np_from_txt, \
+    autowrap, colors_to_pymol, rgb_to_hex, gen_subclasses
 
 from pyhdx import VERSION_STRING, VERSION_STRING_SHORT
 
-logger = setup_custom_logger('root')
-logger.debug('main message')
 
 from scipy import constants
 import param
@@ -24,8 +22,6 @@ from numpy.lib.recfunctions import stack_arrays, append_fields
 from .components import ASyncProgressBar
 from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
-#import matplotlib
-#matplotlib.use('agg') # for panel mpl support
 from functools import partial
 #from .widgets import NumericInput
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
@@ -37,24 +33,14 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
 
+from .template import ExtendedGoldenTemplate
+from .theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
+from .widgets import ColoredStaticText
 
-#tmep
-from panel.pane.vtk.enums import PRESET_CMAPS
-from bokeh.util.serialization import make_globally_unique_id
-pth = os.path.dirname(__file__)
 
-env = Environment(loader=FileSystemLoader(pth))
+logger = setup_custom_logger('root')
+logger.debug('main message')
 
-# todo dict comprehension
-
-#refactor rates to columndatasource?
-dic = {'rates': np.zeros(0, dtype=[('r_number', int), ('rate', float)]),
-       'fitresult': None}
-
-# empty_results = {
-#     'fit1': dic.copy(),
-#     'fit2': dic.copy()
-#}
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
@@ -73,55 +59,19 @@ class Controller(param.Parameterized):
     series = param.ClassSelector(KineticsSeries, doc='Currently selected kinetic series of peptides')
     fitting = param.ClassSelector(KineticsFitting)
 
-    def __init__(self, template, panels, cluster=None, **params):
+    def __init__(self, control_panels, figure_panels, cluster=None, **params):
         super(Controller, self).__init__(**params)
-        template = env.get_template('template.html')
         self.cluster = cluster
         self.doc = pn.state.curdoc
-        tmpl = pn.Template(template=template)
-     #   tmpl.nb_template.globals['get_id'] = make_globally_unique_id
 
-        # Controllers
-        self.file_input = FileInputControl(self)
-        self.coverage = CoverageControl(self)
-        self.fit_control = FittingControl(self)
-        self.tf_fit_control = TFFitControl(self)
-        self.fit_quality = FittingQuality(self)
-        self.classification_panel = ClassificationControl(self)
-        self.file_export = FileExportPanel(self)
-        self.options = OptionsPanel(self)
-        self.dev = DeveloperPanel(self)
+        available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
+        self.control_panels = {name: available_controllers[name](self) for name in control_panels}
 
-        #Figures
-        self.coverage_figure = CoverageFigure(self, [self.coverage, self.fit_control])  #parent, [controllers]
-        self.rate_figure = RateFigure(self, [self.fit_control, self.classification_panel]) # parent, [controllers]  #todo parse as kwargs
-        self.pfact_figure = PFactFigure(self, [self.fit_control, self.classification_panel])
+        available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
+        self.figure_panels = {name: available_figures[name](self) for name in figure_panels}
 
-        self.fit_result_figure = FitResultFigure(self, [self.fit_quality])
-        self.protein_figure = ProteinFigure(self, [])
-
-        #setup options  #todo automate figure out cross dependencies
-        self.options.master_figure = self.coverage_figure.figure
-        self.options.client_figures = [self.rate_figure.figure, self.pfact_figure.figure]
-        self.options.link_xrange = True
-
-        tmpl.add_panel('input', self.file_input.panel)
-        tmpl.add_panel('coverage', self.coverage.panel)
-        tmpl.add_panel('fitting', self.fit_control.panel)
-        tmpl.add_panel('tf_fit', self.tf_fit_control.panel)
-        tmpl.add_panel('fit_quality', self.fit_quality.panel)
-        tmpl.add_panel('classification', self.classification_panel.panel)
-        tmpl.add_panel('file_export', self.file_export.panel)
-        tmpl.add_panel('options', self.options.panel)
-     #   tmpl.add_panel('dev', self.dev.panel)
-
-        tmpl.add_panel('coverage_fig', self.coverage_figure.panel)
-        tmpl.add_panel('rate_fig', self.rate_figure.panel)
-        tmpl.add_panel('pfact_fig', self.pfact_figure.panel)
-        tmpl.add_panel('fitres_fig', self.fit_result_figure.panel)
-        tmpl.add_panel('slice_k', self.protein_figure.panel)
-
-        self.app = tmpl
+        #setup options  #todo automate figure out cross dependencies (via parent?)
+        self.control_panels['OptionsPanel'].link_xrange = True
 
     def publish_data(self, name, dic):
         """
@@ -142,44 +92,6 @@ class Controller(param.Parameterized):
             self.sources[name] = source
 
         self.param.trigger('sources')
-
-    def servable(self):
-
-        js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
-                    'goldenlayout': 'https://golden-layout.com/files/latest/js/goldenlayout.min.js',
-                    'ngl': 'https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.33/dist/ngl.js'}
-        css_files = ['https://golden-layout.com/files/latest/css/goldenlayout-base.css',
-                     'https://golden-layout.com/files/latest/css/goldenlayout-dark-theme.css']
-
-        css = '''
-        .custom-wbox > div.bk {
-            padding-right: 10px;
-        }
-        .scrollable {
-            overflow: auto !important;
-        }
-        '''
-        pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
-
-        return self.app.servable()
-
-    def serve(self, **kwargs):
-        js_files = {'jquery': 'https://code.jquery.com/jquery-1.11.1.min.js',
-                    'goldenlayout': 'https://golden-layout.com/files/latest/js/goldenlayout.min.js',
-                    'ngl': 'https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.33/dist/ngl.js'}
-        css_files = ['https://golden-layout.com/files/latest/css/goldenlayout-base.css',
-                     'https://golden-layout.com/files/latest/css/goldenlayout-dark-theme.css']
-
-        css = '''
-        .custom-wbox > div.bk {
-            padding-right: 10px;
-        }
-        .scrollable {
-            overflow: auto !important;
-        }
-        '''
-        pn.extension(js_files=js_files, raw_css=[css], css_files=css_files)
-        pn.serve(self.app, **kwargs, title=VERSION_STRING_SHORT)
 
 
 class FileInputControl(ControlPanel):
@@ -223,7 +135,7 @@ class FileInputControl(ControlPanel):
     def _action_add(self):
         print('action_add')
         widget = pn.widgets.FileInput(accept='.csv')
-        i = len(self.file_selectors) + 1 # position to insert the new file selector into the widget box
+        i = len(self.file_selectors)  # position to insert the new file selector into the widget box
         self.file_selectors.append(widget)
         self._box.insert(i, widget)
 
@@ -345,7 +257,7 @@ class CoverageControl(ControlPanel):
     index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time')
 
     def __init__(self, parent, **params):
-        self.exposure_str = pn.widgets.StaticText(name='Exposure', value='0') # todo update to some param?
+        self.exposure_str = ColoredStaticText(name='Exposure', value='0')  # todo update to some param?
 
         # We need a reference to color mapper to update it when the cmap changes
         self.color_mapper = LinearColorMapper(palette=self.palette, low=0, high=100)
@@ -356,7 +268,7 @@ class CoverageControl(ControlPanel):
 
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
-        return lst + [self.exposure_str, self.color_bar]
+        return lst + [self.exposure_str]#, self.color_bar]
 
     def make_dict(self):
         return self.generate_widgets(index=pn.widgets.IntSlider)
@@ -626,11 +538,12 @@ class TFFitControl(ControlPanel):
         deltaG = constants.R * self.temperature * np.log(output_dict['y'])
         output_dict['deltaG'] = deltaG
 
-        self.parent.fit_results[output_name] = result
+        self.parent.fit_results['fr_' + output_name] = result
+
         self.parent.publish_data(output_name, output_dict)
 
-        #self.parent.param.trigger('sources')  # dont need to trigger fit_results as its has no relevant watchers
         self.param['do_fit'].constant = False
+        self.parent.param.trigger('fit_results')
     #
 
 
@@ -647,9 +560,11 @@ class FittingQuality(ControlPanel):
         self.parent.param.watch(self._series_updated, ['series'])
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
+    #@depends(parent.series) will this work? parent should be a classselector param? does that accept subclasses?
     def _series_updated(self, *events):
         self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
         self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
+        self._update_sources()
 
     @property
     def fit_timepoints(self):
@@ -659,7 +574,7 @@ class FittingQuality(ControlPanel):
 
     def _fit_results_updated(self, *events):
         print('fit results updated in fitting quality')
-        accepted_fitresults = ['pfact']
+        accepted_fitresults = ['fr_pfact']
         #todo wrappertje which checks with a cached previous version of this particular param what the changes are even it a manual trigger
         for name, fit_result in self.parent.fit_results.items():
             if name in accepted_fitresults:
@@ -668,10 +583,10 @@ class FittingQuality(ControlPanel):
             else:
                 continue
         # push results to graph
-            self._peptide_index_updated()
+            self._update_sources()
 
     @param.depends('peptide_index', watch=True)
-    def _peptide_index_updated(self):
+    def _update_sources(self):
         for name, array in self.d_uptake.items():
             timepoints = self.parent.series.timepoints if name == 'uptake_corrected' else self.fit_timepoints
             dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
@@ -681,9 +596,9 @@ class FittingQuality(ControlPanel):
 
 
 class ClassificationControl(ControlPanel):
+    header = 'Classification'
     accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects)
 
-    header = 'Classification'
     target = param.Selector(label='Target')
 
     mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'])#, 'ColorMap'])
@@ -778,26 +693,23 @@ class ClassificationControl(ControlPanel):
 
         if self.num_colors == 1:
             colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
+            colors[np.isnan(y_vals)] = np.nan
         elif self.mode == 'Discrete':
             full_thds = [-np.inf] + self.values + [np.inf]
-            colors = np.empty(len(y_vals), dtype='U7')
+            colors = np.full(len(y_vals), fill_value = np.nan, dtype='U7')
             for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
                 b = (y_vals > lower) & (y_vals <= upper)
                 colors[b] = color
         elif self.mode == 'Continuous':
-
             func = np.log if self.log_space else lambda x: x
-
             vals_sorted = np.sort(func(self.values))
             norm = plt.Normalize(vals_sorted[0], vals_sorted[-1])#, clip=True) currently there is never anythin clipped?
             nodes = norm(vals_sorted)
             cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors)))
             colors_rgba = cmap(norm(func(y_vals)))
             colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
+            colors[np.isnan(y_vals)] = np.nan
 
-        # if 'color' in self.parent.rates.dtype.names:
-        print('values', self.values)
-        print(self.colors)
         self.parent.sources[self.target].data['color'] = colors  # this triggers an update of the graph
 
     @param.depends('num_colors', watch=True)
@@ -1055,10 +967,8 @@ class OptionsPanel(ControlPanel):
 
     link_xrange = param.Boolean(False)
 
-    def __init__(self, parent, master_figure=None, client_figures=None, **param):
+    def __init__(self, parent, **param):
         super(OptionsPanel, self).__init__(parent, **param)
-        self.master_figure = master_figure
-        self.client_figures = client_figures if client_figures is not None else []
 
     @property
     def enabled(self):
@@ -1073,6 +983,15 @@ class OptionsPanel(ControlPanel):
                 self._link()
             else:
                 self._unlink()
+
+    @property
+    def client_figures(self):
+        client_names = ['RateFigure', 'PFactFigure']
+        return [self.parent.figure_panels[name].figure for name in client_names]
+
+    @property
+    def master_figure(self):
+        return self.parent.figure_panels['CoverageFigure'].figure
 
     @property
     def figures(self):
@@ -1119,3 +1038,55 @@ class DeveloperPanel(ControlPanel):
                     self.parent.fit_results[name]['fitresult'] = result
         self.parent.param.trigger('fit_results')
 
+
+class ProteinViewControl(ControlPanel):
+    header = 'Protein Viewer'
+    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects) (refactor to dataset/object)
+    #also linked sources dutn work yet
+    target_dataset = param.Selector()
+
+    input_option = param.Selector(default='Upload File', objects=['Upload File', 'RCSB PDB'])
+    rcsb_id = param.String()
+    load_structure = param.Action(lambda self: self._load_structure())
+    no_coverage = param.Color(default='#8c8c8c')
+    representation = param.Selector(default='cartoon',
+                                    objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
+                                             'ribbon', 'rope', 'spacefill', 'surface'])
+    spin = param.Boolean(default=False)
+
+    def __init__(self, parent, **params):
+        self.file_input = pn.widgets.FileInput(accept='.pdb')
+        super(ProteinViewControl, self).__init__(parent, **params)
+
+        self.parent.param.watch(self._parent_sources_updated, ['sources'])
+        self.input_option = 'RCSB PDB'
+
+    def make_list(self):
+        lst = super().make_list()
+        lst.pop(2)  # Remove RCSB ID input field
+        lst.insert(2, self.file_input)  # add File input widget
+        return lst
+
+    def _parent_sources_updated(self, *events):
+        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
+        self.param['target_dataset'].objects = list(objects)
+
+    @param.depends('input_option', watch=True)
+    def _update_input_option(self):
+        if self.input_option == 'Upload File':
+            self.box_pop('rcsb_id')
+            self.box_insert_after('input_option', self.file_input)
+        elif self.input_option == 'RCSB PDB':
+            self.box_pop(self.file_input)
+            self.box_insert_after('input_option', 'rcsb_id')
+
+    # def _load_structure(self):
+    #     if self.input_option == 'Upload File':
+    #         if self.file_widget.value:
+    #             string = self.file_widget.value.decode()
+    #             self.ngl_html.pdb_string = string
+    #         else:
+    #             pass
+
+        elif self.input_option == 'RCSB PDB':
+            self.ngl_html.rcsb_id = self.rcsb_id

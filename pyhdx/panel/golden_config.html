@@ -1,0 +1,43 @@
+{% extends golden.html %}
+{% block config %}
+var config = {
+  content: [
+    {
+      type: 'row',
+      content: [
+        {
+          type: 'component',
+          componentName: 'view',
+          componentState: {
+            title: "Sidebar",
+            model: '{% for doc in docs %}{% for root in doc.roots %}{% if "nav" in root.tags %} {{ embed(root) }} {% endif %}{% endfor %}{% endfor %}',
+            width: 350,
+            css_classes: ['scrollable']
+          },
+          width: 20
+        },
+        {
+          type: 'stack',
+          width: 80,
+          content: [
+            {% for doc in docs %}
+            {% for root in doc.roots %}
+            {% if "main" in root.tags%}
+            {
+              type: 'component',
+              componentName: 'view',
+              componentState: {
+                model: '{{ embed(root) }}',
+                title: "{{ root_labels[root.name] }}"
+              },
+            },
+            {% endif %}
+            {% endfor %}
+            {% endfor %}
+          ]
+        }
+      ]
+    }
+  ]
+};
+{% endblock %}
