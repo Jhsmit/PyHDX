@@ -23,7 +23,7 @@ array = np_from_txt(src_file)
 src_dict = {name: array[name] for name in array.dtype.names}
 src_dict['y'] = src_dict['log_P']
 src_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-
+src_dict['color'][np.isnan(src_dict['y'])] = np.nan
 dic['sources'] = {}
 dic['sources']['pfact'] = src_dict
 

@@ -161,10 +161,7 @@ class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel (it 
 
     def _update_colors(self, r_number, color_arr):
         r_start = r_number[0]
-      #  color_arr[np.isnan(color_arr)] = self.no_coverage
-        #color_list = list(color_arr)#[color if not np.isnan(color) else self.no_coverage for color in color_arr]
-        color_list = [color if color != 'nan' else self.no_coverage for color in color_arr]
-        #color_list = list(color_arr)
+        color_list = list(color_arr)
         if r_start < 1:
             remove_num = 1 - r_start
             color_list = color_list[remove_num:]

@@ -101,6 +101,13 @@ class NGLViewer(HTML):
         stage.loadFile("")""" # this currently gives an error
         self._update_object_from_parameters()
 
+    @property
+    def color_array(self):
+        """return a string to put into javascript to define the color array"""
+        js_string = ', '.join(elem.replace('#', '0x') for elem in self.color_list)
+        js_string = js_string.replace('nan', 'noCoverage')
+        return js_string
+
     @param.depends('representation', 'spin', 'color_list', 'no_coverage', watch=True)
     def _update_object_from_parameters(self):
         html =\
@@ -108,7 +115,7 @@ class NGLViewer(HTML):
             <div id="viewport" style="width:100%; height:100%;"></div>
             <script>
             var noCoverage = {self.no_coverage.replace('#', '0x')};
-            var colorArray = [{', '.join(elem.replace('#', '0x') for elem in self.color_list)}];
+            var colorArray = [{self.color_array}];
             var customScheme = NGL.ColormakerRegistry.addScheme(function (params) {{
                 this.atomColor = function (atom) {{
                     if (atom.resno - 1 < colorArray.length) {{
