@@ -2,6 +2,7 @@ import tensorflow as tf
 from tensorflow.keras.layers import Layer, Input
 from tensorflow.keras.constraints import Constraint
 from tensorflow.keras.regularizers import Regularizer
+from tensorflow.keras.initializers import Initializer
 from tensorflow.python.keras import backend as K
 from tensorflow.python.ops import math_ops
 from tensorflow.keras.optimizers import Adagrad
@@ -24,6 +25,17 @@ class NaNMeanSquaredError(Loss):
 
 
 class L1L2Differential(Regularizer):
+    """
+    A regularized that applies and L1 or L2 regularization penalty to the differential of a parameter vector.
+
+    Parameters
+    ----------
+    l1: :obj:`float`
+        L1 regularization factor
+    l2: :obj:`float`
+        L2 regularization factor
+
+    """
     def __init__(self, l1=0., l2=0.):  # pylint: disable=redefined-outer-name
         self.l1 = K.cast_to_floatx(l1)
         self.l2 = K.cast_to_floatx(l2)
@@ -45,6 +57,18 @@ class L1L2Differential(Regularizer):
 
 
 class Between(Constraint):
+    """
+    Interval parameter constraint.
+
+    Constrains the values of parameters to the interval [min_value, max_value].
+
+    Parameters
+    ----------
+    min_value: :obj:`float`
+        Lower bound for the allowed interval (optional `None`).
+    max_value: :obj:`float`
+        Upper bound for the allowed interval (optional `None`).
+    """
     def __init__(self, min_value, max_value):
         self.min_value = min_value
         self.max_value = max_value
@@ -58,6 +82,24 @@ class Between(Constraint):
 
 
 class TFParameter(object):
+    """
+    Parameter objects used in `CurveFit` TensorFlow Layer.
+    Parameters are 'weights' in the context of Neural Networks.
+
+    Parameters
+    ----------
+    name: :obj:`str`
+        Name of the parameter
+    shape: :obj:`tuple`
+        Parameter shape
+    initializer: :class:`~tensorflow.python.keras.initializers.Initializer`
+        Subclass of Keras Initializer to initialize parameter elements.
+    regularizer :class:`~tensorflow.python.keras.regularizers.Regularizer`
+        Subclass of Keras Regularizer applied to parameter elements.
+    constraint :class:`~tensorflow.python.keras.constraints.Constraint`
+        Subclass of keras Constraint applied to parameter elements.
+
+    """
     def __init__(self, name, shape, initializer=None, regularizer=None, constraint=None):
         self.name = name
         self.shape = shape

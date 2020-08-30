@@ -12,10 +12,9 @@ from operator import add
 from dask.distributed import Client
 
 
-
 class KineticsModel(object):
     """
-    Base class for all Kinetics models. Main function is to generate :ref:`symfit` Variables and Parameters. The class
+    Base class for kinetics models. Main function is to generate :ref:`symfit` Variables and Parameters. The class
     attributes `par_index` and `var_index` are used to make sure names used by :ref:`symfit` are unique and their
     mapping to user-defined names are stored in the `names` dictionary.
 
