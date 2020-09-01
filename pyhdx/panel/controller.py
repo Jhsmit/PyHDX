@@ -23,7 +23,6 @@ from .components import ASyncProgressBar
 from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
 from functools import partial
-#from .widgets import NumericInput
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 from collections import namedtuple
@@ -33,10 +32,12 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
 import logging
+import sys
 
 from .template import ExtendedGoldenTemplate
 from .theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from .widgets import ColoredStaticText
+from .log import get_default_handler
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
@@ -60,7 +61,6 @@ class Controller(param.Parameterized):
         self.cluster = cluster
         self.doc = pn.state.curdoc
         self.logger = logging.getLogger(str(id(self)))
-
 
         available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
         self.control_panels = {name: available_controllers[name](self) for name in control_panels}
@@ -186,7 +186,8 @@ class FileInputControl(ControlPanel):
         series.make_uniform()
         self.parent.series = series
 
-        self.parent.logger.info(f'Loaded experiment state {self.exp_state} ({len(series)} timepoints, {len(series.cov)} peptides each)')
+        self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
+                                f'({len(series)} timepoints, {len(series.cov)} peptides each)')
 
     @param.depends('norm_mode', watch=True)
     def _update_norm_mode(self):

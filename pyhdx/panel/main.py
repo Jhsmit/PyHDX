@@ -1,6 +1,8 @@
 from pyhdx.panel.template import GoldenElvis, ExtendedGoldenTemplate
 from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from pyhdx.panel.controller import Controller
+from pyhdx.panel.log import get_default_handler
+import sys
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
 
@@ -30,10 +32,10 @@ figure_panels = [
     'LogFigure'
 ]
 
-elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
+elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme, title=VERSION_STRING_SHORT)
 cluster = '127.0.0.1:52123'
 ctrl = Controller(control_panels, figure_panels, cluster=cluster)
-
+ctrl.logger.addHandler(get_default_handler(sys.stdout))
 tmpl = elvis.compose(ctrl.control_panels.values(),
                               elvis.column(
                                   elvis.stack(

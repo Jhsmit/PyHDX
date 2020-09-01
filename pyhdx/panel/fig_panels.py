@@ -193,7 +193,7 @@ class LogFigure(FigurePanel):
         sh.terminator = '  \n'
         formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', "%Y-%m-%d %H:%M:%S")
         sh.setFormatter(formatter)
-        sh.setLevel(logging.DEBUG)
+        #sh.setLevel(logging.DEBUG)
         self.parent.logger.addHandler(sh)
 
         #  todo add function on base class for doing these things (with try/except)
