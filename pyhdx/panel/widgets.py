@@ -1,7 +1,7 @@
 import param
 from panel.widgets.input import Widget, _BkTextInput, StaticText
 from panel.widgets import Spinner
-from panel.pane import HTML
+from panel.pane import HTML, Markdown
 
 
 class NumericInput(Widget):
@@ -163,3 +163,15 @@ class NGLViewer(HTML):
     @staticmethod
     def to_hex_string(hex):
         hex.replace('#', '0x')
+
+
+class LoggingMarkdown(Markdown):
+    def __init__(self, header, **params):
+        super(LoggingMarkdown, self).__init__(**params)
+        self.header = header
+        self.contents = ''
+        self.object = self.header + self.contents
+
+    def write(self, line):
+        self.contents = line + self.contents
+        self.object = self.header + self.contents

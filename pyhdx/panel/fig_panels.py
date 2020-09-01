@@ -1,5 +1,6 @@
 from .base import BokehFigurePanel, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
-from .widgets import NGLViewer
+from .widgets import NGLViewer, LoggingMarkdown
+from .log import setup_md_log
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
@@ -9,6 +10,7 @@ import panel as pn
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import logging
 
 import param
 
@@ -177,3 +179,38 @@ class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel (it 
     @property
     def panel(self):
         return self.ngl_view
+
+
+class LogFigure(FigurePanel):
+    title = 'Log'
+
+    def __init__(self, *args, **params):
+        super(LogFigure, self).__init__(*args, **params)
+        self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both', scroll=True)
+        #todo config log level in options
+
+        sh = logging.StreamHandler(self.markdown)
+        sh.terminator = '  \n'
+        formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', "%Y-%m-%d %H:%M:%S")
+        sh.setFormatter(formatter)
+        sh.setLevel(logging.DEBUG)
+        self.parent.logger.addHandler(sh)
+
+        #  todo add function on base class for doing these things (with try/except)
+        self.parent.control_panels['OptionsPanel'].param.watch(self._update_log_level, ['log_level'])
+        self.parent.control_panels['OptionsPanel'].param.trigger('log_level')
+
+        # temporary to test logging
+        self.parent.control_panels['DeveloperPanel'].param.watch(self._dev_btn, ['test_btn'])
+
+    def _update_log_level(self, event):
+        print('set log level', event.new)
+        self.parent.logger.setLevel(event.new)
+
+    def _dev_btn(self, events):
+        # Temporary to test logging
+        self.parent.logger.debug('dev test message')
+
+    @property
+    def panel(self):
+        return self.markdown

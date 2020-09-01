@@ -32,15 +32,11 @@ import pickle
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
+import logging
 
 from .template import ExtendedGoldenTemplate
 from .theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from .widgets import ColoredStaticText
-
-
-logger = setup_custom_logger('root')
-logger.debug('main message')
-
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
@@ -63,6 +59,8 @@ class Controller(param.Parameterized):
         super(Controller, self).__init__(**params)
         self.cluster = cluster
         self.doc = pn.state.curdoc
+        self.logger = logging.getLogger(str(id(self)))
+
 
         available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
         self.control_panels = {name: available_controllers[name](self) for name in control_panels}
@@ -966,6 +964,7 @@ class OptionsPanel(ControlPanel):
     """panel for various options and settings"""
 
     link_xrange = param.Boolean(False)
+    log_level = param.Selector(default='DEBUG', objects=['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'])
 
     def __init__(self, parent, **param):
         super(OptionsPanel, self).__init__(parent, **param)
@@ -1009,34 +1008,6 @@ class OptionsPanel(ControlPanel):
 
             client.x_range.js_link('start', self.master_figure.x_range, 'start')
             client.x_range.js_link('end', self.master_figure.x_range, 'end')
-
-
-class DeveloperPanel(ControlPanel):
-    header = 'Developer Options'
-    parse = param.Action(lambda self: self._action_load_files())
-
-    def __init__(self, parent, **params):
-        self.keys = ['fit1_rates', 'fit1_result', 'fit2_rates', 'fit2_result']
-        self.file_selectors = {key: pn.widgets.FileInput() for key in self.keys}
-        super(DeveloperPanel, self).__init__(parent, **params)
-
-    def make_list(self):
-        return list(self.file_selectors.values()) + [self._widget_dict['parse']]
-
-    def _action_load_files(self):
-
-        for k, fs in self.file_selectors.items():
-            if fs.value is not None:
-                name = k.split('_')[0]  # fit 1 or fit2
-                if 'rates' in k:
-                    s_io = StringIO(fs.value.decode('UTF-8'))
-                    data = np_from_txt(s_io)
-                    self.parent.fit_results[name]['rates'] = data
-                elif 'result' in k:
-                    b_io = BytesIO(fs.value)
-                    result = pickle.load(b_io)
-                    self.parent.fit_results[name]['fitresult'] = result
-        self.parent.param.trigger('fit_results')
 
 
 class ProteinViewControl(ControlPanel):
@@ -1090,3 +1061,17 @@ class ProteinViewControl(ControlPanel):
 
         elif self.input_option == 'RCSB PDB':
             self.ngl_html.rcsb_id = self.rcsb_id
+
+
+class DeveloperPanel(ControlPanel):
+    header = 'Developer Options'
+    test_logging = param.Action(lambda self: self._action_test_logging())
+    test_btn = param.Boolean()
+
+    def __init__(self, parent, **params):
+        super(DeveloperPanel, self).__init__(parent, **params)
+
+    def _action_test_logging(self):
+        logging.debug('TEST DEBUG MESSAGE')
+        for i in range(20):
+            logging.info('dit is een test123')

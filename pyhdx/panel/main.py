@@ -4,6 +4,8 @@ from pyhdx.panel.controller import Controller
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
 
+DEBUG = True
+
 control_panels = [
     'FileInputControl',
     'CoverageControl',
@@ -16,12 +18,16 @@ control_panels = [
     'OptionsPanel'
 ]
 
+if DEBUG:
+    control_panels.append('DeveloperPanel')
+
 figure_panels = [
     'CoverageFigure',
     'RateFigure',
     'PFactFigure',
     'FitResultFigure',
-    'ProteinFigure'
+    'ProteinFigure',
+    'LogFigure'
 ]
 
 elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
@@ -37,7 +43,8 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
                                   elvis.stack(
                                       elvis.view(ctrl.figure_panels['RateFigure']),
                                       elvis.view(ctrl.figure_panels['PFactFigure']),
-                                      elvis.view(ctrl.figure_panels['FitResultFigure'])
+                                      elvis.view(ctrl.figure_panels['FitResultFigure']),
+                                      elvis.view(ctrl.figure_panels['LogFigure']),
                                   )
                               )
                           )
