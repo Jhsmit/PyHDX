@@ -7,6 +7,7 @@ from io import StringIO
 from skimage.filters import threshold_multiotsu
 import pyhdx.models as models
 
+
 def series_intersection(series_list):
     """finds and returns series where peptides are the intersection of all series"""
     full_arrays = [series.full_data for series in series_list]

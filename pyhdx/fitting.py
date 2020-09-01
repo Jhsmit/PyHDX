@@ -946,7 +946,6 @@ class KineticsFitting(object):
 
 
         p_guess = self._initial_guess(initial_result, k_dict)
-        print(np.nanmin(p_guess)), print(np.nanmax(p_guess))
 
         guess_vals = np.log10(p_guess)
 
@@ -984,7 +983,6 @@ class KineticsFitting(object):
         model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
         result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
 
-        print('number of epochs', len(result.history['loss']))
         wts = np.squeeze(cb.weights[-1][0])  # weights are the first weights from the last layer
 
         intervals = [(self.k_series.tf_cov.start, self.k_series.tf_cov.end)]

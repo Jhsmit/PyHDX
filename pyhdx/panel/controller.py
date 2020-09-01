@@ -120,14 +120,13 @@ class FileInputControl(ControlPanel):
         return self.file_selectors + first_widgets
 
     def _action_add(self):
-        print('action_add')
         widget = pn.widgets.FileInput(accept='.csv')
         i = len(self.file_selectors)  # position to insert the new file selector into the widget box
         self.file_selectors.append(widget)
         self._box.insert(i, widget)
 
     def _action_clear(self):
-        print('action clear')
+        self.parent.logger.debug('Cleared file selectors')
 
         while self.file_selectors:
             fs = self.file_selectors.pop()
@@ -137,7 +136,6 @@ class FileInputControl(ControlPanel):
         self._action_add()
 
     def _action_load(self):
-        print('action load')
         data_list = []
         for file_selector in self.file_selectors:
             if file_selector.value is not None:
@@ -223,11 +221,7 @@ class FileInputControl(ControlPanel):
 
     @param.depends('norm_state', 'norm_exposure', watch=True)
     def _update_experiment(self):
-        # r = str(np.random.rand())
-        # self.param['exp_state'].objects = [r]
-        # self.exp_state = r
         #TODO THIS needs to be updated to also incorporate the zero
-        print(self.norm_state, self.norm_exposure)
         pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
         states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
@@ -318,15 +312,12 @@ class CoverageControl(ControlPanel):
         return np.array(c)
 
     def _series_updated(self, event):
-        print('coverage new series update index bounds')
-
-        # must be uniform
+        # series must be uniform
         self.wrap = autowrap(self.coverage)
         self.param['index'].bounds = (0, len(event.new) - 1)
 
         # set index to zero
         self.index = 0
-        # self.exposure_str.value = str(self.peptide_measurement.exposure) # this should be triggered
 
         width = self.coverage.data['end'] - self.coverage.data['start'] # Bars are inclusive, inclusive
         x = self.coverage.data['start'] - 0.5 + (width / 2)
@@ -367,7 +358,6 @@ class FittingControl(ControlPanel):
         self.pbar1 = ASyncProgressBar()
         self.pbar2 = ASyncProgressBar()
         super(FittingControl, self).__init__(parent, **params)
-                #self.block_column = pn.Column(*[self.param[key] for key in ['max_combine', 'max_join']])
         self.parent.param.watch(self._update_series, ['series'])
 
     def make_list(self):
@@ -387,7 +377,6 @@ class FittingControl(ControlPanel):
         #client = await Client(self.parent.cluster)
 
         fit_result = await self.parent.fitting.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-        print('fit res in async', fit_result)
         self.parent.fit_results['fit1'] = fit_result
 
         output = fit_result.output
@@ -421,7 +410,7 @@ class FittingControl(ControlPanel):
         self.pbar1.reset()
 
     def _action_fit(self):
-        print('fitting')
+        self.parent.logging.debug('Start initial guess fit')
         #todo context manager?
         self.param['do_fit1'].constant = True
 
@@ -442,7 +431,6 @@ class FittingControl(ControlPanel):
         else:
 
             if self.parent.cluster:
-                print(self.parent.cluster)
                 self.parent.doc = pn.state.curdoc
                 loop = IOLoop.current()
                 loop.add_callback(self._fit1_async)
@@ -452,8 +440,6 @@ class FittingControl(ControlPanel):
 
 class TFFitControl(ControlPanel):
     header = 'Fitting'
-
-    #fitting_type = param.Selector(objects=['Protection Factors', 'Rates'], default='Protection Factors')
     initial_guess = param.Selector()
 
     c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds')  # remove
@@ -481,25 +467,12 @@ class TFFitControl(ControlPanel):
         kwargs = {name: pn.param.LiteralInputTyped(param.Number(0.)) for name in ['temperature', 'pH', 'stop_loss', 'learning_rate', 'l1_regularizer', 'l2_regularizer']}
         return self.generate_widgets(**kwargs)
 
-    # @param.depends('fitting_type', watch=True)
-    # def _update_fitting_type(self):
-    #     # (temporarily) removed
-    #     if self.fitting_type == 'Protection Factors':
-    #         self.box_insert_after('fitting_type', 'c_term')
-    #         self.box_insert_after('c_term', 'temperature')
-    #         self.box_insert_after('temperature', 'pH')
-    #     elif self.fitting_type == 'Rates':
-    #         self.box_pop('c_term')
-    #         self.box_pop('temperature')
-    #         self.box_pop('pH')
-
     def _parent_series_updated(self, *events):
         end = self.parent.series.cov.end
         self.c_term = int(end + 5)
 
     def _parent_fit_results_updated(self, *events):
         possible_initial_guesses = ['half-life', 'fit1']
-        print(self.parent.fit_results.keys())
         objects = [name for name in possible_initial_guesses if name in self.parent.fit_results.keys()]
         if objects:
             self.param['do_fit'].constant = False
@@ -510,6 +483,7 @@ class TFFitControl(ControlPanel):
 
     def _do_fitting(self):
         self.param['do_fit'].constant = True
+        self.parent.logger.debug('Start TensorFlow fit')
         import pyhdx.fitting_tf as tft
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
@@ -523,21 +497,24 @@ class TFFitControl(ControlPanel):
 
         output_dict = {name: result.output[name] for name in result.output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
+
         # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
         # #todo this should be moved to TFFitresults object (or shoud it?) -> DataObject class (see base) (does coloring)
         # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
+
         output_dict['y'] = 10**output_dict[var_name]
         # if self.fitting_type == 'Protection Factors':
         deltaG = constants.R * self.temperature * np.log(output_dict['y'])
         output_dict['deltaG'] = deltaG
 
         self.parent.fit_results['fr_' + output_name] = result
-
         self.parent.publish_data(output_name, output_dict)
 
         self.param['do_fit'].constant = False
         self.parent.param.trigger('fit_results')
-    #
+
+        self.parent.logger.debug('Finished TensorFlow fit')
+        self.parent.logger.info(f'Finished fitting in {len(result.history["loss"])} epochs')
 
 
 class FittingQuality(ControlPanel):
@@ -566,7 +543,6 @@ class FittingQuality(ControlPanel):
         return time
 
     def _fit_results_updated(self, *events):
-        print('fit results updated in fitting quality')
         accepted_fitresults = ['fr_pfact']
         #todo wrappertje which checks with a cached previous version of this particular param what the changes are even it a manual trigger
         for name, fit_result in self.parent.fit_results.items():
@@ -584,8 +560,6 @@ class FittingQuality(ControlPanel):
             timepoints = self.parent.series.timepoints if name == 'uptake_corrected' else self.fit_timepoints
             dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
             self.parent.publish_data(name, dic)
-
-        print('keys', self.parent.sources.keys())
 
 
 class ClassificationControl(ControlPanel):
@@ -624,9 +598,6 @@ class ClassificationControl(ControlPanel):
         return self.generate_widgets(num_colors=pn.widgets.Spinner, mode=pn.widgets.RadioButtonGroup)
 
     def _parent_sources_updated(self, *events):
-        print('sources')
-        print("UPDATE")
-
         excluded = ['coverage']
         objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
         self.param['target'].objects = list(objects)
@@ -722,10 +693,7 @@ class ClassificationControl(ControlPanel):
                 self._remove_value()
             elif len(self.values_widgets) < self.num_colors - diff:
                 self._add_value()
-        print('num classes trigger')
-        print(self.values)
 
-        #self._action_otsu()
         self.param.trigger('values')
 
     def _add_value(self):
@@ -740,12 +708,9 @@ class ClassificationControl(ControlPanel):
         widget.param.watch(self._value_event, ['value'])
 
     def _remove_value(self):
-        print('remove')
         widget = self.values_widgets.pop(-1)
         self.box_pop(widget)
-
         self.values.pop()
-        print(self.values)
 
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
@@ -754,7 +719,8 @@ class ClassificationControl(ControlPanel):
         try:
             default = DEFAULT_CLASS_COLORS[len(self.colors_widgets)]
         except IndexError:
-            default = '#FFFFFF'  #random color?
+            default = "#"+''.join([np.random.choice('0123456789ABCDEF') for j in range(6)])
+            #default = '#FFFFFF'  # random color?
 
         self.colors.append(default)
         widget = pn.widgets.ColorPicker(value=default)
@@ -770,33 +736,18 @@ class ClassificationControl(ControlPanel):
         [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
         del widget
 
-    #todo jslink? (no also link to coloring function)
     def _color_event(self, *events):
-
         for event in events:
             idx = list(self.colors_widgets).index(event.obj)
             self.colors[idx] = event.new
 
         self.param.trigger('colors')
-        print('color event')
-        # for event in events:
-        #     print(event)
-        #     idx = list(self.colors_widgets).index(event.obj)
-        #     self.colors[idx] = event.new
-        #     c_array = self.parent.sources[self.target].data['color'].copy()
-        #     c_array[c_array == event.old] = event.new
-        #     self.parent.sources[self.target].data['color'] = c_array
-        # self.param.trigger('colors')  # i dont think anyone listens to this
-        # self.parent.param.trigger('rate_colors')
 
     def _value_event(self, *events):
-        print('value event')
         for event in events:
             idx = list(self.values_widgets).index(event.obj)
             self.values[idx] = event.new
-        print(self.values)
 
-        #self._action_otsu()
         self.param.trigger('values')
 
 
@@ -827,7 +778,6 @@ class FileExportPanel(ControlPanel):
             self.target = objects[0]
 
     def _series_updated(self, *events):
-        print('rates updated in fileexportpanel')
         self.c_term = int(self.parent.series.cov.end)
         # #todo centralize this on parent? -> no child controls should hook into main controller
         ## TODO USE .link() function: https://github.com/holoviz/panel/issues/1462
@@ -839,58 +789,9 @@ class FileExportPanel(ControlPanel):
         bools = ~np.isnan(array)
         script = colors_to_pymol(data_dict['r_number'][bools], data_dict['color'][bools], c_term=self.c_term)
 
-
         return script
 
-#     def pml1_export(self):
-#         io = StringIO()
-#         script = self._make_pml('fit1')
-#         io.write(script)
-#         io.seek(0)
-#         return io
 #
-#     def pml2_export(self):
-#         io = StringIO()
-#         script = self._make_pml('fit2')
-#         io.write(script)
-#         io.seek(0)
-#         return io
-#
-#     def fit1_export(self):
-#         io = StringIO()
-# #        print(self.target)
-#         print('exporting fit1')
-#
-#         fit_arr = self.parent.fit_results['fit1']['rates']
-#         if 'fit1' in self.parent.rate_colors:
-#             colors = self.parent.rate_colors['fit1']
-#             export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
-#         else:
-#             export_data = fit_arr
-#
-#         fmt, header = fmt_export(export_data)
-#         np.savetxt(io, export_data, fmt=fmt, header=header)
-#
-#         io.seek(0)
-#         return io
-#
-#     def fit2_export(self):
-#         io = StringIO()
-#         #        print(self.target)
-#         print('exporting fit2')
-#
-#         fit_arr = self.parent.fit_results['fit2']['rates']
-#         if 'fit2' in self.parent.rate_colors:  #todo this should be try/except
-#             colors = self.parent.rate_colors['fit2']
-#             export_data = append_fields(fit_arr, 'color', data=colors, usemask=False)
-#         else:
-#             export_data = fit_arr
-#
-#         fmt, header = fmt_export(export_data)
-#         np.savetxt(io, export_data, fmt=fmt, header=header)
-#
-#         io.seek(0)
-#         return io
     @property
     def export_dict(self):
         return self.parent.sources[self.target].data
@@ -901,8 +802,6 @@ class FileExportPanel(ControlPanel):
         if 'r_number' in self.export_dict.keys():
             self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
             self.pml_script_download.disabled = False
-            print(self.pml_script_download.disabled)
-
         else:
             self.pml_script_download.filename = 'Not Available'
             self.pml_script_download.disabled = True
@@ -924,8 +823,6 @@ class FileExportPanel(ControlPanel):
         io = StringIO()
         io.write('# ' + VERSION_STRING + ' \n')
 
-        print(self.target)
-        print('exporting')
         if self.target:
             export_dict = {k: np.array(v) for k, v in self.parent.sources[self.target].data.items() if k != 'y'}  #todo generalize export
             dtype = [(name, arr.dtype) for name, arr in export_dict.items()]
@@ -940,17 +837,6 @@ class FileExportPanel(ControlPanel):
             return io
         else:
             return None
-
-
-    # def data_export(self):
-    #     io = StringIO()
-    #     delimiter = ','
-    #
-    #     #todo combine these lines into one function?
-    #     fmt, header = fmt_export(self.parent.data, delimiter=delimiter, width=0)
-    #     np.savetxt(io, self.parent.data, fmt=fmt, header=header, delimiter=delimiter)
-    #     io.seek(0)
-    #     return io
 
 
 class OptionsPanel(ControlPanel):
@@ -970,8 +856,6 @@ class OptionsPanel(ControlPanel):
 
     @param.depends('link_xrange', watch=True)
     def _update_link(self):
-        print('link_xrangek')
-        print(self.enabled)
         if self.enabled:
             if self.link_xrange:
                 self._link()
@@ -1045,14 +929,6 @@ class ProteinViewControl(ControlPanel):
         elif self.input_option == 'RCSB PDB':
             self.box_pop(self.file_input)
             self.box_insert_after('input_option', 'rcsb_id')
-
-    # def _load_structure(self):
-    #     if self.input_option == 'Upload File':
-    #         if self.file_widget.value:
-    #             string = self.file_widget.value.decode()
-    #             self.ngl_html.pdb_string = string
-    #         else:
-    #             pass
 
         elif self.input_option == 'RCSB PDB':
             self.ngl_html.rcsb_id = self.rcsb_id

@@ -204,7 +204,6 @@ class LogFigure(FigurePanel):
         self.parent.control_panels['DeveloperPanel'].param.watch(self._dev_btn, ['test_btn'])
 
     def _update_log_level(self, event):
-        print('set log level', event.new)
         self.parent.logger.setLevel(event.new)
 
     def _dev_btn(self, events):
