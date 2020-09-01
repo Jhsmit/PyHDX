@@ -1,26 +1,19 @@
-from .log import setup_custom_logger
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from .fig_panels import FigurePanel
 from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
-from pyhdx.support import fmt_export, np_from_txt, \
+from pyhdx.support import fmt_export, \
     autowrap, colors_to_pymol, rgb_to_hex, gen_subclasses
-
-from pyhdx import VERSION_STRING, VERSION_STRING_SHORT
-
-
+from pyhdx import VERSION_STRING
 from scipy import constants
 import param
 import panel as pn
-from jinja2 import Environment, FileSystemLoader
-#import holoviews as hv  #todo remove dependency
-import os
 import numpy as np
 from skimage.filters import threshold_multiotsu
-from numpy.lib.recfunctions import stack_arrays, append_fields
+from numpy.lib.recfunctions import stack_arrays
 from .components import ASyncProgressBar
-from io import StringIO, BytesIO
+from io import StringIO
 from tornado.ioloop import IOLoop
 from functools import partial
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
@@ -32,12 +25,8 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
 import logging
-import sys
 
-from .template import ExtendedGoldenTemplate
-from .theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from .widgets import ColoredStaticText
-from .log import get_default_handler
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 

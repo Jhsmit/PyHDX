@@ -67,10 +67,9 @@ class PeptideMasterTable(object):
             self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
             self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
 
-
-        #Covert sequence to upper case if not so already
+        # Convert sequence to upper case if not so already
         self.data['sequence'] = [s.upper() for s in self.data['sequence']]
-        #Mark ignored prolines with lower case letters
+        # Mark ignored prolines with lower case letters
         if ignore_prolines:
             self.data['sequence'] = [s.replace('P', 'p') for s in self.data['sequence']]
 
@@ -600,8 +599,6 @@ class Coverage(object):
         """:class:`~np.ndarray`: Boolean array indicating if the residues along r_number have coverage"""
         return np.sum(self.X, axis=0) > 0
 
-
-
     @property
     def sequence(self):
         """:obj:`str`: String of the full protein sequence. One letter coding where X marks regions of no coverage"""
@@ -892,7 +889,6 @@ class KineticsSeries(object):
         """
 
         return self.tf_cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
-
 
     def set_control(self, control_100, control_zero=None, remove_nan=True):
         """
