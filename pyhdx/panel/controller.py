@@ -168,8 +168,11 @@ class FileInputControl(ControlPanel):
         self.param['zero_state'].objects = ['None'] + states
         self.zero_state = 'None'
 
+        self.parent.logger.info(
+            f'Loaded {len(data_list)} file{"s" if len(data_list) > 1 else ""} with a total '
+            f'of {len(self.parent.peptides)} peptides')
+
     def _action_parse(self):
-        print('parse action')
         if self.norm_mode == 'Exp':
             control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
             self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
@@ -182,6 +185,8 @@ class FileInputControl(ControlPanel):
         series = KineticsSeries(data)
         series.make_uniform()
         self.parent.series = series
+
+        self.parent.logger.info(f'Loaded experiment state {self.exp_state} ({len(series)} timepoints, {len(series.cov)} peptides each)')
 
     @param.depends('norm_mode', watch=True)
     def _update_norm_mode(self):
@@ -1066,12 +1071,17 @@ class ProteinViewControl(ControlPanel):
 class DeveloperPanel(ControlPanel):
     header = 'Developer Options'
     test_logging = param.Action(lambda self: self._action_test_logging())
+    test_error = param.Action(lambda self: self._action_error())
     test_btn = param.Boolean()
 
     def __init__(self, parent, **params):
         super(DeveloperPanel, self).__init__(parent, **params)
 
     def _action_test_logging(self):
-        logging.debug('TEST DEBUG MESSAGE')
+        self.parent.logger.debug('TEST DEBUG MESSAGE')
         for i in range(20):
-            logging.info('dit is een test123')
+            self.parent.logger.info('dit is een test123')
+
+    def _action_error(self):
+        d = {}
+        d['key']

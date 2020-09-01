@@ -186,7 +186,7 @@ class LogFigure(FigurePanel):
 
     def __init__(self, *args, **params):
         super(LogFigure, self).__init__(*args, **params)
-        self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both', scroll=True)
+        self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both')
         #todo config log level in options
 
         sh = logging.StreamHandler(self.markdown)
