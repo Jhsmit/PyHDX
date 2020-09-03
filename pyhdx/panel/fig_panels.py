@@ -149,6 +149,7 @@ class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel (it 
 
         params = ['rcsb_id', 'no_coverage', 'representation', 'spin']
         self.parent.control_panels['ProteinViewControl'].param.watch(self._update_event, params)
+        self.parent.control_panels['ProteinViewControl'].file_input.param.watch(self._update_pdb_file, 'value')
 
     def _data_updated_callback(self, attr, old, new):
         self._update_colors(new['r_number'], new['color'])
@@ -160,6 +161,9 @@ class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel (it 
     @property
     def no_coverage(self):
         return self.parent.control_panels['ProteinViewControl'].no_coverage
+
+    def _update_pdb_file(self, event):
+        self.ngl_view.pdb_string = event.new.decode()
 
     def _update_colors(self, r_number, color_arr):
         r_start = r_number[0]
