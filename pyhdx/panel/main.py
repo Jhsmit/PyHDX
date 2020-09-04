@@ -1,6 +1,6 @@
 from pyhdx.panel.template import GoldenElvis, ExtendedGoldenTemplate
 from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
-from pyhdx.panel.controller import Controller
+from pyhdx.panel.controller import PyHDXController
 from pyhdx.panel.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING_SHORT
@@ -32,24 +32,24 @@ figure_panels = [
     'LogFigure'
 ]
 
-elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme, title=VERSION_STRING_SHORT)
+elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
 cluster = '127.0.0.1:52123'
-ctrl = Controller(control_panels, figure_panels, cluster=cluster)
+ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
 ctrl.logger.addHandler(get_default_handler(sys.stdout))
 tmpl = elvis.compose(ctrl.control_panels.values(),
-                              elvis.column(
-                                  elvis.stack(
-                                    elvis.view(ctrl.figure_panels['CoverageFigure']),
-                                    elvis.view(ctrl.figure_panels['ProteinFigure'])
-                                  ),
-                                  elvis.stack(
-                                      elvis.view(ctrl.figure_panels['RateFigure']),
-                                      elvis.view(ctrl.figure_panels['PFactFigure']),
-                                      elvis.view(ctrl.figure_panels['FitResultFigure']),
-                                      elvis.view(ctrl.figure_panels['LogFigure']),
-                                  )
-                              )
-                          )
+                     elvis.column(
+                         elvis.stack(
+                             elvis.view(ctrl.figure_panels['CoverageFigure']),
+                             elvis.view(ctrl.figure_panels['ProteinFigure'])
+                         ),
+                         elvis.stack(
+                             elvis.view(ctrl.figure_panels['RateFigure']),
+                             elvis.view(ctrl.figure_panels['PFactFigure']),
+                             elvis.view(ctrl.figure_panels['FitResultFigure']),
+                             elvis.view(ctrl.figure_panels['LogFigure']),
+                         )
+                     )
+                    )
 
 
 if __name__ == '__main__':

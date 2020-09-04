@@ -32,6 +32,34 @@ HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
 
 class MainController(param.Parameterized):
+    """
+    Base class for application main controller
+    Subclass to extend
+
+    Parameters
+    ----------
+    control_panels: :obj:`list`
+        List of strings referring to which ControlPanels to use for this MainController instance
+        Should refer to subclasses of :class:`~pyhdx.panel.base.ControlPanel`
+    figure_panels: :obj:`list`
+        List of string referring to which FigurePanels to use for this MainController instance
+        Should refer to subclasses :class:`~pyhdx.panel.base.FigurePanel`
+    cluster: :obj:`str`
+        IP:port address for Dask cluster (optional)
+
+    Attributes
+    ----------
+
+    doc : :class:`~bokeh.document.Document`
+        Currently active Bokeh document
+    logger : :class:`~logging.Logger`
+        Logger instance
+    control_panels : :obj:`dict`
+        Dictionary with :class:`~pyhdx.panel.base.ControlPanel` instances (__name__ as keys)
+    figure_panels : :obj`dict`
+        Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
+    
+    """
     sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
 
     def __init__(self, control_panels, figure_panels, cluster=None, **params):
