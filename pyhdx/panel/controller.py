@@ -31,22 +31,11 @@ from .widgets import ColoredStaticText
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
 
-class Controller(param.Parameterized):
-    """
-    controller for main panels layout
-    and has panels for each tabin the main layout
-
-    """
-
-    fit_results = param.Dict({})
+class MainController(param.Parameterized):
     sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
-    rate_colors = param.Dict({})  #probably not used
-    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
-    series = param.ClassSelector(KineticsSeries, doc='Currently selected kinetic series of peptides')
-    fitting = param.ClassSelector(KineticsFitting)
 
     def __init__(self, control_panels, figure_panels, cluster=None, **params):
-        super(Controller, self).__init__(**params)
+        super(MainController, self).__init__(**params)
         self.cluster = cluster
         self.doc = pn.state.curdoc
         self.logger = logging.getLogger(str(id(self)))
@@ -79,6 +68,20 @@ class Controller(param.Parameterized):
             self.sources[name] = source
 
         self.param.trigger('sources')
+
+
+class PyHDXController(MainController):
+    """
+    controller for main panels layout
+    and has panels for each tabin the main layout
+
+    """
+
+    fit_results = param.Dict({})
+    rate_colors = param.Dict({})  # probably not used
+    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
+    series = param.ClassSelector(KineticsSeries, doc='Currently selected kinetic series of peptides')
+    fitting = param.ClassSelector(KineticsFitting)
 
 
 class FileInputControl(ControlPanel):
