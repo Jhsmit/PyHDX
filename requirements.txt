@@ -10,3 +10,4 @@ bokeh
 dask[distributed]
 tensorflow
 expfact
+param

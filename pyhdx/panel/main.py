@@ -6,18 +6,18 @@ import sys
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
 
-DEBUG = True
+DEBUG = False
 
 control_panels = [
     'FileInputControl',
     'CoverageControl',
-    'FittingControl',
-    'TFFitControl',
-    'FittingQuality',
+    'InitialGuessControl',
+    'FitControl',
+    'FitResultControl',
     'ClassificationControl',
-    'FileExportPanel',
+    'FileExportControl',
     'ProteinViewControl',
-    'OptionsPanel'
+    'OptionsControl'
 ]
 
 if DEBUG:

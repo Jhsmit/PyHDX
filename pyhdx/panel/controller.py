@@ -12,21 +12,19 @@ import panel as pn
 import numpy as np
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays
-from .components import ASyncProgressBar
 from io import StringIO
 from tornado.ioloop import IOLoop
 from functools import partial
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 from collections import namedtuple
-#dev only
-import pickle
+
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
 import logging
 
-from .widgets import ColoredStaticText
+from .widgets import ColoredStaticText, ASyncProgressBar
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
@@ -58,7 +56,7 @@ class MainController(param.Parameterized):
         Dictionary with :class:`~pyhdx.panel.base.ControlPanel` instances (__name__ as keys)
     figure_panels : :obj`dict`
         Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
-    
+
     """
     sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
 
@@ -75,7 +73,7 @@ class MainController(param.Parameterized):
         self.figure_panels = {name: available_figures[name](self) for name in figure_panels}
 
         #setup options  #todo automate figure out cross dependencies (via parent?)
-        self.control_panels['OptionsPanel'].link_xrange = True
+        self.control_panels['OptionsControl'].link_xrange = True
 
     def publish_data(self, name, dic):
         """
@@ -100,16 +98,12 @@ class MainController(param.Parameterized):
 
 class PyHDXController(MainController):
     """
-    controller for main panels layout
-    and has panels for each tabin the main layout
+    Main controller for PyHDX web application
 
     """
-
-    fit_results = param.Dict({})
-    rate_colors = param.Dict({})  # probably not used
+    fit_results = param.Dict({}, doc='Dictionary of fit results')
     peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
-    series = param.ClassSelector(KineticsSeries, doc='Currently selected kinetic series of peptides')
-    fitting = param.ClassSelector(KineticsFitting)
+    series = param.ClassSelector(KineticsSeries, doc='KineticsSeries object with current selected and corrected peptides')
 
 
 class FileInputControl(ControlPanel):
@@ -118,21 +112,23 @@ class FileInputControl(ControlPanel):
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
     drop_first = param.Integer(1, bounds=(0, None))
-    ignore_prolines = param.Boolean(True, constant=True, doc='Set to True to ignore prolines in the sequence')
+    ignore_prolines = param.Boolean(True, constant=True, doc='Set to True to ignore Prolines in the sequence')
     load_button = param.Action(lambda self: self._action_load(), doc='Load Files', label='Load Files')
 
     norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
-
     norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
     norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
-    be_percent = param.Number(28., bounds=(0, 100), doc='Percentage of exchangeable deuteriums which backexchange',
+    #d_percent = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
+    #                         label='D percentage')
+    be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
                               label='Back exchange percentage')
 
     zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
     zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
 
     exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
-    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures')
+    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
+                                       , doc='Selected exposure time to use')
 
     parse_button = param.Action(lambda self: self._action_parse(), doc='Parse', label='Parse')
 
@@ -151,22 +147,24 @@ class FileInputControl(ControlPanel):
         return self.file_selectors + first_widgets
 
     def _action_add(self):
+        """Add another FileInput widget/"""
         widget = pn.widgets.FileInput(accept='.csv')
         i = len(self.file_selectors)  # position to insert the new file selector into the widget box
         self.file_selectors.append(widget)
         self._box.insert(i, widget)
 
     def _action_clear(self):
+        """Clear all file selectors and set number of file selectors to one."""
         self.parent.logger.debug('Cleared file selectors')
 
         while self.file_selectors:
             fs = self.file_selectors.pop()
-            #todo allow popping/locking with both widgets and parameter names?
             idx = list(self._box).index(fs)
             self._box.pop(idx)
         self._action_add()
 
     def _action_load(self):
+        """Load files from FileInput widgets """
         data_list = []
         for file_selector in self.file_selectors:
             if file_selector.value is not None:
@@ -176,6 +174,7 @@ class FileInputControl(ControlPanel):
 
         combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
 
+        #todo remove this attribute
         self.parent.data = combined
         self.parent.peptides = PeptideMasterTable(self.parent.data,
                                                   drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
@@ -191,6 +190,7 @@ class FileInputControl(ControlPanel):
             f'of {len(self.parent.peptides)} peptides')
 
     def _action_parse(self):
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
         if self.norm_mode == 'Exp':
             control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
             self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
@@ -209,7 +209,6 @@ class FileInputControl(ControlPanel):
 
     @param.depends('norm_mode', watch=True)
     def _update_norm_mode(self):
-
         if self.norm_mode == 'Exp':
             self.box_pop('be_percent')
             self.box_insert_after('norm_mode', 'norm_state')
@@ -217,7 +216,6 @@ class FileInputControl(ControlPanel):
             self.box_insert_after('norm_exposure', 'zero_state')
             self.box_insert_after('zero_state', 'zero_exposure')
 
-            #self._update_experiment()  dont think this is needed
         elif self.norm_mode == 'Theory':
             self.box_pop('norm_state')
             self.box_pop('norm_exposure')
@@ -252,7 +250,7 @@ class FileInputControl(ControlPanel):
 
     @param.depends('norm_state', 'norm_exposure', watch=True)
     def _update_experiment(self):
-        #TODO THIS needs to be updated to also incorporate the zero
+        #TODO THIS needs to be updated to also incorporate the zero (?)
         pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
         states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
@@ -263,16 +261,17 @@ class FileInputControl(ControlPanel):
         b = self.parent.data['state'] == self.exp_state
         exposures = list(np.unique(self.parent.data['exposure'][b]))
         exposures.sort()
-        self.param['exp_exposures'].objects = exposures  #todo refactor exposures
+        self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
 
 
 class CoverageControl(ControlPanel):
     header = 'Coverage'
 
-    wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row') # todo auto?
-    color_map = param.Selector(objects=['jet', 'inferno', 'viridis', 'cividis', 'plasma', 'cubehelix'], default='jet')
-    index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time')
+    wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row.') # todo auto?
+    color_map = param.Selector(objects=['jet', 'inferno', 'viridis', 'cividis', 'plasma', 'cubehelix'], default='jet',
+                               doc='Color map for coloring peptides by their deuteration percentage.')
+    index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time.')
 
     def __init__(self, parent, **params):
         self.exposure_str = ColoredStaticText(name='Exposure', value='0')  # todo update to some param?
@@ -380,15 +379,16 @@ class CoverageControl(ControlPanel):
             pass
 
 
-class FittingControl(ControlPanel):
+class InitialGuessControl(ControlPanel):
     header = 'Initial Guesses'
-    fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association', 'Dissociation'])
-    do_fit1 = param.Action(lambda self: self._action_fit())
+    fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
+                                   doc='Choose method for determining initial guesses.')
+    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting')
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
         self.pbar2 = ASyncProgressBar()
-        super(FittingControl, self).__init__(parent, **params)
+        super(InitialGuessControl, self).__init__(parent, **params)
         self.parent.param.watch(self._update_series, ['series'])
 
     def make_list(self):
@@ -401,12 +401,8 @@ class FittingControl(ControlPanel):
         widget_list = list([self._widget_dict[par] for par in parameters])
         return widget_list
 
-    def _update_series(self, *events):
-        self.r_max = np.log(1 - 0.98) / -self.parent.series.timepoints[1]  # todo user input 0.98
-
     async def _fit1_async(self):
-        #client = await Client(self.parent.cluster)
-
+        """Do fitting asynchronously on (remote) cluster"""
         fit_result = await self.parent.fitting.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
         self.parent.fit_results['fit1'] = fit_result
 
@@ -441,7 +437,7 @@ class FittingControl(ControlPanel):
         self.pbar1.reset()
 
     def _action_fit(self):
-        self.parent.logging.debug('Start initial guess fit')
+        self.parent.logger.debug('Start initial guess fit')
         #todo context manager?
         self.param['do_fit1'].constant = True
 
@@ -469,27 +465,32 @@ class FittingControl(ControlPanel):
                 self._fit1()
 
 
-class TFFitControl(ControlPanel):
+class FitControl(ControlPanel):
     header = 'Fitting'
-    initial_guess = param.Selector()
+    initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
 
-    c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds')  # remove
+    c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds.')  # remove
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
-    stop_loss = param.Number(0.01, bounds=(0, None), doc='Threshold loss difference below which to stop fitting')
-    stop_patience = param.Integer(50, bounds=(1, None), doc='Number of epochs where stop loss should be satisfied before stopping')
-    learning_rate = param.Number(0.01, bounds=(0, None), doc='Learning rate parameter for optimization')
-    epochs = param.Number(100000, bounds=(1, None), doc='Maximum number of epochs (iterations')
+    stop_loss = param.Number(0.01, bounds=(0, None),
+                             doc='Threshold loss difference below which to stop fitting.')
+    stop_patience = param.Integer(50, bounds=(1, None),
+                                  doc='Number of epochs where stop loss should be satisfied before stopping.')
+    learning_rate = param.Number(0.01, bounds=(0, None),
+                                 doc='Learning rate parameter for optimization.')
+    epochs = param.Number(100000, bounds=(1, None),
+                          doc='Maximum number of epochs (iterations.')
 
-    l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer')
-    l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
+    l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer.')
+    #l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
 
-    do_fit = param.Action(lambda self: self._do_fitting(), constant=True)
+    do_fit = param.Action(lambda self: self._do_fitting(), constant=True, label='Do Fitting',
+                          doc='Start TensorFlow global fitting')
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
-        super(TFFitControl, self).__init__(parent, **params)
+        super(FitControl, self).__init__(parent, **params)
 
         self.parent.param.watch(self._parent_fit_results_updated, ['fit_results'])
         self.parent.param.watch(self._parent_series_updated, ['series'])
@@ -548,20 +549,22 @@ class TFFitControl(ControlPanel):
         self.parent.logger.info(f'Finished fitting in {len(result.history["loss"])} epochs')
 
 
-class FittingQuality(ControlPanel):
-    header = 'Fitting Quality'
+class FitResultControl(ControlPanel):
+    header = 'Fit Results'
 
-    peptide_index = param.Number(0, bounds=(0, None))
-    x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'])
+    peptide_index = param.Number(0, bounds=(0, None),
+                                 doc='Index of the peptide to display.')
+    x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'],
+                                 doc='Choose whether to plot the x axis as Logarithmic axis or Linear.')
 
     def __init__(self, parent, **param):
-        super(FittingQuality, self).__init__(parent, **param)
+        super(FitResultControl, self).__init__(parent, **param)
 
         self.d_uptake = {}  ## Dictionary of arrays (N_p, N_t) with results of fit result model calls
         self.parent.param.watch(self._series_updated, ['series'])
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
-    #@depends(parent.series) will this work? parent should be a classselector param? does that accept subclasses?
+    #@depends(parent.series) will this work? (yes) parent should be a classselector param? does that accept subclasses?
     def _series_updated(self, *events):
         self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
         self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
@@ -599,14 +602,19 @@ class ClassificationControl(ControlPanel):
 
     target = param.Selector(label='Target')
 
-    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'])#, 'ColorMap'])
-    num_colors = param.Number(3, bounds=(1, 10), doc='Number of classification colors')
+    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'],
+                          doc='Choose color mode (interpolation between selected colors.')#, 'ColorMap'])
+    num_colors = param.Number(3, bounds=(1, 10),
+                              doc='Number of classification colors.')
     #cmap = param.Selector(objects=PRESET_CMAPS)
-    otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu')
-    linear_thd = param.Action(lambda self: self._action_linear(), label='Linear')
-    log_space = param.Boolean(True, constant=True, doc='Boolean to set whether to apply colors in log space or not')
+    otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
+                            doc="Automatically perform thresholding based on Otsu's method.")
+    linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
+                              doc='Automatically perform thresholding by creating equally spaced sections.')
+    log_space = param.Boolean(True, constant=True,
+                              doc='Boolean to set whether to apply colors in log space or not.')
 
-    show_thds = param.Boolean(True, label='Show Thresholds')
+    show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
     values = param.List(precedence=-1)
     colors = param.List(precedence=-1)
 
@@ -782,9 +790,9 @@ class ClassificationControl(ControlPanel):
         self.param.trigger('values')
 
 
-class FileExportPanel(ControlPanel):
+class FileExportControl(ControlPanel):
     header = "File Export"
-    target = param.Selector(label='Target')
+    target = param.Selector(label='Target dataset', doc='Name of the dataset to export')
 
     #todo link this number with the other one
     c_term = param.Integer(0, bounds=(0, None))
@@ -792,14 +800,14 @@ class FileExportPanel(ControlPanel):
     def __init__(self, parent, **param):
         self.export_linear_download = pn.widgets.FileDownload(filename='<no data>', callback=self.linear_export_callback)
         self.pml_script_download = pn.widgets.FileDownload(filename='<no data>', callback=self.pml_export_callback)
-        super(FileExportPanel, self).__init__(parent, **param)
+        super(FileExportControl, self).__init__(parent, **param)
 
         self.parent.param.watch(self._sources_updated, ['sources'])
         self.parent.param.watch(self._series_updated, ['series'])
 
     def make_list(self):
         self._widget_dict.update(export_linear_download=self.export_linear_download, pml_script_download=self.pml_script_download)
-        return super(FileExportPanel, self).make_list()
+        return super(FileExportControl, self).make_list()
 
     def _sources_updated(self, *events):
         objects = list(self.parent.sources.keys())
@@ -822,7 +830,6 @@ class FileExportPanel(ControlPanel):
 
         return script
 
-#
     @property
     def export_dict(self):
         return self.parent.sources[self.target].data
@@ -870,16 +877,63 @@ class FileExportPanel(ControlPanel):
             return None
 
 
-class OptionsPanel(ControlPanel):
+class ProteinViewControl(ControlPanel):
+    header = 'Protein Viewer'
+    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects) (refactor to dataset/object)
+
+    target_dataset = param.Selector(doc='Name of the dataset to apply coloring from')
+    input_option = param.Selector(default='Upload File', objects=['Upload File', 'RCSB PDB'],
+                                  doc='Choose wheter to upload .pdb file or directly download from RCSB PDB.')
+    rcsb_id = param.String(doc='RCSB PDB identifier of protein entry to download and visualize.')
+    load_structure = param.Action(lambda self: self._load_structure())
+    no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage.')
+    representation = param.Selector(default='cartoon',
+                                    objects=['backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
+                                             'ribbon', 'rope', 'spacefill', 'surface'],
+                                    doc='Representation to use to render the protein.')
+    spin = param.Boolean(default=False, doc='Rotate the protein around an axis.')
+
+    def __init__(self, parent, **params):
+        self.file_input = pn.widgets.FileInput(accept='.pdb')
+        super(ProteinViewControl, self).__init__(parent, **params)
+
+        self.parent.param.watch(self._parent_sources_updated, ['sources'])
+        self.input_option = 'RCSB PDB'
+
+    def make_list(self):
+        lst = super().make_list()
+        lst.pop(2)  # Remove RCSB ID input field
+        lst.insert(2, self.file_input)  # add File input widget
+        return lst
+
+    def _parent_sources_updated(self, *events):
+        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
+        self.param['target_dataset'].objects = list(objects)
+
+    @param.depends('input_option', watch=True)
+    def _update_input_option(self):
+        if self.input_option == 'Upload File':
+            self.box_pop('rcsb_id')
+            self.box_insert_after('input_option', self.file_input)
+        elif self.input_option == 'RCSB PDB':
+            self.box_pop(self.file_input)
+            self.box_insert_after('input_option', 'rcsb_id')
+
+        elif self.input_option == 'RCSB PDB':
+            self.ngl_html.rcsb_id = self.rcsb_id
+
+
+class OptionsControl(ControlPanel):
     header = 'Options'
 
     """panel for various options and settings"""
 
-    link_xrange = param.Boolean(False)
-    log_level = param.Selector(default='DEBUG', objects=['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'])
+    link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.')
+    log_level = param.Selector(default='DEBUG', objects=['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
+                               doc='Set the logging level.')
 
     def __init__(self, parent, **param):
-        super(OptionsPanel, self).__init__(parent, **param)
+        super(OptionsControl, self).__init__(parent, **param)
 
     @property
     def enabled(self):
@@ -918,51 +972,6 @@ class OptionsPanel(ControlPanel):
 
             client.x_range.js_link('start', self.master_figure.x_range, 'start')
             client.x_range.js_link('end', self.master_figure.x_range, 'end')
-
-
-class ProteinViewControl(ControlPanel):
-    header = 'Protein Viewer'
-    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects) (refactor to dataset/object)
-    #also linked sources dutn work yet
-    target_dataset = param.Selector()
-
-    input_option = param.Selector(default='Upload File', objects=['Upload File', 'RCSB PDB'])
-    rcsb_id = param.String()
-    load_structure = param.Action(lambda self: self._load_structure())
-    no_coverage = param.Color(default='#8c8c8c')
-    representation = param.Selector(default='cartoon',
-                                    objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
-                                             'ribbon', 'rope', 'spacefill', 'surface'])
-    spin = param.Boolean(default=False)
-
-    def __init__(self, parent, **params):
-        self.file_input = pn.widgets.FileInput(accept='.pdb')
-        super(ProteinViewControl, self).__init__(parent, **params)
-
-        self.parent.param.watch(self._parent_sources_updated, ['sources'])
-        self.input_option = 'RCSB PDB'
-
-    def make_list(self):
-        lst = super().make_list()
-        lst.pop(2)  # Remove RCSB ID input field
-        lst.insert(2, self.file_input)  # add File input widget
-        return lst
-
-    def _parent_sources_updated(self, *events):
-        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
-        self.param['target_dataset'].objects = list(objects)
-
-    @param.depends('input_option', watch=True)
-    def _update_input_option(self):
-        if self.input_option == 'Upload File':
-            self.box_pop('rcsb_id')
-            self.box_insert_after('input_option', self.file_input)
-        elif self.input_option == 'RCSB PDB':
-            self.box_pop(self.file_input)
-            self.box_insert_after('input_option', 'rcsb_id')
-
-        elif self.input_option == 'RCSB PDB':
-            self.ngl_html.rcsb_id = self.rcsb_id
 
 
 class DeveloperPanel(ControlPanel):

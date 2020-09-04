@@ -116,13 +116,13 @@ class FitResultFigure(BokehFigurePanel):
     def __init__(self, parent, *args, **params):
         #todo refactor controllers to dict (Or better yet get them yourself from parent)
         super(FitResultFigure, self).__init__(parent, *args, **params)
-        self.control_panels['FittingQuality'].param.watch(self._redraw_event, ['x_axis_type'])
+        self.control_panels['FitResultControl'].param.watch(self._redraw_event, ['x_axis_type'])
 
     def _redraw_event(self, *events):
         self.redraw(x_axis_type=self.control_panels[0].x_axis_type.lower())
 
     def draw_figure(self, **kwargs):
-        fig = super().draw_figure(x_axis_type=self.control_panels['FittingQuality'].x_axis_type.lower())
+        fig = super().draw_figure(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
         return fig
 
     def render_sources(self, src_dict):
@@ -201,18 +201,11 @@ class LogFigure(FigurePanel):
         self.parent.logger.addHandler(sh)
 
         #  todo add function on base class for doing these things (with try/except)
-        self.parent.control_panels['OptionsPanel'].param.watch(self._update_log_level, ['log_level'])
-        self.parent.control_panels['OptionsPanel'].param.trigger('log_level')
-
-        # temporary to test logging
-        self.parent.control_panels['DeveloperPanel'].param.watch(self._dev_btn, ['test_btn'])
+        self.parent.control_panels['OptionsControl'].param.watch(self._update_log_level, ['log_level'])
+        self.parent.control_panels['OptionsControl'].param.trigger('log_level')
 
     def _update_log_level(self, event):
         self.parent.logger.setLevel(event.new)
-
-    def _dev_btn(self, events):
-        # Temporary to test logging
-        self.parent.logger.debug('dev test message')
 
     @property
     def panel(self):

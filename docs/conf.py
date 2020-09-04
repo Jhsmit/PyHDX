@@ -26,7 +26,6 @@ sys.path.insert(0, os.path.abspath('..'))
 import pyhdx
 
 # JHS modifications
-
 numfig = True
 latex_engine = 'xelatex'
 
@@ -40,6 +39,11 @@ latex_engine = 'xelatex'
 # Add any Sphinx extension module names here, as strings. They can be
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
 #extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
+
+
+def setup(app):
+    from nbsite.paramdoc import param_formatter
+    app.connect('autodoc-process-docstring', param_formatter)
 
 extensions = [
     'sphinx.ext.autodoc',

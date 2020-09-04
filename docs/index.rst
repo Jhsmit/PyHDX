@@ -10,6 +10,7 @@ Welcome to PyHDX's documentation!
    fitting
    examples
    modules
+   GUI_autodoc
    contributing
    authors
    history

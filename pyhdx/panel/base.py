@@ -13,8 +13,6 @@ from bokeh.plotting import figure
 # and we can add methods which will make wildcard names easier
 
 
-
-
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
                   'uptake_corrected': '#000000', 'fr_pfact': '#ba0912'}
@@ -29,7 +27,6 @@ class PanelBase(param.Parameterized):
 
     @property
     def panel(self):
-
         return None
 
 

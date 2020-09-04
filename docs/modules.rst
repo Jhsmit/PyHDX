@@ -3,13 +3,13 @@
 Module Documentation
 ====================
 
-This page contains the full API docs of ``pyHDX``
+This page contains the full API docs of ``PyHDX``
 
 
-pyHDX
------
+Models
+------
 
-.. automodule:: pyhdx.pyhdx
+.. automodule:: pyhdx.models
     :members:
 
 
@@ -20,12 +20,17 @@ Fitting
     :members:
 
 
-Plot
-----
+Fitting TensorFlow
+------------------
 
-.. automodule:: pyhdx.plot
+.. automodule:: pyhdx.fitting_tf
     :members:
 
+
+FileIO
+------
+
+.. automodule:: pyhdx.fileIO
 
 Output
 ------
@@ -39,3 +44,4 @@ Support
 
 .. automodule:: pyhdx.support
     :members:
+
