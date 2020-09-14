@@ -9,7 +9,7 @@ import panel as pn
 DEBUG = False
 
 control_panels = [
-    'FileInputControl',
+    'PeptideFileInputControl',
     'CoverageControl',
     'InitialGuessControl',
     'FitControl',

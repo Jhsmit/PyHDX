@@ -106,7 +106,10 @@ class PyHDXController(MainController):
     series = param.ClassSelector(KineticsSeries, doc='KineticsSeries object with current selected and corrected peptides')
 
 
-class FileInputControl(ControlPanel):
+class
+
+
+class PeptideFileInputControl(ControlPanel):
     header = 'Input'
 
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
@@ -134,7 +137,7 @@ class FileInputControl(ControlPanel):
 
     def __init__(self, parent, **params):
         self.file_selectors = [pn.widgets.FileInput(accept='.csv')]
-        super(FileInputControl, self).__init__(parent, **params)
+        super(PeptideFileInputControl, self).__init__(parent, **params)
 
     def make_dict(self):
         return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.LiteralInput)

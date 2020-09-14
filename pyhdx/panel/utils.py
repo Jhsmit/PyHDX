@@ -3,7 +3,7 @@ from pyhdx.support import np_from_txt
 
 
 def reload_previous(dic, ctrl):
-    file_input = ctrl.control_panels['FileInputControl']
+    file_input = ctrl.control_panels['PeptideFileInputControl']
 
     if 'file_paths' not in dic.keys() and 'file_path' in dic.keys():
         dic['file_paths'] = [dic['file_path']]

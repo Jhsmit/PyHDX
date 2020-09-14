@@ -29,7 +29,7 @@ class TestGui(object):
         ctrl = PyHDXController(control_panels, figure_panels)
         ctrl.logger.addHandler(get_default_handler(sys.stdout))
 
-        file_input_control = ctrl.control_panels['FileInputControl']
+        file_input_control = ctrl.control_panels['PeptideFileInputControl']
 
         file_input_control.file_selectors[0].value = binary
         file_input_control._action_load()
