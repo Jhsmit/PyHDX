@@ -33,28 +33,6 @@ with open(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.pick'), 'wb
     pickle.dump(fr1, f)
 
 
-#
-# fr2 = kf.blocks_fit(out1)
-# out2 = fr2.output
-#
-# fmt, hdr = fmt_export(out2)
-# np.savetxt(os.path.join(directory, 'test_data', 'fit_simulated_blocks.txt'), out2, fmt=fmt, header=hdr)
-# with open(os.path.join(directory, 'test_data', 'fit_simulated_blocks.pick'), 'wb') as f:
-#     pickle.dump(fr2, f)
-#
-# #
-# fr_rates = kf.global_fit(out1)
-# out_rates = fr_rates.output
-#
-# fmt, hdr = fmt_export(out_rates)
-# np.savetxt(os.path.join(directory, 'test_data', 'fit_simulated_rates.txt'), out_rates, fmt=fmt, header=hdr)
-# with open(os.path.join(directory, 'test_data', 'fit_simulated_rates.pick'), 'wb') as f:
-#     pickle.dump(fr_rates, f)
-
-# k_int = series.cov.calc_kint(temperature, pH, c_term=None)
-# k_r_number = series.cov.sequence_r_number
-# k_dict = {'r_number': k_r_number, 'k_int': k_int}
-
 fr_pfact = kf.global_fit_new(out1, use_kint=True)
 out_pfact = fr_pfact.output
 
