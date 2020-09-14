@@ -260,7 +260,7 @@ class TFFitResult(object):
         array['r_number'] = self.r_number
         array[f'{name}_full'] = output
 
-        bools = np.array([s in ['X', 'P'] for s in self.series.tf_cov.cov_sequence])
+        bools = np.logical_or(~self.series.tf_cov.has_coverage, self.series.tf_cov.cov_sequence == 'P')
         array[name] = output.copy()
         array[name][bools] = np.nan # set no coverage or prolines resiudes to nan
 
