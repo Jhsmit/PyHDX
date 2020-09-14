@@ -836,10 +836,10 @@ class FileExportControl(ControlPanel):
         self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
         if 'r_number' in self.export_dict.keys():
             self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
-            self.pml_script_download.disabled = False
+            # self.pml_script_download.disabled = False
         else:
             self.pml_script_download.filename = 'Not Available'
-            self.pml_script_download.disabled = True
+            # self.pml_script_download.disabled = True # Enable/disable currently bugged:
 
     @pn.depends('target')
     def pml_export_callback(self):
