@@ -815,11 +815,8 @@ class FileExportControl(ControlPanel):
 
     def _series_updated(self, *events):
         self.c_term = int(self.parent.series.cov.end)
-        # #todo centralize this on parent? -> no child controls should hook into main controller
-        ## TODO USE .link() function: https://github.com/holoviz/panel/issues/1462
 
     def _make_pml(self, target):
-#        try:
         data_dict = self.parent.sources[target].data
         array = data_dict['y']
         bools = ~np.isnan(array)
