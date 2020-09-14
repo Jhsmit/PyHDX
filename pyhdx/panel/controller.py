@@ -389,7 +389,6 @@ class InitialGuessControl(ControlPanel):
         self.pbar1 = ASyncProgressBar()
         self.pbar2 = ASyncProgressBar()
         super(InitialGuessControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._update_series, ['series'])
 
     def make_list(self):
         text_f1 = pn.widgets.StaticText(value='Weighted averaging fit (Fit 1)')
@@ -483,8 +482,6 @@ class FitControl(ControlPanel):
                           doc='Maximum number of epochs (iterations.')
 
     l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer.')
-    #l2_regularizer = param.Number(0, bounds=(0, None), doc='Value for l2 regularizer')
-
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True, label='Do Fitting',
                           doc='Start TensorFlow global fitting')
 
@@ -522,7 +519,7 @@ class FitControl(ControlPanel):
         initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
         early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
         result = kf.global_fit_new(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
-                                   l1=self.l1_regularizer, l2=self.l2_regularizer, callbacks=[early_stop])
+                                   l1=self.l1_regularizer, callbacks=[early_stop])
 
         output_name = 'pfact'
         var_name = 'log_P'
@@ -546,7 +543,7 @@ class FitControl(ControlPanel):
         self.parent.param.trigger('fit_results')
 
         self.parent.logger.debug('Finished TensorFlow fit')
-        self.parent.logger.info(f'Finished fitting in {len(result.history["loss"])} epochs')
+        self.parent.logger.info(f'Finished fitting in {len(result.loss)} epochs')
 
 
 class FitResultControl(ControlPanel):
@@ -929,7 +926,7 @@ class OptionsControl(ControlPanel):
     """panel for various options and settings"""
 
     link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.')
-    log_level = param.Selector(default='DEBUG', objects=['ALL', 'DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
+    log_level = param.Selector(default='DEBUG', objects=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
                                doc='Set the logging level.')
 
     def __init__(self, parent, **param):

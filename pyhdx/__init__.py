@@ -7,8 +7,6 @@ from .output import Output
 
 from pbr import version
 from pbr import git
-from pkg_resources import DistributionNotFound
-import os
 from pathlib import Path
 
 

@@ -946,7 +946,6 @@ class KineticsFitting(object):
 
 
         p_guess = self._initial_guess(initial_result, k_dict)
-
         guess_vals = np.log10(p_guess)
 
         if np.any(np.isnan(guess_vals)):
