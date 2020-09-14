@@ -36,14 +36,11 @@ latex_engine = 'xelatex'
 #
 # needs_sphinx = '1.0'
 
-# Add any Sphinx extension module names here, as strings. They can be
-# extensions coming with Sphinx (named 'sphinx.ext.*') or your custom ones.
-#extensions = ['sphinx.ext.autodoc', 'sphinx.ext.viewcode']
 
 
 def setup(app):
-    from nbsite.paramdoc import param_formatter
-    app.connect('autodoc-process-docstring', param_formatter)
+    from pyhdx.panel.paramdoc import param_format_basic
+    app.connect("autodoc-process-docstring", param_format_basic, priority=-100)
 
 extensions = [
     'sphinx.ext.autodoc',
@@ -54,7 +51,6 @@ extensions = [
     'nbsphinx'
   #  'sphinxcontrib.bibtex'
 ]
-
 numpydoc_show_inherited_class_members = False
 
 

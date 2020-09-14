@@ -14,7 +14,13 @@ import copy
 
 
 class NaNMeanSquaredError(Loss):
-    """MSE which ignores nan entries"""
+    """MSE which ignores nan entries
+
+    Parameters
+    ----------
+    y_true:
+
+    """
     def call(self, y_true, y_pred):
         y_pred = tf.convert_to_tensor(y_pred)
         y_true = math_ops.cast(y_true, y_pred.dtype)
