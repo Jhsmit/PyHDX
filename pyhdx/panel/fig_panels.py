@@ -69,7 +69,6 @@ class ThdLogFigure(BokehFigurePanel):
         return fig
 
     def render_sources(self, src_dict):
-        #todo perhaps refactor to single source
         for name, source in src_dict.items():
             func_name = DEFAULT_RENDERERS[name]
             glyph_func = getattr(self.figure, func_name)
@@ -114,7 +113,6 @@ class FitResultFigure(BokehFigurePanel):
     x_label = 'Time'
 
     def __init__(self, parent, *args, **params):
-        #todo refactor controllers to dict (Or better yet get them yourself from parent)
         super(FitResultFigure, self).__init__(parent, *args, **params)
         self.control_panels['FitResultControl'].param.watch(self._redraw_event, ['x_axis_type'])
 
@@ -127,7 +125,7 @@ class FitResultFigure(BokehFigurePanel):
 
     def render_sources(self, src_dict):
         for name, source in src_dict.items():
-            func_name = 'line' if 'fr' in name else 'circle'  #todo default renderers
+            func_name = 'line' if 'fr' in name else 'circle'  #todo default renderers (data object)
             glyph_func = getattr(self.figure, func_name)
             color = DEFAULT_COLORS[name]
             renderer = glyph_func(x='time', y='uptake', color=color, legend_label=name, source=source)
@@ -137,7 +135,7 @@ class FitResultFigure(BokehFigurePanel):
             self.figure.legend.location = "bottom_right"
 
 
-class ProteinFigure(FigurePanel):  #todo maybe it shouldnt be a figurepanel (it shoulnntr)
+class ProteinFigure(FigurePanel):
     title = 'Protein View'
     accepted_sources = ['pfact']
 
