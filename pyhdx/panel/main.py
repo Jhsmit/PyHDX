@@ -29,7 +29,7 @@ figure_panels = [
     'PFactFigure',
     'FitResultFigure',
     'ProteinFigure',
-    'LogFigure'
+    'LoggingFigure'
 ]
 
 elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
@@ -46,7 +46,7 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
                              elvis.view(ctrl.figure_panels['RateFigure']),
                              elvis.view(ctrl.figure_panels['PFactFigure']),
                              elvis.view(ctrl.figure_panels['FitResultFigure']),
-                             elvis.view(ctrl.figure_panels['LogFigure']),
+                             elvis.view(ctrl.figure_panels['LoggingFigure']),
                          )
                      )
                     )

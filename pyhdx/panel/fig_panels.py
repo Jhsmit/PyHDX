@@ -183,11 +183,11 @@ class ProteinFigure(FigurePanel):
         return self.ngl_view
 
 
-class LogFigure(FigurePanel):
-    title = 'Log'
+class LoggingFigure(FigurePanel):
+    title = 'Logging'
 
     def __init__(self, *args, **params):
-        super(LogFigure, self).__init__(*args, **params)
+        super(LoggingFigure, self).__init__(*args, **params)
         self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both')
         #todo config log level in options
 
