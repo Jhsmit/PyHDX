@@ -106,6 +106,54 @@ class PFactFigure(ThdLogFigure):
     y_label = 'Protection factor'
 
 
+class TempFigure(BokehFigurePanel):
+    title = 'Temp123'
+    accepted_tags = [('comparison', 'mapping')]
+    x_label = 'Residue number'
+
+    def __init__(self, parent, *args, **params):
+        super(TempFigure, self).__init__(parent, *args, **params)
+
+        self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+
+    def draw_figure(self):
+        fig = figure(y_axis_type='linear', tools='pan,wheel_zoom,box_zoom,save,reset')
+        fig.min_border_left = MIN_BORDER_LEFT
+        fig.xaxis.axis_label = 'Residue number'
+        fig.yaxis.axis_label = self.y_label
+
+        for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):  # todo refactor controller access
+            sp = Span(location=0, dimension='width')
+            sp.tags = ['thd']
+            sp.visible = False
+            fig.add_layout(sp)
+
+        return fig
+
+    def render_sources(self, src_dict):
+        for name, data_source in src_dict.items():
+            glyph_func = getattr(self.figure, data_source.renderer)
+            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, name=name, legend_label=name)
+            self.renderers[name] = renderer
+            hovertool = HoverTool(renderers=[renderer],
+                                  tooltips=[('Residue', '@r_number{int}'), ('y', f'@{data_source.render_kwargs["y"]}')],
+                                  mode='vline')
+            self.figure.add_tools(hovertool)
+
+        if self.renderers:
+            self.figure.legend.click_policy = 'hide'
+
+    def _draw_thds(self, *events):
+        spans = self.figure.select(tags='thd')
+        spans.sort(key=lambda x: x.id)
+        for i, span in enumerate(spans):
+            if i < len(self.control_panels['ClassificationControl'].values):
+                span.location = self.control_panels['ClassificationControl'].values[i]
+                span.visible = self.control_panels['ClassificationControl'].show_thds
+            else:
+                span.visible = False
+
+
 class FitResultFigure(BokehFigurePanel):
     title = 'Fit Result'
     accepted_sources = ['fr_pfact', 'uptake_corrected']
@@ -117,7 +165,7 @@ class FitResultFigure(BokehFigurePanel):
         self.control_panels['FitResultControl'].param.watch(self._redraw_event, ['x_axis_type'])
 
     def _redraw_event(self, *events):
-        self.redraw(x_axis_type=self.control_panels[0].x_axis_type.lower())
+        self.redraw(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
 
     def draw_figure(self, **kwargs):
         fig = super().draw_figure(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
@@ -137,7 +185,7 @@ class FitResultFigure(BokehFigurePanel):
 
 class ProteinFigure(FigurePanel):
     title = 'Protein View'
-    accepted_sources = ['pfact']
+    accepted_tags = ['mapping']
 
     js_files = {'ngl': "https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.37/dist/ngl.js"}
 
@@ -153,8 +201,8 @@ class ProteinFigure(FigurePanel):
         self._update_colors(new['r_number'], new['color'])
 
     def render_sources(self, src_dict):
-        for name, source in src_dict.items():
-            self._update_colors(source.data['r_number'], source.data['color'])
+        for name, data_source in src_dict.items():
+            self._update_colors(data_source.source.data['r_number'], data_source.source.data['color'])
 
     @property
     def no_coverage(self):

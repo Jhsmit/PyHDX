@@ -21,7 +21,7 @@ control_panels = [
 ]
 
 if DEBUG:
-    control_panels.append('DeveloperPanel')
+    control_panels.append('DeveloperControl')
 
 figure_panels = [
     'CoverageFigure',

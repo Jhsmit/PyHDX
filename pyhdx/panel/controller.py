@@ -1,15 +1,17 @@
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from .fig_panels import FigurePanel
 from pyhdx.models import PeptideMasterTable, KineticsSeries
+from pyhdx.panel.data_sources import DataSource
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import fmt_export, \
-    autowrap, colors_to_pymol, rgb_to_hex, gen_subclasses
+    autowrap, colors_to_pymol, rgb_to_hex, gen_subclasses, np_from_txt
 from pyhdx import VERSION_STRING
 from scipy import constants
 import param
 import panel as pn
 import numpy as np
+from pathlib import Path
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays
 from io import StringIO
@@ -58,7 +60,7 @@ class MainController(param.Parameterized):
         Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
 
     """
-    sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting')
+    sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting', precedence=-1)
 
     def __init__(self, control_panels, figure_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
@@ -72,10 +74,7 @@ class MainController(param.Parameterized):
         available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
         self.figure_panels = {name: available_figures[name](self) for name in figure_panels}
 
-        #setup options  #todo automate figure out cross dependencies (via parent?)
-        self.control_panels['OptionsControl'].link_xrange = True
-
-    def publish_data(self, name, dic):
+    def publish_data(self, name, data_source_obj):
         """
         Publish dataset to be available for client figure to plot
 
@@ -83,15 +82,15 @@ class MainController(param.Parameterized):
         ----------
         name: :obj:`str`
             Name of the dataset
-        dic: :obj:`dict`
-            Data dictionary, where every key, value pair corresponds to a data column to plot
+        data_source_obj: :class:`~pyhdx.panel.data_sources.DataSource`
+            Data source object
         """
-        source = ColumnDataSource(dic)
+
         try:  # update existing source
             src = self.sources[name]
-            src.data.update(**source.data)
+            src.data.update(**data_source_obj.data)
         except KeyError:
-            self.sources[name] = source
+            self.sources[name] = data_source_obj
 
         self.param.trigger('sources')
 
@@ -105,12 +104,168 @@ class PyHDXController(MainController):
     peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
     series = param.ClassSelector(KineticsSeries, doc='KineticsSeries object with current selected and corrected peptides')
 
+    def __init__(self, *args, **kwargs):
+        super(PyHDXController, self).__init__(*args, **kwargs)
+        #setup options  #todo automate figure out cross dependencies (via parent?)
+        self.control_panels['OptionsControl'].link_xrange = True
 
-class
+
+class ComparisonController(MainController):
+    """
+    Main controller for binary comparison web application
+    """
+
+    datasets = param.Dict(default={}, doc='Dictionary for all datasets')  #todo refactor
+    comparisons = param.Dict(default={}, doc='Dictionary for all comparisons (should be in sources)')
+
+
+class MappingFileInputControl(ControlPanel):
+    header = 'File Input'
+
+    input_file = param.Parameter(default=None, doc='Input file to add to available datasets')
+    dataset_name = param.String(doc='Name for the dataset to add. Defaults to filename')
+    add_dataset = param.Action(lambda self: self._action_add_dataset(),
+                               doc='Add the dataset to available datasets')
+    datasets_list = param.ListSelector(doc='Current datasets', label='Datasets')
+    remove_dataset = param.Action(lambda self: self._action_remove_dataset(),
+                                  doc='Remove selected datasets')
+
+    def __init__(self, parent, **params):
+        super(MappingFileInputControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._datasets_updated, ['datasets'])
+
+    def make_dict(self):
+        return self.generate_widgets(input_file=pn.widgets.FileInput)
+
+    @param.depends('input_file', watch=True)
+    def _input_file_updated(self):
+        self.dataset_name = self.dataset_name or Path(self._widget_dict['input_file'].filename).stem
+
+    def _action_add_dataset(self):
+        print('action add')
+        if self.dataset_name in self.parent.datasets.keys():
+            self.parent.logger.info(f'Dataset {self.dataset_name} already added')
+        elif not self.input_file:
+            self.parent.logger.info('Empty or no file selected')
+        else:
+            try:
+                sio = StringIO(self.input_file.decode())
+                array = np_from_txt(sio)
+                self.parent.datasets[self.dataset_name] = array
+                self.parent.param.trigger('datasets')
+            except UnicodeDecodeError:
+                self.parent.logger.info('Invalid file type, supplied file is not a text file')
+
+        self._widget_dict['input_file'].filename = ''
+        self._widget_dict['input_file'].value = b''
+
+        self.dataset_name = ''
+
+    def _action_remove_dataset(self):
+        for dataset_name in self.datasets_list:
+            print(dataset_name)
+            self.parent.datasets.pop(dataset_name)
+        self.parent.param.trigger('datasets')
+
+    def _datasets_updated(self, events):
+        self.param['datasets_list'].objects = list(self.parent.datasets.keys())
+
+
+class DifferenceControl(ControlPanel):
+    header = 'Differences'
+
+    dataset_1 = param.Selector(doc='ds1')
+    dataset_2 = param.Selector(doc='dds2')
+
+    comparison_name = param.String()
+    operation = param.Selector(default='Subtract', objects=['Subtract', 'Divide'])
+
+    comparison_quantity = param.Selector(doc="Select a quantity to compare (column from input txt file)")
+    add_comparison = param.Action(lambda self: self._action_add_comparison(),
+                                  doc='Click to add this comparison to available comparisons')
+    comparison_list = param.ListSelector(doc='Lists available comparisons')
+    remove_comparison = param.Action(lambda self: self._action_remove_comparison())
+
+    def __init__(self, parent, **params):
+        super(DifferenceControl, self).__init__(parent, **params)
+
+        self.parent.param.watch(self._datasets_updated, ['datasets'])
+
+    def _datasets_updated(self, events):
+        objects = list(self.parent.datasets.keys())
+
+        self.param['dataset_1'].objects = objects
+        if not self.dataset_1:
+            self.dataset_1 = objects[0]
+        self.param['dataset_2'].objects = objects
+        if not self.dataset_2:# or self.dataset_2 == objects[0]:  # dataset2 default to second dataset? toggle user modify?
+            self.dataset_2 = objects[0]
+
+        print('datasets updated', self.dataset_1, self.dataset_2)
+
+    @param.depends('dataset_1', 'dataset_2', watch=True)
+    def _selection_updated(self):
+        print('in _selection updated')
+        print(self.dataset_1, self.dataset_2)
+        if self.dataset_1 and self.dataset_2:
+            datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2]) # property?
+            unique_names = set.intersection(*[{name for name in array.dtype.names} for array in datasets])
+
+            objects = [name for name in unique_names if name != 'r_number']
+            self.param['comparison_quantity'].objects = objects
+            if self.comparison_quantity is None:
+                self.comparison_quantity = objects[0]
+
+
+            print(unique_names)
+
+    def _action_add_comparison(self):
+        if not self.comparison_name:
+            self.parent.logger.info('The added comparison needs to have a name')
+            return
+        if not (self.dataset_1 and self.dataset_2):
+            return
+
+        datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2])
+        r_all = np.concatenate([array['r_number'] for array in datasets])
+        r_full = np.arange(r_all.min(), r_all.max() + 1)
+
+        # Create output array and assign values
+        output = np.full_like(r_full, fill_value=np.nan,
+                              dtype=[('r_number', int), ('value1', float), ('value2', float), ('comparison', float)])
+        output['r_number'] = r_full
+        output['value1'][output['r_number'] == datasets[0]['r_number']] = datasets[0][self.comparison_quantity]
+        output['value2'][output['r_number'] == datasets[1]['r_number']] = datasets[1][self.comparison_quantity]
+
+        if self.operation == 'Subtract':
+            output['comparison'] = output['value1'] - output['value2']
+        elif self.operation == 'Divide':
+            output['comparison'] = output['value1'] / output['value2']
+
+        data_source = DataSource(output, tags=['comparison', 'mapping'], x='r_number', y='comparison',
+                                 renderer='circle', size=10)
+        self.parent.publish_data(self.comparison_name, data_source)  # Triggers parent.sources param
+        self.comparison_name = ''
+
+    def _action_remove_comparison(self):
+        for comparison in self.comparison_list:
+            self.parent.sources.pop(comparison)   #Popping from dicts does not trigger param
+        self.parent.param.trigger('sources')
+
+    @param.depends('parent.sources', watch=True)
+    def _update_comparison_list(self):
+        objects = [name for name, d in self.parent.sources.items() if 'comparison' in d.tags]
+        self.param['comparison_list'].objects = objects
+
+
+    def _action_remove_comparison(self):
+        for comparison_name in self.comparison_list:
+            self.parent.comparisons.pop(comparison_name)
+        self.parent.param.trigger('comparisons')
 
 
 class PeptideFileInputControl(ControlPanel):
-    header = 'Input'
+    header = 'Peptide Input'
 
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
@@ -598,12 +753,13 @@ class FitResultControl(ControlPanel):
 
 class ClassificationControl(ControlPanel):
     header = 'Classification'
-    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects)
+    # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
+    accepted_tags = ['mapping']  #todo add 'comparison' for compare app
 
     target = param.Selector(label='Target')
 
     mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'],
-                          doc='Choose color mode (interpolation between selected colors.')#, 'ColorMap'])
+                          doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
     num_colors = param.Number(3, bounds=(1, 10),
                               doc='Number of classification colors.')
     #cmap = param.Selector(objects=PRESET_CMAPS)
@@ -611,7 +767,7 @@ class ClassificationControl(ControlPanel):
                             doc="Automatically perform thresholding based on Otsu's method.")
     linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
                               doc='Automatically perform thresholding by creating equally spaced sections.')
-    log_space = param.Boolean(True, constant=True,
+    log_space = param.Boolean(True,
                               doc='Boolean to set whether to apply colors in log space or not.')
 
     show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
@@ -637,13 +793,12 @@ class ClassificationControl(ControlPanel):
         return self.generate_widgets(num_colors=pn.widgets.Spinner, mode=pn.widgets.RadioButtonGroup)
 
     def _parent_sources_updated(self, *events):
-        excluded = ['coverage']
-        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
-        self.param['target'].objects = list(objects)
+        data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
+        self.param['target'].objects = list(data_sources)
 
-        #set target if its not set already
-        if not self.target and objects:
-            self.target = objects[-1]
+        # Set target if its not set already
+        if not self.target and data_sources:
+            self.target = data_sources[-1]
 
         if self.values:
             self._get_colors()
@@ -652,31 +807,35 @@ class ClassificationControl(ControlPanel):
     def target_array(self):
         """returns the array to calculate colors from"""
 
-        y_vals = self.parent.sources[self.target].data['y']
+        y_vals = self.parent.sources[self.target].y
         return y_vals[~np.isnan(y_vals)]
 
     def _action_otsu(self):
         if self.num_colors > 1 and self.target:
             #y_vals = self.parent.sources[self.target].data['y']
             #thd_vals = y_vals[~np.isnan(y_vals)]
-            func = np.log if self.log_space else lambda x: x
+            func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
             thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
             for thd, widget in zip(thds, self.values_widgets):
-                widget.value = np.exp(thd)
+                widget.value = np.exp(thd) if self.log_space else thd
         self._get_colors()
 
     def _action_linear(self):
         if self.log_space:
             thds = np.logspace(np.log(np.min(self.target_array)), np.log(np.max(self.target_array)), num=self.num_colors, endpoint=True, base=np.e)
-            for thd, widget in zip(thds, self.values_widgets):
-                widget.value = thd
+        else:
+            thds = np.linspace(np.min(self.target_array), np.max(self.target_array), num=self.num_colors, endpoint=True)
+        for thd, widget in zip(thds, self.values_widgets):
+            widget.value = thd
 
     @param.depends('mode', watch=True)
     def _mode_updated(self):
         if self.mode == 'Discrete':
-            self.otsu_thd.constant = False
+            self.box_insert_after('num_colors', 'otsu_thd')
+            #self.otsu_thd.constant = False
         elif self.mode == 'Continuous':
-            self.otsu_thd.constant = True
+            self.box_pop('otsu_thd')
+#            self.otsu_thd.constant = True
         elif self.mode == 'ColorMap':
             self.num_colors = 2
             #todo adjust add/ remove color widgets methods
@@ -692,7 +851,7 @@ class ClassificationControl(ControlPanel):
         elif np.any(np.diff(self.values)) < 0:
             return
 
-        y_vals = self.parent.sources[self.target].data['y'] # full array with nan entries
+        y_vals = self.parent.sources[self.target].y # full array including nan entries
 
         if self.num_colors == 1:
             colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
@@ -713,7 +872,7 @@ class ClassificationControl(ControlPanel):
             colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
             colors[np.isnan(y_vals)] = np.nan
 
-        self.parent.sources[self.target].data['color'] = colors  # this triggers an update of the graph
+        self.parent.sources[self.target].source.data['color'] = colors  # this triggers an update of the graph
 
     @param.depends('num_colors', watch=True)
     def _update_num_colors(self):
@@ -803,7 +962,10 @@ class FileExportControl(ControlPanel):
         super(FileExportControl, self).__init__(parent, **param)
 
         self.parent.param.watch(self._sources_updated, ['sources'])
-        self.parent.param.watch(self._series_updated, ['series'])
+        try:  # todo write function that does the try/excepting + warnings (or also mixins?)
+            self.parent.param.watch(self._series_updated, ['series'])
+        except ValueError:
+            pass
 
     def make_list(self):
         self._widget_dict.update(export_linear_download=self.export_linear_download, pml_script_download=self.pml_script_download)
@@ -833,6 +995,7 @@ class FileExportControl(ControlPanel):
 
     @pn.depends('target', watch=True)
     def _update_filename(self):
+        #todo subclass and split
         self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
         if 'r_number' in self.export_dict.keys():
             self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
@@ -876,13 +1039,13 @@ class FileExportControl(ControlPanel):
 
 class ProteinViewControl(ControlPanel):
     header = 'Protein Viewer'
-    accepted_sources = ['pfact']  #todo add fit1, half-life etc (or add new data objects) (refactor to dataset/object)
+    accepted_tags = ['mapping']
 
     target_dataset = param.Selector(doc='Name of the dataset to apply coloring from')
     input_option = param.Selector(default='Upload File', objects=['Upload File', 'RCSB PDB'],
                                   doc='Choose wheter to upload .pdb file or directly download from RCSB PDB.')
     rcsb_id = param.String(doc='RCSB PDB identifier of protein entry to download and visualize.')
-    load_structure = param.Action(lambda self: self._load_structure())
+    #load_structure = param.Action(lambda self: self._load_structure())
     no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage.')
     representation = param.Selector(default='cartoon',
                                     objects=['backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
@@ -904,8 +1067,9 @@ class ProteinViewControl(ControlPanel):
         return lst
 
     def _parent_sources_updated(self, *events):
-        objects = [key for key in self.parent.sources.keys() if key in self.accepted_sources]
-        self.param['target_dataset'].objects = list(objects)
+        #todo  this line repeats, put in base class
+        data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
+        self.param['target_dataset'].objects = data_sources
 
     @param.depends('input_option', watch=True)
     def _update_input_option(self):
@@ -925,6 +1089,7 @@ class OptionsControl(ControlPanel):
 
     """panel for various options and settings"""
 
+    #todo this should be a component (mixin?) for apps who dont have these figures
     link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.')
     log_level = param.Selector(default='DEBUG', objects=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
                                doc='Set the logging level.')
@@ -971,20 +1136,25 @@ class OptionsControl(ControlPanel):
             client.x_range.js_link('end', self.master_figure.x_range, 'end')
 
 
-class DeveloperPanel(ControlPanel):
+class DeveloperControl(ControlPanel):
     header = 'Developer Options'
     test_logging = param.Action(lambda self: self._action_test_logging())
-    test_error = param.Action(lambda self: self._action_error())
+    breakpoint_btn = param.Action(lambda self: self._action_break())
     test_btn = param.Boolean()
 
     def __init__(self, parent, **params):
-        super(DeveloperPanel, self).__init__(parent, **params)
+        super(DeveloperControl, self).__init__(parent, **params)
 
     def _action_test_logging(self):
         self.parent.logger.debug('TEST DEBUG MESSAGE')
         for i in range(20):
             self.parent.logger.info('dit is een test123')
 
-    def _action_error(self):
-        d = {}
-        d['key']
+    def _action_break(self):
+        main_ctrl = self.parent
+        control_panels = main_ctrl.control_panels
+        figure_panels = main_ctrl.figure_panels
+        sources = main_ctrl.sources
+
+
+        print('Time for a break')

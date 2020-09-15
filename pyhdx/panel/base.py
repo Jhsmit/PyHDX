@@ -32,7 +32,7 @@ class PanelBase(param.Parameterized):
 
 class FigurePanel(PanelBase):
     """Base class for figure panels"""
-    accepted_sources = []
+    accepted_tags = []
     js_files = {}
 
     def __init__(self, parent, sources=None, **params):
@@ -50,29 +50,34 @@ class FigurePanel(PanelBase):
         return self.parent.control_panels
 
     def _parent_sources_updated(self, *events):
-        new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
+        accepted_sources = {k: src for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)}
+        new_items = {k: v for k, v in accepted_sources.items() if k not in self.renderers}
         self.add_sources(new_items)
+
+        removed_items = self.renderers.keys() - self.parent.sources.keys()  # Set difference
+        self.remove_sources(removed_items)
 
     def add_sources(self, src_dict):
         """add a columndatasource object to the figure
         """
-        for source in src_dict.values():
-            source.on_change('data', self._data_updated_callback)
+        for data_source in src_dict.values():
+            data_source.source.on_change('data', self._data_updated_callback)
         self.render_sources(src_dict)
 
     def remove_sources(self, names):
         """remove source from renderers dict and figure"""
+        #todo not really sure if this works
         for name in names:
             renderer = self.renderers[name]
             renderer.data_source.remove_on_change('data', self._data_updated_callback)
             self.figure.renderers.remove(renderer)
+            for tool in self.figure.tools:
+                tool.renderers.remove(renderer)
             self.renderers.pop(name)
 
     def render_sources(self, src_dict):
         """override to customize how sources are rendered"""
-        for name, source in src_dict.items():
-            renderer = self.figure.line('x', 'y', source=source)
-            self.renderers[name] = renderer
+        pass
 
     @property
     def sources(self):
@@ -84,7 +89,8 @@ class FigurePanel(PanelBase):
         pass
 
     def update(self):
-        self.bk_pane.param.trigger('object')
+        """called to update the representation"""
+        pass
 
     @property
     def panel(self):
@@ -126,6 +132,13 @@ class BokehFigurePanel(FigurePanel):
     def _data_updated_callback(self, attr, old, new):
         self.bk_pane.param.trigger('object')
 
+    def render_sources(self, src_dict):
+        """override to customize how sources are rendered"""
+        for name, data_source in src_dict.items():
+            glyph_func = getattr(self.figure, data_source.renderer)
+            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source)
+            self.renderers[name] = renderer
+
     def update(self):
         self.bk_pane.param.trigger('object')
 
@@ -143,7 +156,7 @@ class ControlPanel(PanelBase):
         self.parent = parent
         super(ControlPanel, self).__init__(**params)
 
-        self._widget_dict = self.make_dict()
+        self._widget_dict = self.make_dict()  # should maybe not be private
         self._widget_list = self.make_list()  # this list after its made isnt / shouldnt be used?
         self._box = self.make_box()
 
