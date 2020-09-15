@@ -68,11 +68,11 @@ class MainController(param.Parameterized):
         self.doc = pn.state.curdoc
         self.logger = logging.getLogger(str(id(self)))
 
-        available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
-        self.control_panels = {name: available_controllers[name](self) for name in control_panels}
+        #available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
+        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}
 
-        available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
-        self.figure_panels = {name: available_figures[name](self) for name in figure_panels}
+        #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
+        self.figure_panels = {ctrl.name: ctrl(self) for ctrl in figure_panels}
 
     def publish_data(self, name, data_source_obj):
         """
@@ -88,7 +88,7 @@ class MainController(param.Parameterized):
 
         try:  # update existing source
             src = self.sources[name]
-            src.data.update(**data_source_obj.data)
+            src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds?
         except KeyError:
             self.sources[name] = data_source_obj
 
@@ -491,7 +491,7 @@ class CoverageControl(ControlPanel):
         return self.parent.series.cov
 
     @property
-    def colors(self):
+    def color(self):
         """~class:`np.ndarray`: array of color for each peptide based on their uptake score"""
         cmap = mpl.cm.get_cmap(self.color_map)
         c_rgba = cmap(self.peptide_measurement.data['scores'] / 100)
@@ -499,7 +499,7 @@ class CoverageControl(ControlPanel):
 
         return np.array(c)
 
-    def _series_updated(self, event):
+    def _series_updated(self, event):  #todo refactor
         # series must be uniform
         self.wrap = autowrap(self.coverage)
         self.param['index'].bounds = (0, len(event.new) - 1)
@@ -512,11 +512,12 @@ class CoverageControl(ControlPanel):
         y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
         index = [str(i) for i in range(len(self.coverage))]
 
-        plot_dict = dict(x=x, y=y, width=width, color=self.colors, index=index)
+        #plot_dict = dict(x=x, y=y, width=width, color=self.color, index=index)
         prop_dict = {name: self.peptide_measurement.data[name] for name in self.peptide_measurement.data.dtype.names}
-        dic = {**plot_dict, **prop_dict}
+        prop_dict.update(color=self.color, index=index, width=width, x=x, y=y)  # if the names are x and y no need to specify through render_kwargs
+        source = DataSource(prop_dict, tags=['coverage'])
 
-        self.parent.publish_data('coverage', dic)
+        self.parent.publish_data('coverage', source)
 
     @param.depends('wrap', watch=True)
     def _update_wrap(self):
@@ -531,7 +532,7 @@ class CoverageControl(ControlPanel):
         self.exposure_str.value = str(self.peptide_measurement.exposure)  #todo this should be an js_link?
         try:
             tooltip_fields = {field: self.peptide_measurement.data[field] for field in ['scores', 'uptake', 'uptake_corrected']}
-            self.parent.sources['coverage'].data.update(color=self.colors, **tooltip_fields)
+            self.parent.sources['coverage'].source.data.update(color=self.color, **tooltip_fields)
 
         except KeyError:
             pass
@@ -568,7 +569,11 @@ class InitialGuessControl(ControlPanel):
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-        self.parent.publish_data('fit1', dic)
+
+        data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
+                                 renderer='circle', size=10)
+
+        self.parent.publish_data('fit1', data_source)
 
         #trigger plot update
         callback = partial(self.parent.param.trigger, 'sources')
@@ -587,7 +592,12 @@ class InitialGuessControl(ControlPanel):
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
 
-        self.parent.publish_data('fit1', dic)
+        data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
+                                 renderer='circle', size=10)
+
+
+
+        self.parent.publish_data('fit1', data_source)
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
 
         self.param['do_fit1'].constant = False
@@ -603,10 +613,14 @@ class InitialGuessControl(ControlPanel):
             output = kf.weighted_avg_t50()
             fit_result = HalfLifeFitResult(output=output)
             dic = {name: output[name] for name in output.dtype.names}
-            dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
+            #dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
+            #todo colors dont work (because DataSource init)
             dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
 
-            self.parent.publish_data('half-life', dic)
+            data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
+                                     renderer='circle', size=10)
+
+            self.parent.publish_data('half-life', data_source)
             self.parent.fit_results['half-life'] = fit_result
 
             self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
@@ -689,13 +703,17 @@ class FitControl(ControlPanel):
         # #todo this should be moved to TFFitresults object (or shoud it?) -> DataObject class (see base) (does coloring)
         # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
 
-        output_dict['y'] = 10**output_dict[var_name]
+        #todo update when changing to fitting deltaG directly
+        output_dict['pfact'] = 10**output_dict[var_name]
         # if self.fitting_type == 'Protection Factors':
-        deltaG = constants.R * self.temperature * np.log(output_dict['y'])
+        deltaG = constants.R * self.temperature * np.log(output_dict['pfact'])
         output_dict['deltaG'] = deltaG
 
+        data_source = DataSource(output_dict, x='r_number', y='pfact', tags=['mapping', 'pfact'],
+                                 renderer='circle', size=10)
+
         self.parent.fit_results['fr_' + output_name] = result
-        self.parent.publish_data(output_name, output_dict)
+        self.parent.publish_data(output_name, data_source)
 
         self.param['do_fit'].constant = False
         self.parent.param.trigger('fit_results')
@@ -716,6 +734,10 @@ class FitResultControl(ControlPanel):
         super(FitResultControl, self).__init__(parent, **param)
 
         self.d_uptake = {}  ## Dictionary of arrays (N_p, N_t) with results of fit result model calls
+        #todo why does still still exists should it not just be dataobjects??
+        # --> because they need to be calcualted only once and then dataobjects are generated per index
+        # can be improved probably (by putting all data in data source a priory?
+
         self.parent.param.watch(self._series_updated, ['series'])
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
@@ -746,9 +768,18 @@ class FitResultControl(ControlPanel):
     @param.depends('peptide_index', watch=True)
     def _update_sources(self):
         for name, array in self.d_uptake.items():
-            timepoints = self.parent.series.timepoints if name == 'uptake_corrected' else self.fit_timepoints
+            if name == 'uptake_corrected':  ## this is the raw data
+                timepoints = self.parent.series.timepoints
+                renderer = 'circle'
+                color = '#000000'
+            else:
+                timepoints = self.fit_timepoints
+                renderer = 'line'
+                color = '#bd0d1f'  #todo css / default color cycle per Figure Panel?
+
             dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
-            self.parent.publish_data(name, dic)
+            data_source = DataSource(dic, x='time', y='uptake', tags=['uptake_curve'], renderer=renderer, color=color)
+            self.parent.publish_data(name, data_source)
 
 
 class ClassificationControl(ControlPanel):
@@ -868,9 +899,14 @@ class ClassificationControl(ControlPanel):
             norm = plt.Normalize(vals_sorted[0], vals_sorted[-1])#, clip=True) currently there is never anythin clipped?
             nodes = norm(vals_sorted)
             cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
-            colors_rgba = cmap(norm(func(y_vals)))
-            colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
-            colors[np.isnan(y_vals)] = np.nan
+
+            try:
+                colors_rgba = cmap(norm(func(y_vals)))
+                colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
+                colors[np.isnan(y_vals)] = np.nan
+            except ValueError as err:
+                self.parent.logger.warning(err)
+                return
 
         self.parent.sources[self.target].source.data['color'] = colors  # this triggers an update of the graph
 
@@ -982,22 +1018,32 @@ class FileExportControl(ControlPanel):
         self.c_term = int(self.parent.series.cov.end)
 
     def _make_pml(self, target):
-        data_dict = self.parent.sources[target].data
-        array = data_dict['y']
-        bools = ~np.isnan(array)
-        script = colors_to_pymol(data_dict['r_number'][bools], data_dict['color'][bools], c_term=self.c_term)
+        # Removes nan entries (no coverage)  (#todo do this in colors_to_pymol function)
+        bools = ~np.isnan(self.export_data_source.y)
+
+        try:
+            no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
+        except KeyError:
+            no_coverage = '#8c8c8c'
+            self.parent.logger.warning('No coverage color found, using default grey')
+        script = colors_to_pymol(self.export_dict['r_number'][bools], self.export_dict['color'][bools],
+                                 c_term=self.c_term, no_coverage=no_coverage)
 
         return script
 
     @property
     def export_dict(self):
-        return self.parent.sources[self.target].data
+        return self.export_data_source.source.data
+
+    @property
+    def export_data_source(self):
+        return self.parent.sources[self.target]
 
     @pn.depends('target', watch=True)
     def _update_filename(self):
         #todo subclass and split
         self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
-        if 'r_number' in self.export_dict.keys():
+        if 'mapping' in self.export_data_source.tags:
             self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
             # self.pml_script_download.disabled = False
         else:
@@ -1022,7 +1068,7 @@ class FileExportControl(ControlPanel):
         io.write('# ' + VERSION_STRING + ' \n')
 
         if self.target:
-            export_dict = {k: np.array(v) for k, v in self.parent.sources[self.target].data.items() if k != 'y'}  #todo generalize export
+            export_dict = {k: np.array(v) for k, v in self.parent.sources[self.target].source.data.items()}  #todo generalize export
             dtype = [(name, arr.dtype) for name, arr in export_dict.items()]
             export_data = np.empty_like(next(iter(export_dict.values())), dtype=dtype)
             for name, arr in export_dict.items():

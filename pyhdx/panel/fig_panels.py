@@ -17,7 +17,7 @@ import param
 
 class CoverageFigure(BokehFigurePanel):
     title = 'Coverage'
-    accepted_sources = ['coverage']
+    accepted_tags = ['coverage']
 
     def __init__(self, *args, **params):
         super(CoverageFigure, self).__init__(*args, **params)
@@ -38,9 +38,9 @@ class CoverageFigure(BokehFigurePanel):
                     ('Score', '@scores'),
                     ('Uptake', '@uptake (@uptake_corrected / @ex_residues, @maxuptake)')]
 
-        for name, source in src_dict.items():
+        for name, data_source in src_dict.items():
             glyph = Rect(x='x', y='y', width='width', height=1, fill_color='color')
-            renderer = self.figure.add_glyph(source, glyph)
+            renderer = self.figure.add_glyph(data_source.source, glyph)
             self.renderers[name] = renderer
 
             hovertool = HoverTool(renderers=[renderer], tooltips=tooltips)
@@ -49,6 +49,7 @@ class CoverageFigure(BokehFigurePanel):
 
 class ThdLogFigure(BokehFigurePanel):
     """base class for pfact / rates figure panels which both feature y log axis and thresholding"""
+    accepted_tags = ['mapping']
 
     def __init__(self, parent, *args, **params):
         super(ThdLogFigure, self).__init__(parent, *args, **params)
@@ -69,40 +70,44 @@ class ThdLogFigure(BokehFigurePanel):
         return fig
 
     def render_sources(self, src_dict):
-        for name, source in src_dict.items():
-            func_name = DEFAULT_RENDERERS[name]
-            glyph_func = getattr(self.figure, func_name)
-            renderer = glyph_func(x='r_number', y='y', color='color', source=source, legend_label=name,
-                                  size=10, name=name)
+        for name, data_source in src_dict.items():
+            glyph_func = getattr(self.figure, data_source.renderer)
+            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, name=name,
+                                  legend_label=name)  #todo size is being specified at two different places now
+
             self.renderers[name] = renderer
-            hovertool = HoverTool(renderers=[renderer], tooltips=[('Residue', '@r_number{int}'), (self.y_label, '@y')],
+            hovertool = HoverTool(renderers=[renderer],
+                                  tooltips=[('Residue', '@r_number{int}'), (self.y_label, f'@{data_source.render_kwargs["y"]}')],
                                   mode='vline')
+            #todo make aproperty for x and y column names on DataSource
             self.figure.add_tools(hovertool)
 
         if self.renderers:
             self.figure.legend.click_policy = 'hide'
 
     def _draw_thds(self, *events):
-        if self.control_panels['ClassificationControl'].target in self.accepted_sources:
-            spans = self.figure.select(tags='thd')
-            spans.sort(key=lambda x: x.id)
-            for i, span in enumerate(spans):
-                if i < len(self.control_panels['ClassificationControl'].values):
-                    span.location = self.control_panels['ClassificationControl'].values[i]
-                    span.visible = self.control_panels['ClassificationControl'].show_thds
-                else:
-                    span.visible = False
+        #todo duplicate code, subclass
+        spans = self.figure.select(tags='thd')
+        spans.sort(key=lambda x: x.id)
+        for i, span in enumerate(spans):
+            if i < len(self.control_panels['ClassificationControl'].values):
+                span.location = self.control_panels['ClassificationControl'].values[i]
+                span.visible = self.control_panels['ClassificationControl'].show_thds
+            else:
+                span.visible = False
 
 
 class RateFigure(ThdLogFigure):
     title = 'Rates'
-    accepted_sources = ['half-life', 'fit1', 'fit2', 'TF_rate']
+    accepted_tags = [('mapping', 'rate')]
+    #accepted_sources = ['half-life', 'fit1', 'fit2', 'TF_rate']
     y_label = 'Rate (min⁻¹)'
 
 
 class PFactFigure(ThdLogFigure):
     title = 'PFact'
-    accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
+    accepted_tags = [('mapping', 'pfact')]
+    #accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
     y_label = 'Protection factor'
 
 
@@ -156,7 +161,7 @@ class TempFigure(BokehFigurePanel):
 
 class FitResultFigure(BokehFigurePanel):
     title = 'Fit Result'
-    accepted_sources = ['fr_pfact', 'uptake_corrected']
+    accepted_tags = ['uptake_curve']
     y_label = 'Uptake corrected'
     x_label = 'Time'
 
@@ -172,12 +177,11 @@ class FitResultFigure(BokehFigurePanel):
         return fig
 
     def render_sources(self, src_dict):
-        for name, source in src_dict.items():
-            func_name = 'line' if 'fr' in name else 'circle'  #todo default renderers (data object)
-            glyph_func = getattr(self.figure, func_name)
-            color = DEFAULT_COLORS[name]
-            renderer = glyph_func(x='time', y='uptake', color=color, legend_label=name, source=source)
-            self.renderers[name] = renderer
+        super().render_sources(src_dict)
+        # for name, data_source in src_dict.items():
+        #     glyph_func = getattr(self.figure, data_source.renderer)
+        #     renderer = glyph_func(**data_source.render_kwargs, source=data_source.source)
+        #     self.renderers[name] = renderer
 
         if self.renderers:
             self.figure.legend.location = "bottom_right"

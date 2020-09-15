@@ -9,13 +9,17 @@ class DataSource(param.Parameterized):
     tags = param.List(doc='List of tags to specify the type of data in the dataobject.')
     source = param.ClassSelector(ColumnDataSource, doc='ColumnDataSource object which is used for graphical display')
     renderer = param.String(default='line')
-    color = param.Color(default='#0611d4')  # todo get default color from css?
+    default_color = param.Color(default='#0611d4')  # todo get default color from css?
 
     def __init__(self, input_data, **params):
         self.render_kwargs = {k: params.pop(k) for k in list(params.keys()) if k not in self.param}
-        self.render_kwargs['color'] = self.render_kwargs.get('color', 'color')
+        #default_color =
+        #todo currently this override colors in dic
         super(DataSource, self).__init__(**params)
         dic = self.get_dic(input_data)
+        default_color = 'color' if 'color' in dic else self.default_color
+        self.render_kwargs['color'] = self.render_kwargs.get('color', default_color)
+
         self.source = ColumnDataSource(dic)
 
     def get_dic(self, input_data):
@@ -28,28 +32,32 @@ class DataSource(param.Parameterized):
         else:
             raise TypeError("Invalid input data type")
 
+        #todo this does not apply to all data sets?
+        print(list(dic.keys()))
         if 'color' not in dic.keys():
             column = next(iter(dic.values()))
-            color = np.full_like(column, fill_value=self.color, dtype='U7')
+            color = np.full_like(column, fill_value=self.default_color, dtype='<U7')
             dic['color'] = color
         return dic
 
     @property
     def y(self):
         """:class:`~numpy.ndarray`: Array of y values"""
-        try:
-            y_name = self.render_kwargs['y']
-            return self.source.data[y_name]
-        except KeyError:
+        if 'y' in self.render_kwargs:
+            return self.source.data[self.render_kwargs['y']]
+        elif 'y' in self.source.data:
+            return self.source.data['y']
+        else:
             return None
 
     @property
     def x(self):
         """:class:`~numpy.ndarray`: Array of x values"""
-        try:
-            x_name = self.render_kwargs['x']
-            return self.source.data[x_name]
-        except KeyError:
+        if 'x' in self.render_kwargs:
+            return self.source.data[self.render_kwargs['x']]
+        elif 'x' in self.source.data:
+            return self.source.data['x']
+        else:
             return None
 
     def update(self, data_source_obj):

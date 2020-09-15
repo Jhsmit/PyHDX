@@ -1,35 +1,36 @@
 from pyhdx.panel.template import GoldenElvis, ExtendedGoldenTemplate
 from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
-from pyhdx.panel.controller import PyHDXController
+from pyhdx.panel.controller import *
+from pyhdx.panel.fig_panels import *
 from pyhdx.panel.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
 
-DEBUG = False
+DEBUG = True
 
 control_panels = [
-    'PeptideFileInputControl',
-    'CoverageControl',
-    'InitialGuessControl',
-    'FitControl',
-    'FitResultControl',
-    'ClassificationControl',
-    'FileExportControl',
-    'ProteinViewControl',
-    'OptionsControl'
+    PeptideFileInputControl,
+    CoverageControl,
+    InitialGuessControl,
+    FitControl,
+    FitResultControl,
+    ClassificationControl,
+    FileExportControl,
+    ProteinViewControl,
+    OptionsControl
 ]
 
 if DEBUG:
-    control_panels.append('DeveloperControl')
+    control_panels.append(DeveloperControl)
 
 figure_panels = [
-    'CoverageFigure',
-    'RateFigure',
-    'PFactFigure',
-    'FitResultFigure',
-    'ProteinFigure',
-    'LoggingFigure'
+    CoverageFigure,
+    RateFigure,
+    PFactFigure,
+    FitResultFigure,
+    ProteinFigure,
+    LoggingFigure
 ]
 
 elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)

@@ -136,7 +136,7 @@ class BokehFigurePanel(FigurePanel):
         """override to customize how sources are rendered"""
         for name, data_source in src_dict.items():
             glyph_func = getattr(self.figure, data_source.renderer)
-            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source)
+            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, legend_label=name, name=name)
             self.renderers[name] = renderer
 
     def update(self):
@@ -151,6 +151,7 @@ class ControlPanel(PanelBase):
     """base class for left control pannels"""
 
     header = 'Default Header'
+
 
     def __init__(self, parent, **params):
         self.parent = parent
