@@ -1,6 +1,7 @@
 from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from .fig_panels import FigurePanel
 from pyhdx.models import PeptideMasterTable, KineticsSeries
+from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.data_sources import DataSource
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
@@ -809,12 +810,9 @@ class ClassificationControl(ControlPanel):
         super(ClassificationControl, self).__init__(parent, **param)
 
         self.values_widgets = []
-        for _ in range(self.num_colors - 1):
-            self._add_value()
-
         self.colors_widgets = []
-        for _ in range(self.num_colors):
-            self._add_color()
+        self._update_num_colors()
+        self._update_num_values()
 
         self.param.trigger('values')
         self.param.trigger('colors')
@@ -847,17 +845,23 @@ class ClassificationControl(ControlPanel):
             #thd_vals = y_vals[~np.isnan(y_vals)]
             func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
             thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
-            for thd, widget in zip(thds, self.values_widgets):
+            for thd, widget in zip(thds[::-1], self.values_widgets):  # Values from high to low
                 widget.value = np.exp(thd) if self.log_space else thd
         self._get_colors()
 
     def _action_linear(self):
+        i = 1 if self.mode == 'Discrete' else 0
         if self.log_space:
-            thds = np.logspace(np.log(np.min(self.target_array)), np.log(np.max(self.target_array)), num=self.num_colors, endpoint=True, base=np.e)
+            thds = np.logspace(np.log(np.min(self.target_array)), np.log(np.max(self.target_array)),
+                               num=self.num_colors + i, endpoint=True, base=np.e)
         else:
-            thds = np.linspace(np.min(self.target_array), np.max(self.target_array), num=self.num_colors, endpoint=True)
-        for thd, widget in zip(thds, self.values_widgets):
+            thds = np.linspace(np.min(self.target_array), np.max(self.target_array), num=self.num_colors + i, endpoint=True)
+        for thd, widget in zip(thds[i:self.num_colors][::-1], self.values_widgets):
+            # Remove bounds, set values, update bounds
+            widget.start = None
+            widget.end = None
             widget.value = thd
+            self._update_bounds()
 
     @param.depends('mode', watch=True)
     def _mode_updated(self):
@@ -875,11 +879,12 @@ class ClassificationControl(ControlPanel):
 
     @param.depends('values', 'colors', watch=True)
     def _get_colors(self):
-        pass
-
+        # todo or?
         if 0 in self.values:
             return
         elif np.any(np.diff(self.values)) < 0:
+            return
+        elif not self.target:
             return
 
         y_vals = self.parent.sources[self.target].y # full array including nan entries
@@ -888,17 +893,17 @@ class ClassificationControl(ControlPanel):
             colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
             colors[np.isnan(y_vals)] = np.nan
         elif self.mode == 'Discrete':
-            full_thds = [-np.inf] + self.values + [np.inf]
+            full_thds = [-np.inf] + self.values[::-1] + [np.inf]
             colors = np.full(len(y_vals), fill_value=np.nan, dtype='U7')
             for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
                 b = (y_vals > lower) & (y_vals <= upper)
                 colors[b] = color
         elif self.mode == 'Continuous':
             func = np.log if self.log_space else lambda x: x
-            vals_sorted = np.sort(func(self.values))
-            norm = plt.Normalize(vals_sorted[0], vals_sorted[-1])#, clip=True) currently there is never anythin clipped?
-            nodes = norm(vals_sorted)
-            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
+            vals_space = (func(self.values))  # values in log space depending on setting
+            norm = plt.Normalize(vals_space[-1], vals_space[0])#, clip=True) currently there is never anythin clipped?
+            nodes = norm(vals_space[::-1])
+            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors)))
 
             try:
                 colors_rgba = cmap(norm(func(y_vals)))
@@ -928,14 +933,20 @@ class ClassificationControl(ControlPanel):
             elif len(self.values_widgets) < self.num_colors - diff:
                 self._add_value()
 
+        self._update_bounds()
         self.param.trigger('values')
 
     def _add_value(self):
-        default = 0.0
+        try:
+            first_value = self.values_widgets[-1].value
+        except IndexError:
+            first_value = 0
+
+        default = float(first_value - 1)
         self.values.append(default)
 
         name = 'Threshold {}'.format(len(self.values_widgets) + 1)
-        widget = pn.widgets.LiteralInput(name=name, value=default)
+        widget = NumericInput(name=name, value=default)
         self.values_widgets.append(widget)
         i = len(self.values_widgets) + self.box_index('show_thds')
         self._box.insert(i, widget)
@@ -953,7 +964,7 @@ class ClassificationControl(ControlPanel):
         try:
             default = DEFAULT_CLASS_COLORS[len(self.colors_widgets)]
         except IndexError:
-            default = "#"+''.join([np.random.choice('0123456789ABCDEF') for j in range(6)])
+            default = "#"+''.join(np.random.choice(list('0123456789abcdef'), 6))
             #default = '#FFFFFF'  # random color?
 
         self.colors.append(default)
@@ -978,11 +989,30 @@ class ClassificationControl(ControlPanel):
         self.param.trigger('colors')
 
     def _value_event(self, *events):
+        """triggers when a single value gets changed"""
+        self.parent.logger.debug('Single value event')
         for event in events:
             idx = list(self.values_widgets).index(event.obj)
             self.values[idx] = event.new
 
+        self._update_bounds()
         self.param.trigger('values')
+
+    def _update_bounds(self):
+        for i, widget in enumerate(self.values_widgets):
+            if i > 0:
+                prev_value = float(self.values_widgets[i - 1].value)
+                widget.end = np.nextafter(prev_value, prev_value - 1)
+            else:
+                widget.end = None
+
+            if i < len(self.values_widgets) - 1:
+                next_value = float(self.values_widgets[i + 1].value)
+                widget.start = np.nextafter(next_value, next_value + 1)
+            else:
+                widget.start = None
+
+
 
 
 class FileExportControl(ControlPanel):

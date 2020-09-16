@@ -1,32 +1,51 @@
 import param
 from panel.widgets.input import Widget, _BkTextInput, StaticText
 from panel.widgets import Spinner
+from panel.util import as_unicode
 from panel.pane import HTML, Markdown
 import panel as pn
 from dask.distributed import as_completed
 
 
-class NumericInput(Widget):
-    value = param.Number(default=0, allow_None=True, bounds=[None, None])
+class NumericInput(pn.widgets.input.Widget):
+    """
+    NumericInput allows input of floats with bounds
+    """
 
-    placeholder = param.Number(default=None)
+
+    type = param.ClassSelector(default=None, class_=(type, tuple),
+                               is_instance=True)
+
+    value = param.Number(default=None)
 
     start = param.Number(default=None, allow_None=True)
 
     end = param.Number(default=None, allow_None=True)
 
+    _rename = {'name': 'title', 'type': None, 'serializer': None, 'start': None, 'end': None}
+
+    _source_transforms = {'value': """JSON.parse(value.replace(/'/g, '"'))"""}
+
+    _target_transforms = {'value': """JSON.stringify(value).replace(/,/g, ", ").replace(/:/g, ": ")"""}
+
     _widget_type = _BkTextInput
 
-    formatter = param.Parameter(default=None)
-
-    _rename = {'name': 'title', 'formatter': None, 'start': None, 'end': None}
-
     def __init__(self, **params):
-        if params.get('value') is None:
-            value = params.get('start', self.value)
-            if value is not None:
-                params['value'] = value
         super(NumericInput, self).__init__(**params)
+        self._state = ''
+        self._validate(None)
+        self._callbacks.append(self.param.watch(self._validate, 'value'))
+
+    def _validate(self, event):
+        if self.type is None: return
+        new = self.value
+        if not isinstance(new, self.type) and new is not None:
+            if event:
+                self.value = event.old
+            types = repr(self.type) if isinstance(self.type, tuple) else self.type.__name__
+            raise ValueError('LiteralInput expected %s type but value %s '
+                             'is of type %s.' %
+                             (types, new, type(new).__name__))
 
     def _bound_value(self, value):
         if self.start is not None:
@@ -34,29 +53,6 @@ class NumericInput(Widget):
         if self.end is not None:
             value = min(value, self.end)
         return value
-
-    def _format_value(self, value):
-        if self.formatter is not None:
-            value = self.formatter.format(value)
-        else:
-            value = str(value)
-        return value
-
-    def _process_param_change(self, msg):
-        msg.pop('formatter', None)
-
-        if 'start' in msg:
-            start = msg.pop('start')
-            self.param.value.bounds[0] = start
-        if 'end' in msg:
-            end = msg.pop('end')
-            self.param.value.bounds[1] = end
-
-        if 'value' in msg and msg['value'] is not None:
-            msg['value'] = self._format_value(self.value)
-        if 'placeholder' in msg and msg['placeholder'] is not None:
-            msg['placeholder'] = self._format_value(self.placeholder)
-        return msg
 
     def _process_property_change(self, msg):
         if 'value' in msg and msg['value'] is not None:
@@ -72,6 +68,23 @@ class NumericInput(Widget):
                 msg['placeholder'] = self._format_value(float(msg['placeholder']))
             except ValueError:
                 msg.pop('placeholder')
+        return msg
+
+    def _process_param_change(self, msg):
+        msg = super(NumericInput, self)._process_param_change(msg)
+
+        if 'start' in msg:
+            start = msg.pop('start')
+            self.param.value.bounds[0] = start
+        if 'end' in msg:
+            end = msg.pop('end')
+            self.param.value.bounds[1] = end
+
+        if 'value' in msg:
+            value = '' if msg['value'] is None else msg['value']
+            value = as_unicode(value)
+            msg['value'] = value
+        msg['title'] = self.name
         return msg
 
 
