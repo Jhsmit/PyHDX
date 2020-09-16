@@ -237,6 +237,8 @@ def np_from_txt(file_path, delimiter='\t'):
         else:
             break
     file_obj.seek(0)
+
+
     # if isinstance(file_path, StringIO):
     #     header = file_path.readline().strip()
     #     file_path.seek(0)

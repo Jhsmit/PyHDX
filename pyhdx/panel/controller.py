@@ -889,7 +889,7 @@ class ClassificationControl(ControlPanel):
             colors[np.isnan(y_vals)] = np.nan
         elif self.mode == 'Discrete':
             full_thds = [-np.inf] + self.values + [np.inf]
-            colors = np.full(len(y_vals), fill_value = np.nan, dtype='U7')
+            colors = np.full(len(y_vals), fill_value=np.nan, dtype='U7')
             for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
                 b = (y_vals > lower) & (y_vals <= upper)
                 colors[b] = color

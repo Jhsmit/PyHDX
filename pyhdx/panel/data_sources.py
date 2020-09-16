@@ -13,7 +13,6 @@ class DataSource(param.Parameterized):
 
     def __init__(self, input_data, **params):
         self.render_kwargs = {k: params.pop(k) for k in list(params.keys()) if k not in self.param}
-        #default_color =
         #todo currently this override colors in dic
         super(DataSource, self).__init__(**params)
         dic = self.get_dic(input_data)

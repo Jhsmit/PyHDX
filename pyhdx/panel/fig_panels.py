@@ -123,7 +123,7 @@ class TempFigure(BokehFigurePanel):
 
     def draw_figure(self):
         fig = figure(y_axis_type='linear', tools='pan,wheel_zoom,box_zoom,save,reset')
-        fig.min_border_left = MIN_BORDER_LEFT
+        fig.min_border_left = MIN_BORDER_LEFT   #todo not needed for this one
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = self.y_label
 
