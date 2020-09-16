@@ -79,7 +79,6 @@ class ThdLogFigure(BokehFigurePanel):
             hovertool = HoverTool(renderers=[renderer],
                                   tooltips=[('Residue', '@r_number{int}'), (self.y_label, f'@{data_source.render_kwargs["y"]}')],
                                   mode='vline')
-            #todo make aproperty for x and y column names on DataSource
             self.figure.add_tools(hovertool)
 
         if self.renderers:
@@ -111,19 +110,19 @@ class PFactFigure(ThdLogFigure):
     y_label = 'Protection factor'
 
 
-class TempFigure(BokehFigurePanel):
-    title = 'Temp123'
+class ThdLinearFigure(ThdLogFigure):
+    title = 'Binary Comparison'
     accepted_tags = [('comparison', 'mapping')]
     x_label = 'Residue number'
+    y_label = 'Difference'
 
     def __init__(self, parent, *args, **params):
-        super(TempFigure, self).__init__(parent, *args, **params)
-
+        super(ThdLinearFigure, self).__init__(parent, *args, **params)
         self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
 
     def draw_figure(self):
+        #todo generalize
         fig = figure(y_axis_type='linear', tools='pan,wheel_zoom,box_zoom,save,reset')
-        fig.min_border_left = MIN_BORDER_LEFT   #todo not needed for this one
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = self.y_label
 
@@ -134,29 +133,6 @@ class TempFigure(BokehFigurePanel):
             fig.add_layout(sp)
 
         return fig
-
-    def render_sources(self, src_dict):
-        for name, data_source in src_dict.items():
-            glyph_func = getattr(self.figure, data_source.renderer)
-            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, name=name, legend_label=name)
-            self.renderers[name] = renderer
-            hovertool = HoverTool(renderers=[renderer],
-                                  tooltips=[('Residue', '@r_number{int}'), ('y', f'@{data_source.render_kwargs["y"]}')],
-                                  mode='vline')
-            self.figure.add_tools(hovertool)
-
-        if self.renderers:
-            self.figure.legend.click_policy = 'hide'
-
-    def _draw_thds(self, *events):
-        spans = self.figure.select(tags='thd')
-        spans.sort(key=lambda x: x.id)
-        for i, span in enumerate(spans):
-            if i < len(self.control_panels['ClassificationControl'].values):
-                span.location = self.control_panels['ClassificationControl'].values[i]
-                span.visible = self.control_panels['ClassificationControl'].show_thds
-            else:
-                span.visible = False
 
 
 class FitResultFigure(BokehFigurePanel):
@@ -178,10 +154,6 @@ class FitResultFigure(BokehFigurePanel):
 
     def render_sources(self, src_dict):
         super().render_sources(src_dict)
-        # for name, data_source in src_dict.items():
-        #     glyph_func = getattr(self.figure, data_source.renderer)
-        #     renderer = glyph_func(**data_source.render_kwargs, source=data_source.source)
-        #     self.renderers[name] = renderer
 
         if self.renderers:
             self.figure.legend.location = "bottom_right"

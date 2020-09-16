@@ -45,7 +45,7 @@ if DEBUG:
 
 figure_panels = [
     #'LogLinearFigure',
-    TempFigure,
+    ThdLinearFigure,
     ProteinFigure,
     LoggingFigure
 ]
@@ -60,7 +60,7 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
                              elvis.view(ctrl.figure_panels['ProteinFigure'])
                          ),
                          elvis.row(
-                             elvis.view(ctrl.figure_panels['TempFigure']),
+                             elvis.view(ctrl.figure_panels['ThdLinearFigure']),
                              elvis.view(ctrl.figure_panels['LoggingFigure']),
                          )
                      )

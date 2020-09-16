@@ -742,7 +742,6 @@ class FitResultControl(ControlPanel):
         self.parent.param.watch(self._series_updated, ['series'])
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
-    #@depends(parent.series) will this work? (yes) parent should be a classselector param? does that accept subclasses?
     def _series_updated(self, *events):
         self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
         self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
@@ -794,7 +793,6 @@ class ClassificationControl(ControlPanel):
                           doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
     num_colors = param.Number(3, bounds=(1, 10),
                               doc='Number of classification colors.')
-    #cmap = param.Selector(objects=PRESET_CMAPS)
     otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
                             doc="Automatically perform thresholding based on Otsu's method.")
     linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
@@ -841,8 +839,6 @@ class ClassificationControl(ControlPanel):
 
     def _action_otsu(self):
         if self.num_colors > 1 and self.target:
-            #y_vals = self.parent.sources[self.target].data['y']
-            #thd_vals = y_vals[~np.isnan(y_vals)]
             func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
             thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
             for thd, widget in zip(thds[::-1], self.values_widgets):  # Values from high to low
@@ -903,7 +899,7 @@ class ClassificationControl(ControlPanel):
             vals_space = (func(self.values))  # values in log space depending on setting
             norm = plt.Normalize(vals_space[-1], vals_space[0])#, clip=True) currently there is never anythin clipped?
             nodes = norm(vals_space[::-1])
-            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors)))
+            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
 
             try:
                 colors_rgba = cmap(norm(func(y_vals)))
@@ -965,7 +961,6 @@ class ClassificationControl(ControlPanel):
             default = DEFAULT_CLASS_COLORS[len(self.colors_widgets)]
         except IndexError:
             default = "#"+''.join(np.random.choice(list('0123456789abcdef'), 6))
-            #default = '#FFFFFF'  # random color?
 
         self.colors.append(default)
         widget = pn.widgets.ColorPicker(value=default)
@@ -990,7 +985,6 @@ class ClassificationControl(ControlPanel):
 
     def _value_event(self, *events):
         """triggers when a single value gets changed"""
-        self.parent.logger.debug('Single value event')
         for event in events:
             idx = list(self.values_widgets).index(event.obj)
             self.values[idx] = event.new
@@ -1011,8 +1005,6 @@ class ClassificationControl(ControlPanel):
                 widget.start = np.nextafter(next_value, next_value + 1)
             else:
                 widget.start = None
-
-
 
 
 class FileExportControl(ControlPanel):

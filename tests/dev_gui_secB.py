@@ -44,5 +44,5 @@ ctrl = reload_previous(dic, ctrl)
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl)
+    pn.serve(tmpl, show=False)
 
