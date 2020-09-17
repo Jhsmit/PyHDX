@@ -264,10 +264,10 @@ class DifferenceControl(ControlPanel):
         self.param['comparison_list'].objects = objects
 
 
-    def _action_remove_comparison(self):
-        for comparison_name in self.comparison_list:
-            self.parent.comparisons.pop(comparison_name)
-        self.parent.param.trigger('comparisons')
+    # def _action_remove_comparison(self):
+    #     for comparison_name in self.comparison_list:
+    #         self.parent.comparisons.pop(comparison_name)
+    #     self.parent.param.trigger('comparisons')
 
 
 class PeptideFileInputControl(ControlPanel):
