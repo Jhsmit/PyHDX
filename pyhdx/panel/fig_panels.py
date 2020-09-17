@@ -173,6 +173,19 @@ class ProteinFigure(FigurePanel):
         self.parent.control_panels['ProteinViewControl'].param.watch(self._update_event, params)
         self.parent.control_panels['ProteinViewControl'].file_input.param.watch(self._update_pdb_file, 'value')
 
+        self.parent.control_panels['ProteinViewControl'].param.watch(self._parent_sources_updated, 'target_dataset')
+
+    def _parent_sources_updated(self, *events):
+        target = self.parent.control_panels['ProteinViewControl'].target_dataset
+        accepted_sources = {k: src for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)}
+        accepted_sources = {k: src for k, src in accepted_sources.items() if k == target}
+        new_items = {k: v for k, v in accepted_sources.items() if k not in self.renderers}
+        self.add_sources(new_items)
+
+        removed_items = self.renderers.keys() - self.parent.sources.keys()  # Set difference
+        print('pf removed items', removed_items)
+        self.remove_sources(removed_items)
+
     def _data_updated_callback(self, attr, old, new):
         self._update_colors(new['r_number'], new['color'])
 
