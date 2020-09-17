@@ -35,6 +35,7 @@ figure_panels = [
 
 elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
 cluster = '127.0.0.1:52123'
+cluster = None
 ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
 ctrl.logger.addHandler(get_default_handler(sys.stdout))
 tmpl = elvis.compose(ctrl.control_panels.values(),
@@ -54,6 +55,6 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl, show=False)
+    pn.serve(tmpl, show=True)
 
 

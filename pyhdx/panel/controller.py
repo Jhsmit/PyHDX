@@ -575,19 +575,22 @@ class InitialGuessControl(ControlPanel):
         data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
                                  renderer='circle', size=10)
 
-        self.parent.publish_data('fit1', data_source)
+        # callback = partial(self.parent.param.trigger, 'sources')
+        # self.parent.doc.add_next_tick_callback(callback)
 
         #trigger plot update
-        callback = partial(self.parent.param.trigger, 'sources')
+        callback = partial(self.parent.publish_data, 'fit1', data_source)
         self.parent.doc.add_next_tick_callback(callback)
 
         with pn.io.unlocked():
+             #self.parent.publish_data('fit1', data_source)
              self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
              self.pbar1.reset()
              self.param['do_fit1'].constant = False
 
     def _fit1(self):
-        fit_result = self.parent.fitting.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1, chisq_thd=self.chisq_thd)
+        kf = KineticsFitting(self.parent.series)
+        fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
         self.parent.fit_results['fit1'] = fit_result
         output = fit_result.output
         dic = {name: output[name] for name in output.dtype.names}
@@ -596,8 +599,6 @@ class InitialGuessControl(ControlPanel):
 
         data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
                                  renderer='circle', size=10)
-
-
 
         self.parent.publish_data('fit1', data_source)
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses

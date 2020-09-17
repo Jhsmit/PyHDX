@@ -12,6 +12,7 @@ DEBUG = False
 
 class DifferenceFileExportControl(FileExportControl):
     accepted_tags = ['mapping']
+    #todo include comparison info (x vs y) in output
 
     def _sources_updated(self, *events):  #refactor _parent_sources_updated on classificationcontrol
         data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
@@ -26,6 +27,17 @@ class DifferenceFileExportControl(FileExportControl):
         self.export_linear_download.filename = self.target + '_linear.txt'
         if 'r_number' in self.export_dict.keys():
             self.pml_script_download.filename = self.target + '_pymol.pml'
+
+        r_max = int(np.nanmax(self.export_dict['r_number'])) + 5
+        if self.c_term < r_max:
+            self.c_term = r_max
+
+
+# class DifferenceClassificationControl(ClassificationControl):
+#     name = 'ClassificationControl'
+#     __name__ = 'ClassificationControl'
+#     # log_space = param.Boolean(False, precedence=-1,
+#     #                           doc='Boolean to set whether to apply colors in log space or not.')
 
 
 
@@ -67,7 +79,11 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
                     )
 
 
+ctrl.control_panels['ClassificationControl'].log_space = False
+ctrl.control_panels['ClassificationControl'].param['log_space'].constant = True
+
+
 if __name__ == '__main__':
-    pn.serve(tmpl)
+    pn.serve(tmpl, show=True)
 
 
