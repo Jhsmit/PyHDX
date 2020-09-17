@@ -70,9 +70,6 @@ class FigurePanel(PanelBase):
         for name in names:
             renderer = self.renderers[name]
             renderer.data_source.remove_on_change('data', self._data_updated_callback)
-            self.figure.renderers.remove(renderer)
-            for tool in self.figure.tools:
-                tool.renderers.remove(renderer)
             self.renderers.pop(name)
 
     def render_sources(self, src_dict):
@@ -138,6 +135,17 @@ class BokehFigurePanel(FigurePanel):
             glyph_func = getattr(self.figure, data_source.renderer)
             renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, legend_label=name, name=name)
             self.renderers[name] = renderer
+
+    def remove_sources(self, names):
+        """remove source from renderers dict and figure"""
+        #todo not really sure if this works
+        for name in names:
+            renderer = self.renderers[name]
+            renderer.data_source.remove_on_change('data', self._data_updated_callback)
+            self.figure.renderers.remove(renderer)
+            for tool in self.figure.tools:
+                tool.renderers.remove(renderer)
+            self.renderers.pop(name)
 
     def update(self):
         self.bk_pane.param.trigger('object')
