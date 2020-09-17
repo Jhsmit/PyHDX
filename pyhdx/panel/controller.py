@@ -562,7 +562,8 @@ class InitialGuessControl(ControlPanel):
 
     async def _fit1_async(self):
         """Do fitting asynchronously on (remote) cluster"""
-        fit_result = await self.parent.fitting.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
+        kf = KineticsFitting(self.parent.series, cluster=self.parent.cluster)
+        fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
         self.parent.fit_results['fit1'] = fit_result
 
         output = fit_result.output
