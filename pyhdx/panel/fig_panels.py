@@ -80,7 +80,8 @@ class ThdFigure(LinearLogFigure):
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = self.y_label
 
-        for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):  # todo refactor controller access
+        # todo refactor controller access
+        for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):
             sp = Span(location=0, dimension='width')
             sp.tags = ['thd']
             sp.visible = False
@@ -128,7 +129,6 @@ class RateFigure(ThdFigure):
 class PFactFigure(ThdFigure):
     title = 'PFact'
     accepted_tags = [('mapping', 'pfact')]
-    #accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
     y_label = 'Protection factor'
 
     def setup_hooks(self):

@@ -241,7 +241,6 @@ class DifferenceControl(ControlPanel):
 
         idx = np.searchsorted(output['r_number'], datasets[1]['r_number'])
         output['value2'][idx] = datasets[1][self.comparison_quantity]
-        
 
         if self.operation == 'Subtract':
             output['comparison'] = output['value1'] - output['value2']
