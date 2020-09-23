@@ -150,7 +150,6 @@ class ControlPanel(PanelBase):
 
     header = 'Default Header'
 
-
     def __init__(self, parent, **params):
         self.parent = parent
         super(ControlPanel, self).__init__(**params)
