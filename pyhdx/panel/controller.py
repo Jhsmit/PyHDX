@@ -176,7 +176,7 @@ class DifferenceControl(ControlPanel):
     header = 'Differences'
 
     dataset_1 = param.Selector(doc='ds1')
-    dataset_2 = param.Selector(doc='dds2')
+    dataset_2 = param.Selector(doc='ds2')
 
     comparison_name = param.String()
     operation = param.Selector(default='Subtract', objects=['Subtract', 'Divide'])
@@ -189,7 +189,6 @@ class DifferenceControl(ControlPanel):
 
     def __init__(self, parent, **params):
         super(DifferenceControl, self).__init__(parent, **params)
-
         self.parent.param.watch(self._datasets_updated, ['datasets'])
 
     def _datasets_updated(self, events):
@@ -202,12 +201,8 @@ class DifferenceControl(ControlPanel):
         if not self.dataset_2:# or self.dataset_2 == objects[0]:  # dataset2 default to second dataset? toggle user modify?
             self.dataset_2 = objects[0]
 
-        print('datasets updated', self.dataset_1, self.dataset_2)
-
     @param.depends('dataset_1', 'dataset_2', watch=True)
     def _selection_updated(self):
-        print('in _selection updated')
-        print(self.dataset_1, self.dataset_2)
         if self.dataset_1 and self.dataset_2:
             datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2]) # property?
             unique_names = set.intersection(*[{name for name in array.dtype.names} for array in datasets])
@@ -216,9 +211,6 @@ class DifferenceControl(ControlPanel):
             self.param['comparison_quantity'].objects = objects
             if self.comparison_quantity is None:
                 self.comparison_quantity = objects[0]
-
-
-            print(unique_names)
 
     def _action_add_comparison(self):
         if not self.comparison_name:
