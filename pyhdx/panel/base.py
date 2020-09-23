@@ -1,17 +1,7 @@
 import param
 import panel as pn
 from bokeh.plotting import figure
-
-
-#todo reformat this to one dict of availble datasets with
-# {'half-life':
-#      {'color': sadf,
-#       'renderer': asdfasdf
-#       'export'=True,
-#       'description'=}}
-# OR make it a param.Parameterized class? This will make autodoc easier
-# and we can add methods which will make wildcard names easier
-
+from functools import partial
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -32,7 +22,7 @@ class PanelBase(param.Parameterized):
 
 class FigurePanel(PanelBase):
     """Base class for figure panels"""
-    accepted_sources = []
+    accepted_tags = []
     js_files = {}
 
     def __init__(self, parent, sources=None, **params):
@@ -41,42 +31,54 @@ class FigurePanel(PanelBase):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
         sources = sources if sources is not None else {}
-        self.renderers = {}
-
+        self.renderers = {}  # dict of renderers
+        self.data_sources = {}  # dict with DataSource objects
         self.add_sources(sources)
+
+        self.setup_hooks()
+
+    def setup_hooks(self):
+        """override to add watchers to controllers"""
+        pass
 
     @property
     def control_panels(self):
         return self.parent.control_panels
 
     def _parent_sources_updated(self, *events):
-        new_items = {k: v for k, v in self.parent.sources.items() if k in self.accepted_sources and k not in self.renderers}
+        accepted_sources = {k: src for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)}
+        new_items = {k: v for k, v in accepted_sources.items() if k not in self.renderers}
         self.add_sources(new_items)
 
+        removed_items = self.renderers.keys() - self.parent.sources.keys()  # Set difference
+        self.remove_sources(removed_items)
+
     def add_sources(self, src_dict):
-        """add a columndatasource object to the figure
+        """add a DataSource object to the figure
         """
-        for source in src_dict.values():
-            source.on_change('data', self._data_updated_callback)
+        #todo check for already in self.data_sources
+        for name, data_source in src_dict.items():
+            data_source.source.on_change('data', self._data_updated_callback)
+            self.data_sources[name] = data_source
+
         self.render_sources(src_dict)
 
     def remove_sources(self, names):
         """remove source from renderers dict and figure"""
+        #todo not really sure if this works
         for name in names:
             renderer = self.renderers[name]
             renderer.data_source.remove_on_change('data', self._data_updated_callback)
-            self.figure.renderers.remove(renderer)
             self.renderers.pop(name)
 
     def render_sources(self, src_dict):
         """override to customize how sources are rendered"""
-        for name, source in src_dict.items():
-            renderer = self.figure.line('x', 'y', source=source)
-            self.renderers[name] = renderer
+        pass
 
     @property
     def sources(self):
         """returns a dict of the current sources"""
+        raise DeprecationWarning('sources dict will be removed as its only columndatasources not full object')
         return {name: renderer.data_source for name, renderer in self.renderers.items()}
 
     def _data_updated_callback(self, attr, old, new):
@@ -84,7 +86,8 @@ class FigurePanel(PanelBase):
         pass
 
     def update(self):
-        self.bk_pane.param.trigger('object')
+        """called to update the representation"""
+        pass
 
     @property
     def panel(self):
@@ -115,19 +118,43 @@ class BokehFigurePanel(FigurePanel):
     def redraw(self, **kwargs):
         """calls draw_figure to make a new figure and then redraws all renderers"""
 
-        src_dict = self.sources
-        self.figure = self.draw_figure(**kwargs)  # todo does the old figure linger on?
+        src_dict = self.data_sources
 
-        self.renderers = {}
-        self.render_sources(src_dict)
-
+        self.remove_sources(src_dict.keys())
+        assert not self.renderers  # todo remove assert
+        #self.renderers = {}
+        self.figure = self.draw_figure(**kwargs)
+        self.add_sources(src_dict)
+        # todo does the old figure linger on?
         self.bk_pane.object = self.figure
 
     def _data_updated_callback(self, attr, old, new):
         self.bk_pane.param.trigger('object')
 
+    def render_sources(self, src_dict):
+        """override to customize how sources are rendered"""
+        for name, data_source in src_dict.items():
+            glyph_func = getattr(self.figure, data_source.renderer)
+            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, legend_label=name, name=name)
+            self.renderers[name] = renderer
+
+    def remove_sources(self, names):
+        """remove source from renderers dict and figure"""
+        #todo not really sure if this works
+        for name in names:
+            renderer = self.renderers[name]
+            renderer.data_source.remove_on_change('data', self._data_updated_callback)
+            self.figure.renderers.remove(renderer)
+            for tool in self.figure.tools:
+                try:
+                    tool.renderers.remove(renderer)
+                except (ValueError, AttributeError):
+                    pass
+            self.renderers.pop(name)
+
     def update(self):
-        self.bk_pane.param.trigger('object')
+        callback = partial(self.bk_pane.param.trigger, 'object')
+        self.parent.doc.add_next_tick_callback(callback)
 
     @property
     def panel(self):
@@ -143,7 +170,7 @@ class ControlPanel(PanelBase):
         self.parent = parent
         super(ControlPanel, self).__init__(**params)
 
-        self._widget_dict = self.make_dict()
+        self._widget_dict = self.make_dict()  # should maybe not be private
         self._widget_list = self.make_list()  # this list after its made isnt / shouldnt be used?
         self._box = self.make_box()
 

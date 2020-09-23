@@ -535,7 +535,7 @@ class Coverage(object):
 
         # Find all indices of prolines in the middle of sequences, remove from r_number array and from sequence
         p = [entry['_start'] + i - self.start for entry in self.data for i, s in enumerate(entry['sequence']) if s == 'p']
-        p_index = np.unique(p)
+        p_index = np.unique(p).astype(int)
         self.r_number = np.delete(self.r_number, p_index)  # remove r number indices
         self.prot_len = len(self.r_number)
 

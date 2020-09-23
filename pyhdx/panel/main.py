@@ -1,39 +1,41 @@
 from pyhdx.panel.template import GoldenElvis, ExtendedGoldenTemplate
 from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
-from pyhdx.panel.controller import PyHDXController
+from pyhdx.panel.controller import *
+from pyhdx.panel.fig_panels import *
 from pyhdx.panel.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
 
-DEBUG = False
+DEBUG = True
 
 control_panels = [
-    'PeptideFileInputControl',
-    'CoverageControl',
-    'InitialGuessControl',
-    'FitControl',
-    'FitResultControl',
-    'ClassificationControl',
-    'FileExportControl',
-    'ProteinViewControl',
-    'OptionsControl'
+    PeptideFileInputControl,
+    CoverageControl,
+    InitialGuessControl,
+    FitControl,
+    FitResultControl,
+    ClassificationControl,
+    FileExportControl,
+    ProteinViewControl,
+    OptionsControl
 ]
 
 if DEBUG:
-    control_panels.append('DeveloperPanel')
+    control_panels.append(DeveloperControl)
 
 figure_panels = [
-    'CoverageFigure',
-    'RateFigure',
-    'PFactFigure',
-    'FitResultFigure',
-    'ProteinFigure',
-    'LoggingFigure'
+    CoverageFigure,
+    RateFigure,
+    PFactFigure,
+    FitResultFigure,
+    ProteinFigure,
+    LoggingFigure
 ]
 
 elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
 cluster = '127.0.0.1:52123'
+cluster = None
 ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
 ctrl.logger.addHandler(get_default_handler(sys.stdout))
 tmpl = elvis.compose(ctrl.control_panels.values(),
@@ -53,6 +55,6 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl)
+    pn.serve(tmpl, show=True)
 
 

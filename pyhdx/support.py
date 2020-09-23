@@ -237,6 +237,8 @@ def np_from_txt(file_path, delimiter='\t'):
         else:
             break
     file_obj.seek(0)
+
+
     # if isinstance(file_path, StringIO):
     #     header = file_path.readline().strip()
     #     file_path.seek(0)
@@ -249,7 +251,8 @@ def np_from_txt(file_path, delimiter='\t'):
     # else:
     #     names = None
 
-    return np.genfromtxt(file_path, dtype=None, names=names, skip_header=1, delimiter=delimiter, encoding=None, autostrip=True)
+    return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
+                         encoding=None, autostrip=True, comments=None)
 
 
 def try_wrap(coverage, wrap, margin=4):

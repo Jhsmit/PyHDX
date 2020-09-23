@@ -6,8 +6,11 @@ import os
 from pyhdx.panel.main import tmpl, ctrl
 from pyhdx.panel.utils import reload_previous
 from pyhdx.panel.base import DEFAULT_COLORS
+from pyhdx.panel.data_sources import DataSource
 import panel as pn
 import numpy as np
+
+
 
 directory = os.path.dirname(__file__)
 
@@ -20,12 +23,18 @@ dic['exp_state'] = 'SecB WT apo'
 
 src_file = os.path.join(directory, 'test_data', 'SecB WT apo_pfact_linear.txt')
 array = np_from_txt(src_file)
-src_dict = {name: array[name] for name in array.dtype.names}
-src_dict['y'] = src_dict['log_P']
-src_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-src_dict['color'][np.isnan(src_dict['y'])] = np.nan
+data_dict = {name: array[name] for name in array.dtype.names}
+
+
+data_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
+data_dict['color'][np.isnan(data_dict['log_P'])] = np.nan
+data_dict['pfact'] = 10**data_dict['log_P']
+
+data_source = DataSource(data_dict, x='r_number', y='pfact', tags=['mapping', 'pfact'],
+                         renderer='circle', size=10)
+
 dic['sources'] = {}
-dic['sources']['pfact'] = src_dict
+dic['sources']['pfact'] = data_source
 
 dic['rcsb_id'] = '1qyn'
 
@@ -34,5 +43,5 @@ ctrl = reload_previous(dic, ctrl)
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl)
+    pn.serve(tmpl, show=False)
 
