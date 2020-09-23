@@ -1,17 +1,7 @@
 import param
 import panel as pn
 from bokeh.plotting import figure
-
-
-#todo reformat this to one dict of availble datasets with
-# {'half-life':
-#      {'color': sadf,
-#       'renderer': asdfasdf
-#       'export'=True,
-#       'description'=}}
-# OR make it a param.Parameterized class? This will make autodoc easier
-# and we can add methods which will make wildcard names easier
-
+from functools import partial
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -42,7 +32,6 @@ class FigurePanel(PanelBase):
 
         sources = sources if sources is not None else {}
         self.renderers = {}
-
         self.add_sources(sources)
 
     @property
@@ -148,7 +137,8 @@ class BokehFigurePanel(FigurePanel):
             self.renderers.pop(name)
 
     def update(self):
-        self.bk_pane.param.trigger('object')
+        callback = partial(self.bk_pane.param.trigger, 'object')
+        self.parent.doc.add_next_tick_callback(callback)
 
     @property
     def panel(self):
