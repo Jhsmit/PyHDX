@@ -1213,7 +1213,6 @@ class OptionsControl(ControlPanel):
 
     def __init__(self, parent, **param):
         super(OptionsControl, self).__init__(parent, **param)
-        self._update_link()
 
     @property
     def enabled(self):
@@ -1256,7 +1255,7 @@ class OptionsControl(ControlPanel):
 
 class DeveloperControl(ControlPanel):
     """Controller with debugging options"""
-        
+
     header = 'Developer Options'
     test_logging = param.Action(lambda self: self._action_test_logging())
     breakpoint_btn = param.Action(lambda self: self._action_break())
@@ -1275,6 +1274,5 @@ class DeveloperControl(ControlPanel):
         control_panels = main_ctrl.control_panels
         figure_panels = main_ctrl.figure_panels
         sources = main_ctrl.sources
-
 
         print('Time for a break')

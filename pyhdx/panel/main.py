@@ -53,6 +53,7 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
                      )
                     )
 
+ctrl.control_panels['OptionsControl']._update_link()
 
 if __name__ == '__main__':
     pn.serve(tmpl, show=True)
