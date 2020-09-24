@@ -98,29 +98,35 @@ class MainController(param.Parameterized):
 
 class PyHDXController(MainController):
     """
-    Main controller for PyHDX web application
+    Main controller for PyHDX web application.
 
     """
-    fit_results = param.Dict({}, doc='Dictionary of fit results')
-    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides')
-    series = param.ClassSelector(KineticsSeries, doc='KineticsSeries object with current selected and corrected peptides')
+    fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
+    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides', precedence=-1)
+    series = param.ClassSelector(KineticsSeries,
+                                 doc='KineticsSeries object with current selected and corrected peptides', precedence=-1)
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
-        #setup options  #todo automate figure out cross dependencies (via parent?)
-        self.control_panels['OptionsControl'].link_xrange = True
 
 
 class ComparisonController(MainController):
     """
-    Main controller for binary comparison web application
+    Main controller for binary comparison web application.
     """
 
-    datasets = param.Dict(default={}, doc='Dictionary for all datasets')  #todo refactor
+    datasets = param.Dict(default={}, doc='Dictionary for all datasets')
     comparisons = param.Dict(default={}, doc='Dictionary for all comparisons (should be in sources)')
 
 
 class MappingFileInputControl(ControlPanel):
+    """
+    This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
+    mapped to a linear sequence.
+
+    The column should be tab separated with on the last header line (starts with '#') the names of the columns. Columns
+    should be tab-delimited.
+    """
     header = 'File Input'
 
     input_file = param.Parameter(default=None, doc='Input file to add to available datasets')
@@ -143,7 +149,6 @@ class MappingFileInputControl(ControlPanel):
         self.dataset_name = self.dataset_name or Path(self._widget_dict['input_file'].filename).stem
 
     def _action_add_dataset(self):
-        print('action add')
         if self.dataset_name in self.parent.datasets.keys():
             self.parent.logger.info(f'Dataset {self.dataset_name} already added')
         elif not self.input_file:
@@ -173,19 +178,26 @@ class MappingFileInputControl(ControlPanel):
 
 
 class DifferenceControl(ControlPanel):
+    """
+    This controller allows users to select two datasets from available datasets, choose a quantity to compare between,
+    and choose the type of operation between quantities (Subtract/Divide).
+
+    """
     header = 'Differences'
 
-    dataset_1 = param.Selector(doc='ds1')
-    dataset_2 = param.Selector(doc='ds2')
+    dataset_1 = param.Selector(doc='First dataset to compare')
+    dataset_2 = param.Selector(doc='Second dataset to compare')
 
     comparison_name = param.String()
-    operation = param.Selector(default='Subtract', objects=['Subtract', 'Divide'])
+    operation = param.Selector(default='Subtract', objects=['Subtract', 'Divide'],
+                               doc='Select the operation to perform between the two datasets')
 
     comparison_quantity = param.Selector(doc="Select a quantity to compare (column from input txt file)")
     add_comparison = param.Action(lambda self: self._action_add_comparison(),
                                   doc='Click to add this comparison to available comparisons')
     comparison_list = param.ListSelector(doc='Lists available comparisons')
-    remove_comparison = param.Action(lambda self: self._action_remove_comparison())
+    remove_comparison = param.Action(lambda self: self._action_remove_comparison(),
+                                     doc='Remove selected comparisons from the list')
 
     def __init__(self, parent, **params):
         super(DifferenceControl, self).__init__(parent, **params)
@@ -207,6 +219,7 @@ class DifferenceControl(ControlPanel):
             datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2]) # property?
             unique_names = set.intersection(*[{name for name in array.dtype.names} for array in datasets])
 
+            #todo check for scalar-type dtype
             objects = [name for name in unique_names if name != 'r_number']
             self.param['comparison_quantity'].objects = objects
             if self.comparison_quantity is None:
@@ -255,21 +268,20 @@ class DifferenceControl(ControlPanel):
         self.param['comparison_list'].objects = objects
 
 
-    # def _action_remove_comparison(self):
-    #     for comparison_name in self.comparison_list:
-    #         self.parent.comparisons.pop(comparison_name)
-    #     self.parent.param.trigger('comparisons')
-
-
 class PeptideFileInputControl(ControlPanel):
+    """
+    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
+    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
+    analysis.
+
+    """
     header = 'Peptide Input'
 
     add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
-    drop_first = param.Integer(1, bounds=(0, None))
-    ignore_prolines = param.Boolean(True, constant=True, doc='Set to True to ignore Prolines in the sequence')
-    load_button = param.Action(lambda self: self._action_load(), doc='Load Files', label='Load Files')
-
+    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
+    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
+    load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
     norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
     norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
     norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
@@ -285,7 +297,8 @@ class PeptideFileInputControl(ControlPanel):
     exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
                                        , doc='Selected exposure time to use')
 
-    parse_button = param.Action(lambda self: self._action_parse(), doc='Parse', label='Parse')
+    parse_button = param.Action(lambda self: self._action_parse(), label='Parse',
+                                doc='Parse selected peptides for further analysis and apply back-exchange correction')
 
     def __init__(self, parent, **params):
         self.file_selectors = [pn.widgets.FileInput(accept='.csv')]
@@ -440,7 +453,7 @@ class CoverageControl(ControlPanel):
 
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
-        return lst + [self.exposure_str]#, self.color_bar]
+        return lst + [self.exposure_str]#\, self.color_bar]
 
     def make_dict(self):
         return self.generate_widgets(index=pn.widgets.IntSlider)
@@ -452,7 +465,9 @@ class CoverageControl(ControlPanel):
         self.color_mapper.palette = pal
 
     def get_color_bar(self):
-        """pn.pane.Bokeh: bokeh pane with empty figure and only a color bar"""
+        """pn.pane.Bokeh: bokeh pane with empty figure and only a color bar
+        Currently is buggy when added in ``make_list``
+        """
         # f5f5f5
         # from default value in panel css
         #https://github.com/holoviz/panel/blob/67bf192ea4138825ab9682c8f38bfe2d696a4e9b/panel/_styles/widgets.css
@@ -470,7 +485,7 @@ class CoverageControl(ControlPanel):
 
     @property
     def palette(self):
-        """"""
+        """`obj`:tuple: Tuple of hex colors"""
         cmap = mpl.cm.get_cmap(self.color_map)
         pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
         return pal
@@ -520,7 +535,7 @@ class CoverageControl(ControlPanel):
     def _update_wrap(self):
         y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
         try:
-            self.parent.sources['coverage'].data.update(y=y)
+            self.parent.sources['coverage'].source.data.update(y=y)
         except KeyError:
             pass
 
@@ -536,6 +551,12 @@ class CoverageControl(ControlPanel):
 
 
 class InitialGuessControl(ControlPanel):
+    """
+    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data
+
+    """
+
+    #todo remove lambda symbol although its really really funny
     header = 'Initial Guesses'
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
                                    doc='Choose method for determining initial guesses.')
@@ -570,9 +591,6 @@ class InitialGuessControl(ControlPanel):
 
         data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
                                  renderer='circle', size=10)
-
-        # callback = partial(self.parent.param.trigger, 'sources')
-        # self.parent.doc.add_next_tick_callback(callback)
 
         #trigger plot update
         callback = partial(self.parent.publish_data, 'fit1', data_source)
@@ -636,9 +654,15 @@ class InitialGuessControl(ControlPanel):
 
 
 class FitControl(ControlPanel):
+    """
+    This controller allows users to execute TensorFlow fitting of the global data set.
+
+    Currently, repeated fitting overrides the old result.
+
+    """
+
     header = 'Fitting'
     initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
-
     c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds.')  # remove
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
@@ -699,12 +723,10 @@ class FitControl(ControlPanel):
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
 
         # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
-        # #todo this should be moved to TFFitresults object (or shoud it?) -> DataObject class (see base) (does coloring)
         # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
 
         #todo update when changing to fitting deltaG directly
         output_dict['pfact'] = 10**output_dict[var_name]
-        # if self.fitting_type == 'Protection Factors':
         deltaG = constants.R * self.temperature * np.log(output_dict['pfact'])
         output_dict['deltaG'] = deltaG
 
@@ -718,10 +740,14 @@ class FitControl(ControlPanel):
         self.parent.param.trigger('fit_results')
 
         self.parent.logger.debug('Finished TensorFlow fit')
-        self.parent.logger.info(f'Finished fitting in {len(result.loss)} epochs')
+        self.parent.logger.info(f'Finished fitting in {len(result.loss[0])} epochs')
 
 
 class FitResultControl(ControlPanel):
+    """
+    This controller allows users to view to fit result and how it describes the uptake of every peptide.
+    """
+
     header = 'Fit Results'
 
     peptide_index = param.Number(0, bounds=(0, None),
@@ -781,10 +807,18 @@ class FitResultControl(ControlPanel):
 
 
 class ClassificationControl(ControlPanel):
+    """
+    This controller allows users classify 'mapping' datasets and assign them colors.
+
+    Coloring can be either in discrete categories or as a continuous custom color map.
+    """
+
     header = 'Classification'
     # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
-    accepted_tags = ['mapping']  #todo add 'comparison' for compare app
+    accepted_tags = ['mapping']
 
+    # todo unify name for target field (target_data set)
+    # When coupling param with the same name together there should be an option to exclude this behaviour
     target = param.Selector(label='Target')
 
     mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'],
@@ -1006,6 +1040,16 @@ class ClassificationControl(ControlPanel):
 
 
 class FileExportControl(ControlPanel):
+    # todo check if docstring is true
+    """
+    This controller allows users to export and download datasets.
+
+    All datasets can be exported as .txt tables.
+    'Mappable' datasets (with r_number column) can be exporeted as .pml pymol script, which colors protein structures
+    based on their 'color' column.
+
+    """
+
     header = "File Export"
     target = param.Selector(label='Target dataset', doc='Name of the dataset to export')
 
@@ -1104,6 +1148,13 @@ class FileExportControl(ControlPanel):
 
 
 class ProteinViewControl(ControlPanel):
+    """
+    This controller allows users control the Protein view figure.
+    Structures can be specified either by RCSB ID or uploading a .pdb file.
+
+    Colors are assigned according to 'color' column of the selected dataset.
+    """
+
     header = 'Protein Viewer'
     accepted_tags = ['mapping']
 
@@ -1151,17 +1202,18 @@ class ProteinViewControl(ControlPanel):
 
 
 class OptionsControl(ControlPanel):
+    """The controller is used for various settings."""
+
     header = 'Options'
 
-    """panel for various options and settings"""
-
     #todo this should be a component (mixin?) for apps who dont have these figures
-    link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.')
+    link_xrange = param.Boolean(True, doc='Link the X range of the coverage figure and other linear mapping figures.')
     log_level = param.Selector(default='DEBUG', objects=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
                                doc='Set the logging level.')
 
     def __init__(self, parent, **param):
         super(OptionsControl, self).__init__(parent, **param)
+        self._update_link()
 
     @property
     def enabled(self):
@@ -1203,6 +1255,8 @@ class OptionsControl(ControlPanel):
 
 
 class DeveloperControl(ControlPanel):
+    """Controller with debugging options"""
+        
     header = 'Developer Options'
     test_logging = param.Action(lambda self: self._action_test_logging())
     breakpoint_btn = param.Action(lambda self: self._action_break())

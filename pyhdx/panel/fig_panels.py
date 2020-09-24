@@ -127,7 +127,7 @@ class RateFigure(ThdFigure):
 
 
 class PFactFigure(ThdFigure):
-    title = 'PFact'
+    title = 'Protection Factors'
     accepted_tags = [('mapping', 'pfact')]
     y_label = 'Protection factor'
 
