@@ -161,6 +161,7 @@ ctrl.control_panels['ClassificationControl'].log_space = False
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl, show=False, websocket_origin=['pyhdx.loca.lt', 'localhost:51337', '9ce0a771395c.ngrok.io'], port=51337)
+    print('hoi')
+    #n.serve(tmp#, show=False, websocket_origin=['pyhdx.loca.lt', 'localhost:51337', '9ce0a771395c.ngrok.io'], port=51337)
 
 

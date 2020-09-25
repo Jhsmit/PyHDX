@@ -12,6 +12,6 @@ APP_DICT = {
 
 
 port = 51337
-pn.serve(APP_DICT, websocket_origin=[f'localhost:{port}', 'pyhdx.jhsmit.org'], port=port)
+pn.serve(APP_DICT, websocket_origin=[f'localhost:{port}', 'pyhdx.jhsmit.org'], port=port, threaded=True)
 
 
