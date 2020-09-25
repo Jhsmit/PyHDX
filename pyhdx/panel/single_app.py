@@ -119,45 +119,32 @@ figure_panels = [
     LoggingFigure
 ]
 
-elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-cluster = '127.0.0.1:52123'
-ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
-ctrl.logger.addHandler(get_default_handler(sys.stdout))
-tmpl = elvis.compose(ctrl.control_panels.values(),
-                     elvis.column(
-                         elvis.stack(
-                             elvis.view(ctrl.figure_panels['ProteinFigure'])
-                         ),
-                         elvis.row(
+
+def single_app():
+    elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
+    cluster = '127.0.0.1:52123'
+    ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
+    ctrl.logger.addHandler(get_default_handler(sys.stdout))
+    tmpl = elvis.compose(ctrl.control_panels.values(),
+                         elvis.column(
                              elvis.stack(
-                                elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
+                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
                              ),
-                             elvis.view(ctrl.figure_panels['LoggingFigure']),
+                             elvis.row(
+                                 elvis.stack(
+                                    elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
+                                 ),
+                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
+                             )
                          )
-                     )
-                    )
+                        )
 
 
-ctrl.control_panels['ClassificationControl'].log_space = False
-#ctrl.control_panels['ClassificationControl'].param['log_space'].constant = True
+    ctrl.control_panels['ClassificationControl'].log_space = False
 
-# from pyhdx.support import np_from_txt
-# import os
-# directory = r'C:\Users\jhsmi\pp\pyHDX_paper\v3\secb_comparison\fit'
-# array1 = np_from_txt(os.path.join(directory, 'ecSecB_10_fitted_tf_pfact.txt'))
-# array2 = np_from_txt(os.path.join(directory, 'ecSecB_20_fitted_tf_pfact.txt'))
-# array3 = array2.copy()
-# array3['log_P'] += np.random.rand()
-#
-#
-# ctrl.datasets['ds_10'] = array1
-# ctrl.datasets['ds_20'] = array2
-# ctrl.datasets['ds_30'] = array3
-#
-# ctrl.param.trigger('datasets')
-#
-# ctrl.control_panels['ClassificationControl'].log_space = False
-# ctrl.control_panels['ProteinViewControl'].rcsb_id = '1qyn'
+    return tmpl
 
 
-tmpl.servable(title='single')
+if __name__.startswith("bokeh"):
+    tmpl = single_app()
+    tmpl.servable(title='compare')

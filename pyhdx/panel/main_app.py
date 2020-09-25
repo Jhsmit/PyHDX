@@ -33,27 +33,32 @@ figure_panels = [
     LoggingFigure
 ]
 
-elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-cluster = '127.0.0.1:52123'
-ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
-ctrl.logger.addHandler(get_default_handler(sys.stdout))
-tmpl = elvis.compose(ctrl.control_panels.values(),
-                     elvis.column(
-                         elvis.stack(
-                             elvis.view(ctrl.figure_panels['CoverageFigure']),
-                             elvis.view(ctrl.figure_panels['ProteinFigure'])
-                         ),
-                         elvis.stack(
-                             elvis.view(ctrl.figure_panels['RateFigure']),
-                             elvis.view(ctrl.figure_panels['PFactFigure']),
-                             elvis.view(ctrl.figure_panels['FitResultFigure']),
-                             elvis.view(ctrl.figure_panels['LoggingFigure']),
+
+def main_app():
+    elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
+    cluster = '127.0.0.1:52123'
+    ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
+    ctrl.logger.addHandler(get_default_handler(sys.stdout))
+    tmpl = elvis.compose(ctrl.control_panels.values(),
+                         elvis.column(
+                             elvis.stack(
+                                 elvis.view(ctrl.figure_panels['CoverageFigure']),
+                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
+                             ),
+                             elvis.stack(
+                                 elvis.view(ctrl.figure_panels['RateFigure']),
+                                 elvis.view(ctrl.figure_panels['PFactFigure']),
+                                 elvis.view(ctrl.figure_panels['FitResultFigure']),
+                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
+                             )
                          )
-                     )
-                    )
+                        )
 
-ctrl.control_panels['OptionsControl']._update_link()
+    ctrl.control_panels['OptionsControl']._update_link()
+    return tmpl
 
-tmpl.servable(title='main')
+if __name__.startswith("bokeh"):
+    tmpl = main_app()
+    tmpl.servable(title='compare')
 
 
