@@ -1,17 +1,7 @@
 import param
 import panel as pn
 from bokeh.plotting import figure
-
-
-#todo reformat this to one dict of availble datasets with
-# {'half-life':
-#      {'color': sadf,
-#       'renderer': asdfasdf
-#       'export'=True,
-#       'description'=}}
-# OR make it a param.Parameterized class? This will make autodoc easier
-# and we can add methods which will make wildcard names easier
-
+from functools import partial
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -41,9 +31,15 @@ class FigurePanel(PanelBase):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
         sources = sources if sources is not None else {}
-        self.renderers = {}
-
+        self.renderers = {}  # dict of renderers
+        self.data_sources = {}  # dict with DataSource objects
         self.add_sources(sources)
+
+        self.setup_hooks()
+
+    def setup_hooks(self):
+        """override to add watchers to controllers"""
+        pass
 
     @property
     def control_panels(self):
@@ -58,10 +54,13 @@ class FigurePanel(PanelBase):
         self.remove_sources(removed_items)
 
     def add_sources(self, src_dict):
-        """add a columndatasource object to the figure
+        """add a DataSource object to the figure
         """
-        for data_source in src_dict.values():
+        #todo check for already in self.data_sources
+        for name, data_source in src_dict.items():
             data_source.source.on_change('data', self._data_updated_callback)
+            self.data_sources[name] = data_source
+
         self.render_sources(src_dict)
 
     def remove_sources(self, names):
@@ -79,6 +78,7 @@ class FigurePanel(PanelBase):
     @property
     def sources(self):
         """returns a dict of the current sources"""
+        raise DeprecationWarning('sources dict will be removed as its only columndatasources not full object')
         return {name: renderer.data_source for name, renderer in self.renderers.items()}
 
     def _data_updated_callback(self, attr, old, new):
@@ -118,12 +118,14 @@ class BokehFigurePanel(FigurePanel):
     def redraw(self, **kwargs):
         """calls draw_figure to make a new figure and then redraws all renderers"""
 
-        src_dict = self.sources
-        self.figure = self.draw_figure(**kwargs)  # todo does the old figure linger on?
+        src_dict = self.data_sources
 
-        self.renderers = {}
-        self.render_sources(src_dict)
-
+        self.remove_sources(src_dict.keys())
+        assert not self.renderers  # todo remove assert
+        #self.renderers = {}
+        self.figure = self.draw_figure(**kwargs)
+        self.add_sources(src_dict)
+        # todo does the old figure linger on?
         self.bk_pane.object = self.figure
 
     def _data_updated_callback(self, attr, old, new):
@@ -144,11 +146,15 @@ class BokehFigurePanel(FigurePanel):
             renderer.data_source.remove_on_change('data', self._data_updated_callback)
             self.figure.renderers.remove(renderer)
             for tool in self.figure.tools:
-                tool.renderers.remove(renderer)
+                try:
+                    tool.renderers.remove(renderer)
+                except (ValueError, AttributeError):
+                    pass
             self.renderers.pop(name)
 
     def update(self):
-        self.bk_pane.param.trigger('object')
+        callback = partial(self.bk_pane.param.trigger, 'object')
+        self.parent.doc.add_next_tick_callback(callback)
 
     @property
     def panel(self):
@@ -159,7 +165,6 @@ class ControlPanel(PanelBase):
     """base class for left control pannels"""
 
     header = 'Default Header'
-
 
     def __init__(self, parent, **params):
         self.parent = parent

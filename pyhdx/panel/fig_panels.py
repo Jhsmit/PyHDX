@@ -47,21 +47,41 @@ class CoverageFigure(BokehFigurePanel):
             self.figure.add_tools(hovertool)
 
 
-class ThdLogFigure(BokehFigurePanel):
-    """base class for pfact / rates figure panels which both feature y log axis and thresholding"""
+class LinearLogFigure(BokehFigurePanel):
+    """base class for bokeh figure which can switch between log and linear axis
+        This is a very slim base class (perhaps it should be a mixin?)
+    """
+
+    def _redraw_event(self, event):
+        """Redraw the figure with new kwargs passed to figure"""
+        kwargs = {event.name: event.new.lower()}
+        self.redraw(**kwargs)
+
+    # def draw_figure(self, **kwargs):
+    #     fig = super().draw_figure(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
+    #     return fig
+
+
+class ThdFigure(LinearLogFigure):
+    """base class for figures extending LinearLogFigure with threshold lines
+    parent must have ClassificationControl
+    """
     accepted_tags = ['mapping']
 
-    def __init__(self, parent, *args, **params):
-        super(ThdLogFigure, self).__init__(parent, *args, **params)
-        self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+    # def __init__(self, parent, *args, **params):
+    #     super(ThdFigure, self).__init__(parent, *args, **params)
 
-    def draw_figure(self):
-        fig = figure(y_axis_type='log', tools='pan,wheel_zoom,box_zoom,save,reset')
+    def draw_figure(self, **kwargs):
+        y_axis_type = kwargs.pop('y_axis_type', 'log')
+        x_axis_type = kwargs.pop('x_axis_type', 'linear')
+        fig = figure(y_axis_type=y_axis_type, x_axis_type=x_axis_type,
+                     tools='pan,wheel_zoom,box_zoom,save,reset', **kwargs)
         fig.min_border_left = MIN_BORDER_LEFT
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = self.y_label
 
-        for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):  # todo refactor controller access
+        # todo refactor controller access
+        for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):
             sp = Span(location=0, dimension='width')
             sp.tags = ['thd']
             sp.visible = False
@@ -96,43 +116,49 @@ class ThdLogFigure(BokehFigurePanel):
                 span.visible = False
 
 
-class RateFigure(ThdLogFigure):
+class RateFigure(ThdFigure):
     title = 'Rates'
     accepted_tags = [('mapping', 'rate')]
-    #accepted_sources = ['half-life', 'fit1', 'fit2', 'TF_rate']
     y_label = 'Rate (min⁻¹)'
 
+    def setup_hooks(self):
+        super().setup_hooks()
+        self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
 
-class PFactFigure(ThdLogFigure):
-    title = 'PFact'
+
+class PFactFigure(ThdFigure):
+    title = 'Protection Factors'
     accepted_tags = [('mapping', 'pfact')]
-    #accepted_sources = ['pfact']  # list of names of sources which this plot accepts from parent controller
     y_label = 'Protection factor'
 
+    def setup_hooks(self):
+        super().setup_hooks()
+        self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
 
-class ThdLinearFigure(ThdLogFigure):
+
+class BinaryComparisonFigure(ThdFigure):
     title = 'Binary Comparison'
     accepted_tags = [('comparison', 'mapping')]
     x_label = 'Residue number'
     y_label = 'Difference'
 
     def __init__(self, parent, *args, **params):
-        super(ThdLinearFigure, self).__init__(parent, *args, **params)
+        super(BinaryComparisonFigure, self).__init__(parent, *args, **params)
+
+    def setup_hooks(self):
+        super().setup_hooks()
         self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+        self.control_panels['ClassificationControl'].param.watch(self._log_space_updated, ['log_space'])
 
-    def draw_figure(self):
-        #todo generalize
-        fig = figure(y_axis_type='linear', tools='pan,wheel_zoom,box_zoom,save,reset')
-        fig.xaxis.axis_label = 'Residue number'
-        fig.yaxis.axis_label = self.y_label
+    def _log_space_updated(self, event):
+        if event.new:   # True, log space
+            self.redraw(y_axis_type='log')
+        else:
+            self.redraw(y_axis_type='linear')
 
-        for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):  # todo refactor controller access
-            sp = Span(location=0, dimension='width')
-            sp.tags = ['thd']
-            sp.visible = False
-            fig.add_layout(sp)
-
-        return fig
+    def draw_figure(self, **kwargs):
+        y_axis_type = kwargs.pop('y_axis_type', 'linear')
+        return super().draw_figure(y_axis_type=y_axis_type, **kwargs)
 
 
 class FitResultFigure(BokehFigurePanel):
@@ -143,10 +169,14 @@ class FitResultFigure(BokehFigurePanel):
 
     def __init__(self, parent, *args, **params):
         super(FitResultFigure, self).__init__(parent, *args, **params)
+
+    def setup_hooks(self):
         self.control_panels['FitResultControl'].param.watch(self._redraw_event, ['x_axis_type'])
 
-    def _redraw_event(self, *events):
-        self.redraw(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
+    def _redraw_event(self, event):
+        """Redraw the figure with new kwargs passed to figure"""
+        kwargs = {event.name: event.new.lower()}
+        self.redraw(**kwargs)
 
     def draw_figure(self, **kwargs):
         fig = super().draw_figure(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
@@ -169,10 +199,10 @@ class ProteinFigure(FigurePanel):
         super(ProteinFigure, self).__init__(*args, **params)
         self.ngl_view = NGLViewer(sizing_mode='stretch_both')
 
+    def setup_hooks(self):
         params = ['rcsb_id', 'no_coverage', 'representation', 'spin']
         self.parent.control_panels['ProteinViewControl'].param.watch(self._update_event, params)
         self.parent.control_panels['ProteinViewControl'].file_input.param.watch(self._update_pdb_file, 'value')
-
         self.parent.control_panels['ProteinViewControl'].param.watch(self._parent_sources_updated, 'target_dataset')
 
     def _parent_sources_updated(self, *events):
@@ -226,7 +256,6 @@ class LoggingFigure(FigurePanel):
     def __init__(self, *args, **params):
         super(LoggingFigure, self).__init__(*args, **params)
         self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both')
-        #todo config log level in options
 
         sh = logging.StreamHandler(self.markdown)
         sh.terminator = '  \n'
@@ -235,7 +264,11 @@ class LoggingFigure(FigurePanel):
         #sh.setLevel(logging.DEBUG)
         self.parent.logger.addHandler(sh)
 
-        #  todo add function on base class for doing these things (with try/except)
+    def setup_hooks(self):
+        # todo add function on base class for doing these things (with try/except) ?
+        # Or the users has to be responsible and set this up correctly
+        # if the hook is unwanted, the class should be subclassed with override on setup_hooks
+
         self.parent.control_panels['OptionsControl'].param.watch(self._update_log_level, ['log_level'])
         self.parent.control_panels['OptionsControl'].param.trigger('log_level')
 

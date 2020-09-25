@@ -3,6 +3,7 @@ from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultThem
 from pyhdx.panel.controller import *
 from pyhdx.panel.fig_panels import *
 from pyhdx.panel.log import get_default_handler
+
 import sys
 from pyhdx import VERSION_STRING_SHORT
 import panel as pn
@@ -33,39 +34,72 @@ class DifferenceFileExportControl(FileExportControl):
             self.c_term = r_max
 
 
-class SingleValueFigure(LinearLogFigure):
+class SingleControl(ControlPanel):
+    header = 'Datasets'
+
+    dataset = param.Selector(doc='ds1')
+    dataset_name = param.String()
+    quantity = param.Selector(doc="Select a quantity to plot (column from input txt file)")
+
+    add_dataset = param.Action(lambda self: self._action_add_dataset(),
+                                  doc='Click to add this comparison to available comparisons')
+    dataset_list = param.ListSelector(doc='Lists available comparisons')
+    remove_dataset = param.Action(lambda self: self._action_remove_comparison())
+
+    def __init__(self, parent, **params):
+        super(SingleControl, self).__init__(parent, **params)
+
+        self.parent.param.watch(self._datasets_updated, ['datasets'])
+
+    def _datasets_updated(self, events):
+        objects = list(self.parent.datasets.keys())
+
+        self.param['dataset'].objects = objects
+        if not self.dataset:
+            self.dataset = objects[0]
+
+    @param.depends('dataset', watch=True)
+    def _selection_updated(self):
+        if self.dataset:
+            dataset = self.parent.datasets[self.dataset]
+            names = dataset.dtype.names
+            objects = [name for name in names if name != 'r_number']
+            self.param['quantity'].objects = objects
+            if self.quantity is None:
+                self.quantity = objects[0]
+
+    def _action_add_dataset(self):
+        if not self.dataset_name:
+            self.parent.logger.info('The added comparison needs to have a name')
+            return
+        if not self.dataset:
+            return
+
+        array = self.parent.datasets[self.dataset]
+        data_source = DataSource(array, tags=['comparison', 'mapping'], x='r_number', y=self.quantity,
+                                 renderer='circle', size=10)
+        self.parent.publish_data(self.dataset_name, data_source)  # Triggers parent.sources param
+        self.comparison_name = ''
+
+    def _action_remove_comparison(self):
+        for ds in self.dataset_list:
+            self.parent.sources.pop(ds)   #Popping from dicts does not trigger param
+        self.parent.param.trigger('sources')
+
+    @param.depends('parent.sources', watch=True)
+    def _update_dataset_list(self):
+        objects = [name for name, d in self.parent.sources.items()]
+        self.param['dataset_list'].objects = objects
+
+
+class SingleFigure(BinaryComparisonFigure):
     title = 'Values'
-    accepted_tags = [('comparison', 'mapping')]
-    x_label = 'Residue number'
     y_label = 'Value'
-
-    def render_sources(self, src_dict):
-        for name, data_source in src_dict.items():
-            for field, render_func in zip(['value1', 'value2'], ['triangle', 'square']):
-                glyph_func = getattr(self.figure, render_func)
-                kwargs = data_source.render_kwargs.copy()
-                kwargs.pop('y')
-
-                renderer = glyph_func(**kwargs, y=field, source=data_source.source, name=name,
-                                      legend_label=name + f'_{field}')
-
-                self.renderers[name] = renderer
-                hovertool = HoverTool(renderers=[renderer],
-                                      tooltips=[('Residue', '@r_number{int}'), (self.y_label, f'@{data_source.render_kwargs["y"]}')],
-                                      mode='vline')
-                self.figure.add_tools(hovertool)
-
-            if self.renderers:
-                self.figure.legend.click_policy = 'hide'
-
-    def draw_figure(self, **kwargs):
-        y_axis_type = kwargs.pop('y_axis_type', 'linear')
-        return super().draw_figure(y_axis_type=y_axis_type, **kwargs)
 
 
 control_panels = [
     MappingFileInputControl,
-    DifferenceControl,
+    SingleControl,
     ClassificationControl,
     # 'FileExportControl',
     ProteinViewControl,
@@ -79,8 +113,7 @@ if DEBUG:
 
 figure_panels = [
     #'LogLinearFigure',
-    BinaryComparisonFigure,
-    SingleValueFigure,
+    SingleFigure,
     ProteinFigure,
     LoggingFigure
 ]
@@ -96,8 +129,7 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
                          ),
                          elvis.row(
                              elvis.stack(
-                                elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
-                                elvis.view(ctrl.figure_panels['SingleValueFigure'])
+                                elvis.view(ctrl.figure_panels['SingleFigure']),
                              ),
                              elvis.view(ctrl.figure_panels['LoggingFigure']),
                          )
@@ -107,8 +139,7 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
 
 ctrl.control_panels['ClassificationControl'].log_space = False
 
-
 if __name__ == '__main__':
-    pn.serve(tmpl, show=True)
+    pn.serve(tmpl, show=False, port=51338)
 
 

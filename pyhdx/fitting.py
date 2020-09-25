@@ -922,13 +922,6 @@ class KineticsFitting(object):
         k_r_number = self.k_series.cov.sequence_r_number
         k_dict = {'r_number': k_r_number, 'k_int': k_int}  #todo get rid of this dict nonsense self.k_series.get_kint_array?
 
-        # indices = np.searchsorted(initial_result['r_number'], self.k_series.tf_cov.r_number)
-        # if not len(indices) == len(np.unique(indices)):
-        #     print('WARNING')
-        #     #raise ValueError('Invalid match between section r number and initial result r number')
-        # init_rate = initial_result['rate'][indices]
-        #
-
         #todo move this elsewhere
         indices = np.searchsorted(k_dict['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):

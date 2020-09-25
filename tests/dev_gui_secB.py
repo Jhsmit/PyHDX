@@ -33,7 +33,6 @@ data_dict['pfact'] = 10**data_dict['log_P']
 data_source = DataSource(data_dict, x='r_number', y='pfact', tags=['mapping', 'pfact'],
                          renderer='circle', size=10)
 
-
 dic['sources'] = {}
 dic['sources']['pfact'] = data_source
 
