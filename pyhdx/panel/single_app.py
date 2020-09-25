@@ -160,8 +160,4 @@ ctrl.control_panels['ClassificationControl'].log_space = False
 # ctrl.control_panels['ProteinViewControl'].rcsb_id = '1qyn'
 
 
-if __name__ == '__main__':
-    print('hoi')
-    #n.serve(tmp#, show=False, websocket_origin=['pyhdx.loca.lt', 'localhost:51337', '9ce0a771395c.ngrok.io'], port=51337)
-
-
+tmpl.servable(title='single')

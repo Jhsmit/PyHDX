@@ -108,7 +108,6 @@ tmpl = elvis.compose(ctrl.control_panels.values(),
 ctrl.control_panels['ClassificationControl'].log_space = False
 
 
-if __name__ == '__main__':
-    pn.serve(tmpl, show=True)
+tmpl.servable(title='compare')
 
 
