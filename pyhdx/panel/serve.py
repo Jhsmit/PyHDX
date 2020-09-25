@@ -1,8 +1,8 @@
 import panel as pn
 
-from pyhdx.panel.main import tmpl as main_ctrl
-from pyhdx.panel.compare_app import tmpl as diff_ctrl
-from pyhdx.panel.single_app import tmpl as single_ctrl
+from pyhdx.panel.main_app import main_app as main_ctrl
+from pyhdx.panel.compare_app import compare_app as diff_ctrl
+from pyhdx.panel.single_app import single_app as single_ctrl
 
 APP_DICT = {
     'main': main_ctrl,

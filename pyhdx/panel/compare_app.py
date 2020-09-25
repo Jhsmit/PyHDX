@@ -85,29 +85,32 @@ figure_panels = [
     LoggingFigure
 ]
 
-elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-cluster = '127.0.0.1:52123'
-ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
-ctrl.logger.addHandler(get_default_handler(sys.stdout))
-tmpl = elvis.compose(ctrl.control_panels.values(),
-                     elvis.column(
-                         elvis.stack(
-                             elvis.view(ctrl.figure_panels['ProteinFigure'])
-                         ),
-                         elvis.row(
+def compare_app():
+    elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
+    cluster = '127.0.0.1:52123'
+    ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
+    ctrl.logger.addHandler(get_default_handler(sys.stdout))
+    tmpl = elvis.compose(ctrl.control_panels.values(),
+                         elvis.column(
                              elvis.stack(
-                                elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
-                                elvis.view(ctrl.figure_panels['SingleValueFigure'])
+                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
                              ),
-                             elvis.view(ctrl.figure_panels['LoggingFigure']),
+                             elvis.row(
+                                 elvis.stack(
+                                    elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
+                                    elvis.view(ctrl.figure_panels['SingleValueFigure'])
+                                 ),
+                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
+                             )
                          )
-                     )
-                    )
+                        )
 
 
-ctrl.control_panels['ClassificationControl'].log_space = False
+    ctrl.control_panels['ClassificationControl'].log_space = False
+    return tmpl
 
-
-tmpl.servable(title='compare')
+if __name__.startswith("bokeh"):
+    tmpl = compare_app()
+    tmpl.servable(title='compare')
 
 
