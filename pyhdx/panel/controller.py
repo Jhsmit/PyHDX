@@ -713,8 +713,8 @@ class FitControl(ControlPanel):
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
         initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
         early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
-        result = kf.global_fit_new(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
-                                   l1=self.l1_regularizer, callbacks=[early_stop])
+        result = kf.global_fit(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
+                               l1=self.l1_regularizer, callbacks=[early_stop])
 
         output_name = 'pfact'
         var_name = 'log_P'
