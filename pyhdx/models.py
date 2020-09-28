@@ -553,9 +553,7 @@ class Coverage(object):
             along the `r_number` axis"""
 
         # indices are start and stop values of blocks
-        print(self.data['end'])
         indices = np.sort(np.concatenate([self.data['start'], self.data['end']]))
-        print(indices)
         #indices of insertion into r_number vector gives us blocks with taking prolines into account.
         diffs = np.diff(np.searchsorted(self.r_number, indices))
 
