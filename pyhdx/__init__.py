@@ -1,5 +1,5 @@
 """Top-level package for PyHDX."""
-
+import setuptools   # Import prevents warning
 from .models import PeptideMasterTable, PeptideMeasurements, KineticsSeries, Coverage
 from .fitting import KineticsFitting
 from .fileIO import read_dynamx
@@ -8,7 +8,6 @@ from .output import Output
 from pbr import version
 from pbr import git
 from pathlib import Path
-
 
 package_name = 'pyhdx'
 try:

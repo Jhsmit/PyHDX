@@ -929,7 +929,7 @@ class ClassificationControl(ControlPanel):
         elif self.mode == 'Continuous':
             func = np.log if self.log_space else lambda x: x
             vals_space = (func(self.values))  # values in log space depending on setting
-            norm = plt.Normalize(vals_space[-1], vals_space[0])#, clip=True) currently there is never anythin clipped?
+            norm = plt.Normalize(vals_space[-1], vals_space[0], clip=True)
             nodes = norm(vals_space[::-1])
             cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
 
@@ -1013,6 +1013,8 @@ class ClassificationControl(ControlPanel):
             idx = list(self.colors_widgets).index(event.obj)
             self.colors[idx] = event.new
 
+
+        #todo callback?
         self.param.trigger('colors')
 
     def _value_event(self, *events):

@@ -827,7 +827,8 @@ class KineticsFitting(object):
         output = np.empty_like(self.k_series.tf_cov.r_number, dtype=dtype)
         indices = np.searchsorted(initial_rates['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):
-            print('WARNING')
+            pass
+            # todo this section requires some validation
             # raise ValueError('Invalid match between section r number and initial result r number')
         init_rate = initial_rates['rate'][indices]
 
