@@ -9,3 +9,17 @@ PyHDX
 PyHDX is a software package that extract protection factors from HDX-MS data.
 
 Currently the project functional but in beta. Please refer to docs/installation.rst for installation instructions.
+
+
+Web Application
+===============
+
+A beta version of the web application is available for testing:
+http://pyhdx.jhsmit.org/main
+
+
+Two other web applications are available. 
+To upload fitting results from the main application and vizualize: 
+http://pyhdx.jhsmit.org/single
+To upload multiple fitting result datasets and compare and vizualize:
+http://pyhdx.jhsmit.org/diff
