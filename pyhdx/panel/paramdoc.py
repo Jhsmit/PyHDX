@@ -66,7 +66,6 @@ def param_format_basic(app, what, name, obj, options, lines):
                 name=cname, module=module, params=params)
             ])
 
-
         params = [p for p in obj.param if p not in parameters]
         for child in params:
             pobj = obj.param[child]
@@ -102,6 +101,8 @@ def param_format_basic(app, what, name, obj, options, lines):
 
         if inherited:
             lines.extend(["Additional GUI elements on: "]+inherited)
+
+        lines.append('|')
 
 
 def param_skip(app, what, name, obj, skip, options):

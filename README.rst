@@ -17,8 +17,10 @@ Web Application
 A beta version of the web application is available for testing:
 http://pyhdx.jhsmit.org/main
 
+A test file can be downloaded from `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/ecSecB_apo.csv>`_.
 
-Two other web applications are available. 
+
+Two other web applications are available.
 To upload fitting results from the main application and vizualize: 
 http://pyhdx.jhsmit.org/single
 To upload multiple fitting result datasets and compare and vizualize:

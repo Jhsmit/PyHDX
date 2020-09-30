@@ -290,8 +290,8 @@ class PeptideFileInputControl(ControlPanel):
     be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
                               label='Back exchange percentage')
 
-    zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
-    zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
+    #zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
+    #zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
 
     exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
     exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
