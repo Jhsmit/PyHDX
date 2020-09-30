@@ -342,8 +342,6 @@ class PeptideFileInputControl(ControlPanel):
 
         combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
 
-        #todo remove this attribute
-        self.parent.data = combined
         self.parent.peptides = PeptideMasterTable(self.parent.data,
                                                   drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
