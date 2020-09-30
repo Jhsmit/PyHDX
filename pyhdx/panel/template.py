@@ -55,6 +55,7 @@ class GoldenElvis(object):
         self.theme_cls = theme
         self.title = title
 
+        self.main_controller = None
         self.panels = {}
 
     @property
@@ -64,13 +65,16 @@ class GoldenElvis(object):
 
         return base_string_template
 
-    def compose(self, controllers, golden_layout_string):
+    def compose(self, main_controller, golden_layout_string):
         """
         Creates a servable template from a golden layout js code string.
+        :param: main_controller: Application main controller
         :param golden_layout_string: Result of nesting stacks, columns, rows, and panels
                                      using the methods in this class.
         """
 
+        self.main_controller = main_controller
+        controllers = main_controller.control_panels.values()
         template_code = ReadString(self.jinja_base_string_template.substitute(main_body=golden_layout_string))
         self.template_cls._template = template_code
 

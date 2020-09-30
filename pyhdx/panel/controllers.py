@@ -32,93 +32,6 @@ from .widgets import ColoredStaticText, ASyncProgressBar
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
 
-class MainController(param.Parameterized):
-    """
-    Base class for application main controller
-    Subclass to extend
-
-    Parameters
-    ----------
-    control_panels: :obj:`list`
-        List of strings referring to which ControlPanels to use for this MainController instance
-        Should refer to subclasses of :class:`~pyhdx.panel.base.ControlPanel`
-    figure_panels: :obj:`list`
-        List of string referring to which FigurePanels to use for this MainController instance
-        Should refer to subclasses :class:`~pyhdx.panel.base.FigurePanel`
-    cluster: :obj:`str`
-        IP:port address for Dask cluster (optional)
-
-    Attributes
-    ----------
-
-    doc : :class:`~bokeh.document.Document`
-        Currently active Bokeh document
-    logger : :class:`~logging.Logger`
-        Logger instance
-    control_panels : :obj:`dict`
-        Dictionary with :class:`~pyhdx.panel.base.ControlPanel` instances (__name__ as keys)
-    figure_panels : :obj`dict`
-        Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
-
-    """
-    sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting', precedence=-1)
-
-    def __init__(self, control_panels, figure_panels, cluster=None, **params):
-        super(MainController, self).__init__(**params)
-        self.cluster = cluster
-        self.doc = pn.state.curdoc
-        self.logger = logging.getLogger(str(id(self)))
-
-        #available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
-        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}
-
-        #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
-        self.figure_panels = {ctrl.name: ctrl(self) for ctrl in figure_panels}
-
-    def publish_data(self, name, data_source_obj):
-        """
-        Publish dataset to be available for client figure to plot
-
-        Parameters
-        ----------
-        name: :obj:`str`
-            Name of the dataset
-        data_source_obj: :class:`~pyhdx.panel.data_sources.DataSource`
-            Data source object
-        """
-
-        try:  # update existing source
-            src = self.sources[name]
-            src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds?
-        except KeyError:
-            self.sources[name] = data_source_obj
-
-        self.param.trigger('sources')
-
-
-class PyHDXController(MainController):
-    """
-    Main controller for PyHDX web application.
-
-    """
-    fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
-    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides', precedence=-1)
-    series = param.ClassSelector(KineticsSeries,
-                                 doc='KineticsSeries object with current selected and corrected peptides', precedence=-1)
-
-    def __init__(self, *args, **kwargs):
-        super(PyHDXController, self).__init__(*args, **kwargs)
-
-
-class ComparisonController(MainController):
-    """
-    Main controller for binary comparison web application.
-    """
-
-    datasets = param.Dict(default={}, doc='Dictionary for all datasets')
-    comparisons = param.Dict(default={}, doc='Dictionary for all comparisons (should be in sources)')
-
-
 class MappingFileInputControl(ControlPanel):
     """
     This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
@@ -177,97 +90,6 @@ class MappingFileInputControl(ControlPanel):
         self.param['datasets_list'].objects = list(self.parent.datasets.keys())
 
 
-class DifferenceControl(ControlPanel):
-    """
-    This controller allows users to select two datasets from available datasets, choose a quantity to compare between,
-    and choose the type of operation between quantities (Subtract/Divide).
-
-    """
-    header = 'Differences'
-
-    dataset_1 = param.Selector(doc='First dataset to compare')
-    dataset_2 = param.Selector(doc='Second dataset to compare')
-
-    comparison_name = param.String()
-    operation = param.Selector(default='Subtract', objects=['Subtract', 'Divide'],
-                               doc='Select the operation to perform between the two datasets')
-
-    comparison_quantity = param.Selector(doc="Select a quantity to compare (column from input txt file)")
-    add_comparison = param.Action(lambda self: self._action_add_comparison(),
-                                  doc='Click to add this comparison to available comparisons')
-    comparison_list = param.ListSelector(doc='Lists available comparisons')
-    remove_comparison = param.Action(lambda self: self._action_remove_comparison(),
-                                     doc='Remove selected comparisons from the list')
-
-    def __init__(self, parent, **params):
-        super(DifferenceControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._datasets_updated, ['datasets'])
-
-    def _datasets_updated(self, events):
-        objects = list(self.parent.datasets.keys())
-
-        self.param['dataset_1'].objects = objects
-        if not self.dataset_1:
-            self.dataset_1 = objects[0]
-        self.param['dataset_2'].objects = objects
-        if not self.dataset_2:# or self.dataset_2 == objects[0]:  # dataset2 default to second dataset? toggle user modify?
-            self.dataset_2 = objects[0]
-
-    @param.depends('dataset_1', 'dataset_2', watch=True)
-    def _selection_updated(self):
-        if self.dataset_1 and self.dataset_2:
-            datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2]) # property?
-            unique_names = set.intersection(*[{name for name in array.dtype.names} for array in datasets])
-
-            #todo check for scalar-type dtype
-            objects = [name for name in unique_names if name != 'r_number']
-            self.param['comparison_quantity'].objects = objects
-            if self.comparison_quantity is None:
-                self.comparison_quantity = objects[0]
-
-    def _action_add_comparison(self):
-        if not self.comparison_name:
-            self.parent.logger.info('The added comparison needs to have a name')
-            return
-        if not (self.dataset_1 and self.dataset_2):
-            return
-
-        datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2])
-        r_all = np.concatenate([array['r_number'] for array in datasets])
-        r_full = np.arange(r_all.min(), r_all.max() + 1)
-
-        # Create output array and assign values
-        output = np.full_like(r_full, fill_value=np.nan,
-                              dtype=[('r_number', int), ('value1', float), ('value2', float), ('comparison', float)])
-        output['r_number'] = r_full
-
-        idx = np.searchsorted(output['r_number'], datasets[0]['r_number'])
-        output['value1'][idx] = datasets[0][self.comparison_quantity]
-
-        idx = np.searchsorted(output['r_number'], datasets[1]['r_number'])
-        output['value2'][idx] = datasets[1][self.comparison_quantity]
-
-        if self.operation == 'Subtract':
-            output['comparison'] = output['value1'] - output['value2']
-        elif self.operation == 'Divide':
-            output['comparison'] = output['value1'] / output['value2']
-
-        data_source = DataSource(output, tags=['comparison', 'mapping'], x='r_number', y='comparison',
-                                 renderer='circle', size=10)
-        self.parent.publish_data(self.comparison_name, data_source)  # Triggers parent.sources param
-        self.comparison_name = ''
-
-    def _action_remove_comparison(self):
-        for comparison in self.comparison_list:
-            self.parent.sources.pop(comparison)   #Popping from dicts does not trigger param
-        self.parent.param.trigger('sources')
-
-    @param.depends('parent.sources', watch=True)
-    def _update_comparison_list(self):
-        objects = [name for name, d in self.parent.sources.items() if 'comparison' in d.tags]
-        self.param['comparison_list'].objects = objects
-
-
 class PeptideFileInputControl(ControlPanel):
     """
     This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
@@ -309,7 +131,7 @@ class PeptideFileInputControl(ControlPanel):
 
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
-                      'norm_mode', 'norm_state', 'norm_exposure',  'zero_state', 'zero_exposure', 'exp_state',
+                      'norm_mode', 'norm_state', 'norm_exposure', 'exp_state',
                       'exp_exposures', 'parse_button']
         first_widgets = list([self._widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
@@ -405,14 +227,14 @@ class PeptideFileInputControl(ControlPanel):
         if exposures:
             self.norm_exposure = exposures[0]
 
-    @param.depends('zero_state', watch=True)
-    def _update_zero_exposure(self):
-        b = self.parent.peptides.data['state'] == self.zero_state
-        data = self.parent.peptides.data[b]
-        exposures = list(np.unique(data['exposure']))
-        self.param['zero_exposure'].objects = exposures
-        if exposures:
-            self.control_exposure = exposures[0]
+    # @param.depends('zero_state', watch=True)
+    # def _update_zero_exposure(self):
+    #     b = self.parent.peptides.data['state'] == self.zero_state
+    #     data = self.parent.peptides.data[b]
+    #     exposures = list(np.unique(data['exposure']))
+    #     self.param['zero_exposure'].objects = exposures
+    #     if exposures:
+    #         self.control_exposure = exposures[0]
 
     @param.depends('norm_state', 'norm_exposure', watch=True)
     def _update_experiment(self):
@@ -429,6 +251,156 @@ class PeptideFileInputControl(ControlPanel):
         exposures.sort()
         self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
+
+
+class DifferenceControl(ControlPanel):
+    """
+    This controller allows users to select two datasets from available datasets, choose a quantity to compare between,
+    and choose the type of operation between quantities (Subtract/Divide).
+
+    """
+    header = 'Differences'
+
+    dataset_1 = param.Selector(doc='First dataset to compare')
+    dataset_2 = param.Selector(doc='Second dataset to compare')
+
+    comparison_name = param.String()
+    operation = param.Selector(default='Subtract', objects=['Subtract', 'Divide'],
+                               doc='Select the operation to perform between the two datasets')
+
+    comparison_quantity = param.Selector(doc="Select a quantity to compare (column from input txt file)")
+    add_comparison = param.Action(lambda self: self._action_add_comparison(),
+                                  doc='Click to add this comparison to available comparisons')
+    comparison_list = param.ListSelector(doc='Lists available comparisons')
+    remove_comparison = param.Action(lambda self: self._action_remove_comparison(),
+                                     doc='Remove selected comparisons from the list')
+
+    def __init__(self, parent, **params):
+        super(DifferenceControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._datasets_updated, ['datasets'])
+
+    def _datasets_updated(self, events):
+        objects = list(self.parent.datasets.keys())
+
+        self.param['dataset_1'].objects = objects
+        if not self.dataset_1:
+            self.dataset_1 = objects[0]
+        self.param['dataset_2'].objects = objects
+        if not self.dataset_2:# or self.dataset_2 == objects[0]:  # dataset2 default to second dataset? toggle user modify?
+            self.dataset_2 = objects[0]
+
+    @param.depends('dataset_1', 'dataset_2', watch=True)
+    def _selection_updated(self):
+        if self.dataset_1 and self.dataset_2:
+            datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2]) # property?
+            unique_names = set.intersection(*[{name for name in array.dtype.names} for array in datasets])
+
+            #todo check for scalar-type dtype
+            objects = [name for name in unique_names if name != 'r_number']
+            self.param['comparison_quantity'].objects = objects
+            if self.comparison_quantity is None:
+                self.comparison_quantity = objects[0]
+
+    def _action_add_comparison(self):
+        if not self.comparison_name:
+            self.parent.logger.info('The added comparison needs to have a name')
+            return
+        if not (self.dataset_1 and self.dataset_2):
+            return
+
+        datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2])
+        r_all = np.concatenate([array['r_number'] for array in datasets])
+        r_full = np.arange(r_all.min(), r_all.max() + 1)
+
+        # Create output array and assign values
+        output = np.full_like(r_full, fill_value=np.nan,
+                              dtype=[('r_number', int), ('value1', float), ('value2', float), ('comparison', float)])
+        output['r_number'] = r_full
+
+        idx = np.searchsorted(output['r_number'], datasets[0]['r_number'])
+        output['value1'][idx] = datasets[0][self.comparison_quantity]
+
+        idx = np.searchsorted(output['r_number'], datasets[1]['r_number'])
+        output['value2'][idx] = datasets[1][self.comparison_quantity]
+
+        if self.operation == 'Subtract':
+            output['comparison'] = output['value1'] - output['value2']
+        elif self.operation == 'Divide':
+            output['comparison'] = output['value1'] / output['value2']
+
+        data_source = DataSource(output, tags=['comparison', 'mapping'], x='r_number', y='comparison',
+                                 renderer='circle', size=10)
+        self.parent.publish_data(self.comparison_name, data_source)  # Triggers parent.sources param
+        self.comparison_name = ''
+
+    def _action_remove_comparison(self):
+        for comparison in self.comparison_list:
+            self.parent.sources.pop(comparison)   #Popping from dicts does not trigger param
+        self.parent.param.trigger('sources')
+
+    @param.depends('parent.sources', watch=True)
+    def _update_comparison_list(self):
+        objects = [name for name, d in self.parent.sources.items() if 'comparison' in d.tags]
+        self.param['comparison_list'].objects = objects
+
+
+class SingleControl(ControlPanel):
+    #todo subclass with DifferenceControl
+    header = 'Datasets'
+
+    dataset = param.Selector(doc='ds1')
+    dataset_name = param.String()
+    quantity = param.Selector(doc="Select a quantity to plot (column from input txt file)")
+
+    add_dataset = param.Action(lambda self: self._action_add_dataset(),
+                                  doc='Click to add this comparison to available comparisons')
+    dataset_list = param.ListSelector(doc='Lists available comparisons')
+    remove_dataset = param.Action(lambda self: self._action_remove_comparison())
+
+    def __init__(self, parent, **params):
+        super(SingleControl, self).__init__(parent, **params)
+
+        self.parent.param.watch(self._datasets_updated, ['datasets'])
+
+    def _datasets_updated(self, events):
+        objects = list(self.parent.datasets.keys())
+
+        self.param['dataset'].objects = objects
+        if not self.dataset:
+            self.dataset = objects[0]
+
+    @param.depends('dataset', watch=True)
+    def _selection_updated(self):
+        if self.dataset:
+            dataset = self.parent.datasets[self.dataset]
+            names = dataset.dtype.names
+            objects = [name for name in names if name != 'r_number']
+            self.param['quantity'].objects = objects
+            if self.quantity is None:
+                self.quantity = objects[0]
+
+    def _action_add_dataset(self):
+        if not self.dataset_name:
+            self.parent.logger.info('The added comparison needs to have a name')
+            return
+        if not self.dataset:
+            return
+
+        array = self.parent.datasets[self.dataset]
+        data_source = DataSource(array, tags=['comparison', 'mapping'], x='r_number', y=self.quantity,
+                                 renderer='circle', size=10)
+        self.parent.publish_data(self.dataset_name, data_source)  # Triggers parent.sources param
+        self.comparison_name = ''
+
+    def _action_remove_comparison(self):
+        for ds in self.dataset_list:
+            self.parent.sources.pop(ds)   #Popping from dicts does not trigger param
+        self.parent.param.trigger('sources')
+
+    @param.depends('parent.sources', watch=True)
+    def _update_dataset_list(self):
+        objects = [name for name, d in self.parent.sources.items()]
+        self.param['dataset_list'].objects = objects
 
 
 class CoverageControl(ControlPanel):
@@ -1145,6 +1117,29 @@ class FileExportControl(ControlPanel):
             return io
         else:
             return None
+
+
+class DifferenceFileExportControl(FileExportControl):
+    accepted_tags = ['mapping']
+    #todo include comparison info (x vs y) in output
+
+    def _sources_updated(self, *events):  #refactor _parent_sources_updated on classificationcontrol
+        data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
+        self.param['target'].objects = list(data_sources)
+
+        # Set target if its not set already
+        if not self.target and data_sources:
+            self.target = data_sources[-1]
+
+    @pn.depends('target', watch=True)
+    def _update_filename(self):
+        self.export_linear_download.filename = self.target + '_linear.txt'
+        if 'r_number' in self.export_dict.keys():
+            self.pml_script_download.filename = self.target + '_pymol.pml'
+
+        r_max = int(np.nanmax(self.export_dict['r_number'])) + 5
+        if self.c_term < r_max:
+            self.c_term = r_max
 
 
 class ProteinViewControl(ControlPanel):

@@ -1,7 +1,7 @@
 import os
 
 from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
-from pyhdx.panel.controller import PyHDXController
+from pyhdx.panel.controllers import PyHDXController
 from pyhdx.panel.main import control_panels, figure_panels
 from pyhdx.panel.log import get_default_handler
 import sys
