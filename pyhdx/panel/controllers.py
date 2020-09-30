@@ -164,7 +164,7 @@ class PeptideFileInputControl(ControlPanel):
 
         combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
 
-        self.parent.peptides = PeptideMasterTable(self.parent.data,
+        self.parent.peptides = PeptideMasterTable(combined,
                                                   drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
         states = list(np.unique(self.parent.peptides.data['state']))
@@ -345,21 +345,26 @@ class DifferenceControl(ControlPanel):
 
 
 class SingleControl(ControlPanel):
+    """
+    This controller allows users to select a dataset from available datasets, and choose a quantity to classify/visualize,
+    and add this quantity to the available datasets.
+    """
+
     #todo subclass with DifferenceControl
     header = 'Datasets'
 
-    dataset = param.Selector(doc='ds1')
-    dataset_name = param.String()
+    dataset = param.Selector(doc='Dataset')
+    dataset_name = param.String(doc='Name of the dataset to add')
     quantity = param.Selector(doc="Select a quantity to plot (column from input txt file)")
 
     add_dataset = param.Action(lambda self: self._action_add_dataset(),
-                                  doc='Click to add this comparison to available comparisons')
+                               doc='Click to add this comparison to available comparisons')
     dataset_list = param.ListSelector(doc='Lists available comparisons')
-    remove_dataset = param.Action(lambda self: self._action_remove_comparison())
+    remove_dataset = param.Action(lambda self: self._action_remove_comparison(),
+                                  doc='Remove selected datasets from available datasets')
 
     def __init__(self, parent, **params):
         super(SingleControl, self).__init__(parent, **params)
-
         self.parent.param.watch(self._datasets_updated, ['datasets'])
 
     def _datasets_updated(self, events):
@@ -404,6 +409,10 @@ class SingleControl(ControlPanel):
 
 
 class CoverageControl(ControlPanel):
+    """
+    This controller allows users to control the peptide coverage figure, by choosing how many peptides to plot vertically,
+    which color map to use, and which exposure time to show.
+    """
     header = 'Coverage'
 
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row.') # todo auto?
@@ -522,8 +531,7 @@ class CoverageControl(ControlPanel):
 
 class InitialGuessControl(ControlPanel):
     """
-    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data
-
+    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
     """
 
     #todo remove lambda symbol although its really really funny
@@ -628,7 +636,6 @@ class FitControl(ControlPanel):
     This controller allows users to execute TensorFlow fitting of the global data set.
 
     Currently, repeated fitting overrides the old result.
-
     """
 
     header = 'Fitting'
@@ -645,7 +652,6 @@ class FitControl(ControlPanel):
                                  doc='Learning rate parameter for optimization.')
     epochs = param.Number(100000, bounds=(1, None),
                           doc='Maximum number of epochs (iterations.')
-
     l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer.')
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True, label='Do Fitting',
                           doc='Start TensorFlow global fitting')
@@ -1017,7 +1023,7 @@ class FileExportControl(ControlPanel):
     This controller allows users to export and download datasets.
 
     All datasets can be exported as .txt tables.
-    'Mappable' datasets (with r_number column) can be exporeted as .pml pymol script, which colors protein structures
+    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
     based on their 'color' column.
 
     """
@@ -1120,6 +1126,14 @@ class FileExportControl(ControlPanel):
 
 
 class DifferenceFileExportControl(FileExportControl):
+    """
+    This controller allows users to export and download datasets.
+
+    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
+    based on their 'color' column.
+
+    """
+
     accepted_tags = ['mapping']
     #todo include comparison info (x vs y) in output
 

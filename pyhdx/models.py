@@ -506,17 +506,17 @@ class Coverage(object):
 
     Attributes
     ----------
-        start : :obj:`int`
-            Index of residue first appearing in the peptides (first residue is 1)
-        end : :obj:`int`
-            Index of last residue appearing in the peptides (inclusive)
-        r_number : :class:`~numpy.ndarray`
-            Array of residue numbers which are covered by the peptides, excluding prolines if they are set to be ignored.
-        prot_len : :obj:`int`
-            Total number of residues the peptides covering, excluding prolines if they are set to be ignored.
-        X : :class:`~numpy.ndarray`
-            N x M matrix where N is the number of peptides and M equal to `prot_len`.
-            Values are 1/(ex_residues) where there is coverage, so that rows sum to 1
+    start : :obj:`int`
+        Index of residue first appearing in the peptides (first residue is 1).
+    end : :obj:`int`
+        Index of last residue appearing in the peptides (inclusive)
+    r_number : :class:`~numpy.ndarray`
+        Array of residue numbers which are covered by the peptides, excluding prolines if they are set to be ignored.
+    prot_len : :obj:`int`
+        Total number of residues the peptides covering, excluding prolines if they are set to be ignored.
+    X : :class:`~numpy.ndarray`
+        N x M matrix where N is the number of peptides and M equal to `prot_len`.
+        Values are 1/(ex_residues) where there is coverage, so that rows sum to 1
     """
 
     def __init__(self, data):
@@ -717,7 +717,10 @@ class KineticsSeries(object):
         Numpy structured array with peptide entries corresponding to a single state,
         or list of :class:`~pyhdx.pyhdx.PeptideMeasurements`
     make_uniform : :obj:`bool`
-        If `True` the returned :class:`~pyhdx.pyhdx.KineticSeries` is made uniform
+        If `True` the :class:`~pyhdx.pyhdx.KineticSeries` instance is made uniform
+    **metadata
+        Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
+
 
     Attributes
     ----------
@@ -725,6 +728,10 @@ class KineticsSeries(object):
         State of the kinetic series
     timepoints : :class:`~numpy.ndarray`
         Array with exposure times (sorted)
+    peptides: :obj:`list`
+        List of :class:`~pyhdx.models.PeptideMeasurements`, one list element per timepoint.
+    cov: :class:`~pyhdx.models.Coverage`
+        Coverage object describing peptide layout. When this `uniform` is `False`, this attribute is `None`
 
     """
     def __init__(self, data, make_uniform=True, **metadata):
