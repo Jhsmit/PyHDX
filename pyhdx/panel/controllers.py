@@ -1281,6 +1281,9 @@ class DeveloperControl(ControlPanel):
         for i in range(20):
             self.parent.logger.info('dit is een test123')
 
+    def _action_print(self):
+        print(self.parent.doc)
+
     def _action_break(self):
         main_ctrl = self.parent
         control_panels = main_ctrl.control_panels
