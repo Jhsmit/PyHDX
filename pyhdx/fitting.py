@@ -596,8 +596,8 @@ class KineticsFitting(object):
         nonzero_times = times[np.nonzero(times)]
         t_first = np.min(nonzero_times)
         t_last = np.max(nonzero_times)
-        b_upper = 5*np.log(2) / t_first
-        b_lower = np.log(2) / (t_last * 5)
+        b_upper = 10*np.log(2) / t_first
+        b_lower = np.log(2) / (t_last * 10)
 
         return b_lower, b_upper
 
