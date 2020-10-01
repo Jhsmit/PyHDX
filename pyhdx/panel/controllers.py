@@ -170,8 +170,8 @@ class PeptideFileInputControl(ControlPanel):
         states = list(np.unique(self.parent.peptides.data['state']))
         self.param['norm_state'].objects = states
         self.norm_state = states[0]
-        self.param['zero_state'].objects = ['None'] + states
-        self.zero_state = 'None'
+        #self.param['zero_state'].objects = ['None'] + states
+        #self.zero_state = 'None'
 
         self.parent.logger.info(
             f'Loaded {len(data_list)} file{"s" if len(data_list) > 1 else ""} with a total '
@@ -180,7 +180,7 @@ class PeptideFileInputControl(ControlPanel):
     def _action_parse(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
         if self.norm_mode == 'Exp':
-            control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
+            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
             self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
         elif self.norm_mode == 'Theory':
             self.parent.peptides.set_backexchange(self.be_percent)
@@ -246,8 +246,8 @@ class PeptideFileInputControl(ControlPanel):
 
     @param.depends('exp_state', watch=True)
     def _update_experiment_exposure(self):
-        b = self.parent.data['state'] == self.exp_state
-        exposures = list(np.unique(self.parent.data['exposure'][b]))
+        b = self.parent.peptides.data['state'] == self.exp_state
+        exposures = list(np.unique(self.parent.peptides.data['exposure'][b]))
         exposures.sort()
         self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
