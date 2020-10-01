@@ -39,7 +39,7 @@ class MainController(param.Parameterized):
     def __init__(self, control_panels, figure_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
         self.cluster = cluster
-        self.doc = pn.state.curdoc
+        self._doc = pn.state.curdoc
         self.logger = logging.getLogger(str(id(self)))
 
         #available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
@@ -47,6 +47,11 @@ class MainController(param.Parameterized):
 
         #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
         self.figure_panels = {ctrl.name: ctrl(self) for ctrl in figure_panels}
+
+    @property
+    def doc(self):
+        """ :class:`~bokeh.document.document.Document`: Bokeh document for the application"""
+        return self._doc or pn.state.curdoc
 
     def publish_data(self, name, data_source_obj):
         """
