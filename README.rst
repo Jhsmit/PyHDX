@@ -6,10 +6,8 @@ PyHDX
 
     <img src="images/readme_img.png" width="400" />
 
-PyHDX is a software package that extract protection factors from HDX-MS data.
-
-Currently the project functional but in beta. Please refer to docs/installation.rst for installation instructions.
-
+PyHDX is python project which can be used to derive Gibbs free energy and Protection Factors from HDX-MS data.
+Currently the project is functional but in beta. Please refer to docs/installation.rst for installation instructions.
 
 Web Application
 ===============
