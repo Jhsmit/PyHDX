@@ -1188,7 +1188,7 @@ class ProteinViewControl(ControlPanel):
 
     def make_list(self):
         lst = super().make_list()
-        lst.pop(2)  # Remove RCSB ID input field
+        lst.pop(2)  # Remove RCSB ID input field?
         lst.insert(2, self.file_input)  # add File input widget
         return lst
 
@@ -1196,6 +1196,8 @@ class ProteinViewControl(ControlPanel):
         #todo  this line repeats, put in base class
         data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
         self.param['target_dataset'].objects = data_sources
+        if not self.target_dataset and data_sources:
+            self.target_dataset = data_sources[0]
 
     @param.depends('input_option', watch=True)
     def _update_input_option(self):
