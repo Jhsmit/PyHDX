@@ -43,6 +43,8 @@ class PeptideMasterTable(object):
         Numpy recarray with peptide entries.
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
+    d_percentage : :obj:`float`
+        Percentage of deuterium in the labelling solution.
     ignore_prolines: :obj:`bool`
         Boolean to toggle ignoring of proline residues. When True these residues are treated as if they're not present
         in the protein.
@@ -53,8 +55,11 @@ class PeptideMasterTable(object):
 
     """
 
-    def __init__(self, data, drop_first=1, ignore_prolines=True, sort=True, remove_nan=True):
+    def __init__(self, data, drop_first=1, ignore_prolines=True, d_percentage=100., sort=True, remove_nan=True):
         assert np.all(data['start'] < data['end']), 'All `start` entries must be smaller than their `end` entries'
+        assert 0 <= d_percentage <= 100., 'Deuteration percentage must be between 0 and 100'
+        d_percentage /= 100.
+
         self.data = data.copy()
         if remove_nan:
             self.data = self.data[~np.isnan(self.data['uptake'])]
@@ -83,7 +88,7 @@ class PeptideMasterTable(object):
         self.data['start'] += n_term
         self.data['end'] -= c_term
 
-        ex_residues = [len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]
+        ex_residues = np.array([len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]) * d_percentage
         if 'ex_residues' not in self.data.dtype.names:
             self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
 
