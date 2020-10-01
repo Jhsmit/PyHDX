@@ -6,7 +6,8 @@ from pyhdx.panel.fig_panels import *
 from pyhdx.panel.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING_SHORT
-from holoviews import Bivariate
+
+
 DEBUG = False
 cluster = '127.0.0.1:52123'
 
