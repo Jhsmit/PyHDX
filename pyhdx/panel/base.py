@@ -129,7 +129,10 @@ class BokehFigurePanel(FigurePanel):
         self.bk_pane.object = self.figure
 
     def _data_updated_callback(self, attr, old, new):
-        self.bk_pane.param.trigger('object')
+#        self.bk_pane.param.trigger('object')
+        callback = partial(self.bk_pane.param.trigger, 'object')
+        self.parent.doc.add_next_tick_callback(callback)
+
 
     def render_sources(self, src_dict):
         """override to customize how sources are rendered"""
