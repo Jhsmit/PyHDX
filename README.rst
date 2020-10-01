@@ -9,6 +9,10 @@ PyHDX
 PyHDX is python project which can be used to derive Gibbs free energy and Protection Factors from HDX-MS data.
 Currently the project is functional but in beta. Please refer to docs/installation.rst for installation instructions.
 
+
+`Preliminary Documentation <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/docs/_build/latex/pyhdx.pdf>`_
+
+
 Web Application
 ===============
 
