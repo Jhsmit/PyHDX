@@ -1068,10 +1068,14 @@ class FileExportControl(ControlPanel):
         except KeyError:
             no_coverage = '#8c8c8c'
             self.parent.logger.warning('No coverage color found, using default grey')
-        script = colors_to_pymol(self.export_dict['r_number'][bools], self.export_dict['color'][bools],
-                                 c_term=self.c_term, no_coverage=no_coverage)
 
-        return script
+        try:
+            script = colors_to_pymol(self.export_dict['r_number'][bools], self.export_dict['color'][bools],
+                                     c_term=self.c_term, no_coverage=no_coverage)
+            return script
+        except KeyError:
+            return None
+
 
     @property
     def export_dict(self):
