@@ -101,7 +101,7 @@ def _single_app():
 
     ctrl.control_panels['ClassificationControl'].log_space = False
 
-    return tmpl
+    return tmpl, ctrl
 
 
 def single_app():
@@ -148,7 +148,7 @@ def _diff_app():
                          ))
 
     ctrl.control_panels['ClassificationControl'].log_space = False
-    return tmpl
+    return tmpl, ctrl
 
 
 def diff_app():
