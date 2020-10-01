@@ -43,6 +43,8 @@ class PeptideMasterTable(object):
         Numpy recarray with peptide entries.
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
+    d_percentage : :obj:`float`
+        Percentage of deuterium in the labelling solution.
     ignore_prolines: :obj:`bool`
         Boolean to toggle ignoring of proline residues. When True these residues are treated as if they're not present
         in the protein.
@@ -53,8 +55,11 @@ class PeptideMasterTable(object):
 
     """
 
-    def __init__(self, data, drop_first=1, ignore_prolines=True, sort=True, remove_nan=True):
+    def __init__(self, data, drop_first=1, ignore_prolines=True, d_percentage=100., sort=True, remove_nan=True):
         assert np.all(data['start'] < data['end']), 'All `start` entries must be smaller than their `end` entries'
+        assert 0 <= d_percentage <= 100., 'Deuteration percentage must be between 0 and 100'
+        d_percentage /= 100.
+
         self.data = data.copy()
         if remove_nan:
             self.data = self.data[~np.isnan(self.data['uptake'])]
@@ -83,7 +88,7 @@ class PeptideMasterTable(object):
         self.data['start'] += n_term
         self.data['end'] -= c_term
 
-        ex_residues = [len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]
+        ex_residues = np.array([len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]) * d_percentage
         if 'ex_residues' not in self.data.dtype.names:
             self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
 
@@ -506,17 +511,17 @@ class Coverage(object):
 
     Attributes
     ----------
-        start : :obj:`int`
-            Index of residue first appearing in the peptides (first residue is 1)
-        end : :obj:`int`
-            Index of last residue appearing in the peptides (inclusive)
-        r_number : :class:`~numpy.ndarray`
-            Array of residue numbers which are covered by the peptides, excluding prolines if they are set to be ignored.
-        prot_len : :obj:`int`
-            Total number of residues the peptides covering, excluding prolines if they are set to be ignored.
-        X : :class:`~numpy.ndarray`
-            N x M matrix where N is the number of peptides and M equal to `prot_len`.
-            Values are 1/(ex_residues) where there is coverage, so that rows sum to 1
+    start : :obj:`int`
+        Index of residue first appearing in the peptides (first residue is 1).
+    end : :obj:`int`
+        Index of last residue appearing in the peptides (inclusive)
+    r_number : :class:`~numpy.ndarray`
+        Array of residue numbers which are covered by the peptides, excluding prolines if they are set to be ignored.
+    prot_len : :obj:`int`
+        Total number of residues the peptides covering, excluding prolines if they are set to be ignored.
+    X : :class:`~numpy.ndarray`
+        N x M matrix where N is the number of peptides and M equal to `prot_len`.
+        Values are 1/(ex_residues) where there is coverage, so that rows sum to 1
     """
 
     def __init__(self, data):
@@ -553,9 +558,7 @@ class Coverage(object):
             along the `r_number` axis"""
 
         # indices are start and stop values of blocks
-        print(self.data['end'])
         indices = np.sort(np.concatenate([self.data['start'], self.data['end']]))
-        print(indices)
         #indices of insertion into r_number vector gives us blocks with taking prolines into account.
         diffs = np.diff(np.searchsorted(self.r_number, indices))
 
@@ -719,7 +722,10 @@ class KineticsSeries(object):
         Numpy structured array with peptide entries corresponding to a single state,
         or list of :class:`~pyhdx.pyhdx.PeptideMeasurements`
     make_uniform : :obj:`bool`
-        If `True` the returned :class:`~pyhdx.pyhdx.KineticSeries` is made uniform
+        If `True` the :class:`~pyhdx.pyhdx.KineticSeries` instance is made uniform
+    **metadata
+        Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
+
 
     Attributes
     ----------
@@ -727,6 +733,10 @@ class KineticsSeries(object):
         State of the kinetic series
     timepoints : :class:`~numpy.ndarray`
         Array with exposure times (sorted)
+    peptides: :obj:`list`
+        List of :class:`~pyhdx.models.PeptideMeasurements`, one list element per timepoint.
+    cov: :class:`~pyhdx.models.Coverage`
+        Coverage object describing peptide layout. When this `uniform` is `False`, this attribute is `None`
 
     """
     def __init__(self, data, make_uniform=True, **metadata):

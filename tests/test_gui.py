@@ -1,8 +1,8 @@
 import os
 
 from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
-from pyhdx.panel.controller import PyHDXController
-from pyhdx.panel.main import control_panels, figure_panels
+from pyhdx.panel.apps import _main_app
+
 from pyhdx.panel.log import get_default_handler
 import sys
 directory = os.path.dirname(__file__)
@@ -26,9 +26,7 @@ class TestGui(object):
         with open(self.fpath, 'rb') as f:
             binary = f.read()
 
-        ctrl = PyHDXController(control_panels, figure_panels)
-        ctrl.logger.addHandler(get_default_handler(sys.stdout))
-
+        tmpl, ctrl = _main_app()
         file_input_control = ctrl.control_panels['PeptideFileInputControl']
 
         file_input_control.file_selectors[0].value = binary
@@ -47,11 +45,11 @@ class TestGui(object):
         assert isinstance(ctrl.peptides, PeptideMasterTable)
 
     def test_coverage(self):
-        ctrl = PyHDXController(control_panels, figure_panels)
+        tmpl, ctrl = _main_app()
         ctrl.series = self.series
 
     def test_initial_guesses(self):
-        ctrl = PyHDXController(control_panels, figure_panels)
+        tmpl, ctrl = _main_app()
         ctrl.series = self.series
 
         ctrl.control_panels['InitialGuessControl']._action_fit()

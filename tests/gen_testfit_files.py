@@ -33,7 +33,7 @@ with open(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.pick'), 'wb
     pickle.dump(fr1, f)
 
 
-fr_pfact = kf.global_fit_new(out1, use_kint=True)
+fr_pfact = kf.global_fit(out1, use_kint=True)
 out_pfact = fr_pfact.output
 
 fmt, hdr = fmt_export(out_pfact)

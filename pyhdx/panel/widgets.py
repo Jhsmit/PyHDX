@@ -12,7 +12,6 @@ class NumericInput(pn.widgets.input.Widget):
     NumericInput allows input of floats with bounds
     """
 
-
     type = param.ClassSelector(default=None, class_=(type, tuple),
                                is_instance=True)
 
@@ -113,7 +112,7 @@ class NGLViewer(HTML):
         window.addEventListener( "resize", function( event ){{
             stage.handleResize();
         }}, false );
-        stage.loadFile("")""" # this currently gives an error
+        stage.loadFile("")""" # this currently gives an error, load empty pdb file?
         self._update_object_from_parameters()
 
     @property

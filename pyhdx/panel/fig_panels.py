@@ -161,6 +161,41 @@ class BinaryComparisonFigure(ThdFigure):
         return super().draw_figure(y_axis_type=y_axis_type, **kwargs)
 
 
+class SingleValueFigure(LinearLogFigure):
+    title = 'Values'
+    accepted_tags = [('comparison', 'mapping')]
+    x_label = 'Residue number'
+    y_label = 'Value'
+
+    def render_sources(self, src_dict):
+        for name, data_source in src_dict.items():
+            for field, render_func in zip(['value1', 'value2'], ['triangle', 'square']):
+                glyph_func = getattr(self.figure, render_func)
+                kwargs = data_source.render_kwargs.copy()
+                kwargs.pop('y')
+
+                renderer = glyph_func(**kwargs, y=field, source=data_source.source, name=name,
+                                      legend_label=name + f'_{field}')
+
+                self.renderers[name] = renderer
+                hovertool = HoverTool(renderers=[renderer],
+                                      tooltips=[('Residue', '@r_number{int}'), (self.y_label, f'@{data_source.render_kwargs["y"]}')],
+                                      mode='vline')
+                self.figure.add_tools(hovertool)
+
+            if self.renderers:
+                self.figure.legend.click_policy = 'hide'
+
+    def draw_figure(self, **kwargs):
+        y_axis_type = kwargs.pop('y_axis_type', 'linear')
+        return super().draw_figure(y_axis_type=y_axis_type, **kwargs)
+
+
+class SingleFigure(BinaryComparisonFigure):
+    title = 'Values'
+    y_label = 'Value'
+
+
 class FitResultFigure(BokehFigurePanel):
     title = 'Fit Result'
     accepted_tags = ['uptake_curve']
@@ -213,7 +248,7 @@ class ProteinFigure(FigurePanel):
         self.add_sources(new_items)
 
         removed_items = self.renderers.keys() - self.parent.sources.keys()  # Set difference
-        print('pf removed items', removed_items)
+        self.parent.logger.debug(f'Protein view removed items: {removed_items}')
         self.remove_sources(removed_items)
 
     def _data_updated_callback(self, attr, old, new):

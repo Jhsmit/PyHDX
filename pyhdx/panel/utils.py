@@ -1,4 +1,4 @@
-from pyhdx.panel.controller import PyHDXController
+from pyhdx.panel.main_controllers import PyHDXController
 from pyhdx.support import np_from_txt
 
 

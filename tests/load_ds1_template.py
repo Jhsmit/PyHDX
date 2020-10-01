@@ -27,7 +27,7 @@ kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 fr1 = kf.weighted_avg_fit()
 out1 = fr1.output
 
-fr_pfact = kf.global_fit_new(out1, use_kint=True, l1=20)
+fr_pfact = kf.global_fit(out1, use_kint=True, l1=20)
 output = fr_pfact.output
 
 fmt, hdr = fmt_export(output)

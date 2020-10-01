@@ -81,7 +81,7 @@ class TestSimulatedDataFit(object):
         kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=300, pH=8)
         initial_rates = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
 
-        fr_pfact = kf.global_fit_new(initial_rates, use_kint=True)
+        fr_pfact = kf.global_fit(initial_rates, use_kint=True)
         out_pfact = fr_pfact.output
 
         check_pfact = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_pfact.txt'))

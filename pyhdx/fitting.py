@@ -747,54 +747,6 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
 
-    def global_fit(self, initial_result, use_kint=True, learning_rate=0.01, l1=1e2, l2=0., epochs=10000, callbacks=None):
-        raise DeprecationWarning('global fit is deprecated in favour of global_fit_new')
-        import pyhdx.fitting_tf as ftf
-
-        #todo sessions
-        #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
-
-        intervals = []
-        weights = []
-        funcs = []
-        inputs = []
-        losses = []
-
-        if use_kint:
-            k_int = self.k_series.cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
-            k_r_number = self.k_series.cov.sequence_r_number
-            k_dict = {'r_number': k_r_number, 'k_int': k_int}
-        else:
-            k_dict = None
-
-        gen = self._prepare_global_fit_gen(initial_result, k_int=k_dict, l1=l1, l2=l2)
-
-        early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
-        callbacks = [early_stop] if callbacks is None else callbacks
-        if not np.any([isinstance(cb, ftf.EarlyStopping) for cb in callbacks]):
-            callbacks.append(early_stop)
-
-        for model, interval, input_data, output_data in gen:
-            intervals.append(interval)
-            func = model.layers[-1].function  # assuming the last layer is the fitting layer, other are input
-            funcs.append(func)
-            inputs.append(input_data)
-
-            cb = ftf.LossHistory()
-            #early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
-
-            #loss_klass = ftf.NaNMeanSquaredError()
-            model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
-            result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
-            losses.append(result.history['loss'])
-            print('number of epochs', len(result.history['loss']))
-            wts = np.squeeze(cb.weights[-1][0])  # weights are the first weights from the last layer
-            weights.append(wts)
-
-        tf_fitresult = ftf.TFFitResult(self.k_series, intervals, funcs, weights, inputs, loss=losses)
-
-        return tf_fitresult
-
     def _prepare_global_fit_gen(self, initial_result, k_int=None, l1=1e2, l2=0.):
         """
 
@@ -875,7 +827,8 @@ class KineticsFitting(object):
         output = np.empty_like(self.k_series.tf_cov.r_number, dtype=dtype)
         indices = np.searchsorted(initial_rates['r_number'], self.k_series.tf_cov.r_number)
         if not len(indices) == len(np.unique(indices)):
-            print('WARNING')
+            pass
+            # todo this section requires some validation
             # raise ValueError('Invalid match between section r number and initial result r number')
         init_rate = initial_rates['rate'][indices]
 
@@ -906,7 +859,7 @@ class KineticsFitting(object):
 
         return p_guess
 
-    def global_fit_new(self, initial_result, use_kint=True, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
+    def global_fit(self, initial_result, use_kint=True, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
         """TF global fitting using new coverage object"""
         #todo split off in get_model function?
 

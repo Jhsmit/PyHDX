@@ -1,9 +1,15 @@
+"""
+Reload SecB and fitted data and launch  GUI
+
+"""
+
+
 from pyhdx.fileIO import read_dynamx
 from pyhdx import PeptideMasterTable
 from pyhdx.support import np_from_txt
 import pickle
 import os
-from pyhdx.panel.main import tmpl, ctrl
+from pyhdx.panel.apps import _main_app
 from pyhdx.panel.utils import reload_previous
 from pyhdx.panel.base import DEFAULT_COLORS
 from pyhdx.panel.data_sources import DataSource
@@ -11,7 +17,7 @@ import panel as pn
 import numpy as np
 
 
-
+tmpl, ctrl = _main_app()
 directory = os.path.dirname(__file__)
 
 dic = {}

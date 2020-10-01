@@ -1,5 +1,5 @@
 Welcome to PyHDX's documentation!
-======================================
+=================================
 
 .. toctree::
    :maxdepth: 2

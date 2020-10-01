@@ -32,93 +32,6 @@ from .widgets import ColoredStaticText, ASyncProgressBar
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
 
-class MainController(param.Parameterized):
-    """
-    Base class for application main controller
-    Subclass to extend
-
-    Parameters
-    ----------
-    control_panels: :obj:`list`
-        List of strings referring to which ControlPanels to use for this MainController instance
-        Should refer to subclasses of :class:`~pyhdx.panel.base.ControlPanel`
-    figure_panels: :obj:`list`
-        List of string referring to which FigurePanels to use for this MainController instance
-        Should refer to subclasses :class:`~pyhdx.panel.base.FigurePanel`
-    cluster: :obj:`str`
-        IP:port address for Dask cluster (optional)
-
-    Attributes
-    ----------
-
-    doc : :class:`~bokeh.document.Document`
-        Currently active Bokeh document
-    logger : :class:`~logging.Logger`
-        Logger instance
-    control_panels : :obj:`dict`
-        Dictionary with :class:`~pyhdx.panel.base.ControlPanel` instances (__name__ as keys)
-    figure_panels : :obj`dict`
-        Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
-
-    """
-    sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting', precedence=-1)
-
-    def __init__(self, control_panels, figure_panels, cluster=None, **params):
-        super(MainController, self).__init__(**params)
-        self.cluster = cluster
-        self.doc = pn.state.curdoc
-        self.logger = logging.getLogger(str(id(self)))
-
-        #available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
-        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}
-
-        #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
-        self.figure_panels = {ctrl.name: ctrl(self) for ctrl in figure_panels}
-
-    def publish_data(self, name, data_source_obj):
-        """
-        Publish dataset to be available for client figure to plot
-
-        Parameters
-        ----------
-        name: :obj:`str`
-            Name of the dataset
-        data_source_obj: :class:`~pyhdx.panel.data_sources.DataSource`
-            Data source object
-        """
-
-        try:  # update existing source
-            src = self.sources[name]
-            src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds?
-        except KeyError:
-            self.sources[name] = data_source_obj
-
-        self.param.trigger('sources')
-
-
-class PyHDXController(MainController):
-    """
-    Main controller for PyHDX web application.
-
-    """
-    fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
-    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides', precedence=-1)
-    series = param.ClassSelector(KineticsSeries,
-                                 doc='KineticsSeries object with current selected and corrected peptides', precedence=-1)
-
-    def __init__(self, *args, **kwargs):
-        super(PyHDXController, self).__init__(*args, **kwargs)
-
-
-class ComparisonController(MainController):
-    """
-    Main controller for binary comparison web application.
-    """
-
-    datasets = param.Dict(default={}, doc='Dictionary for all datasets')
-    comparisons = param.Dict(default={}, doc='Dictionary for all comparisons (should be in sources)')
-
-
 class MappingFileInputControl(ControlPanel):
     """
     This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
@@ -175,6 +88,169 @@ class MappingFileInputControl(ControlPanel):
 
     def _datasets_updated(self, events):
         self.param['datasets_list'].objects = list(self.parent.datasets.keys())
+
+
+class PeptideFileInputControl(ControlPanel):
+    """
+    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
+    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
+    analysis.
+
+    """
+    header = 'Peptide Input'
+
+    add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
+    clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
+    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
+    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
+    load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
+    norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
+    norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
+    norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
+    #d_percent = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
+    #                         label='D percentage')
+    be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
+                              label='Back exchange percentage')
+
+    #zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
+    #zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
+
+    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
+    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
+                                       , doc='Selected exposure time to use')
+
+    parse_button = param.Action(lambda self: self._action_parse(), label='Parse',
+                                doc='Parse selected peptides for further analysis and apply back-exchange correction')
+
+    def __init__(self, parent, **params):
+        self.file_selectors = [pn.widgets.FileInput(accept='.csv')]
+        super(PeptideFileInputControl, self).__init__(parent, **params)
+
+    def make_dict(self):
+        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.LiteralInput)
+
+    def make_list(self):
+        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
+                      'norm_mode', 'norm_state', 'norm_exposure', 'exp_state',
+                      'exp_exposures', 'parse_button']
+        first_widgets = list([self._widget_dict[par] for par in parameters])
+        return self.file_selectors + first_widgets
+
+    def _action_add(self):
+        """Add another FileInput widget/"""
+        widget = pn.widgets.FileInput(accept='.csv')
+        i = len(self.file_selectors)  # position to insert the new file selector into the widget box
+        self.file_selectors.append(widget)
+        self._box.insert(i, widget)
+
+    def _action_clear(self):
+        """Clear all file selectors and set number of file selectors to one."""
+        self.parent.logger.debug('Cleared file selectors')
+
+        while self.file_selectors:
+            fs = self.file_selectors.pop()
+            idx = list(self._box).index(fs)
+            self._box.pop(idx)
+        self._action_add()
+
+    def _action_load(self):
+        """Load files from FileInput widgets """
+        data_list = []
+        for file_selector in self.file_selectors:
+            if file_selector.value is not None:
+                s_io = StringIO(file_selector.value.decode('UTF-8'))
+                data = read_dynamx(s_io)
+                data_list.append(data)
+
+        combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
+
+        self.parent.peptides = PeptideMasterTable(combined,
+                                                  drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+
+        states = list(np.unique(self.parent.peptides.data['state']))
+        self.param['norm_state'].objects = states
+        self.norm_state = states[0]
+        #self.param['zero_state'].objects = ['None'] + states
+        #self.zero_state = 'None'
+
+        self.parent.logger.info(
+            f'Loaded {len(data_list)} file{"s" if len(data_list) > 1 else ""} with a total '
+            f'of {len(self.parent.peptides)} peptides')
+
+    def _action_parse(self):
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+        if self.norm_mode == 'Exp':
+            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
+            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
+        elif self.norm_mode == 'Theory':
+            self.parent.peptides.set_backexchange(self.be_percent)
+
+        data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
+        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
+
+        series = KineticsSeries(data)
+        series.make_uniform()
+        self.parent.series = series
+
+        self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
+                                f'({len(series)} timepoints, {len(series.cov)} peptides each)')
+
+    @param.depends('norm_mode', watch=True)
+    def _update_norm_mode(self):
+        if self.norm_mode == 'Exp':
+            self.box_pop('be_percent')
+            self.box_insert_after('norm_mode', 'norm_state')
+            self.box_insert_after('norm_state', 'norm_exposure')
+            self.box_insert_after('norm_exposure', 'zero_state')
+            self.box_insert_after('zero_state', 'zero_exposure')
+
+        elif self.norm_mode == 'Theory':
+            self.box_pop('norm_state')
+            self.box_pop('norm_exposure')
+            self.box_pop('zero_state')
+            self.box_pop('zero_exposure')
+            self.box_insert_after('norm_mode', 'be_percent')
+
+            try:
+                states = np.unique(self.parent.data['state'])
+                self.param['exp_state'].objects = states
+                self.exp_state = states[0] if not self.exp_state else self.exp_state
+            except TypeError:
+                pass
+
+    @param.depends('norm_state', watch=True)
+    def _update_norm_exposure(self):
+        b = self.parent.peptides.data['state'] == self.norm_state
+        data = self.parent.peptides.data[b]
+        exposures = list(np.unique(data['exposure']))
+        self.param['norm_exposure'].objects = exposures
+        if exposures:
+            self.norm_exposure = exposures[0]
+
+    # @param.depends('zero_state', watch=True)
+    # def _update_zero_exposure(self):
+    #     b = self.parent.peptides.data['state'] == self.zero_state
+    #     data = self.parent.peptides.data[b]
+    #     exposures = list(np.unique(data['exposure']))
+    #     self.param['zero_exposure'].objects = exposures
+    #     if exposures:
+    #         self.control_exposure = exposures[0]
+
+    @param.depends('norm_state', 'norm_exposure', watch=True)
+    def _update_experiment(self):
+        #TODO THIS needs to be updated to also incorporate the zero (?)
+        pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
+        states = list(np.unique([v.state for v in pm_dict.values()]))
+        self.param['exp_state'].objects = states
+        self.exp_state = states[0] if not self.exp_state else self.exp_state
+
+    @param.depends('exp_state', watch=True)
+    def _update_experiment_exposure(self):
+        b = self.parent.peptides.data['state'] == self.exp_state
+        exposures = list(np.unique(self.parent.peptides.data['exposure'][b]))
+        exposures.sort()
+        self.param['exp_exposures'].objects = exposures
+        self.exp_exposures = exposures
 
 
 class DifferenceControl(ControlPanel):
@@ -268,172 +344,75 @@ class DifferenceControl(ControlPanel):
         self.param['comparison_list'].objects = objects
 
 
-class PeptideFileInputControl(ControlPanel):
+class SingleControl(ControlPanel):
     """
-    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
-    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
-    analysis.
-
+    This controller allows users to select a dataset from available datasets, and choose a quantity to classify/visualize,
+    and add this quantity to the available datasets.
     """
-    header = 'Peptide Input'
 
-    add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
-    clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
-    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
-    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
-    load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
-    norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
-    norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
-    norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
-    #d_percent = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
-    #                         label='D percentage')
-    be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
-                              label='Back exchange percentage')
+    #todo subclass with DifferenceControl
+    header = 'Datasets'
 
-    zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
-    zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
+    dataset = param.Selector(doc='Dataset')
+    dataset_name = param.String(doc='Name of the dataset to add')
+    quantity = param.Selector(doc="Select a quantity to plot (column from input txt file)")
 
-    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
-    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
-                                       , doc='Selected exposure time to use')
-
-    parse_button = param.Action(lambda self: self._action_parse(), label='Parse',
-                                doc='Parse selected peptides for further analysis and apply back-exchange correction')
+    add_dataset = param.Action(lambda self: self._action_add_dataset(),
+                               doc='Click to add this comparison to available comparisons')
+    dataset_list = param.ListSelector(doc='Lists available comparisons')
+    remove_dataset = param.Action(lambda self: self._action_remove_comparison(),
+                                  doc='Remove selected datasets from available datasets')
 
     def __init__(self, parent, **params):
-        self.file_selectors = [pn.widgets.FileInput(accept='.csv')]
-        super(PeptideFileInputControl, self).__init__(parent, **params)
+        super(SingleControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._datasets_updated, ['datasets'])
 
-    def make_dict(self):
-        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.LiteralInput)
+    def _datasets_updated(self, events):
+        objects = list(self.parent.datasets.keys())
 
-    def make_list(self):
-        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
-                      'norm_mode', 'norm_state', 'norm_exposure',  'zero_state', 'zero_exposure', 'exp_state',
-                      'exp_exposures', 'parse_button']
-        first_widgets = list([self._widget_dict[par] for par in parameters])
-        return self.file_selectors + first_widgets
+        self.param['dataset'].objects = objects
+        if not self.dataset:
+            self.dataset = objects[0]
 
-    def _action_add(self):
-        """Add another FileInput widget/"""
-        widget = pn.widgets.FileInput(accept='.csv')
-        i = len(self.file_selectors)  # position to insert the new file selector into the widget box
-        self.file_selectors.append(widget)
-        self._box.insert(i, widget)
+    @param.depends('dataset', watch=True)
+    def _selection_updated(self):
+        if self.dataset:
+            dataset = self.parent.datasets[self.dataset]
+            names = dataset.dtype.names
+            objects = [name for name in names if name != 'r_number']
+            self.param['quantity'].objects = objects
+            if self.quantity is None:
+                self.quantity = objects[0]
 
-    def _action_clear(self):
-        """Clear all file selectors and set number of file selectors to one."""
-        self.parent.logger.debug('Cleared file selectors')
+    def _action_add_dataset(self):
+        if not self.dataset_name:
+            self.parent.logger.info('The added comparison needs to have a name')
+            return
+        if not self.dataset:
+            return
 
-        while self.file_selectors:
-            fs = self.file_selectors.pop()
-            idx = list(self._box).index(fs)
-            self._box.pop(idx)
-        self._action_add()
+        array = self.parent.datasets[self.dataset]
+        data_source = DataSource(array, tags=['comparison', 'mapping'], x='r_number', y=self.quantity,
+                                 renderer='circle', size=10)
+        self.parent.publish_data(self.dataset_name, data_source)  # Triggers parent.sources param
+        self.comparison_name = ''
 
-    def _action_load(self):
-        """Load files from FileInput widgets """
-        data_list = []
-        for file_selector in self.file_selectors:
-            if file_selector.value is not None:
-                s_io = StringIO(file_selector.value.decode('UTF-8'))
-                data = read_dynamx(s_io)
-                data_list.append(data)
+    def _action_remove_comparison(self):
+        for ds in self.dataset_list:
+            self.parent.sources.pop(ds)   #Popping from dicts does not trigger param
+        self.parent.param.trigger('sources')
 
-        combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
-
-        #todo remove this attribute
-        self.parent.data = combined
-        self.parent.peptides = PeptideMasterTable(self.parent.data,
-                                                  drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
-
-        states = list(np.unique(self.parent.peptides.data['state']))
-        self.param['norm_state'].objects = states
-        self.norm_state = states[0]
-        self.param['zero_state'].objects = ['None'] + states
-        self.zero_state = 'None'
-
-        self.parent.logger.info(
-            f'Loaded {len(data_list)} file{"s" if len(data_list) > 1 else ""} with a total '
-            f'of {len(self.parent.peptides)} peptides')
-
-    def _action_parse(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
-        if self.norm_mode == 'Exp':
-            control_0 = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
-            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
-        elif self.norm_mode == 'Theory':
-            self.parent.peptides.set_backexchange(self.be_percent)
-
-        data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
-        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
-
-        series = KineticsSeries(data)
-        series.make_uniform()
-        self.parent.series = series
-
-        self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
-                                f'({len(series)} timepoints, {len(series.cov)} peptides each)')
-
-    @param.depends('norm_mode', watch=True)
-    def _update_norm_mode(self):
-        if self.norm_mode == 'Exp':
-            self.box_pop('be_percent')
-            self.box_insert_after('norm_mode', 'norm_state')
-            self.box_insert_after('norm_state', 'norm_exposure')
-            self.box_insert_after('norm_exposure', 'zero_state')
-            self.box_insert_after('zero_state', 'zero_exposure')
-
-        elif self.norm_mode == 'Theory':
-            self.box_pop('norm_state')
-            self.box_pop('norm_exposure')
-            self.box_pop('zero_state')
-            self.box_pop('zero_exposure')
-            self.box_insert_after('norm_mode', 'be_percent')
-
-            try:
-                states = np.unique(self.parent.data['state'])
-                self.param['exp_state'].objects = states
-                self.exp_state = states[0] if not self.exp_state else self.exp_state
-            except TypeError:
-                pass
-
-    @param.depends('norm_state', watch=True)
-    def _update_norm_exposure(self):
-        b = self.parent.peptides.data['state'] == self.norm_state
-        data = self.parent.peptides.data[b]
-        exposures = list(np.unique(data['exposure']))
-        self.param['norm_exposure'].objects = exposures
-        if exposures:
-            self.norm_exposure = exposures[0]
-
-    @param.depends('zero_state', watch=True)
-    def _update_zero_exposure(self):
-        b = self.parent.peptides.data['state'] == self.zero_state
-        data = self.parent.peptides.data[b]
-        exposures = list(np.unique(data['exposure']))
-        self.param['zero_exposure'].objects = exposures
-        if exposures:
-            self.control_exposure = exposures[0]
-
-    @param.depends('norm_state', 'norm_exposure', watch=True)
-    def _update_experiment(self):
-        #TODO THIS needs to be updated to also incorporate the zero (?)
-        pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
-        states = list(np.unique([v.state for v in pm_dict.values()]))
-        self.param['exp_state'].objects = states
-        self.exp_state = states[0] if not self.exp_state else self.exp_state
-
-    @param.depends('exp_state', watch=True)
-    def _update_experiment_exposure(self):
-        b = self.parent.data['state'] == self.exp_state
-        exposures = list(np.unique(self.parent.data['exposure'][b]))
-        exposures.sort()
-        self.param['exp_exposures'].objects = exposures
-        self.exp_exposures = exposures
+    @param.depends('parent.sources', watch=True)
+    def _update_dataset_list(self):
+        objects = [name for name, d in self.parent.sources.items()]
+        self.param['dataset_list'].objects = objects
 
 
 class CoverageControl(ControlPanel):
+    """
+    This controller allows users to control the peptide coverage figure, by choosing how many peptides to plot vertically,
+    which color map to use, and which exposure time to show.
+    """
     header = 'Coverage'
 
     wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row.') # todo auto?
@@ -552,8 +531,7 @@ class CoverageControl(ControlPanel):
 
 class InitialGuessControl(ControlPanel):
     """
-    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data
-
+    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
     """
 
     #todo remove lambda symbol although its really really funny
@@ -658,7 +636,6 @@ class FitControl(ControlPanel):
     This controller allows users to execute TensorFlow fitting of the global data set.
 
     Currently, repeated fitting overrides the old result.
-
     """
 
     header = 'Fitting'
@@ -675,7 +652,6 @@ class FitControl(ControlPanel):
                                  doc='Learning rate parameter for optimization.')
     epochs = param.Number(100000, bounds=(1, None),
                           doc='Maximum number of epochs (iterations.')
-
     l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer.')
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True, label='Do Fitting',
                           doc='Start TensorFlow global fitting')
@@ -713,8 +689,8 @@ class FitControl(ControlPanel):
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
         initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
         early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
-        result = kf.global_fit_new(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
-                                   l1=self.l1_regularizer, callbacks=[early_stop])
+        result = kf.global_fit(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
+                               l1=self.l1_regularizer, callbacks=[early_stop])
 
         output_name = 'pfact'
         var_name = 'log_P'
@@ -929,7 +905,7 @@ class ClassificationControl(ControlPanel):
         elif self.mode == 'Continuous':
             func = np.log if self.log_space else lambda x: x
             vals_space = (func(self.values))  # values in log space depending on setting
-            norm = plt.Normalize(vals_space[-1], vals_space[0])#, clip=True) currently there is never anythin clipped?
+            norm = plt.Normalize(vals_space[-1], vals_space[0], clip=True)
             nodes = norm(vals_space[::-1])
             cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
 
@@ -1013,6 +989,8 @@ class ClassificationControl(ControlPanel):
             idx = list(self.colors_widgets).index(event.obj)
             self.colors[idx] = event.new
 
+
+        #todo callback?
         self.param.trigger('colors')
 
     def _value_event(self, *events):
@@ -1045,7 +1023,7 @@ class FileExportControl(ControlPanel):
     This controller allows users to export and download datasets.
 
     All datasets can be exported as .txt tables.
-    'Mappable' datasets (with r_number column) can be exporeted as .pml pymol script, which colors protein structures
+    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
     based on their 'color' column.
 
     """
@@ -1147,6 +1125,37 @@ class FileExportControl(ControlPanel):
             return None
 
 
+class DifferenceFileExportControl(FileExportControl):
+    """
+    This controller allows users to export and download datasets.
+
+    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
+    based on their 'color' column.
+
+    """
+
+    accepted_tags = ['mapping']
+    #todo include comparison info (x vs y) in output
+
+    def _sources_updated(self, *events):  #refactor _parent_sources_updated on classificationcontrol
+        data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
+        self.param['target'].objects = list(data_sources)
+
+        # Set target if its not set already
+        if not self.target and data_sources:
+            self.target = data_sources[-1]
+
+    @pn.depends('target', watch=True)
+    def _update_filename(self):
+        self.export_linear_download.filename = self.target + '_linear.txt'
+        if 'r_number' in self.export_dict.keys():
+            self.pml_script_download.filename = self.target + '_pymol.pml'
+
+        r_max = int(np.nanmax(self.export_dict['r_number'])) + 5
+        if self.c_term < r_max:
+            self.c_term = r_max
+
+
 class ProteinViewControl(ControlPanel):
     """
     This controller allows users control the Protein view figure.
@@ -1179,7 +1188,7 @@ class ProteinViewControl(ControlPanel):
 
     def make_list(self):
         lst = super().make_list()
-        lst.pop(2)  # Remove RCSB ID input field
+        lst.pop(2)  # Remove RCSB ID input field?
         lst.insert(2, self.file_input)  # add File input widget
         return lst
 
@@ -1187,6 +1196,8 @@ class ProteinViewControl(ControlPanel):
         #todo  this line repeats, put in base class
         data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
         self.param['target_dataset'].objects = data_sources
+        if not self.target_dataset and data_sources:
+            self.target_dataset = data_sources[0]
 
     @param.depends('input_option', watch=True)
     def _update_input_option(self):
@@ -1259,6 +1270,7 @@ class DeveloperControl(ControlPanel):
     header = 'Developer Options'
     test_logging = param.Action(lambda self: self._action_test_logging())
     breakpoint_btn = param.Action(lambda self: self._action_break())
+    print_btn = param.Action(lambda self: self._action_print())
     test_btn = param.Boolean()
 
     def __init__(self, parent, **params):
@@ -1268,6 +1280,9 @@ class DeveloperControl(ControlPanel):
         self.parent.logger.debug('TEST DEBUG MESSAGE')
         for i in range(20):
             self.parent.logger.info('dit is een test123')
+
+    def _action_print(self):
+        print(self.parent.doc)
 
     def _action_break(self):
         main_ctrl = self.parent
