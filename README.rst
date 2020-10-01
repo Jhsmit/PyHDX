@@ -2,6 +2,9 @@
 PyHDX
 =====
 
+.. image:: https://zenodo.org/badge/206772076.svg
+   :target: https://zenodo.org/badge/latestdoi/206772076
+
 .. raw:: html
 
     <img src="images/PyHDX_rgb.png" width="1000" />
