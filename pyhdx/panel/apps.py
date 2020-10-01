@@ -11,7 +11,7 @@ DEBUG = False
 cluster = '127.0.0.1:52123'
 
 
-def main_app():
+def _main_app():
     control_panels = [
         PeptideFileInputControl,
         CoverageControl,
@@ -54,10 +54,15 @@ def main_app():
                          ))
 
     ctrl.control_panels['OptionsControl']._update_link()
+    return tmpl, ctrl
+
+
+def main_app():
+    tmpl, ctrl = _main_app()
     return tmpl
 
 
-def single_app():
+def _single_app():
     control_panels = [
         MappingFileInputControl,
         SingleControl,
@@ -98,7 +103,12 @@ def single_app():
     return tmpl
 
 
-def diff_app():
+def single_app():
+    tmpl, ctrl = _single_app()
+    return tmpl
+
+
+def _diff_app():
     control_panels = [
         MappingFileInputControl,
         DifferenceControl,
@@ -137,4 +147,9 @@ def diff_app():
                          ))
 
     ctrl.control_panels['ClassificationControl'].log_space = False
+    return tmpl
+
+
+def diff_app():
+    tmpl, ctrl = _diff_app()
     return tmpl
