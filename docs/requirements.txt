@@ -1,0 +1,12 @@
+pbr
+symfit
+numpy
+tqdm
+scikit-image
+scipy
+panel
+matplotlib
+bokeh
+dask[distributed]
+tensorflow
+param
