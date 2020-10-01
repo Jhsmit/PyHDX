@@ -624,7 +624,7 @@ class InitialGuessControl(ControlPanel):
         else:
 
             if self.parent.cluster:
-                self.parent.doc = pn.state.curdoc
+                self.parent._doc = pn.state.curdoc
                 loop = IOLoop.current()
                 loop.add_callback(self._fit1_async)
             else:
