@@ -130,10 +130,13 @@ class BokehFigurePanel(FigurePanel):
 
     def _data_updated_callback(self, attr, old, new):
 #        self.bk_pane.param.trigger('object')
-        callback = partial(self.bk_pane.param.trigger, 'object')
-        self.parent.doc.add_next_tick_callback(callback)
-
-
+        # This might be `None` if the webapp it not running yet but loading data in a script
+        if self.parent.doc is not None:
+            callback = partial(self.bk_pane.param.trigger, 'object')
+            self.parent.doc.add_next_tick_callback(callback)
+        else:
+            self.bk_pane.param.trigger('object')
+            
     def render_sources(self, src_dict):
         """override to customize how sources are rendered"""
         for name, data_source in src_dict.items():
