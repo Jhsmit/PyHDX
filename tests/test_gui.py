@@ -1,17 +1,14 @@
-import os
-
 from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
-from pyhdx.panel.apps import _main_app
+from pyhdx.panel.apps import _main_app, _diff_app
+from pathlib import Path
 
-from pyhdx.panel.log import get_default_handler
-import sys
-directory = os.path.dirname(__file__)
+directory = Path(__file__).parent
 
 
 class TestGui(object):
     @classmethod
     def setup_class(cls):
-        cls.fpath = os.path.join(directory, 'test_data', 'ecSecB_apo.csv')
+        cls.fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(cls.fpath))
 
         cls.state = 'SecB WT apo'
@@ -54,3 +51,46 @@ class TestGui(object):
 
         ctrl.control_panels['InitialGuessControl']._action_fit()
         assert 'half-life' in ctrl.sources.keys()
+
+
+class TestDiffApp(object):
+    @classmethod
+    def setup_class(cls):
+        cls.fpath = directory / 'test_data' / 'SecB WT apo_pfact_linear.txt'
+
+        with open(cls.fpath, 'rb') as f_obj:
+            cls.file_binary = f_obj.read()
+
+    def test_app(self):
+        tmpl, ctrl = _diff_app()
+
+        f_input = ctrl.control_panels['MappingFileInputControl']
+        f_input._widget_dict['input_file'].filename = str(self.fpath)
+        f_input.input_file = self.file_binary
+        assert f_input.dataset_name == 'SecB WT apo_pfact_linear'
+        f_input.dataset_name = 'DS1'
+        f_input._action_add_dataset()
+        assert f_input.input_file == b''
+        assert f_input.dataset_name == ''
+
+        f_input = ctrl.control_panels['MappingFileInputControl']
+        f_input._widget_dict['input_file'].filename = str(self.fpath)
+        f_input.input_file = self.file_binary
+        f_input.dataset_name = 'DS2'
+        f_input._action_add_dataset()
+
+        diff = ctrl.control_panels['DifferenceControl']
+        diff.dataset_1 = 'DS1'
+        diff.dataset_2 = 'DS2'
+
+        comparison_name = 'Diff_ds1_ds2'
+        diff.comparison_name = comparison_name
+        quantity_objects = diff.param['comparison_quantity'].objects
+        assert quantity_objects == sorted(['log_P_full', 'log_P', 'deltaG'])
+
+        diff.comparison_quantity = 'deltaG'
+        diff._action_add_comparison()
+        assert diff.comparison_name == ''
+        assert comparison_name in ctrl.sources.keys()
+        assert diff.comparison_list is None
+
