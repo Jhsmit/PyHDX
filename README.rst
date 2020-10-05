@@ -2,8 +2,16 @@
 PyHDX
 =====
 
-.. image:: https://zenodo.org/badge/206772076.svg
+|biorxiv| |zenodo| |license|
+
+.. |zenodo| image:: https://zenodo.org/badge/206772076.svg
    :target: https://zenodo.org/badge/latestdoi/206772076
+
+.. |biorxiv| image:: https://img.shields.io/badge/bioRxiv-v1-%23be2635
+   :target: https://www.biorxiv.org/content/10.1101/2020.09.30.320887v1
+   
+.. |license| image:: https://img.shields.io/badge/License-MIT-yellow.svg
+    :target: https://opensource.org/licenses/MIT
 
 .. raw:: html
 
