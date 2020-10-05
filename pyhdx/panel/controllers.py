@@ -291,25 +291,51 @@ class DifferenceControl(ControlPanel):
 
     @param.depends('dataset_1', 'dataset_2', watch=True)
     def _selection_updated(self):
-        if self.dataset_1 and self.dataset_2:
-            datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2]) # property?
-            unique_names = set.intersection(*[{name for name in array.dtype.names} for array in datasets])
+        if self.datasets:
+            unique_names = set.intersection(*[{name for name in array.dtype.names} for array in self.datasets])
+            print(unique_names)
+            objects = [name for name in unique_names if np.issubdtype(self.array_1[name].dtype, np.number)]
+            objects.remove('r_number')
+            objects.sort()
 
-            #todo check for scalar-type dtype
-            objects = [name for name in unique_names if name != 'r_number']
+            # todo check for scara dtype
             self.param['comparison_quantity'].objects = objects
             if self.comparison_quantity is None:
                 self.comparison_quantity = objects[0]
+
+    @property
+    def array_1(self):
+        """:class:`~np.ndarray`: Array with selected dataset 1"""
+        try:
+            return self.parent.datasets[self.dataset_1]
+        except KeyError:
+            return None
+
+    @property
+    def array_2(self):
+        """:class:`~np.ndarray`: Array with selected dataset 1"""
+        try:
+            return self.parent.datasets[self.dataset_2]
+        except KeyError:
+            return None
+
+    @property
+    def datasets(self):
+        """:obj:`tuple`: Tuple with `(array_1, array_2)"""
+        datasets = (self.array_1, self.array_2)
+        if None in datasets:
+            return None
+        else:
+            return datasets
 
     def _action_add_comparison(self):
         if not self.comparison_name:
             self.parent.logger.info('The added comparison needs to have a name')
             return
-        if not (self.dataset_1 and self.dataset_2):
+        if self.datasets is None:
             return
 
-        datasets = (self.parent.datasets[self.dataset_1], self.parent.datasets[self.dataset_2])
-        r_all = np.concatenate([array['r_number'] for array in datasets])
+        r_all = np.concatenate([array['r_number'] for array in self.datasets])
         r_full = np.arange(r_all.min(), r_all.max() + 1)
 
         # Create output array and assign values
@@ -317,11 +343,11 @@ class DifferenceControl(ControlPanel):
                               dtype=[('r_number', int), ('value1', float), ('value2', float), ('comparison', float)])
         output['r_number'] = r_full
 
-        idx = np.searchsorted(output['r_number'], datasets[0]['r_number'])
-        output['value1'][idx] = datasets[0][self.comparison_quantity]
+        idx = np.searchsorted(output['r_number'], self.array_1['r_number'])
+        output['value1'][idx] = self.array_1[self.comparison_quantity]
 
-        idx = np.searchsorted(output['r_number'], datasets[1]['r_number'])
-        output['value2'][idx] = datasets[1][self.comparison_quantity]
+        idx = np.searchsorted(output['r_number'], self.array_2['r_number'])
+        output['value2'][idx] = self.array_2[self.comparison_quantity]
 
         if self.operation == 'Subtract':
             output['comparison'] = output['value1'] - output['value2']
