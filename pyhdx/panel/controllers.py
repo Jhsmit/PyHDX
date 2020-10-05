@@ -512,10 +512,10 @@ class CoverageControl(ControlPanel):
 
     @param.depends('wrap', watch=True)
     def _update_wrap(self):
-        y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
         try:
+            y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
             self.parent.sources['coverage'].source.data.update(y=y)
-        except KeyError:
+        except (KeyError, AttributeError):
             pass
 
     @param.depends('index', 'color_map', watch=True)
