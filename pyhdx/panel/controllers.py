@@ -1077,7 +1077,6 @@ class FileExportControl(ControlPanel):
         except KeyError:
             return None
 
-
     @property
     def export_dict(self):
         return self.export_data_source.source.data
@@ -1103,9 +1102,12 @@ class FileExportControl(ControlPanel):
             io = StringIO()
             io.write('# ' + VERSION_STRING + ' \n')
             script = self._make_pml(self.target)
-            io.write(script)
-            io.seek(0)
-            return io
+            try:
+                io.write(script)
+                io.seek(0)
+                return io
+            except TypeError:
+                return None
         else:
             return None
 
