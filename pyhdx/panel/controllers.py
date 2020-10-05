@@ -490,7 +490,8 @@ class CoverageControl(ControlPanel):
 
         return np.array(c)
 
-    def _series_updated(self, event):  #todo refactor
+    def _series_updated(self, event):
+        """Triggered when there is a new :class:`~pyhdx.models.KineticsSeries loaded on the main controller""" #todo refactor
         # series must be uniform
         self.wrap = autowrap(self.coverage)
         self.param['index'].bounds = (0, len(event.new) - 1)
