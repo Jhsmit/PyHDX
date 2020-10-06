@@ -54,7 +54,7 @@ def _main_app():
                              )
                          ))
 
-    #ctrl.control_panels['OptionsControl']._update_link()
+    ctrl.control_panels['OptionsControl']._update_link()
     return tmpl, ctrl
 
 

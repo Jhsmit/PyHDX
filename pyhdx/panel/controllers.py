@@ -1251,7 +1251,7 @@ class OptionsControl(ControlPanel):
     header = 'Options'
 
     #todo this should be a component (mixin?) for apps who dont have these figures
-    link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.', constant=True)
+    link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.', constant=False)
     log_level = param.Selector(default='DEBUG', objects=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
                                doc='Set the logging level.')
 
