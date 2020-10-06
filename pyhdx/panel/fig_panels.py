@@ -248,7 +248,7 @@ class ProteinFigure(FigurePanel):
         self.add_sources(new_items)
 
         removed_items = self.renderers.keys() - self.parent.sources.keys()  # Set difference
-        self.parent.logger.debug(f'Protein view removed items: {removed_items}')
+        #self.parent.logger.debug(f'Protein view removed items: {removed_items}')
         self.remove_sources(removed_items)
 
     def _data_updated_callback(self, attr, old, new):
