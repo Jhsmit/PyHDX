@@ -32,7 +32,6 @@ class DataSource(param.Parameterized):
             raise TypeError("Invalid input data type")
 
         #todo this does not apply to all data sets?
-        print(list(dic.keys()))
         if 'color' not in dic.keys():
             column = next(iter(dic.values()))
             color = np.full_like(column, fill_value=self.default_color, dtype='<U7')
