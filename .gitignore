@@ -101,3 +101,7 @@ ENV/
 # mypy
 .mypy_cache/
 .idea
+
+
+# Dask
+dask-worker-space/
