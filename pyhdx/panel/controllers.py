@@ -7,7 +7,6 @@ from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import fmt_export, \
     autowrap, colors_to_pymol, rgb_to_hex, gen_subclasses, np_from_txt
-from pyhdx import VERSION_STRING
 from scipy import constants
 import param
 import panel as pn
