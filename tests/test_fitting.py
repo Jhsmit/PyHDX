@@ -55,5 +55,4 @@ class TestSimulatedDataFit(object):
 
         check_pfact = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_pfact.txt'))
         indices = np.searchsorted(out_pfact['r_number'], check_pfact['r_number'])
-
         np.testing.assert_array_almost_equal(out_pfact['log_P'][indices], check_pfact['log_P'], decimal=1)

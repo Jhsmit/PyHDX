@@ -649,6 +649,8 @@ class Coverage(object):
 
         # todo insert and update coverage logic
 
+        #self.protein = Protein()
+
         self.data = data
         self.start = np.min(self.data['start'])
         self._start = np.min(self.data['_start'])
@@ -672,6 +674,7 @@ class Coverage(object):
 
     @property
     def block_length(self):
+        #used by wt averaging fit
         """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
             along the `r_number` axis"""
 
@@ -690,28 +693,8 @@ class Coverage(object):
         return block_coverage
 
     @property
-    def X_red(self):
-        """:class:`~np.ndarray`: Reduced NxM coefficient matrix, with N the number of peptides and M the number of blocks.
-            Elements are equal to the length of the block.
-        """
-        cs = np.cumsum(self.block_length)
-        X_red = np.zeros((len(self.data), len(self.block_length)), dtype=float)
-        for row, entry in enumerate(self.data):
-            i0 = entry['start'] - self.start
-            i1 = entry['end'] - self.start
-            p = np.searchsorted(cs, [i0, i1], side='right')
-
-            X_red[row][p[0]:p[1]] = self.block_length[p[0]:p[1]]
-
-        return X_red
-
-    @property
-    def X_red_norm(self):
-        """:class:`~np.ndarray`: `X_red` blocks coefficient matrix normalized column wise."""
-        return self.X_red / np.sum(self.X_red, axis=0)[np.newaxis, :]
-
-    @property
     def X_norm(self):
+        #todo used by scores_average
         """:class:`~np.ndarray`: `X` coefficient matrix normalized column wise."""
         return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
 
