@@ -2,11 +2,134 @@ import numpy as np
 from numpy.lib.recfunctions import append_fields
 import itertools
 import scipy
+from datetime import datetime
+import pandas as pd
+from io import StringIO
 from functools import reduce
 from operator import add
 from pyhdx.math import solve_nnls
-from pyhdx.support import reduce_inter, make_view
+from pyhdx.support import reduce_inter, make_view, fmt_export
 from pyhdx.expfact.kint import calculate_kint_per_residue
+import pyhdx
+
+
+
+class Protein(object):
+    """Object describing a protein
+
+    Parameters
+    ----------
+    data : :class:`~np.ndarray` or ?
+        data object to initiate the protein object from
+    index: :obj:`str`
+        Name of the column with the residue number (index column)
+
+    **metadata
+        Dictionary of optional metadata.
+
+
+    """
+
+    def __init__(self, data, index, **metadata):
+        self.metadata = metadata
+        self.df = pd.DataFrame(data)
+        if self.df.index.name is None:
+            self.df.set_index(index, inplace=True)
+
+        self.df.sort_values(index, inplace=True)
+
+    def __str__(self):
+        s = self.df.__str__()
+        full_s = "Protein <name>\n" + s
+        return full_s
+
+    def join(self, other, on=None, how='left', lsuffix='', rsuffix='', sort=False):
+        """
+        Metadata is merged (overlapping values are taken from other)
+
+        Parameters
+        ----------
+        other
+        on
+        how
+        lsuffix
+        rsuffix
+        sort
+
+        Returns
+        -------
+
+        """
+        df_out = self.df.join(other.df, on=on, how=how, lsuffix=lsuffix, rsuffix=rsuffix, sort=sort)
+        metadata = {**self.metadata, **other.metadata}
+        protein_out = Protein(df_out, index=df_out.index.name, **metadata)
+        return protein_out
+
+    def add_column(self, index, data, name):
+        pass
+
+    def _make_protein(self, df_out, other):
+        metadata = {**self.metadata, **other.metadata}
+        protein_out = Protein(df_out, index=df_out.index.name, **metadata)
+        return protein_out
+
+    def to_records(self, index=True, column_dtypes=None, index_dtypes=None):
+        return self.df.to_records(index=index, column_dtypes=column_dtypes, index_dtypes=index_dtypes)
+
+    def to_strigIO(self, include_version=True, include_metadata=True):
+        """
+
+        Parameters
+        ----------
+        file_path: :obj:`str` or StringIO
+        include_metadata
+
+        Returns
+        -------
+        io : :class:`~io.StringIO`
+        """
+        #todo add metadata
+
+        io = StringIO()
+
+        if include_version:
+            io.write('# ' + pyhdx.VERSION_STRING + ' \n')
+            io.write('# ' + datetime.now().strftime("%Y/%m/%d %H:%M:%S") + '\n')
+
+        records = self.to_records()
+        fmt, hdr = fmt_export(records)
+        np.savetxt(io, records, fmt=fmt, header=hdr)
+
+        io.seek(0)
+        return io
+
+    def __getitem__(self, item):
+        return self.df.__getitem__(item).to_numpy()
+
+    def __sub__(self, other):
+        assert isinstance(other, Protein)
+        df_out = self.df.subtract(other.df)
+        return self._make_protein(df_out, other)
+
+    def __add__(self, other):
+        assert isinstance(other, Protein)
+        df_out = self.df.add(other.df)
+        return self._make_protein(df_out, other)
+
+    def __truediv__(self, other):
+        assert isinstance(other, Protein)
+        df_out = self.df.truediv(other.df)
+        return self._make_protein(df_out, other)
+
+    def __floordiv__(self, other):
+        assert isinstance(other, Protein)
+        df_out = self.df.floordiv(other.df)
+        return self._make_protein(df_out, other)
+
+    def __mul__(self, other):
+        assert isinstance(other, Protein)
+        df_out = self.df.mul(other.df)
+        return self._make_protein(df_out, other)
 
 
 class PeptideMasterTable(object):
@@ -464,15 +587,10 @@ class TFCoverage(object):
         """
 
         klass = self.__class__
-
-        # intervals = [(s, e + 1) for s, e in zip(self.data['start'], self.data['end'])]
-        # sections = reduce_inter(intervals, gap_size=gap_size)
-
         sections = self.get_sections(gap_size)
 
         output = {}
         for s, e in sections:
-
             b = np.logical_and(self.data['start'] >= s, self.data['end'] <= e)
             output[f'{s}_{e}'] = klass(self.data[b])
 
