@@ -11,3 +11,4 @@ dask[distributed]
 tensorflow
 expfact
 param
+pandas
