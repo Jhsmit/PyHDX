@@ -1,6 +1,7 @@
 import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
+from pyhdx.models import Protein
 from pyhdx.fileIO import read_dynamx
 from pyhdx.support import np_from_txt
 from pyhdx.expfact.kint import calculate_kint_for_sequence, calculate_kint_per_residue
@@ -191,7 +192,67 @@ class TestSimulatedData(object):
                 [4, 4, 4, 5, 4, 3, 3]
             ][i]
 
-            print(i)
             #unmodified: [11 15  9 19  8  9  5]
             lengths = np.array([len(seq) for seq in peptides.data['sequence']]) - np.array(reductions)
             assert np.all(lengths == peptides.data['ex_residues'])
+
+
+class TestProtein(object):
+    @classmethod
+    def setup_class(cls):
+
+        dtype = [('r_number', int), ('apple', float)]
+        array1 = np.empty(15, dtype=dtype)
+        array1['r_number'] = np.arange(15) + 3
+        array1['apple'] = np.ones(15) * 12
+        cls.array1 = array1
+
+        dtype = [('r_number', int), ('apple', float), ('grapes', float)]
+        array2 = np.empty(17, dtype=dtype)
+        array2['r_number'] = np.arange(17) + 6
+        array2['apple'] = np.ones(17) * 10
+        array2['grapes'] = np.ones(17) * 15 + np.random.rand(17)
+        cls.array2 = array2
+
+
+        dtype = [('r_number', int), ('pear', float), ('banana', float)]
+        array3 = np.empty(10, dtype=dtype)
+        array3['r_number'] = np.arange(10) + 1
+        array3['pear'] = np.random.rand(10) + 20
+        array3['banana'] = -(np.random.rand(10) + 20)
+        cls.array3 = array3
+
+    def test_artithmetic(self):
+        p1 = Protein(self.array1, index='r_number')
+        p2 = Protein(self.array2, index='r_number')
+
+        comparison_quantity = 'apple'
+        datasets = [self.array1, self.array2]  # len 15, 3 tm 17 , len 17, 6 tm 22
+        r_all = np.concatenate([array['r_number'] for array in datasets])
+        r_full = np.arange(r_all.min(), r_all.max() + 1)
+
+        output = np.full_like(r_full, fill_value=np.nan,
+                              dtype=[('r_number', int), ('value1', float), ('value2', float), ('comparison', float)])
+
+        output['r_number'] = r_full
+        idx = np.searchsorted(output['r_number'], self.array1['r_number'])
+        output['value1'][idx] = self.array1[comparison_quantity]
+
+        idx = np.searchsorted(output['r_number'], self.array2['r_number'])
+        output['value2'][idx] = self.array2[comparison_quantity]
+
+        comparison = p1 - p2
+        output['comparison'] = output['value1'] - output['value2']
+        assert np.allclose(comparison['apple'], output['comparison'], equal_nan=True)
+
+        comparison = p1 + p2
+        output['comparison'] = output['value1'] + output['value2']
+        assert np.allclose(comparison['apple'], output['comparison'], equal_nan=True)
+
+        comparison = p1 / p2
+        output['comparison'] = output['value1'] / output['value2']
+        assert np.allclose(comparison['apple'], output['comparison'], equal_nan=True)
+
+        comparison = p1 * p2
+        output['comparison'] = output['value1'] * output['value2']
+        assert np.allclose(comparison['apple'], output['comparison'], equal_nan=True)
