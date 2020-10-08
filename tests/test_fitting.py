@@ -51,25 +51,21 @@ class TestSimulatedDataFit(object):
     def test_fitting(self):
         np.random.seed(43)
         pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
+        pmt.set_backexchange(0.)
         states = pmt.groupby_state()
         series = states['state1']
+        series.make_uniform()
 
         kf = KineticsFitting(series, bounds=(1e-2, 800))
 
         fr1 = kf.weighted_avg_fit()
-        out1 = fr1.get_output(['rate', 'k1', 'k2', 'r'])
-
-        fr2 = kf.blocks_fit(out1)
-        out2 = fr2.get_output(['rate', 'k1', 'k2', 'r'])
+        out1 = fr1.output
 
         check1 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
-        check2 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_blocks.txt'))
+        # check2 = np_from_txt(os.path.join(directory, 'test_data', 'Fit_simulated_blocks.txt'))
 
         for name in ['rate', 'k1', 'k2', 'r']:
-            #indices = np.searchsorted(out1['r_number'], check1['r_number'])
-
             np.testing.assert_array_almost_equal(out1[name], check1[name], decimal=4)
-            np.testing.assert_array_almost_equal(out2[name], check2[name], decimal=4)
 
     def test_tf_pfact_fitting(self):
         pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
