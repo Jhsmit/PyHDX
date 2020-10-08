@@ -201,14 +201,10 @@ class PeptideFileInputControl(ControlPanel):
             self.box_pop('be_percent')
             self.box_insert_after('norm_mode', 'norm_state')
             self.box_insert_after('norm_state', 'norm_exposure')
-            self.box_insert_after('norm_exposure', 'zero_state')
-            self.box_insert_after('zero_state', 'zero_exposure')
 
         elif self.norm_mode == 'Theory':
             self.box_pop('norm_state')
             self.box_pop('norm_exposure')
-            self.box_pop('zero_state')
-            self.box_pop('zero_exposure')
             self.box_insert_after('norm_mode', 'be_percent')
 
             try:
