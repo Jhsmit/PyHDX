@@ -197,6 +197,24 @@ class TestSimulatedData(object):
             assert np.all(lengths == peptides.data['ex_residues'])
 
 
+class TestCoverage(object):
+    @classmethod
+    def setup_class(cls):
+        fpath = os.path.join(directory, 'test_data', 'simulated_data_uptake.csv')
+        data = read_dynamx(fpath)
+        cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
+
+        timepoints = [0.167, 0.5, 1, 5, 10, 30, 100]
+        start, end = 5, 45  # total span of protein (inc, inc)
+        nc_start, nc_end = 31, 34  # span of no coverage area (inc, inc)
+
+        pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
+        pmt.set_backexchange(0.)
+        states = pmt.groupby_state()
+        cls.series = states['state1']
+        cls.series.make_uniform()
+
+
 class TestProtein(object):
     @classmethod
     def setup_class(cls):

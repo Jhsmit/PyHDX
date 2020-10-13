@@ -1,11 +1,9 @@
-from pyhdx.support import np_from_txt, fmt_export
-from pyhdx.fileIO import read_dynamx
+from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export
 from pyhdx.models import PeptideMasterTable
 from numpy.lib.recfunctions import append_fields
 import numpy as np
-import pickle
 
-array = np_from_txt('test_data/simulated_data.csv', delimiter=',')
+array = txt_to_np('test_data/simulated_data.csv', delimiter=',')
 data = read_dynamx('test_data/simulated_data.csv')
 print(array.dtype.names)
 print(data.dtype.names)
@@ -38,4 +36,3 @@ states = pmt.groupby_state()
 series = states['state1']
 series.make_uniform()
 
-series.tf_cov.sequence

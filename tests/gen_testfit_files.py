@@ -1,6 +1,5 @@
 import os
 import numpy as np
-from pyhdx.support import np_from_txt, fmt_export
 from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx
 import pickle
 
@@ -27,16 +26,14 @@ kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 
 fr1 = kf.weighted_avg_fit()
 out1 = fr1.output
-fmt, hdr = fmt_export(out1)
-np.savetxt(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.txt'), out1, fmt=fmt, header=hdr)
+
+out1.to_file(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.txt'))
 with open(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.pick'), 'wb') as f:
     pickle.dump(fr1, f)
 
-
-fr_pfact = kf.global_fit(out1, use_kint=True)
+fr_pfact = kf.global_fit(out1)
 out_pfact = fr_pfact.output
 
-fmt, hdr = fmt_export(out_pfact)
-np.savetxt(os.path.join(directory, 'test_data', 'fit_simulated_pfact.txt'), out_pfact, fmt=fmt, header=hdr)
+out_pfact.to_file(os.path.join(directory, 'test_data', 'fit_simulated_pfact.txt'))
 with open(os.path.join(directory, 'test_data', 'fit_simulated_pfact.pick'), 'wb') as f:
     pickle.dump(fr_pfact, f)

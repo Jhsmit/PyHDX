@@ -1,13 +1,12 @@
 import os
 import numpy as np
-from pyhdx.support import np_from_txt, fmt_export
 from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx
+from pyhdx.fileIO import txt_to_np
 import pickle
 
 fit_dir = 'test_data'
 directory = os.path.dirname(__file__)
 np.random.seed(43)
-
 
 fpath = os.path.join(directory, 'test_data', 'ds1.csv')
 data = read_dynamx(fpath)
@@ -23,10 +22,10 @@ states = pmt.groupby_state()
 
 #series = states['state1']
 series = states['PpiANative']
+series.make_uniform()
 
 print(series.scores_peptides.T.shape)
 print(series.uptake_corrected.shape)  ## N_t, N_p
-
 print(series.cov.X.shape)
 
-init_arr = np_from_txt(os.path.join(fit_dir, 'fit_simulated_wt_avg.txt'))
+init_arr = txt_to_np(os.path.join(fit_dir, 'fit_simulated_wt_avg.txt'))

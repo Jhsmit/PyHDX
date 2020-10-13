@@ -1,7 +1,7 @@
 import numpy as np
 from numpy.lib.recfunctions import stack_arrays
 from io import StringIO
-
+import pyhdx
 
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
     """
@@ -56,3 +56,118 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
 
     return full_data
 
+
+def txt_to_np(file_path, delimiter='\t'):
+    """Read .txt file and returns a numpy ndarray"""
+    if isinstance(file_path, StringIO):
+        file_obj = file_path
+    else:
+        file_obj = open(file_path, 'r')
+
+    names = None
+    header_lines = 0
+    while True:
+        header = file_obj.readline().strip()
+        if header.startswith('#'):
+            names = header[2:].split(delimiter)
+            header_lines += 1
+        else:
+            break
+    file_obj.seek(0)
+
+    return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
+                         encoding=None, autostrip=True, comments=None)
+
+
+def txt_to_protein(file_path):
+    """read .txt file and returns a :class:`pyhdx.models.Protein` object"""
+    array = txt_to_np(file_path)
+    return pyhdx.models.Protein(array, index='r_number')
+
+
+def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
+    with np.testing.suppress_warnings() as sup:
+        sup.filter(RuntimeWarning)
+
+        flag1 = '' if justify != 'left' else '-'
+        flag2 = '+' if sign else ''
+        flag3 = '0' if pad == '0' else ''
+        fmt = []
+        hdr = []
+        for j, name in enumerate(arr.dtype.names):
+            dtype = arr[name].dtype
+
+            if dtype.kind in ['b']:
+                specifier = 'i'
+                precision = ''
+                w = 4 if np.all(arr[name]) else 5
+            elif dtype.kind in ['i', 'u']:
+                specifier = 'i'
+                precision = ''
+
+                w = _get_f_width(arr[name], sign)
+
+            elif dtype.kind in ['f', 'c']:
+                specifier = 'g'
+                precision = '.' + str(sig_fig)
+
+                # float notation width
+
+                # todo check for nan widths
+                w_f = _get_f_width(arr[name], sign) + sig_fig
+
+                # scientific notation width
+                i = 1 if sign or np.any(arr[name] < 0) else 0
+                w_s = sig_fig + 4 + i + 1  # +1 for decimal point which is not always needed
+                w = min(w_f, w_s) + 1
+
+            elif dtype.kind in ['U', 'S', 'O']:
+                specifier = 's'
+                precision = ''
+                w = np.max([len(str(item)) for item in arr[name]])
+            else:
+                raise TypeError(f'Invalid dtype kind {dtype.kind} for field {name}')
+
+            if width == 'auto':
+                col_w = w
+            elif isinstance(width, int):
+                col_w = width
+            else:
+                raise ValueError('Invalid width')
+
+            if header:
+                i = 2 if j == 0 else 0  # Additional space for header comment #
+                if width == 'auto':
+                    _width = max(col_w, len(name) + i)
+                elif isinstance(width, int):
+                    _width = col_w
+
+                func = str.ljust if justify == 'left' else str.rjust
+                fill = flag3 if flag3 else ' '
+                h = func(name, _width - i, fill)
+                hdr.append(h)
+            else:
+                _width = col_w
+
+            s = f'%{flag1}{flag2}{flag3}{_width}{precision}{specifier}'
+
+            fmt.append(s)
+
+    fmt = delimiter.join(fmt)
+    hdr = delimiter.join(hdr)
+    return fmt, hdr
+
+
+def _get_f_width(data, sign):
+    i = 1 if sign else 0
+
+
+    w_pos = np.log10(np.nanmax(data)) + i
+    w_neg = np.log10(np.nanmax(-data)) + 1
+
+    w = np.nanmax([w_pos, w_neg]) + 1
+    try:
+        width = int(np.floor(w))
+    except OverflowError: # all zeros
+        width = 0
+    return width

@@ -9,6 +9,7 @@ from tensorflow.keras.optimizers import Adagrad
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.losses import Loss
+from pyhdx.models import Protein
 import numpy as np
 import copy
 
@@ -260,11 +261,11 @@ class TFFitResult(object):
         array['r_number'] = self.r_number
         array[f'{name}_full'] = output
 
-        bools = np.logical_or(~self.series.tf_cov.has_coverage, self.series.tf_cov.cov_sequence == 'P')
+        bools = ~self.series.cov['exchanges']
         array[name] = output.copy()
-        array[name][bools] = np.nan # set no coverage or prolines resiudes to nan
+        array[name][bools] = np.nan  # set no coverage or prolines resiudes to nan
 
-        return array
+        return Protein(array, index='r_number')
 
     def __call__(self, timepoints):
         """output: N x M array (peptides, timepoints)"""
