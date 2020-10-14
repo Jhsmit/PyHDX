@@ -42,6 +42,7 @@ class MappingFileInputControl(ControlPanel):
 
     input_file = param.Parameter(default=None, doc='Input file to add to available datasets')
     dataset_name = param.String(doc='Name for the dataset to add. Defaults to filename')
+    offset = param.Integer(default=0, doc="Offset to add to the file's r_number column")
     add_dataset = param.Action(lambda self: self._action_add_dataset(),
                                doc='Add the dataset to available datasets')
     datasets_list = param.ListSelector(doc='Current datasets', label='Datasets')
@@ -68,6 +69,8 @@ class MappingFileInputControl(ControlPanel):
             try:
                 sio = StringIO(self.input_file.decode())
                 array = txt_to_np(sio)
+                assert 'r_number' in array.dtype.names, "Input file needs to have an 'r_number' column"
+                array['r_number'] += self.offset
                 self.parent.datasets[self.dataset_name] = array
                 self.parent.param.trigger('datasets')
             except UnicodeDecodeError:
