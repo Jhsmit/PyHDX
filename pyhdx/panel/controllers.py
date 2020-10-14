@@ -1,12 +1,10 @@
-from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import FigurePanel
-from pyhdx.models import PeptideMasterTable, KineticsSeries
+from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein
 from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting
-from pyhdx.fileIO import read_dynamx
-from pyhdx.support import fmt_export, \
-    autowrap, colors_to_pymol, rgb_to_hex, gen_subclasses, np_from_txt
+from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export
+from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex
 from pyhdx import VERSION_STRING
 from scipy import constants
 import param
@@ -21,11 +19,11 @@ from functools import partial
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 from collections import namedtuple
-
+import operator
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
-import logging
+import pandas as pd
 
 from .widgets import ColoredStaticText, ASyncProgressBar
 
@@ -44,6 +42,7 @@ class MappingFileInputControl(ControlPanel):
 
     input_file = param.Parameter(default=None, doc='Input file to add to available datasets')
     dataset_name = param.String(doc='Name for the dataset to add. Defaults to filename')
+    offset = param.Integer(default=0, doc="Offset to add to the file's r_number column")
     add_dataset = param.Action(lambda self: self._action_add_dataset(),
                                doc='Add the dataset to available datasets')
     datasets_list = param.ListSelector(doc='Current datasets', label='Datasets')
@@ -69,7 +68,9 @@ class MappingFileInputControl(ControlPanel):
         else:
             try:
                 sio = StringIO(self.input_file.decode())
-                array = np_from_txt(sio)
+                array = txt_to_np(sio)
+                assert 'r_number' in array.dtype.names, "Input file needs to have an 'r_number' column"
+                array['r_number'] += self.offset
                 self.parent.datasets[self.dataset_name] = array
                 self.parent.param.trigger('datasets')
             except UnicodeDecodeError:
@@ -288,10 +289,9 @@ class DifferenceControl(ControlPanel):
     @param.depends('dataset_1', 'dataset_2', watch=True)
     def _selection_updated(self):
         if self.datasets:
-            unique_names = set.intersection(*[{name for name in array.dtype.names} for array in self.datasets])
+            unique_names = set.intersection(*[{name for name in protein.df.dtypes.index} for protein in self.datasets])
             print(unique_names)
-            objects = [name for name in unique_names if np.issubdtype(self.array_1[name].dtype, np.number)]
-            objects.remove('r_number')
+            objects = [name for name in unique_names if np.issubdtype(self.protein_1[name].dtype, np.number)]
             objects.sort()
 
             # todo check for scara dtype
@@ -300,25 +300,25 @@ class DifferenceControl(ControlPanel):
                 self.comparison_quantity = objects[0]
 
     @property
-    def array_1(self):
-        """:class:`~np.ndarray`: Array with selected dataset 1"""
+    def protein_1(self):
+        """:class:`~pyhdx.models.Protein`: Protein object of dataset 1"""
         try:
-            return self.parent.datasets[self.dataset_1]
+            return Protein(self.parent.datasets[self.dataset_1], index='r_number')
         except KeyError:
             return None
 
     @property
-    def array_2(self):
-        """:class:`~np.ndarray`: Array with selected dataset 1"""
+    def protein_2(self):
+        """:class:`~pyhdx.models.Protein`: Protein object of dataset 2"""
         try:
-            return self.parent.datasets[self.dataset_2]
+            return Protein(self.parent.datasets[self.dataset_2], index='r_number')
         except KeyError:
             return None
 
     @property
     def datasets(self):
-        """:obj:`tuple`: Tuple with `(array_1, array_2)"""
-        datasets = (self.array_1, self.array_2)
+        """:obj:`tuple`: Tuple with `(protein_1, protein_2)"""
+        datasets = (self.protein_1, self.protein_2)
         if None in datasets:
             return None
         else:
@@ -331,25 +331,13 @@ class DifferenceControl(ControlPanel):
         if self.datasets is None:
             return
 
-        r_all = np.concatenate([array['r_number'] for array in self.datasets])
-        r_full = np.arange(r_all.min(), r_all.max() + 1)
+        op = {'Subtract': operator.sub, 'Divide': operator.truediv}[self.operation]
+        comparison = op(*[p[self.comparison_quantity] for p in self.datasets]).rename('comparison')
+        value1 = self.protein_1[self.comparison_quantity].rename('value1')
+        value2 = self.protein_2[self.comparison_quantity].rename('value2')
+        df = pd.concat([comparison, value1, value2], axis=1)
 
-        # Create output array and assign values
-        output = np.full_like(r_full, fill_value=np.nan,
-                              dtype=[('r_number', int), ('value1', float), ('value2', float), ('comparison', float)])
-        output['r_number'] = r_full
-
-        idx = np.searchsorted(output['r_number'], self.array_1['r_number'])
-        output['value1'][idx] = self.array_1[self.comparison_quantity]
-
-        idx = np.searchsorted(output['r_number'], self.array_2['r_number'])
-        output['value2'][idx] = self.array_2[self.comparison_quantity]
-
-        if self.operation == 'Subtract':
-            output['comparison'] = output['value1'] - output['value2']
-        elif self.operation == 'Divide':
-            output['comparison'] = output['value1'] / output['value2']
-
+        output = df.to_records()
         data_source = DataSource(output, tags=['comparison', 'mapping'], x='r_number', y='comparison',
                                  renderer='circle', size=10)
         self.parent.publish_data(self.comparison_name, data_source)  # Triggers parent.sources param
@@ -373,6 +361,7 @@ class SingleControl(ControlPanel):
     """
 
     #todo subclass with DifferenceControl
+    #rename dataset_name
     header = 'Datasets'
 
     dataset = param.Selector(doc='Dataset')
@@ -691,8 +680,10 @@ class FitControl(ControlPanel):
         return self.generate_widgets(**kwargs)
 
     def _parent_series_updated(self, *events):
-        end = self.parent.series.cov.end
-        self.c_term = int(end + 5)
+        print("FIX THIS SERIES UPDATED THINGY")
+
+        # end = self.parent.series.cov.end
+        # self.c_term = int(end + 5)
 
     def _parent_fit_results_updated(self, *events):
         possible_initial_guesses = ['half-life', 'fit1']
@@ -1080,7 +1071,8 @@ class FileExportControl(ControlPanel):
             self.target = objects[0]
 
     def _series_updated(self, *events):
-        self.c_term = int(self.parent.series.cov.end)
+        print("ALSO FIX DIS SERIES UPDATED THINGY")
+        #self.c_term = int(self.parent.series.cov.end)
 
     def _make_pml(self, target):
         # Removes nan entries (no coverage)  (#todo do this in colors_to_pymol function)
@@ -1247,7 +1239,7 @@ class OptionsControl(ControlPanel):
     header = 'Options'
 
     #todo this should be a component (mixin?) for apps who dont have these figures
-    link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.', constant=False)
+    link_xrange = param.Boolean(True, doc='Link the X range of the coverage figure and other linear mapping figures.', constant=False)
     log_level = param.Selector(default='DEBUG', objects=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
                                doc='Set the logging level.')
 

@@ -9,6 +9,7 @@ from tensorflow.keras.optimizers import Adagrad
 from tensorflow.keras.callbacks import EarlyStopping
 from tensorflow.keras.models import Sequential, Model
 from tensorflow.keras.losses import Loss
+from pyhdx.models import Protein
 import numpy as np
 import copy
 
@@ -230,9 +231,8 @@ class TFFitResult(object):
     weights: list of weights (parameters) at lowest loss
     """
     def __init__(self, series, intervals, funcs, weights, inputs, loss=None):
-        #assert len(results) == len(weights)
-        #        assert len(models) == len(block_length)
-        self.r_number = series.tf_cov.r_number
+        #todo remove intervals
+        self.r_number = series.cov.r_number
         self.series = series
         self.intervals = intervals  # inclusive, excluive
         self.funcs = funcs
@@ -241,9 +241,6 @@ class TFFitResult(object):
         self.inputs = inputs
 
         self.loss = loss
-
-        #self.func = self.results[0].model.layers[0].function
-        #print(self.func_cls)
 
     @property
     def output(self):
@@ -260,11 +257,11 @@ class TFFitResult(object):
         array['r_number'] = self.r_number
         array[f'{name}_full'] = output
 
-        bools = np.logical_or(~self.series.tf_cov.has_coverage, self.series.tf_cov.cov_sequence == 'P')
+        bools = ~self.series.cov['exchanges']
         array[name] = output.copy()
-        array[name][bools] = np.nan # set no coverage or prolines resiudes to nan
+        array[name][bools] = np.nan  # set no coverage or prolines resiudes to nan
 
-        return array
+        return Protein(array, index='r_number')
 
     def __call__(self, timepoints):
         """output: N x M array (peptides, timepoints)"""

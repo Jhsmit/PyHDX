@@ -4,9 +4,8 @@ Reload SecB and fitted data and launch  GUI
 """
 
 
-from pyhdx.fileIO import read_dynamx
+from pyhdx.fileIO import read_dynamx, txt_to_np
 from pyhdx import PeptideMasterTable
-from pyhdx.support import np_from_txt
 import pickle
 import os
 from pyhdx.panel.apps import _main_app
@@ -28,7 +27,7 @@ dic['norm_exposure'] = 0.167
 dic['exp_state'] = 'SecB WT apo'
 
 src_file = os.path.join(directory, 'test_data', 'SecB WT apo_pfact_linear.txt')
-array = np_from_txt(src_file)
+array = txt_to_np(src_file)
 data_dict = {name: array[name] for name in array.dtype.names}
 
 

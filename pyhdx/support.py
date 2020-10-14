@@ -7,6 +7,7 @@ from io import StringIO
 from skimage.filters import threshold_multiotsu
 import pyhdx.models as models
 
+import warnings
 
 def series_intersection(series_list):
     """finds and returns series where peptides are the intersection of all series"""
@@ -148,6 +149,7 @@ def _get_f_width(data, sign):
 
 #move to fileIO?
 def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
+    warnings.warn("fmt_export is to pyhdx.fileIO", PendingDeprecationWarning)
     with np.testing.suppress_warnings() as sup:
         sup.filter(RuntimeWarning)
 
@@ -221,6 +223,7 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
 
 #move to fileIO?
 def np_from_txt(file_path, delimiter='\t'):
+    warnings.warn("np_from_txt is moved to pyhdx.fileIO as txt_to_np", PendingDeprecationWarning)
 
     if isinstance(file_path, StringIO):
         file_obj = file_path
@@ -238,26 +241,13 @@ def np_from_txt(file_path, delimiter='\t'):
             break
     file_obj.seek(0)
 
-
-    # if isinstance(file_path, StringIO):
-    #     header = file_path.readline().strip()
-    #     file_path.seek(0)
-    # else:
-    #     with open(file_path, 'r') as f:
-    #         header = f.readline()
-    #
-    # if header.startswith('#'):
-    #     names = header[2:].split(delimiter)
-    # else:
-    #     names = None
-
     return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
                          encoding=None, autostrip=True, comments=None)
 
 
 def try_wrap(coverage, wrap, margin=4):
     """Check for a given coverage if the value of wrap is high enough to not have peptides overlapping within margin"""
-    x = np.zeros((wrap, coverage.prot_len + margin))
+    x = np.zeros((wrap, len(coverage.r_number) + margin))
     wrap_gen = itertools.cycle(range(wrap))
     for i, elem in zip(wrap_gen, coverage.data):
         section = x[i, elem['start']: elem['end'] + 1 + margin]
@@ -273,14 +263,14 @@ def autowrap(coverage, margin=4):
     wrap = 5
     while not try_wrap(coverage, wrap, margin=margin):
         wrap += 5
-        if wrap > coverage.prot_len:
+        if wrap > len(coverage.r_number):
             break
     return wrap
 
 
 #https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
 def fields_view(arr, fields):
-    dtype2 = np.dtype({name:arr.dtype.fields[name] for name in fields})
+    dtype2 = np.dtype({name: arr.dtype.fields[name] for name in fields})
     return np.ndarray(arr.shape, dtype2, arr, 0, arr.strides)
 
 
