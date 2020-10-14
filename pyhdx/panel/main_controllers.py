@@ -67,6 +67,7 @@ class MainController(param.Parameterized):
 
         try:  # update existing source
             src = self.sources[name]
+            #todo next callback??
             src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds?
         except KeyError:
             self.sources[name] = data_source_obj

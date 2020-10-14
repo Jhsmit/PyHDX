@@ -911,7 +911,7 @@ class KineticsFitting(object):
         output['r_number'] = self.k_series.cov.r_number
         output['rate'] = np.log(2) / interpolated
 
-        return output
+        return Protein(output, index='r_number')
 
     def weighted_avg_linearize(self):
         rates = []

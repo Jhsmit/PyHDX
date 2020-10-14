@@ -646,10 +646,12 @@ class InitialGuessControl(ControlPanel):
             kf = KineticsFitting(self.parent.series)
             output = kf.weighted_avg_t50()
             fit_result = HalfLifeFitResult(output=output)
-            dic = {name: output[name] for name in output.dtype.names}
+            array = output.to_records()
+            dic = {name: array[name] for name in array.dtype.names}
+
             #dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
             #todo colors dont work (because DataSource init)
-            dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
+            dic['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
 
             data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
                                      renderer='circle', size=10)
@@ -738,8 +740,8 @@ class FitControl(ControlPanel):
 
 
         output = result.output.to_records('r_number')  # todo remove in between numpy step
-        output_dict = {name: result.output[name] for name in output.dtype.names}
-        output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
+        output_dict = {name: output[name] for name in output.dtype.names}
+        output_dict['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
 
         # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
         # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
