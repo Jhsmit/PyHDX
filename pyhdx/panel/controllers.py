@@ -550,12 +550,15 @@ class InitialGuessControl(ControlPanel):
     header = 'Initial Guesses'
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
                                    doc='Choose method for determining initial guesses.')
-    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting')
+    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
+                           constant=True)
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
         self.pbar2 = ASyncProgressBar()
         super(InitialGuessControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._parent_series_updated, ['series'])
+
 
     def make_list(self):
         text_f1 = pn.widgets.StaticText(value='Weighted averaging fit (Fit 1)')
@@ -566,6 +569,10 @@ class InitialGuessControl(ControlPanel):
 
         widget_list = list([self._widget_dict[par] for par in parameters])
         return widget_list
+
+    def _parent_series_updated(self, events):
+        if self.parent.series is not None:
+            self.param['do_fit1'].constant = False
 
     async def _fit1_async(self):
         """Do fitting asynchronously on (remote) cluster"""
@@ -611,6 +618,10 @@ class InitialGuessControl(ControlPanel):
         self.pbar1.reset()
 
     def _action_fit(self):
+        if self.parent.series is None:
+            self.parent.logger.debug('No dataset loaded')
+            return
+
         self.parent.logger.debug('Start initial guess fit')
         #todo context manager?
         self.param['do_fit1'].constant = True
