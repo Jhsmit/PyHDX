@@ -532,12 +532,12 @@ class CoverageControl(ControlPanel):
 
     @param.depends('index', 'color_map', watch=True)
     def _update_colors(self):
-        self.exposure_str.value = str(self.peptide_measurement.exposure)  #todo this should be an js_link?
         try:
+            self.exposure_str.value = str(self.peptide_measurement.exposure)  # todo this should be an js_link?
             tooltip_fields = {field: self.peptide_measurement.data[field] for field in ['scores', 'uptake', 'uptake_corrected']}
             self.parent.sources['coverage'].source.data.update(color=self.color, **tooltip_fields)
 
-        except KeyError:
+        except (KeyError, AttributeError):
             pass
 
 
