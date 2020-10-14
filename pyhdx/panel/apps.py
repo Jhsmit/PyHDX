@@ -75,7 +75,7 @@ def _single_app():
     ]
 
     if DEBUG:
-        control_panels.append('DeveloperControl')
+        control_panels.append(DeveloperControl)
 
     figure_panels = [
         BinaryComparisonFigure,
@@ -121,7 +121,7 @@ def _diff_app():
     ]
 
     if DEBUG:
-        control_panels.append('DeveloperControl')
+        control_panels.append(DeveloperControl)
 
     figure_panels = [
         BinaryComparisonFigure,
