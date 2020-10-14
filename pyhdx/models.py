@@ -615,6 +615,7 @@ class Coverage(object):
     @property
     def r_number(self):
         """:class:`~np.ndarray: Array of residue numbers corresponding to the part of the protein covered by peptides"""
+        #todo perhaps obtain through apply_interval
         return np.arange(*self.interval)
 
     @property

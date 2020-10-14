@@ -247,7 +247,7 @@ def np_from_txt(file_path, delimiter='\t'):
 
 def try_wrap(coverage, wrap, margin=4):
     """Check for a given coverage if the value of wrap is high enough to not have peptides overlapping within margin"""
-    x = np.zeros((wrap, coverage.prot_len + margin))
+    x = np.zeros((wrap, len(coverage.r_number) + margin))
     wrap_gen = itertools.cycle(range(wrap))
     for i, elem in zip(wrap_gen, coverage.data):
         section = x[i, elem['start']: elem['end'] + 1 + margin]
@@ -263,14 +263,14 @@ def autowrap(coverage, margin=4):
     wrap = 5
     while not try_wrap(coverage, wrap, margin=margin):
         wrap += 5
-        if wrap > coverage.prot_len:
+        if wrap > len(coverage.r_number):
             break
     return wrap
 
 
 #https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
 def fields_view(arr, fields):
-    dtype2 = np.dtype({name:arr.dtype.fields[name] for name in fields})
+    dtype2 = np.dtype({name: arr.dtype.fields[name] for name in fields})
     return np.ndarray(arr.shape, dtype2, arr, 0, arr.strides)
 
 

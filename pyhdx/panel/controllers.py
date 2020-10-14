@@ -1,12 +1,12 @@
-from .base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from .fig_panels import FigurePanel
+
 from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting
-from pyhdx.fileIO import read_dynamx
-from pyhdx.support import fmt_export, \
-    autowrap, colors_to_pymol, rgb_to_hex, gen_subclasses, np_from_txt
+from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export
+from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex
+from pyhdx import VERSION_STRING
 from scipy import constants
 import param
 import panel as pn
@@ -24,7 +24,6 @@ from collections import namedtuple
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
-import logging
 
 from .widgets import ColoredStaticText, ASyncProgressBar
 
@@ -68,7 +67,7 @@ class MappingFileInputControl(ControlPanel):
         else:
             try:
                 sio = StringIO(self.input_file.decode())
-                array = np_from_txt(sio)
+                array = txt_to_np(sio)
                 self.parent.datasets[self.dataset_name] = array
                 self.parent.param.trigger('datasets')
             except UnicodeDecodeError:
@@ -690,8 +689,10 @@ class FitControl(ControlPanel):
         return self.generate_widgets(**kwargs)
 
     def _parent_series_updated(self, *events):
-        end = self.parent.series.cov.end
-        self.c_term = int(end + 5)
+        print("FIX THIS SERIES UPDATED THINGY")
+
+        # end = self.parent.series.cov.end
+        # self.c_term = int(end + 5)
 
     def _parent_fit_results_updated(self, *events):
         possible_initial_guesses = ['half-life', 'fit1']
@@ -1079,7 +1080,8 @@ class FileExportControl(ControlPanel):
             self.target = objects[0]
 
     def _series_updated(self, *events):
-        self.c_term = int(self.parent.series.cov.end)
+        print("ALSO FIX DIS SERIES UPDATED THINGY")
+        #self.c_term = int(self.parent.series.cov.end)
 
     def _make_pml(self, target):
         # Removes nan entries (no coverage)  (#todo do this in colors_to_pymol function)
@@ -1246,7 +1248,7 @@ class OptionsControl(ControlPanel):
     header = 'Options'
 
     #todo this should be a component (mixin?) for apps who dont have these figures
-    link_xrange = param.Boolean(False, doc='Link the X range of the coverage figure and other linear mapping figures.', constant=False)
+    link_xrange = param.Boolean(True, doc='Link the X range of the coverage figure and other linear mapping figures.', constant=False)
     log_level = param.Selector(default='DEBUG', objects=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
                                doc='Set the logging level.')
 
