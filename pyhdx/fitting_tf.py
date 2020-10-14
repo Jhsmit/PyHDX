@@ -231,9 +231,8 @@ class TFFitResult(object):
     weights: list of weights (parameters) at lowest loss
     """
     def __init__(self, series, intervals, funcs, weights, inputs, loss=None):
-        #assert len(results) == len(weights)
-        #        assert len(models) == len(block_length)
-        self.r_number = series.tf_cov.r_number
+        #todo remove intervals
+        self.r_number = series.cov.r_number
         self.series = series
         self.intervals = intervals  # inclusive, excluive
         self.funcs = funcs
@@ -242,9 +241,6 @@ class TFFitResult(object):
         self.inputs = inputs
 
         self.loss = loss
-
-        #self.func = self.results[0].model.layers[0].function
-        #print(self.func_cls)
 
     @property
     def output(self):

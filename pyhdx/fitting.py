@@ -846,7 +846,6 @@ class KineticsFitting(object):
 
         #todo sessions?
         #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
-
         #todo property on series
         if 'k_int' not in self.k_series.cov.protein:
             self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
@@ -864,7 +863,7 @@ class KineticsFitting(object):
         func = ftf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
 
         # expand dimensions of k_int to allow outer product with time and match the shape of parameter
-        inputs_list = [self.k_series.tf_cov.X, np.expand_dims(self.k_series.cov['k_int'], -1)]
+        inputs_list = [self.k_series.cov.X, np.expand_dims(self.k_series.cov['k_int'], -1)]
         input_layers = [ftf.Input(array.shape) for array in inputs_list]
         layer = ftf.CurveFit([parameter], func, name='association')
         outputs = layer(input_layers)
@@ -888,7 +887,7 @@ class KineticsFitting(object):
 
         wts = np.squeeze(cb.weights[-1][0])  # weights are the first weights from the last layer
 
-        intervals = [(self.k_series.tf_cov.start, self.k_series.tf_cov.end)]
+        intervals = [self.k_series.cov.interval]
         tf_fitresult = ftf.TFFitResult(self.k_series, intervals, [func], [wts], [input_data], loss=[result.history['loss']])
 
         return tf_fitresult
