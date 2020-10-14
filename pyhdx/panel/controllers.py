@@ -104,12 +104,13 @@ class PeptideFileInputControl(ControlPanel):
     clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
     drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
     ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
+    d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
+                                label='Deuterium percentage')
     load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
+
     norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
     norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
     norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
-    #d_percent = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
-    #                         label='D percentage')
     be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
                               label='Back exchange percentage')
 
@@ -128,10 +129,11 @@ class PeptideFileInputControl(ControlPanel):
         super(PeptideFileInputControl, self).__init__(parent, **params)
 
     def make_dict(self):
-        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.LiteralInput)
+        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=NumericInput,
+                                     d_percentage=NumericInput)
 
     def make_list(self):
-        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
+        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'd_percentage', 'load_button',
                       'norm_mode', 'norm_state', 'norm_exposure', 'exp_state',
                       'exp_exposures', 'parse_button']
         first_widgets = list([self._widget_dict[par] for par in parameters])
@@ -165,7 +167,7 @@ class PeptideFileInputControl(ControlPanel):
 
         combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
 
-        self.parent.peptides = PeptideMasterTable(combined,
+        self.parent.peptides = PeptideMasterTable(combined, d_percentage=self.d_percentage,
                                                   drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
         states = list(np.unique(self.parent.peptides.data['state']))
@@ -550,6 +552,9 @@ class InitialGuessControl(ControlPanel):
     header = 'Initial Guesses'
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
                                    doc='Choose method for determining initial guesses.')
+
+    lower_bound = param.Number(0., doc='Lower bound for association model fitting')
+    upper_bound = param.Number(0., doc='Upper bound for association model fitting')
     do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
                            constant=True)
 
@@ -559,28 +564,39 @@ class InitialGuessControl(ControlPanel):
         super(InitialGuessControl, self).__init__(parent, **params)
         self.parent.param.watch(self._parent_series_updated, ['series'])
 
+    def make_dict(self):
+        return self.generate_widgets(lower_bound=pn.widgets.LiteralInput, upper_bound=pn.widgets.LiteralInput)
 
     def make_list(self):
-        text_f1 = pn.widgets.StaticText(value='Weighted averaging fit (Fit 1)')
-        text_f2 = pn.widgets.StaticText(value='Global fit (Fit 2)')
-
-        self._widget_dict.update(text_f1=text_f1, text_f2=text_f2, pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+        self._widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
         parameters = ['fitting_model', 'do_fit1', 'pbar1']
 
         widget_list = list([self._widget_dict[par] for par in parameters])
         return widget_list
 
+    @param.depends('fitting_model', watch=True)
+    def _fitting_model_updated(self):
+        if self.fitting_model == 'Half-life (λ)':
+            self.box_pop('lower_bound')
+            self.box_pop('upper_bound')
+        elif self.fitting_model == 'Association':
+            self.box_insert_after('fitting_model', 'upper_bound')
+            self.box_insert_after('fitting_model', 'lower_bound')
+
     def _parent_series_updated(self, events):
         if self.parent.series is not None:
             self.param['do_fit1'].constant = False
 
+            kf = KineticsFitting(self.parent.series)
+            self.lower_bound, self.upper_bound = kf.bounds
+
     async def _fit1_async(self):
         """Do fitting asynchronously on (remote) cluster"""
-        kf = KineticsFitting(self.parent.series, cluster=self.parent.cluster)
+        kf = KineticsFitting(self.parent.series, cluster=self.parent.cluster, bounds=(self.lower_bound, self.upper_bound))
         fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
         self.parent.fit_results['fit1'] = fit_result
 
-        output = fit_result.output
+        output = fit_result.output.to_records('r_number')  # todo remove in between numpy step
         #todo duplicate code in fit - > method on parent?
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
@@ -600,10 +616,10 @@ class InitialGuessControl(ControlPanel):
              self.param['do_fit1'].constant = False
 
     def _fit1(self):
-        kf = KineticsFitting(self.parent.series)
+        kf = KineticsFitting(self.parent.series, bounds=(self.lower_bound, self.upper_bound))
         fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
         self.parent.fit_results['fit1'] = fit_result
-        output = fit_result.output
+        output = fit_result.output.to_records('r_number')  # todo remove in between numpy step
         dic = {name: output[name] for name in output.dtype.names}
         dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
@@ -720,7 +736,9 @@ class FitControl(ControlPanel):
         output_name = 'pfact'
         var_name = 'log_P'
 
-        output_dict = {name: result.output[name] for name in result.output.dtype.names}
+
+        output = result.output.to_records('r_number')  # todo remove in between numpy step
+        output_dict = {name: result.output[name] for name in output.dtype.names}
         output_dict['color'] = np.full_like(result.output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
 
         # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
