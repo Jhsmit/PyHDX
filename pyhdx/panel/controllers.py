@@ -374,6 +374,7 @@ class SingleControl(ControlPanel):
     """
 
     #todo subclass with DifferenceControl
+    #rename dataset_name
     header = 'Datasets'
 
     dataset = param.Selector(doc='Dataset')
