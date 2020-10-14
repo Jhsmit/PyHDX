@@ -209,10 +209,10 @@ class PeptideFileInputControl(ControlPanel):
             self.box_insert_after('norm_mode', 'be_percent')
 
             try:
-                states = np.unique(self.parent.data['state'])
+                states = np.unique(self.parent.peptides.data['state'])
                 self.param['exp_state'].objects = states
                 self.exp_state = states[0] if not self.exp_state else self.exp_state
-            except TypeError:
+            except (TypeError, AttributeError):
                 pass
 
     @param.depends('norm_state', watch=True)
