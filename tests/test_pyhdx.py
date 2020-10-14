@@ -197,7 +197,6 @@ class TestCoverage(object):
 class TestProtein(object):
     @classmethod
     def setup_class(cls):
-
         dtype = [('r_number', int), ('apple', float)]
         array1 = np.empty(15, dtype=dtype)
         array1['r_number'] = np.arange(15) + 3
@@ -210,7 +209,6 @@ class TestProtein(object):
         array2['apple'] = np.ones(17) * 10
         array2['grapes'] = np.ones(17) * 15 + np.random.rand(17)
         cls.array2 = array2
-
 
         dtype = [('r_number', int), ('pear', float), ('banana', float)]
         array3 = np.empty(10, dtype=dtype)
