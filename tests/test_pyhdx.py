@@ -32,26 +32,25 @@ class TestUptakeFileModels(object):
         states = self.pf1.groupby_state()
         series = states['SecB WT apo']
         assert isinstance(series, KineticsSeries)
-        assert series.uniform
 
-    def test_split(self):
-        series_name = 'SecB WT apo'
-
-        states = self.pf1.groupby_state()
-
-        series = states[series_name]
-        series.make_uniform()
-
-        split_series = series.split()
-        new_len = reduce(add, [reduce(add, [len(pm.data) for pm in ks]) for ks in split_series.values()])
-
-        assert len(series.full_data) == new_len
-
-        for k, v in split_series.items():
-            s, e = np.array(k.split('_')).astype(int)
-            pm = v[0]
-            assert np.min(pm.data['start']) == s
-            assert np.all(pm.data['end'] < e + 1)
+    # def test_split(self):
+    #     series_name = 'SecB WT apo'
+    #
+    #     states = self.pf1.groupby_state()
+    #
+    #     series = states[series_name]
+    #     series.make_uniform()
+    #
+    #     split_series = series.split()
+    #     new_len = reduce(add, [reduce(add, [len(pm.data) for pm in ks]) for ks in split_series.values()])
+    #
+    #     assert len(series.full_data) == new_len
+    #
+    #     for k, v in split_series.items():
+    #         s, e = np.array(k.split('_')).astype(int)
+    #         pm = v[0]
+    #         assert np.min(pm.data['start']) == s
+    #         assert np.all(pm.data['end'] < e + 1)
 
 
 class TestSeries(object):
@@ -93,7 +92,6 @@ class TestSimulatedData(object):
         states = pcf.groupby_state()
         assert len(states) == 1
         series = states['state1']
-        assert series.uniform
         assert len(series) == len(self.timepoints)
         peptides = series[3]
 
@@ -121,40 +119,12 @@ class TestSimulatedData(object):
         assert peptides.state == 'state1'
         assert ''.join(peptides.protein['sequence']) == self.sequence
 
-        # series keys are inclusive, exclusive
-        keys = [f'{self.start}_{self.nc_start}', f'{self.nc_end}_{self.end}']
-        split = series.split()
-
-        for k1, k2 in zip(keys, split.keys()):
-            assert k1 == k2
-
-        s1 = split[keys[0]]
-        p1 = s1[3]
-        # assert p1.start == self.start
-        # assert p1.end == self.nc_start
-        assert np.all(p1.r_number == np.arange(self.start, self.nc_start))
-
-        s2 = split[keys[1]]
-        p2 = s2[3]
-        # assert p2.start == self.nc_end
-        # assert p2.end == self.end
-        assert np.all(p2.r_number == np.arange(self.nc_end, self.end))
-
-        for i, t in enumerate(self.timepoints):
-            # Check all timepoints in both split series
-            assert s1[i].exposure == t
-            assert s2[i].exposure == t
-
-            total_peptides = np.sum([len(v[i].data) for v in split.values()])
-            assert total_peptides == len(peptides.data)
-
     def test_drop_first_prolines(self):
         for i, df in enumerate([1, 2, 3]):
             pcf = PeptideMasterTable(self.data, drop_first=df, ignore_prolines=True, remove_nan=False)
             states = pcf.groupby_state()
             assert len(states) == 1
             series = states['state1']
-            assert series.uniform
             assert len(series) == len(self.timepoints)
 
             peptides = series[3]

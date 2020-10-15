@@ -578,9 +578,6 @@ def fit_global(data, model):
 class KineticsFitting(object):
 
     def __init__(self, k_series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
-        #todo check if coverage is the same!
-        assert k_series.uniform
-
         self.k_series = k_series
         self.bounds = bounds or self._get_bounds()
         self.temperature = temperature
@@ -669,26 +666,29 @@ class KineticsFitting(object):
         models = []
         intervals = []  # Intervals; (start, end); (inclusive, exclusive)
         d_list = []
-        for k, series in self.k_series.split().items():
-            arr = series.scores_stack.T
-            i = 0
-            # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
-            r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
+        series = self.k_series
 
-            for bl in series.cov.block_length:
-                intervals.append((r_excl[i], r_excl[i + bl]))
-                d = arr[i]
-                d_list.append(d)
-                if model_type == 'association':
-                    model = TwoComponentAssociationModel(self.bounds)
-                elif model_type == 'dissociation':
-                    model = TwoComponentDissociationModel(self.bounds)
-                else:
-                    raise ValueError('Invalid model type {}'.format(model_type))
-                # res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
+        arr = series.scores_stack.T
+        i = 0
+        # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
+        r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
 
-                models.append(model)
-                i += bl  # increment in block length does not equal move to the next start position
+        for bl in series.cov.block_length:
+            d = arr[i]
+            if np.all(np.isnan(d)):  # Skip non-coverage blocks
+                continue
+            intervals.append((r_excl[i], r_excl[i + bl]))
+            d_list.append(d)
+            if model_type == 'association':
+                model = TwoComponentAssociationModel(self.bounds)
+            elif model_type == 'dissociation':
+                model = TwoComponentDissociationModel(self.bounds)
+            else:
+                raise ValueError('Invalid model type {}'.format(model_type))
+            # res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
+
+            models.append(model)
+            i += bl  # increment in block length does not equal move to the next start position
 
         return d_list, intervals, models
 

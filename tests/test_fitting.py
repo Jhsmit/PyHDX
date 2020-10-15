@@ -29,7 +29,6 @@ class TestSimulatedDataFit(object):
         pmt.set_backexchange(0.)
         states = pmt.groupby_state()
         series = states['state1']
-        series.make_uniform()
 
         kf = KineticsFitting(series, bounds=(1e-2, 800))
         fr1 = kf.weighted_avg_fit()
@@ -44,7 +43,6 @@ class TestSimulatedDataFit(object):
         pmt.set_backexchange(0.)
         states = pmt.groupby_state()
         series = states['state1']
-        series.make_uniform()
 
         kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=300, pH=8)
         initial_rates = txt_to_protein(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))

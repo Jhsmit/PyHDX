@@ -7,7 +7,7 @@ import pandas as pd
 from io import StringIO
 from functools import reduce
 from operator import add
-from pyhdx.support import reduce_inter, make_view
+from pyhdx.support import reduce_inter, make_view, fields_view
 from pyhdx.fileIO import fmt_export
 from pyhdx.expfact.kint import calculate_kint_per_residue
 import pyhdx
@@ -307,15 +307,10 @@ class PeptideMasterTable(object):
     def __len__(self):
         return len(self.data)
 
-    def groupby_state(self, make_uniform=True):
+    def groupby_state(self):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a
         :class:`~pyhdx.pyhdx.KineticSeries`.
-
-        Parameters
-        ----------
-        make_uniform : :obj:`bool`
-            If `True` the returned :class:`~pyhdx.pyhdx.KineticSeries` is made uniform
 
         Returns
         -------
@@ -324,7 +319,7 @@ class PeptideMasterTable(object):
         """
 
         states = np.unique(self.data['state'])
-        return {state: KineticsSeries(self.data[self.data['state'] == state], make_uniform=make_uniform) for state in states}
+        return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
 
     @staticmethod
     def isin_by_idx(array, test_array):
@@ -578,6 +573,7 @@ class Coverage(object):
             _seq[i:j] = [s for s in d['_sequence']]
             seq[i:j] = [s for s in d['sequence']]
 
+        #todo check if this is always correctly determined (n terminal residues usw)
         exchanges = [s.isupper() and (s != 'X') for s in seq]  # Boolean array True if residue exchanges
         coverage = seq != 'X'  # Boolean array for coverage
         dic = {'r_number': r_number, 'sequence': _seq, 'coverage': coverage, 'exchanges': exchanges}
@@ -726,40 +722,23 @@ class KineticsSeries(object):
         Coverage object describing peptide layout. When this `uniform` is `False`, this attribute is `None`
 
     """
-    def __init__(self, data, make_uniform=True, **metadata):
+    def __init__(self, data, **metadata):
         self.metadata = metadata
-        if isinstance(data, np.ndarray):
-            assert len(np.unique(data['state'])) == 1
-            self.state = data['state'][0]
-            self.timepoints = np.sort(np.unique(data['exposure']))
+        assert len(np.unique(data['state'])) == 1
+        self.state = data['state'][0]
+        self.timepoints = np.sort(np.unique(data['exposure']))
 
-            self.peptides = [PeptideMeasurements(data[data['exposure'] == exposure]) for exposure in self.timepoints]
+        data_list = [(data[data['exposure'] == exposure]) for exposure in self.timepoints]
+        sets = [{tuple(elem) for elem in fields_view(d, ['start', 'end'])} for d in data_list]
+        intersection = set.intersection(*sets)
+        intersection_array = np.array([tup for tup in intersection], dtype=[('start', int), ('end', int)])
 
-            if make_uniform:
-                self.make_uniform()
+        # Select entries in data array which are in the interesection between all timepoints
+        selected = [elem[np.isin(fields_view(elem, ['start', 'end']), intersection_array)] for elem in data_list]
+        self.peptides = [PeptideMeasurements(elem) for elem in selected]
 
-            if self.uniform:
-                self.cov = Coverage(data[data['exposure'] == self.timepoints[0]])
-            else:
-                self.cov = None
-
-        elif isinstance(data, list):
-            for elem in data:
-                assert isinstance(elem, PeptideMeasurements), 'Invalid data format'
-                assert elem.state == data[0].state, 'All peptide states must be equal'
-            data_sort = sorted(data, key=lambda x: x.exposure)
-            self.state = data[0].state
-            self.timepoints = np.array([elem.exposure for elem in data_sort])
-            self.peptides = data
-
-            if self.uniform:
-                # Use first peptideset to create coverage object
-                self.cov = Coverage(data[0].data)
-            else:
-                self.cov = None
-
-        else:
-            raise TypeError('Invalid data type')
+        # Create coverage object from the first time point (as all are now equal)
+        self.cov = Coverage(selected[0])
 
     @property
     def temperature(self):
@@ -794,32 +773,6 @@ class KineticsSeries(object):
     def c_term(self, value):
         self.metadata['c_term'] = value
 
-    def make_uniform(self, in_place=True):
-        """
-        Removes entries from time points, ensuring that all time points have equal coverage
-
-
-        Returns
-        -------
-
-        """
-        sets = [{(s, e, seq) for s, e, seq in zip(pm.data['start'], pm.data['end'], pm.data['sequence'])} for pm in self]
-        intersection = set.intersection(*sets)
-        dtype = [('start', int), ('end', int), ('sequence', self.full_data['sequence'].dtype)]
-        inter_arr = np.array([tup for tup in intersection], dtype=dtype)
-
-        if in_place:
-            self.peptides = [pm[np.isin(pm.data[['start', 'end', 'sequence']], inter_arr)] for pm in self]
-            self.cov = Coverage(self[0].data)
-        else:
-            raise NotImplementedError('Only making peptidesets uniform in place is implemented')
-
-    @property
-    def uniform(self):
-        """Returns ``True`` if for all time point coverages are equal"""
-        is_uniform = np.all([self[0] == elem for elem in self])
-        return is_uniform
-
     @property
     def full_data(self):
         """returns the full dataset of all timepoints"""
@@ -841,6 +794,7 @@ class KineticsSeries(object):
             and larger values tolerate larger gap sizes.
 
         """
+        raise DeprecationWarning('Split function has been removed')
         if self.uniform:
             # end is inclusive therefore +1 is needed
             intervals = [(s, e + 1) for s, e in zip(self[0].data['start'], self[0].data['end'])]
@@ -1041,7 +995,7 @@ class PeptideMeasurements(Coverage):
         assert np.all(data_final['start'] == control_100_final['start'])
         assert np.all(data_final['end'] == control_100_final['end'])
 
-        scores = 100 * ( (data_final['uptake'] - control_0_final['uptake']) /
+        scores = 100 * ((data_final['uptake'] - control_0_final['uptake']) /
                 (control_100_final['uptake'] - control_0_final['uptake']) )
 
         #update this when changing to Coverage objects
