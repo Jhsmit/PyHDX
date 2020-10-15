@@ -599,18 +599,25 @@ class Coverage(object):
 
     def __getitem__(self, item):
         series = self.protein[item]
-        return self.apply_interval(series.to_numpy())
+        #return self.apply_interval(series.to_numpy())
+        return self.apply_interval(series)
 
-    def apply_interval(self, array):
-        """Given an array with a length equal to the full protein, returns the section of the array equal to the covered
-        region. Returned array length is equal to number of colunms in the X matrix
+    def apply_interval(self, array_or_series):
+        """Given an array or series with a length equal to the full protein, returns the section of the array equal to the covered
+        region. Returned series length is equal to number of colunms in the X matrix
 
         """
-        assert len(array) == len(self.protein)
-        if isinstance(array, np.ndarray):
-            return array[self.interval[0] - 1: self.interval[1] - 1]
+
+        assert len(array_or_series) == len(self.protein)
+        if isinstance(array_or_series, np.ndarray):
+            series = pd.Series(array_or_series, index=self.protein.df.index)
         else:
-            raise TypeError(f"array of type {type(array)} are not supported")
+            series = array_or_series
+
+        # - 1 because interval is inclusive, exclusive and .loc slices inclusive, inclusive
+        covered_slice = series.loc[self.interval[0]:self.interval[1] - 1]
+
+        return covered_slice
 
     @property
     def r_number(self):
