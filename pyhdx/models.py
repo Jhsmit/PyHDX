@@ -549,7 +549,7 @@ class Coverage(object):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
-        self.data = data
+        self.data = np.sort(data, order=['start', 'end'])
         #todo remove from self
         # self.start = np.min(self.data['start'])
         # self._start = np.min(self.data['_start'])
