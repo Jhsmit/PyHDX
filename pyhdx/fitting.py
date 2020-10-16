@@ -676,6 +676,7 @@ class KineticsFitting(object):
         for bl in series.cov.block_length:
             d = arr[i]
             if np.all(np.isnan(d)):  # Skip non-coverage blocks
+                i += bl
                 continue
             intervals.append((r_excl[i], r_excl[i + bl]))
             d_list.append(d)
