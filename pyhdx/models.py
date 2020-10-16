@@ -750,6 +750,12 @@ class KineticsSeries(object):
         return self.peptides.__getitem__(item)
 
     @property
+    def scores_stack(self):
+        """uptake scores to fit in a 2d stack"""
+        scores_2d = np.stack([v.scores_average for v in self])
+        return scores_2d
+
+    @property
     def scores_peptides(self):
         scores_peptides = np.stack([v.scores for v in self])
         return scores_peptides
