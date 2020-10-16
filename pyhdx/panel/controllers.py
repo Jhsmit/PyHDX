@@ -787,7 +787,7 @@ class FitResultControl(ControlPanel):
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
     def _series_updated(self, *events):
-        self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data))
+        self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data) - 1)
         self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
         self._update_sources()
 
