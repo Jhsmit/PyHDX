@@ -565,10 +565,9 @@ class Coverage(object):
 
         # Full sequence
         _seq = np.full_like(r_number, fill_value='X', dtype='U')  # Full sequence
-
         # Sequence with lower case letters for no coverage due to n_terminal residues or prolines
         seq = np.full_like(r_number, fill_value='X', dtype='U')
-        for d in self.data:
+        for d in self.data[::-1]:
             i, j = np.searchsorted(r_number, [d['_start'], d['_end']])
             _seq[i:j] = [s for s in d['_sequence']]
             seq[i:j] = [s for s in d['sequence']]
