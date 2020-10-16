@@ -365,8 +365,6 @@ class PeptideMasterTable(object):
 
         self.data = append_fields(self.data, ['scores', 'uptake_corrected'], data=[scores, uptake_corrected], usemask=False)
 
-        #raise NotImplementedError()
-
     def set_control(self, control_100, control_0=None):
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
@@ -550,12 +548,6 @@ class Coverage(object):
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
         self.data = np.sort(data, order=['start', 'end'])
-        #todo remove from self
-        # self.start = np.min(self.data['start'])
-        # self._start = np.min(self.data['_start'])
-        # self.end = np.max(self.data['end'])
-        # self._end = np.max(self.data['_end'])
-#        self.r_number = np.arange(self.start, self.end)
 
         start = min(np.min(self.data['_start']), 1)
         end = np.max(self.data['_end'])
@@ -622,7 +614,6 @@ class Coverage(object):
 
     @property
     def block_length(self):
-        #used by wt averaging fit
         """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
             along the `r_number` axis"""
 
@@ -643,35 +634,6 @@ class Coverage(object):
     def Z_norm(self):
         """:class:`~np.ndarray`: `Z` coefficient matrix normalized column wise."""
         return self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
-
-    def split(self, gap_size=-1):
-        """
-        Splits the dataset into independent parts which have no overlapping peptides between them. To determine overlap,
-        the modified 'start' and 'end' fields are used which take into account N-terminal non-exchanging residues and
-        prolines.
-
-        Returns
-        -------
-
-        output: :obj:`dict`
-            Dictionary where keys are {start}_{end} (inclusive, exclusive) of the corresponding sections, values are
-            of the ``type`` of the current instance.
-        gap_size: :obj:`int`
-            Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
-            with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
-            and larger values tolerate larger gap sizes.
-        """
-
-        klass = self.__class__
-        sections = self.get_sections(gap_size)
-
-        output = {}
-        for s, e in sections:
-
-            b = np.logical_and(self.data['start'] >= s, self.data['end'] <= e)
-            output[f'{s}_{e}'] = klass(self.data[b])
-
-        return output
 
     def get_sections(self, gap_size=-1):
         """get the intervals of sections of coverage
@@ -778,44 +740,6 @@ class KineticsSeries(object):
         full_data = np.concatenate([pm.data for pm in self])
         return full_data
 
-    def split(self, gap_size=-1):
-        """
-        Splits the dataset into independent parts which have no overlapping peptides between them
-
-        Returns
-        -------
-        output : :obj:`dict`
-            Output dictionary with individual kinetic series. Keys are '{start}_{stop}', (including, excluding)
-             values are :class:`~pyhdx.pyhdx.KineticSeries` objects.
-        gap_size: :obj:`int`
-            Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
-            with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
-            and larger values tolerate larger gap sizes.
-
-        """
-        raise DeprecationWarning('Split function has been removed')
-        if self.uniform:
-            # end is inclusive therefore +1 is needed
-            intervals = [(s, e + 1) for s, e in zip(self[0].data['start'], self[0].data['end'])]
-        else:
-            raise AssertionError("not uniform data not yet supported")
-            intervals = reduce(add, [[(s, e) for s, e in zip(pm.data['start'], pm.data['end'])] for pm in self])
-
-
-        split_list = [pm.split(gap_size=gap_size) for pm in self]
-        #accumulate all keys in the split list and sort them by start then end
-        keys = sorted(np.unique([list(dic.keys()) for dic in split_list]), key=lambda x: tuple(int(c) for c in x.split('_')))
-        #keys = ''
-        #sections = reduce_inter(intervals)
-        output = {}
-        for key in keys:
-            output[key] = KineticsSeries(list([dic[key] for dic in split_list]))
-            # s, e = section
-            # b = np.logical_and(full_ds['start'] >= s, full_ds['end'] <= e)
-            # output['{}_{}'.format(s, e)] = KineticsSeries(full_ds[b])
-
-        return output
-
     def __len__(self):
         return len(self.timepoints)
 
@@ -824,55 +748,6 @@ class KineticsSeries(object):
 
     def __getitem__(self, item):
         return self.peptides.__getitem__(item)
-
-    @property
-    def k_int(self):
-        """this might need to move somewhere else, eg coverage object
-        although if series are not uniform, k_int has to be on the main object as it wont
-        have global coverages
-        """
-
-        return self.tf_cov.calc_kint(self.temperature, self.pH, c_term=self.c_term)
-
-    def set_control(self, control_100, control_zero=None, remove_nan=True):
-        """
-        Apply a control dataset to the underlying PeptideMeasurements of this object. A `scores` attribute is added to
-        the PeptideMeasurement by normalizing its uptake value with respect to the control uptake value to 100%. Entires
-        which are in the measurement and not in the control or vice versa are deleted.
-        Optionally, ``control_zero`` can be specified which is a datasets whose uptake value will be set to zero.
-
-        Parameters
-        ----------
-        control_100 : :class:`~numpy.ndarray`
-            Numpy structured array with control peptides to use for normalization to 100%
-        control_zero : :class:`~numpy.ndarray`
-            Numpy structured array with control peptides to use for normalization to 0%
-        remove_nan : :obj:`Bool`
-            If `True`, `NaN` entries are removed from the controls
-        Returns
-        -------
-
-        """
-
-        raise DeprecationWarning('will be removed')
-
-        for pm in self:
-            pm.set_control(control_100, control_zero, remove_nan=remove_nan)
-
-    @property
-    def scores_stack(self):
-        # todo move this to series
-        """uptake scores to fit in a 2d stack"""
-        scores_2d = np.stack([v.scores_average for v in self])
-        return scores_2d
-
-    @property
-    def scores_norm(self):
-        # Normalized to 100 array of scores
-        raise DeprecationWarning('Unused scores_norm will be removed')
-        print('where is this used?')
-        scores_norm = 100 * (self.scores_stack / self.scores_stack[-1, :][np.newaxis, :])
-        return scores_norm
 
     @property
     def scores_peptides(self):
@@ -930,7 +805,6 @@ class PeptideMeasurements(Coverage):
 
         self.state = self.data['state'][0]
         self.exposure = self.data['exposure'][0]
-      #  self.scores = data['uptake']
 
     @property
     def scores(self):
@@ -942,79 +816,6 @@ class PeptideMeasurements(Coverage):
     @property
     def uptake_corrected(self):
         return self.data['uptake_corrected']
-
-    def set_control(self, control_100, control_0=None, remove_nan=True):
-        """
-        Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
-        value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
-        control or vice versa are deleted.
-        Optionally, ``control_zero`` can be specified which is a datasets whose uptake value will be set to zero.
-
-        Parameters
-        ----------
-        control_100 : :class:`~numpy.ndarray`
-            Numpy structured array with control peptides to use for normalization to 100%
-        control_0 : :class:`~numpy.ndarray`
-            Numpy structured array with control peptides to use for normalization to 0%
-        remove_nan : :obj:`Bool`
-            If `True`, `NaN` entries are removed from the controls
-
-        Returns
-        -------
-
-        """
-        # peptides in measurements that are also in the control
-        #todo check for NaNs with lilys file
-        raise DeprecationWarning("will be deprecated")
-
-        if control_0 is None:
-            control_0 = np.copy(control_100)
-            control_0['uptake'] = 0
-
-        # Remove NaN entries from controls
-        if remove_nan:
-            control_100 = control_100[~np.isnan(control_100['uptake'])]
-            control_0 = control_0[~np.isnan(control_0['uptake'])]
-
-        b_100 = np.isin(self.data['sequence'], control_100['sequence'])
-        b_0 = np.isin(self.data['sequence'], control_0['sequence'])
-        data_selected = self.data[np.logical_and(b_100, b_0)]
-
-        # Control peptides corresponding to those peptides in measurement
-        c_100_selected = control_100[np.isin(control_100['sequence'], data_selected['sequence'])]
-        c_0_selected = control_0[np.isin(control_0['sequence'], data_selected['sequence'])]
-
-        # Sort both datasets by starting index and then by sequence to make sure they are both equal
-        data_final = np.sort(data_selected, order=['start', 'sequence'])
-        control_100_final = np.sort(c_100_selected, order=['start', 'sequence'])
-        control_0_final = np.sort(c_0_selected, order=['start', 'sequence'])
-
-        #todo move assert to testing
-        assert np.all(data_final['sequence'] == control_100_final['sequence'])
-        assert np.all(data_final['start'] == control_100_final['start'])
-        assert np.all(data_final['end'] == control_100_final['end'])
-
-        scores = 100 * ((data_final['uptake'] - control_0_final['uptake']) /
-                (control_100_final['uptake'] - control_0_final['uptake']) )
-
-        #update this when changing to Coverage objects
-
-        super(PeptideMeasurements, self).__init__(data_final)
-        self.scores = scores
-
-    def __getitem__(self, item):
-        #todo currently used to make series uniform
-        #but that should be revised as not the expected behaviour would be to get get the item from the protein DataFrame
-        #right? discuss among yourselves
-        if isinstance(item, int):
-            return None
-        else:
-            data = self.data[item]
-            scores = self.scores[item]
-
-            pm = PeptideMeasurements(data)
-#            pm.scores = scores
-            return pm
 
     @property
     def name(self):
