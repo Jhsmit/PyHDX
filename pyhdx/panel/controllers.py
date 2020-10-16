@@ -251,6 +251,61 @@ class PeptideFileInputControl(ControlPanel):
         self.exp_exposures = exposures
 
 
+class PeptideFoldingFileInputControl(PeptideFileInputControl):
+    norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory']
+                               , precedence=-1)
+    zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
+    zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
+
+    def make_dict(self):
+        return self.generate_widgets()
+
+    def make_list(self):
+        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
+                      'norm_state', 'norm_exposure', 'zero_state', 'zero_exposure', 'exp_state',
+                      'exp_exposures', 'parse_button']
+        first_widgets = list([self._widget_dict[par] for par in parameters])
+        return self.file_selectors + first_widgets
+
+    def _action_load(self):
+        super()._action_load()
+        states = list(np.unique(self.parent.peptides.data['state']))
+        self.param['zero_state'].objects = states
+        self.zero_state = states[0]
+
+    @param.depends('norm_state', 'norm_exposure', watch=True)
+    def _update_experiment(self):
+        #TODO THIS needs to be updated to also incorporate the zero (?)
+        pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
+        states = list(np.unique([v.state for v in pm_dict.values()]))
+        self.param['exp_state'].objects = states
+        self.exp_state = states[0] if not self.exp_state else self.exp_state
+
+    @param.depends('zero_state', watch=True)
+    def _update_zero_exposure(self):
+        b = self.parent.peptides.data['state'] == self.zero_state
+        data = self.parent.peptides.data[b]
+        exposures = list(np.unique(data['exposure']))
+        self.param['zero_exposure'].objects = exposures
+        if exposures:
+            self.control_exposure = exposures[0]
+
+    def _action_parse(self):
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+        if self.norm_mode == 'Exp':
+            control_0 = self.zero_state, self.zero_exposure
+            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
+
+        data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
+        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
+
+        series = KineticsSeries(data)
+        self.parent.series = series
+
+        self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
+                                f'({len(series)} timepoints, {len(series.cov)} peptides each)')
+
+
 class DifferenceControl(ControlPanel):
     """
     This controller allows users to select two datasets from available datasets, choose a quantity to compare between,
@@ -578,7 +633,7 @@ class InitialGuessControl(ControlPanel):
         if self.fitting_model == 'Half-life (λ)':
             self.box_pop('lower_bound')
             self.box_pop('upper_bound')
-        elif self.fitting_model == 'Association':
+        elif self.fitting_model in ['Association', 'Dissociation']:
             self.box_insert_after('fitting_model', 'upper_bound')
             self.box_insert_after('fitting_model', 'lower_bound')
 
@@ -669,6 +724,18 @@ class InitialGuessControl(ControlPanel):
                 loop.add_callback(self._fit1_async)
             else:
                 self._fit1()
+
+
+class FoldingFitting(InitialGuessControl):
+    fitting_model = param.Selector(default='Dissociation', objects=['Dissociation'],
+                                   doc='Choose method for determining initial guesses.')
+
+    def make_list(self):
+        self._widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+        parameters = ['fitting_model', 'lower_bound', 'upper_bound', 'do_fit1', 'pbar1']
+
+        widget_list = list([self._widget_dict[par] for par in parameters])
+        return widget_list
 
 
 class FitControl(ControlPanel):

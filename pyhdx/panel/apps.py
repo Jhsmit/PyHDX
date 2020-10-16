@@ -154,3 +154,59 @@ def _diff_app():
 def diff_app():
     tmpl, ctrl = _diff_app()
     return tmpl
+
+
+def _folding_app():
+    control_panels = [
+        PeptideFoldingFileInputControl,
+        CoverageControl,
+        FoldingFitting,
+        FitResultControl,
+        ClassificationControl,
+        ProteinViewControl,
+        FileExportControl,
+        OptionsControl
+    ]
+
+    if DEBUG:
+        control_panels.append(DeveloperControl)
+
+    figure_panels = [
+        CoverageFigure,
+        RateFigure,
+        FitResultFigure,
+        ProteinFigure,
+        LoggingFigure
+    ]
+
+    elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
+    ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
+    ctrl.logger.addHandler(get_default_handler(sys.stdout))
+    tmpl = elvis.compose(ctrl,
+                         elvis.column(
+                             elvis.stack(
+                                 elvis.view(ctrl.figure_panels['CoverageFigure']),
+                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
+                             ),
+                             elvis.row(
+                                 elvis.stack(
+                                     elvis.view(ctrl.figure_panels['RateFigure']),
+                                     elvis.view(ctrl.figure_panels['FitResultFigure'])
+                                 ),
+                             elvis.view(ctrl.figure_panels['LoggingFigure']),
+                            )
+                         )
+                         )
+
+    ctrl.control_panels['ClassificationControl'].log_space = False
+    return tmpl, ctrl
+
+
+def folding_app():
+    tmpl, ctrl = _folding_app()
+    return tmpl
+
+
+if __name__ == '__main__':
+    tmpl, ctrl = _folding_app()
+    pn.serve(tmpl)
