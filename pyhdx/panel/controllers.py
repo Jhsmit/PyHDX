@@ -192,7 +192,6 @@ class PeptideFileInputControl(ControlPanel):
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
         series = KineticsSeries(data)
-        series.make_uniform()
         self.parent.series = series
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
