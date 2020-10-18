@@ -750,67 +750,6 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
 
-    def _prepare_global_fit_gen(self, initial_result, k_int=None, l1=1e2, l2=0.):
-        """
-
-        Parameters
-        ----------
-        initial_result numpy structured array with fields r_number, rate
-        k_int optional numpy structured array with fields r_number, k_int
-
-        Returns
-        -------
-
-        """
-        raise DeprecationWarning('TF fit is now not split in intervals anymore, generator is deprecated')
-        import pyhdx.fitting_tf as ftf
-
-        for section in self.k_series.split(gap_size=0).values():
-            s, e = section.cov.start, section.cov.end  # inclusive, exclusive
-            interval = (s, e)
-
-            indices = np.searchsorted(initial_result['r_number'], section.cov.r_number)
-            if not len(indices) == len(np.unique(indices)):
-                raise ValueError('Invalid match between section r number and initial result r number')
-            init_rate = initial_result['rate'][indices]
-
-            regularizer = ftf.L1L2Differential(l1, l2)
-            if k_int is not None:
-                indices = np.searchsorted(k_int['r_number'], section.cov.r_number)
-                if not len(indices) == len(np.unique(indices)):
-                    raise ValueError('Invalid match between section r number and k_int r number')
-                k_int_section = k_int['k_int'][indices]
-
-                p_guess = k_int_section / init_rate
-                guess_vals = np.log10(p_guess)
-
-                parameter = ftf.TFParameter('log_P', (len(init_rate), 1), regularizer=regularizer)
-                func = ftf.AssociationPFactFunc(section.timepoints)
-
-                # expand dimensions of k_int to allow outer product with time and match the shape of parameter
-                inputs_list = [section.cov.X, np.expand_dims(k_int_section, -1)]
-
-            else:
-                parameter = ftf.TFParameter('log_k', (len(init_rate), 1), regularizer=regularizer)
-                func = ftf.AssociationRateFunc(section.timepoints)
-
-                guess_vals = np.log10(init_rate)
-                inputs_list = [section.cov.X]
-
-            input_layers = [ftf.Input(array.shape) for array in inputs_list]
-            layer = ftf.CurveFit([parameter], func, name='association')
-            outputs = layer(input_layers)
-
-            wts = np.expand_dims(guess_vals.astype(np.float32), -1)
-            layer.set_weights([wts])
-
-            model = ftf.Model(inputs=input_layers, outputs=outputs)
-
-            input_data = [np.expand_dims(array, 0) for array in inputs_list]       # np.expand_dims(section.cov.X, 0)
-            output_data = np.expand_dims(section.scores_peptides.T, 0)
-
-            yield model, interval, input_data, output_data
-
     def _initial_guess(self, initial_guess, protein):
         #todo refactor prepare_initial_guess?
         """
