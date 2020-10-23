@@ -7,19 +7,6 @@ import numpy as np
 from pyhdx.models import Protein
 
 
-class DeltaGModule(nn.Module):
-    def __init__(self, deltaG):
-        super(DeltaGModule, self).__init__()
-        self.deltaG = deltaG
-
-    def forward(self, inputs):
-        temperature, X, k_int, timepoints = inputs
-
-        pfact = t.exp(self.deltaG / (constants.R * temperature))
-        uptake = 1 - t.exp(-t.matmul((k_int / (1 + pfact)), timepoints))
-        return t.matmul(X, uptake)
-
-
 class DeltaGFit(nn.Module):
     def __init__(self, deltaG):
         super(DeltaGFit, self).__init__()
