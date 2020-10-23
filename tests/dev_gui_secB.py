@@ -35,7 +35,7 @@ data_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dty
 data_dict['color'][np.isnan(data_dict['log_P'])] = np.nan
 data_dict['pfact'] = 10**data_dict['log_P']
 
-data_source = DataSource(data_dict, x='r_number', y='pfact', tags=['mapping', 'pfact'],
+data_source = DataSource(data_dict, x='r_number', tags=['mapping', 'pfact'],
                          renderer='circle', size=10)
 
 dic['sources'] = {}

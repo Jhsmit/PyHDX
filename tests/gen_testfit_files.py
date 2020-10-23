@@ -19,7 +19,6 @@ pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=Fa
 pmt.set_backexchange(0.)
 states = pmt.groupby_state()
 series = states['state1']
-series.make_uniform()
 
 temperature, pH = 300, 8
 kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
@@ -31,9 +30,16 @@ out1.to_file(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.txt'))
 with open(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.pick'), 'wb') as f:
     pickle.dump(fr1, f)
 
-fr_pfact = kf.global_fit(out1)
-out_pfact = fr_pfact.output
+# fr_pfact = kf.global_fit_tf(out1)
+# out_pfact = fr_pfact.output
+#
+# out_pfact.to_file(os.path.join(directory, 'test_data', 'fit_simulated_pfact.txt'))
+# with open(os.path.join(directory, 'test_data', 'fit_simulated_pfact.pick'), 'wb') as f:
+#     pickle.dump(fr_pfact, f)
 
-out_pfact.to_file(os.path.join(directory, 'test_data', 'fit_simulated_pfact.txt'))
-with open(os.path.join(directory, 'test_data', 'fit_simulated_pfact.pick'), 'wb') as f:
-    pickle.dump(fr_pfact, f)
+fr_torch = kf.global_fit_torch(out1)
+out_deltaG = fr_torch.output
+
+out_deltaG.to_file(os.path.join(directory, 'test_data', 'fit_simulated_torch.txt'))
+with open(os.path.join(directory, 'test_data', 'fit_simulated_torch.pick'), 'wb') as f:
+    pickle.dump(fr_torch, f)
