@@ -26,6 +26,7 @@ class DeltaGFit(nn.Module):
         uptake = 1 - t.exp(-t.matmul((k_int / (1 + pfact)), timepoints))
         return t.matmul(X, uptake)
 
+
 class TorchFitResult(object):
     def __init__(self, series, model, temperature=None, **metadata):
         self.series = series
@@ -43,6 +44,20 @@ class TorchFitResult(object):
             out_dict['pfact'] = pfact
 
         return Protein(out_dict, index='r_number')
+
+    def __call__(self, timepoints):
+        """output: Np x Nt array"""
+
+        with t.no_grad():
+            temperature = t.Tensor([self.temperature])
+            X = t.Tensor(self.series.cov.X)  # Np x Nr
+            k_int = t.Tensor(self.series.cov['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
+            timepoints = t.Tensor(timepoints).unsqueeze(0)  # 1 x Nt
+            inputs = [temperature, X, k_int, timepoints]
+
+            output = self.model(inputs)
+        return output.detach().numpy()
+
 
 
 
