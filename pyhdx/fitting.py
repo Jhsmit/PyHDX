@@ -787,21 +787,19 @@ class KineticsFitting(object):
         """
 
         p_guess = (protein['k_int'] / initial_guess['rate']) - 1
-        p_guess.clip(np.e, None, inplace=True)
-
 
         # Replace NaN (no coverage / prolines) with logspace interpolation between edges
         bools = np.logical_or(np.isnan(p_guess), p_guess == 0.)
         idx = np.where(np.diff(bools))[0]
         i = 1 if np.isnan(p_guess.iloc[0]) else 0
-        for start, stop in zip(idx[i::2], idx[1 + 1::2]):
+        for start, stop in zip(idx[i::2], idx[1 + i::2]):
             replacement = np.logspace(np.log10(p_guess.iloc[start]), np.log10(p_guess.iloc[stop + 1]), endpoint=True,
                                       num=stop - start + 2)
             p_guess.iloc[start + 1:stop + 1] = replacement[1:-1]
 
         return p_guess
 
-    def global_fit(self, initial_result, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
+    def global_fit_tf(self, initial_result, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
         """TF global fitting"""
 
         #todo sessions?
@@ -816,41 +814,99 @@ class KineticsFitting(object):
         if np.any(np.isnan(guess_vals)):
             raise ValueError('NaN values in initial guess values')
 
-        import pyhdx.fitting_tf as ftf
+        import pyhdx.fitting_tf as tf
 
-        regularizer = ftf.L1L2Differential(l1, l2)
-        parameter = ftf.TFParameter('log_P', (len(guess_vals), 1), regularizer=regularizer)
-        func = ftf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
+        regularizer = tf.L1L2Differential(l1, l2)
+        parameter = tf.TFParameter('log_P', (len(guess_vals), 1), regularizer=regularizer)
+        func = tf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
 
         # expand dimensions of k_int to allow outer product with time and match the shape of parameter
         inputs_list = [self.k_series.cov.X, np.expand_dims(self.k_series.cov['k_int'], -1)]
-        input_layers = [ftf.Input(array.shape) for array in inputs_list]
-        layer = ftf.CurveFit([parameter], func, name='association')
+        input_layers = [tf.Input(array.shape) for array in inputs_list]
+        layer = tf.CurveFit([parameter], func, name='association')
         outputs = layer(input_layers)
 
         wts = np.expand_dims(guess_vals.astype(np.float32), -1)
         layer.set_weights([wts])
 
-        model = ftf.Model(inputs=input_layers, outputs=outputs)
+        model = tf.Model(inputs=input_layers, outputs=outputs)
 
         input_data = [np.expand_dims(array, 0) for array in inputs_list]  # np.expand_dims(section.cov.X, 0)
         output_data = np.expand_dims(self.k_series.uptake_corrected.T, 0)
 
-        early_stop = ftf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
+        early_stop = tf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
         callbacks = [early_stop] if callbacks is None else callbacks
-        if not np.any([isinstance(cb, ftf.EarlyStopping) for cb in callbacks]):
+        if not np.any([isinstance(cb, tf.EarlyStopping) for cb in callbacks]):
             callbacks.append(early_stop)
 
-        cb = ftf.LossHistory()
-        model.compile(loss='mse', optimizer=ftf.Adagrad(learning_rate=learning_rate))
+        cb = tf.LossHistory()
+        model.compile(loss='mse', optimizer=tf.Adagrad(learning_rate=learning_rate))
         result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
 
         wts = np.squeeze(cb.weights[-1][0])  # weights are the first weights from the last layer
 
         intervals = [self.k_series.cov.interval]
-        tf_fitresult = ftf.TFFitResult(self.k_series, intervals, [func], [wts], [input_data], loss=[result.history['loss']])
+        tf_fitresult = tf.TFFitResult(self.k_series, intervals, [func], [wts], [input_data], loss=[result.history['loss']])
 
         return tf_fitresult
+
+    def global_fit_torch(self, initial_result, reg=2, learning_rate=10, momentum=0.5, nesterov=True,
+                         epochs=100000, patience=50, stop_loss=0.05):
+        """Pytorch global fitting"""
+
+        if 'k_int' not in self.k_series.cov.protein:
+            self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
+
+        import pyhdx.fitting_torch as torch
+
+        # Prepare input data in the correct shapes for fitting
+        temperature = torch.t.Tensor([self.temperature])
+        X = torch.t.Tensor(self.k_series.cov.X) # Np x Nr
+        k_int = torch.t.Tensor(self.k_series.cov['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
+        timepoints = torch.t.Tensor(self.k_series.timepoints).unsqueeze(0)  # 1 x Nt
+        inputs = [temperature, X, k_int, timepoints]
+
+        # Prepare output data in the correct shape for fitting
+        output_data = torch.t.tensor(self.k_series.uptake_corrected.T, dtype=torch.t.float32)
+
+        # Get initial guess values for deltaG
+        gibbs_values = self.k_series.cov.apply_interval(self._guess_deltaG(initial_result)).to_numpy()
+        if np.any(np.isnan(gibbs_values)):
+            raise ValueError('NaN values in initial guess values')
+        deltaG = torch.nn.Parameter(torch.t.Tensor(gibbs_values).unsqueeze(-1))
+
+        model = torch.DeltaGFit(deltaG)
+        criterion = torch.t.nn.MSELoss(reduction='sum')
+        optimizer = torch.SGD(model.parameters(), lr=learning_rate, momentum=momentum, nesterov=nesterov)
+
+        mse_loss = [np.inf]  # Mean squared loss only
+        reg_loss = [np.inf]  # Loss including regularization loss
+        stop = 0
+
+        for epoch in range(epochs):
+            optimizer.zero_grad()
+            output = model(inputs)
+            loss = criterion(output, output_data)
+            mse_loss.append(loss)
+
+            for pname, param in model.named_parameters():
+                loss = loss + reg * torch.t.mean(torch.t.abs(param[:-1] - param[1:]))
+            reg_loss.append(loss)
+            diff = reg_loss[-2] - loss
+            if diff < stop_loss:
+                stop += 1
+                if stop > patience:
+                    break
+            else:
+                stop = 0
+
+            loss.backward()
+            optimizer.step()
+
+        result = torch.TorchFitResult(self.k_series, model, temperature=temperature,
+                                      mse_loss=mse_loss, reg_loss=reg_loss)
+
+        return result
 
     def weighted_avg_t50(self):
         """
