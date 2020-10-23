@@ -137,11 +137,12 @@ class BokehFigurePanel(FigurePanel):
         else:
             self.bk_pane.param.trigger('object')
             
-    def render_sources(self, src_dict):
+    def render_sources(self, src_dict, **render_kwargs):
         """override to customize how sources are rendered"""
         for name, data_source in src_dict.items():
             glyph_func = getattr(self.figure, data_source.renderer)
-            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, legend_label=name, name=name)
+            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, legend_label=name, name=name,
+                                  **render_kwargs)
             self.renderers[name] = renderer
 
     def remove_sources(self, names):

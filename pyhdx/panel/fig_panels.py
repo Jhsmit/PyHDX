@@ -89,11 +89,11 @@ class ThdFigure(LinearLogFigure):
 
         return fig
 
-    def render_sources(self, src_dict):
+    def render_sources(self, src_dict, **render_kwargs):
         for name, data_source in src_dict.items():
             glyph_func = getattr(self.figure, data_source.renderer)
             renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, name=name,
-                                  legend_label=name)  #todo size is being specified at two different places now
+                                  legend_label=name, **render_kwargs)  #todo size is being specified at two different places now
 
             self.renderers[name] = renderer
             hovertool = HoverTool(renderers=[renderer],
@@ -134,6 +134,9 @@ class PFactFigure(ThdFigure):
     def setup_hooks(self):
         super().setup_hooks()
         self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+
+    def render_sources(self, src_dict, **render_kwargs):
+        super().render_sources(src_dict, y='pfact')
 
 
 class BinaryComparisonFigure(ThdFigure):

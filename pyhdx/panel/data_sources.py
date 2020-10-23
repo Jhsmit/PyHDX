@@ -1,6 +1,7 @@
 import param
 from bokeh.models import ColumnDataSource
 import numpy as np
+from pyhdx.models import Protein
 
 
 #todo refactor module to models?
@@ -27,7 +28,9 @@ class DataSource(param.Parameterized):
             #self.array = input_data  #
         elif isinstance(input_data, dict):
             dic = input_data
-            #self.array = None
+        elif isinstance(input_data, Protein):
+            dic = input_data.to_dict('list')
+            dic['r_number'] = input_data.index
         else:
             raise TypeError("Invalid input data type")
 
