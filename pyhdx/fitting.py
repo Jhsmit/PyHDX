@@ -1,6 +1,6 @@
 from pyhdx.support import get_reduced_blocks, temporary_seed
 from pyhdx.models import Protein
-
+from scipy import constants
 from scipy.optimize import fsolve
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
@@ -749,6 +749,26 @@ class KineticsFitting(object):
 
         fit_result = KineticsFitResult(self.k_series, intervals, results, models)
         return fit_result
+
+    def _guess_deltaG(self, guess_rates):
+        protein = self.k_series.cov.protein
+        p_guess = (protein['k_int'] / guess_rates['rate']) - 1
+        p_guess.clip(0., None, inplace=True)  # Some initial guesses will have negative PF values
+        deltaG = np.log(p_guess) * constants.R * self.temperature
+
+        bools = ~np.isfinite(deltaG)
+        idx = np.where(np.diff(bools))[0]
+        i = 0 if np.isfinite(deltaG.iloc[0]) else 1  # Determine if guesses start with coverage/data or not
+        for start, stop in zip(idx[i::2], idx[1 + i::2]):
+            replacement = np.linspace(deltaG.iloc[start], deltaG.iloc[stop + 1], endpoint=True,
+                                      num=stop - start + 2)
+            deltaG.iloc[start + 1: stop + 1] = replacement[1:-1]
+
+        # Guesses end with NaN block:
+        if (i + len(idx)) % 2 == 1:
+            deltaG.iloc[idx[-1]:] = deltaG.iloc[idx[-1]]
+
+        return deltaG
 
     def _initial_guess(self, initial_guess, protein):
         #todo refactor prepare_initial_guess?
