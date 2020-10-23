@@ -751,17 +751,20 @@ class FitControl(ControlPanel):
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
-    stop_loss = param.Number(0.01, bounds=(0, None),
+    stop_loss = param.Number(0.05, bounds=(0, None),
                              doc='Threshold loss difference below which to stop fitting.')
     stop_patience = param.Integer(50, bounds=(1, None),
                                   doc='Number of epochs where stop loss should be satisfied before stopping.')
-    learning_rate = param.Number(0.01, bounds=(0, None),
+    learning_rate = param.Number(10, bounds=(0, None),
                                  doc='Learning rate parameter for optimization.')
+    momentum = param.Number(0.5, bounds=(0, None),
+                            doc='Stochastic Gradient Descent momentum')
+    nesterov = param.Boolean(True, doc='Use Nesterov type of momentum for SGD')
     epochs = param.Number(100000, bounds=(1, None),
                           doc='Maximum number of epochs (iterations.')
-    l1_regularizer = param.Number(20, bounds=(0, None), doc='Value for l1 regularizer.')
+    regularizer = param.Number(2, bounds=(0, None), doc='Value for the regularizer.')
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True, label='Do Fitting',
-                          doc='Start TensorFlow global fitting')
+                          doc='Start global fitting')
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
@@ -792,42 +795,29 @@ class FitControl(ControlPanel):
 
     def _do_fitting(self):
         self.param['do_fit'].constant = True
-        self.parent.logger.debug('Start TensorFlow fit')
-        import pyhdx.fitting_tf as tft
+        self.parent.logger.debug('Start PyTorch fit')
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
         initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
-        early_stop = tft.EarlyStopping(monitor='loss', min_delta=self.stop_loss, patience=self.stop_patience)
-        result = kf.global_fit(initial_result, epochs=self.epochs, learning_rate=self.learning_rate,
-                               l1=self.l1_regularizer, callbacks=[early_stop])
+        result = kf.global_fit_torch(initial_result, reg=self.regularizer, learning_rate=self.learning_rate,
+                                     momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
+                                     patience=self.stop_patience, stop_loss=self.stop_loss)
 
-        output_name = 'pfact'
-        var_name = 'log_P'
-
-
-        output = result.output.to_records('r_number')  # todo remove in between numpy step
-        output_dict = {name: output[name] for name in output.dtype.names}
-        output_dict['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-
-        # output_dict[f'{var_name}_full'] = output_dict[var_name].copy()
-        # output_dict[var_name][~self.parent.series.tf_cov.has_coverage] = np.nan # set no coverage sections to nan
-
-        #todo update when changing to fitting deltaG directly
-        output_dict['pfact'] = 10**output_dict[var_name]
-        deltaG = constants.R * self.temperature * np.log(output_dict['pfact'])
-        output_dict['deltaG'] = deltaG
-
-        data_source = DataSource(output_dict, x='r_number', y='pfact', tags=['mapping', 'pfact'],
+        output = result.output
+        output.df['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
+        data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'],
                                  renderer='circle', size=10)
 
+        output_name = 'global_fit'
         self.parent.fit_results['fr_' + output_name] = result
         self.parent.publish_data(output_name, data_source)
 
         self.param['do_fit'].constant = False
         self.parent.param.trigger('fit_results')
 
-        self.parent.logger.debug('Finished TensorFlow fit')
-        self.parent.logger.info(f'Finished fitting in {len(result.loss[0])} epochs')
+        self.parent.logger.debug('Finished PyTorch fit')
+        loss = result.metadata['mse_loss']
+        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {loss[-1]}")
 
 
 class FitResultControl(ControlPanel):

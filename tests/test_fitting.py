@@ -38,7 +38,7 @@ class TestSimulatedDataFit(object):
         for name in ['rate', 'k1', 'k2', 'r']:
             np.allclose(out1[name], check1[name])
 
-    def test_tf_pfact_fitting(self):
+    def test_tf_fitting(self):
         pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
         pmt.set_backexchange(0.)
         states = pmt.groupby_state()
@@ -47,10 +47,26 @@ class TestSimulatedDataFit(object):
         kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=300, pH=8)
         initial_rates = txt_to_protein(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
 
-        fr_pfact = kf.global_fit(initial_rates)
+        fr_pfact = kf.global_fit_tf(initial_rates)
         out_pfact = fr_pfact.output
 
         check_pfact = txt_to_protein(os.path.join(directory, 'test_data', 'Fit_simulated_pfact.txt'))
 
         np.allclose(check_pfact['log_P'], out_pfact['log_P'], equal_nan=True)
+
+    def test_torch_fitting(self):
+        pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
+        pmt.set_backexchange(0.)
+        states = pmt.groupby_state()
+        series = states['state1']
+
+        kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=300, pH=8)
+        initial_rates = txt_to_protein(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.txt'))
+
+        fr_pfact = kf.global_fit_torch(initial_rates)
+        out_deltaG = fr_pfact.output
+
+        check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'fit_simulated_torch.txt'))
+
+        np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True)
 
