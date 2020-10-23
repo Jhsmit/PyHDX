@@ -189,6 +189,10 @@ class Protein(object):
     def c_term(self):
         return self.df.index.max()
 
+    @property
+    def index(self):
+        return self.df.index
+
     def __getitem__(self, item):
         return self.df.__getitem__(item)
 
