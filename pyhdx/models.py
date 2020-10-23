@@ -146,6 +146,9 @@ class Protein(object):
         with open(file_path, 'w') as f:
             print(io.getvalue(), file=f)
 
+    def to_dict(self, orient='dict', into=dict):
+        return self.df.to_dict(orient=orient, into=into)
+
     def set_k_int(self, temperature, pH):
         """
         Calculates the intrinsic rate of the sequence. Values of no coverage or prolines are assigned a value of -1
