@@ -4,36 +4,7 @@ from torch.optim import SGD
 import torch as t
 from scipy import constants
 import numpy as np
-import pytorch_lightning as pl
 from pyhdx.models import Protein
-
-class DeltaGLightning(pl.LightningModule):
-    """Not used because of large overhead in training"""
-    def __init__(self, deltaG, l1):
-        super(DeltaGLightning, self).__init__()
-        self.uptake_from_deltaG = DeltaGModule(deltaG)
-        self.l1 = l1
-        self.save_hyperparameters()
-
-    def forward(self, inputs):
-        self.uptake_from_deltaG(inputs)
-
-    def training_step(self, batch, batch_idx):
-        temperature, X, k_int, timepoints, output = batch
-        inputs = [temperature, X, k_int, timepoints]
-        out_pred = self.uptake_from_deltaG(inputs)
-
-        loss = F.mse_loss(output, out_pred)
-        self.log('loss', loss)
-        for param in self.parameters():
-            loss = loss + self.hparams.l1 * t.mean(t.abs(param[:-1] - param[1:]))
-        self.log('reg_loss', loss)
-
-        return loss
-
-    def configure_optimizers(self):
-        optimizer = t.optim.SGD(self.parameters(), lr=10)
-        return optimizer
 
 
 class DeltaGModule(nn.Module):
