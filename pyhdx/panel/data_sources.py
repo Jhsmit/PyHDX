@@ -45,6 +45,11 @@ class DataSource(param.Parameterized):
         return dic
 
     @property
+    def scalar_fields(self):
+        """Returns a list of names of fields with scalar dtype"""
+        return [name for name, data in self.source.data.items() if np.issubdtype(data.dtype, np.number)]
+
+    @property
     def y(self):
         """:class:`~numpy.ndarray`: Array of y values"""
         if 'y' in self.render_kwargs:
