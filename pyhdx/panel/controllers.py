@@ -897,6 +897,7 @@ class ClassificationControl(ControlPanel):
     # todo unify name for target field (target_data set)
     # When coupling param with the same name together there should be an option to exclude this behaviour
     target = param.Selector(label='Target')
+    quantity = param.Selector(label='Quantity')
 
     mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'],
                           doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
@@ -939,11 +940,18 @@ class ClassificationControl(ControlPanel):
         if self.values:
             self._get_colors()
 
+    @param.depends('target', watch=True)
+    def _target_updated(self):
+        data_source = self.parent.sources[self.target]
+        self.param['quantity'].objects = data_source.scalar_fields
+        if not self.quantity and data_source.scalar_fields:
+            self.quantity = data_source.scalar_fields[0]
+
     @property
     def target_array(self):
-        """returns the array to calculate colors from"""
+        """returns the array to calculate colors from, NaN entries are removed"""
 
-        y_vals = self.parent.sources[self.target].y
+        y_vals = self.parent.sources[self.target][self.quantity]
         return y_vals[~np.isnan(y_vals)]
 
     def _action_otsu(self):
@@ -963,6 +971,7 @@ class ClassificationControl(ControlPanel):
             thds = np.linspace(np.min(self.target_array), np.max(self.target_array), num=self.num_colors + i, endpoint=True)
         for thd, widget in zip(thds[i:self.num_colors][::-1], self.values_widgets):
             # Remove bounds, set values, update bounds
+            print(thd)
             widget.start = None
             widget.end = None
             widget.value = thd
@@ -975,24 +984,22 @@ class ClassificationControl(ControlPanel):
             #self.otsu_thd.constant = False
         elif self.mode == 'Continuous':
             self.box_pop('otsu_thd')
-#            self.otsu_thd.constant = True
         elif self.mode == 'ColorMap':
             self.num_colors = 2
             #todo adjust add/ remove color widgets methods
-
         self.param.trigger('num_colors')
 
-    @param.depends('values', 'colors', watch=True)
+    @param.depends('values', 'colors', 'quantity', 'target', watch=True)
     def _get_colors(self):
         # todo or?
-        if 0 in self.values:
+        if np.all(self.values == 0):
             return
-        elif np.any(np.diff(self.values)) < 0:
+        elif np.any(np.diff(self.values) > 0):  # Skip applying colors when not strictly monotonic descending
             return
         elif not self.target:
             return
 
-        y_vals = self.parent.sources[self.target].y # full array including nan entries
+        y_vals = self.parent.sources[self.target][self.quantity]  # full array including nan entries
 
         if self.num_colors == 1:
             colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
