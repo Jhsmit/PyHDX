@@ -29,7 +29,7 @@ class CoverageFigure(BokehFigurePanel):
 
         return fig
 
-    def render_sources(self, src_dict):
+    def render_sources(self, src_dict):  #todo , **render_kwargs
         tooltips = [('Pos', '$x{int}'),
                     ('Index', '@index'),
                     ('Start', '@start (@_start)'),
@@ -57,9 +57,6 @@ class LinearLogFigure(BokehFigurePanel):
         kwargs = {event.name: event.new.lower()}
         self.redraw(**kwargs)
 
-    # def draw_figure(self, **kwargs):
-    #     fig = super().draw_figure(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
-    #     return fig
 
 
 class ThdFigure(LinearLogFigure):
@@ -91,13 +88,19 @@ class ThdFigure(LinearLogFigure):
 
     def render_sources(self, src_dict, **render_kwargs):
         for name, data_source in src_dict.items():
+            kwargs = {**data_source.render_kwargs, **render_kwargs}
+            # try:
+            #     y_name = render_kwargs.pop('y')
+            # except KeyError:
+            #     y_name = data_source.render_kwargs.pop('y')
+
             glyph_func = getattr(self.figure, data_source.renderer)
-            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, name=name,
-                                  legend_label=name, **render_kwargs)  #todo size is being specified at two different places now
+            renderer = glyph_func(source=data_source.source, name=name,
+                                  legend_label=name, **kwargs)  #todo size is being specified at two different places now
 
             self.renderers[name] = renderer
             hovertool = HoverTool(renderers=[renderer],
-                                  tooltips=[('Residue', '@r_number{int}'), (self.y_label, f'@{data_source.render_kwargs["y"]}')],
+                                  tooltips=[('Residue', '@r_number{int}'), (self.y_label, f'@{kwargs["y"]}')],
                                   mode='vline')
             self.figure.add_tools(hovertool)
 
@@ -141,23 +144,53 @@ class PFactFigure(ThdFigure):
 
 class BinaryComparisonFigure(ThdFigure):
     title = 'Binary Comparison'
-    accepted_tags = [('comparison', 'mapping')]
-    x_label = 'Residue number'
+    accepted_tags = [('comparison', 'mapping')]  # [ ('x' AND 'y') OR 'z' OR 'asdf']
+    x_label = 'Residue number'  # move these to _redraw_kwargs?
     y_label = 'Difference'
 
     def __init__(self, parent, *args, **params):
         super(BinaryComparisonFigure, self).__init__(parent, *args, **params)
+        self._redraw_kwargs['y_axis_type'] = 'linear'
+
+    @property
+    def y_kwarg(self):
+        try:
+            plot_quantity = self.control_panels['ClassificationControl'].quantity
+            if plot_quantity is not None:
+                return plot_quantity
+        except KeyError:
+            pass
+        return None
+
+    def render_sources(self, src_dict, **render_kwargs):
+        kwargs = {**self._render_kwargs, **render_kwargs}
+        super().render_sources(src_dict, **kwargs)
 
     def setup_hooks(self):
         super().setup_hooks()
         self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
         self.control_panels['ClassificationControl'].param.watch(self._log_space_updated, ['log_space'])
+        #self.control_panels['ClassificationControl'].param.watch(self._target_updated, ['target'])
+        self.control_panels['ClassificationControl'].param.watch(self._quantity_updated, ['quantity'])
+
+
+    #todo group into one function?
+    def _quantity_updated(self, event):
+        self._render_kwargs['y'] = event.new
+        self.y_label = event.new
+        self.redraw(**self._redraw_kwargs) # todo auto pass kwargs?
+
+    # def _target_updated(self, event):  #event. cls, name, new, obj, old, type, what
+    #     #todo make redraw accept events
+    #     self._render_kwargs['target'] = event.new
+    #     self.redraw(**self._redraw_kwargs) # todo auto pass kwargs?
 
     def _log_space_updated(self, event):
         if event.new:   # True, log space
-            self.redraw(y_axis_type='log')
+            self._redraw_kwargs['y_axis_type'] = 'log'
         else:
-            self.redraw(y_axis_type='linear')
+            self._redraw_kwargs['y_axis_type'] = 'linear'
+        self.redraw(**self._redraw_kwargs) # todo auto pass kwargs?
 
     def draw_figure(self, **kwargs):
         y_axis_type = kwargs.pop('y_axis_type', 'linear')

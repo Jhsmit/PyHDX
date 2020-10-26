@@ -78,12 +78,6 @@ class FigurePanel(PanelBase):
         """override to customize how sources are rendered"""
         pass
 
-    @property
-    def sources(self):
-        """returns a dict of the current sources"""
-        raise DeprecationWarning('sources dict will be removed as its only columndatasources not full object')
-        return {name: renderer.data_source for name, renderer in self.renderers.items()}
-
     def _data_updated_callback(self, attr, old, new):
         """overload for custom callback when data updates"""
         pass
@@ -109,6 +103,8 @@ class BokehFigurePanel(FigurePanel):
         self.figure = self.draw_figure()
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.title)
 
+
+
     def draw_figure(self, **kwargs):
         """Overload to create a custom figure"""
 
@@ -121,19 +117,17 @@ class BokehFigurePanel(FigurePanel):
     def redraw(self, **kwargs):
         """calls draw_figure to make a new figure and then redraws all renderers"""
 
-        src_dict = self.data_sources
-
-        self.remove_sources(src_dict.keys())
-        assert not self.renderers  # todo remove assert
+        #src_dict = self.data_sources
+        #self.remove_sources(src_dict.keys())
+        self.renderers = {}
         #self.renderers = {}
         self.figure = self.draw_figure(**kwargs)
-        self.add_sources(src_dict)
+        #self.add_sources(src_dict)
         # todo does the old figure linger on?
+        self.render_sources(self.data_sources)
         self.bk_pane.object = self.figure
 
     def _data_updated_callback(self, attr, old, new):
-#        self.bk_pane.param.trigger('object')
-        # This might be `None` if the webapp it not running yet but loading data in a script
         if self.parent.doc is not None:
             callback = partial(self.bk_pane.param.trigger, 'object')
             self.parent.doc.add_next_tick_callback(callback)

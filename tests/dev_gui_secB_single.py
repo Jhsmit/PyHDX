@@ -21,18 +21,17 @@ fpath = directory / 'test_data' / 'SecB WT apo_pfact_linear.txt'
 with open(fpath, 'rb') as f_obj:
     file_binary = f_obj.read()
 
-f_input = ctrl.control_panels['MappingFileInputControl']
+f_input = ctrl.control_panels['SingleMappingFileInputControl']
 f_input._widget_dict['input_file'].filename = str(fpath)
 f_input.input_file = file_binary
 
 f_input.dataset_name = 'DS1'
 f_input._action_add_dataset()
 
-s_ctrl = ctrl.control_panels['SingleControl']
-s_ctrl.dataset_name = 'DS1_deltaG'
-s_ctrl.quantity = 'deltaG'
-s_ctrl._action_add_dataset()
-
+# s_ctrl = ctrl.control_panels['SingleControl']
+# s_ctrl.dataset_name = 'DS1_deltaG'
+# s_ctrl.quantity = 'deltaG'
+# s_ctrl._action_add_dataset()
 
 pv_ctrl = ctrl.control_panels['ProteinViewControl']
 pv_ctrl.rcsb_id = '1qyn'

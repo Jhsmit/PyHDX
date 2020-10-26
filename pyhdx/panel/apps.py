@@ -65,8 +65,7 @@ def main_app():
 
 def _single_app():
     control_panels = [
-        MappingFileInputControl,
-        SingleControl,
+        SingleMappingFileInputControl,
         ClassificationControl,
         ProteinViewControl,
         DifferenceFileExportControl,

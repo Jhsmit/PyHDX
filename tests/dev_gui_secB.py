@@ -39,7 +39,7 @@ data_source = DataSource(data_dict, x='r_number', tags=['mapping', 'pfact'],
                          renderer='circle', size=10)
 
 dic['sources'] = {}
-dic['sources']['pfact'] = data_source
+#dic['sources']['pfact'] = data_source
 
 dic['rcsb_id'] = '1qyn'
 

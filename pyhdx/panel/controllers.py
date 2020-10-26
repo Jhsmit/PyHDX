@@ -33,7 +33,7 @@ HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 class MappingFileInputControl(ControlPanel):
     """
     This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
-    mapped to a linear sequence.
+    mapped to a linear sequence. The data is then used further downstream to generate binary comparisons between datasets.
 
     The column should be tab separated with on the last header line (starts with '#') the names of the columns. Columns
     should be tab-delimited.
@@ -60,9 +60,12 @@ class MappingFileInputControl(ControlPanel):
     def _input_file_updated(self):
         self.dataset_name = self.dataset_name or Path(self._widget_dict['input_file'].filename).stem
 
+    #todo refactor dataset to protein_something
     def _action_add_dataset(self):
         if self.dataset_name in self.parent.datasets.keys():
             self.parent.logger.info(f'Dataset {self.dataset_name} already added')
+        elif not self.dataset_name:
+            self.parent.logger.info('The added comparison needs to have a name')
         elif not self.input_file:
             self.parent.logger.info('Empty or no file selected')
         else:
@@ -71,7 +74,8 @@ class MappingFileInputControl(ControlPanel):
                 array = txt_to_np(sio)
                 assert 'r_number' in array.dtype.names, "Input file needs to have an 'r_number' column"
                 array['r_number'] += self.offset
-                self.parent.datasets[self.dataset_name] = array
+                protein = Protein(array, index='r_number')
+                self.parent.datasets[self.dataset_name] = protein
                 self.parent.param.trigger('datasets')
             except UnicodeDecodeError:
                 self.parent.logger.info('Invalid file type, supplied file is not a text file')
@@ -83,12 +87,30 @@ class MappingFileInputControl(ControlPanel):
 
     def _action_remove_dataset(self):
         for dataset_name in self.datasets_list:
-            print(dataset_name)
             self.parent.datasets.pop(dataset_name)
         self.parent.param.trigger('datasets')
 
     def _datasets_updated(self, events):
         self.param['datasets_list'].objects = list(self.parent.datasets.keys())
+
+
+class SingleMappingFileInputControl(MappingFileInputControl):
+    """
+    This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
+    mapped to a linear sequence.
+
+    The column should be tab separated with on the last header line (starts with '#') the names of the columns. Columns
+    should be tab-delimited.
+    """
+
+    def _action_add_dataset(self):
+        super()._action_add_dataset()
+        to_add_keys = set(self.parent.datasets.keys()) - set(self.parent.sources.keys())
+        for key in to_add_keys:
+            records = self.parent.datasets[key].to_records()
+            data_source = DataSource(records, tags=['comparison', 'mapping'], x='r_number',
+                                     renderer='circle', size=10)
+            self.parent.publish_data(key, data_source)
 
 
 class PeptideFileInputControl(ControlPanel):
@@ -346,7 +368,6 @@ class DifferenceControl(ControlPanel):
     def _selection_updated(self):
         if self.datasets:
             unique_names = set.intersection(*[{name for name in protein.df.dtypes.index} for protein in self.datasets])
-            print(unique_names)
             objects = [name for name in unique_names if np.issubdtype(self.protein_1[name].dtype, np.number)]
             objects.sort()
 
@@ -359,7 +380,7 @@ class DifferenceControl(ControlPanel):
     def protein_1(self):
         """:class:`~pyhdx.models.Protein`: Protein object of dataset 1"""
         try:
-            return Protein(self.parent.datasets[self.dataset_1], index='r_number')
+            return self.parent.datasets[self.dataset_1]
         except KeyError:
             return None
 
@@ -367,7 +388,7 @@ class DifferenceControl(ControlPanel):
     def protein_2(self):
         """:class:`~pyhdx.models.Protein`: Protein object of dataset 2"""
         try:
-            return Protein(self.parent.datasets[self.dataset_2], index='r_number')
+            return self.parent.datasets[self.dataset_2]
         except KeyError:
             return None
 
@@ -976,7 +997,6 @@ class ClassificationControl(ControlPanel):
             thds = np.linspace(np.min(self.target_array), np.max(self.target_array), num=self.num_colors + i, endpoint=True)
         for thd, widget in zip(thds[i:self.num_colors][::-1], self.values_widgets):
             # Remove bounds, set values, update bounds
-            print(thd)
             widget.start = None
             widget.end = None
             widget.value = thd
