@@ -944,8 +944,13 @@ class ClassificationControl(ControlPanel):
     def _target_updated(self):
         data_source = self.parent.sources[self.target]
         self.param['quantity'].objects = data_source.scalar_fields
+        default_priority = ['deltaG', 'comparison']  # Select these fields by default if they are present
         if not self.quantity and data_source.scalar_fields:
-            self.quantity = data_source.scalar_fields[0]
+            for field in default_priority:
+                if field in data_source.scalar_fields:
+                    self.quantity = field
+                    break
+                self.quantity = data_source.scalar_fields[0]
 
     @property
     def target_array(self):
