@@ -22,6 +22,9 @@ class DataSource(param.Parameterized):
 
         self.source = ColumnDataSource(dic)
 
+    def __getitem__(self, item):
+        return self.source.data.__getitem__(item)
+
     def get_dic(self, input_data):
         if isinstance(input_data, np.ndarray):
             dic = {name: input_data[name] for name in input_data.dtype.names}
