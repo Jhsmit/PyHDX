@@ -135,12 +135,30 @@ class PFactFigure(ThdFigure):
     y_label = 'Protection factor'
 
     def setup_hooks(self):
+        #todo move to superclass?
         super().setup_hooks()
         self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+
 
     def render_sources(self, src_dict, **render_kwargs):
         super().render_sources(src_dict, y='pfact')
 
+
+class DeltaGFigure(ThdFigure):
+    title = 'DeltaG'
+    accepted_tags = [('mapping', 'deltaG')]
+    y_label = 'DeltaG (J/mol)'
+
+    def setup_hooks(self):
+        #todo move to superclass?
+        super().setup_hooks()
+        self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+
+    def draw_figure(self, **kwargs):
+        return super().draw_figure(y_axis_type='linear')
+
+    def render_sources(self, src_dict, **render_kwargs):
+        super().render_sources(src_dict, y='deltaG')
 
 class BinaryComparisonFigure(ThdFigure):
     title = 'Binary Comparison'
@@ -253,7 +271,7 @@ class FitResultFigure(BokehFigurePanel):
         fig = super().draw_figure(x_axis_type=self.control_panels['FitResultControl'].x_axis_type.lower())
         return fig
 
-    def render_sources(self, src_dict):
+    def render_sources(self, src_dict, **render_kwargs):
         super().render_sources(src_dict)
 
         if self.renderers:

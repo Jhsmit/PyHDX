@@ -31,6 +31,7 @@ def _main_app():
     figure_panels = [
         CoverageFigure,
         RateFigure,
+        DeltaGFigure,
         PFactFigure,
         FitResultFigure,
         ProteinFigure,
@@ -48,6 +49,7 @@ def _main_app():
                              ),
                              elvis.stack(
                                  elvis.view(ctrl.figure_panels['RateFigure']),
+                                 elvis.view(ctrl.figure_panels['DeltaGFigure']),
                                  elvis.view(ctrl.figure_panels['PFactFigure']),
                                  elvis.view(ctrl.figure_panels['FitResultFigure']),
                                  elvis.view(ctrl.figure_panels['LoggingFigure']),

@@ -34,6 +34,9 @@ class FigurePanel(PanelBase):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
         sources = sources if sources is not None else {}
+        self._render_kwargs = {}
+        self._redraw_kwargs = {}
+
         self.renderers = {}  # dict of renderers
         self.data_sources = {}  # dict with DataSource objects
         self.add_sources(sources)
