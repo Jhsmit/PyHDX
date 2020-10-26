@@ -58,7 +58,6 @@ class LinearLogFigure(BokehFigurePanel):
         self.redraw(**kwargs)
 
 
-
 class ThdFigure(LinearLogFigure):
     """base class for figures extending LinearLogFigure with threshold lines
     parent must have ClassificationControl

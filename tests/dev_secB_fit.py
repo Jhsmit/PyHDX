@@ -1,6 +1,5 @@
 from pyhdx.fileIO import read_dynamx, txt_to_protein
 from pyhdx import PeptideMasterTable, KineticsFitting
-import os
 import numpy as np
 import pickle
 from pathlib import Path
@@ -21,19 +20,16 @@ series = states[state]
 temperature, pH = 273.15 + 30, 8.
 kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 
-fr1 = kf.weighted_avg_fit()
-out1 = fr1.output
-out1.to_file(directory / 'test_data' / 'ecSecB_guess.txt')
+# wt_avg_result = kf.weighted_avg_fit()
+# output = wt_avg_result.output
+# output.to_file(directory / 'test_data' / 'ecSecB_guess.txt')
 
 
+output = txt_to_protein(directory / 'test_data' / 'ecSecB_guess.txt')
 
-#
-#
-# fr_pfact = kf.global_fit(out1, l1=20)
-# output = fr_pfact.output
-#
-# fmt, hdr = fmt_export(output)
-# np.savetxt(os.path.join(directory, 'test_data', 'test123.txt'), output, fmt=fmt, header=hdr)
-# with open(os.path.join(directory, 'test_data', 'test123.pick'), 'wb') as f:
-#     pickle.dump(fr_pfact, f)
-#
+
+fr_torch = kf.global_fit_torch(output)
+fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt')
+with open(directory / 'test_data' / 'ecSecB_torch_fit.pick', 'wb') as f:
+    pickle.dump(fr_torch, f)
+
