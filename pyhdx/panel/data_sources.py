@@ -30,10 +30,10 @@ class DataSource(param.Parameterized):
             dic = {name: input_data[name] for name in input_data.dtype.names}
             #self.array = input_data  #
         elif isinstance(input_data, dict):
-            dic = input_data
+            dic = {k: np.array(v) for k, v in input_data.items()}
         elif isinstance(input_data, Protein):
-            dic = input_data.to_dict('list')
-            dic['r_number'] = input_data.index
+            dic = {k: np.array(v) for k, v in input_data.to_dict('list').items()}
+            dic['r_number'] = np.array(input_data.index)
         else:
             raise TypeError("Invalid input data type")
 
