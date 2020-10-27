@@ -1181,7 +1181,7 @@ class FileExportControl(ControlPanel):
             self.target = objects[0]
 
     def _series_updated(self, *events):
-        self.c_term = self.parent.series.cov.protein.c_term
+        self.c_term = int(self.parent.series.cov.protein.c_term)
 
     def _make_pml(self, target):
         # Removes nan entries (no coverage)  (#todo do this in colors_to_pymol function)
