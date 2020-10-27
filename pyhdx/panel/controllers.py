@@ -143,6 +143,8 @@ class PeptideFileInputControl(ControlPanel):
     exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
                                        , doc='Selected exposure time to use')
 
+    c_term = param.Integer(0, bounds=(0, None),
+                           doc='Index of the c terminal residue in the protein. Used for generating pymol export script')
     parse_button = param.Action(lambda self: self._action_parse(), label='Parse',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
 
@@ -157,7 +159,7 @@ class PeptideFileInputControl(ControlPanel):
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'd_percentage', 'load_button',
                       'norm_mode', 'norm_state', 'norm_exposure', 'exp_state',
-                      'exp_exposures', 'parse_button']
+                      'exp_exposures', 'c_term', 'parse_button']
         first_widgets = list([self._widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
 
@@ -213,7 +215,7 @@ class PeptideFileInputControl(ControlPanel):
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
-        series = KineticsSeries(data)
+        series = KineticsSeries(data, c_term=self.c_term)
         self.parent.series = series
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
@@ -247,15 +249,7 @@ class PeptideFileInputControl(ControlPanel):
         if exposures:
             self.norm_exposure = exposures[0]
 
-    # @param.depends('zero_state', watch=True)
-    # def _update_zero_exposure(self):
-    #     b = self.parent.peptides.data['state'] == self.zero_state
-    #     data = self.parent.peptides.data[b]
-    #     exposures = list(np.unique(data['exposure']))
-    #     self.param['zero_exposure'].objects = exposures
-    #     if exposures:
-    #         self.control_exposure = exposures[0]
-
+    #todo refactor norm to FD
     @param.depends('norm_state', 'norm_exposure', watch=True)
     def _update_experiment(self):
         #TODO THIS needs to be updated to also incorporate the zero (?)
@@ -271,6 +265,9 @@ class PeptideFileInputControl(ControlPanel):
         exposures.sort()
         self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
+
+        self.c_term = int(np.max(self.parent.peptides.data['end'][b]))
+
 
 
 class PeptideFoldingFileInputControl(PeptideFileInputControl):
@@ -768,7 +765,6 @@ class FitControl(ControlPanel):
 
     header = 'Fitting'
     initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
-    c_term = param.Integer(None, doc='Residue number to which the last amino acid in the sequence corresponds.')  # remove
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
@@ -795,14 +791,9 @@ class FitControl(ControlPanel):
         self.parent.param.watch(self._parent_series_updated, ['series'])
 
     def make_dict(self):
+        #todo update to NumericInput?
         kwargs = {name: pn.param.LiteralInputTyped(param.Number(0.)) for name in ['temperature', 'pH', 'stop_loss', 'learning_rate', 'l1_regularizer', 'l2_regularizer']}
         return self.generate_widgets(**kwargs)
-
-    def _parent_series_updated(self, *events):
-        print("FIX THIS SERIES UPDATED THINGY")
-
-        # end = self.parent.series.cov.end
-        # self.c_term = int(end + 5)
 
     def _parent_fit_results_updated(self, *events):
         possible_initial_guesses = ['half-life', 'fit1']
@@ -1166,8 +1157,7 @@ class FileExportControl(ControlPanel):
 
     header = "File Export"
     target = param.Selector(label='Target dataset', doc='Name of the dataset to export')
-
-    #todo link this number with the other one
+    #todo add color param an dlink with protein viewer color
     c_term = param.Integer(0, bounds=(0, None))
 
     def __init__(self, parent, **param):
@@ -1193,8 +1183,7 @@ class FileExportControl(ControlPanel):
             self.target = objects[0]
 
     def _series_updated(self, *events):
-        print("ALSO FIX DIS SERIES UPDATED THINGY")
-        #self.c_term = int(self.parent.series.cov.end)
+        self.c_term = self.parent.series.cov.protein.c_term
 
     def _make_pml(self, target):
         # Removes nan entries (no coverage)  (#todo do this in colors_to_pymol function)

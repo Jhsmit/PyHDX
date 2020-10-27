@@ -560,7 +560,7 @@ class Coverage(object):
         end = np.max(self.data['_end'])
         if c_term:
             end = max(end, c_term + 1)  # c_term is inclusive, therefore plus one
-        r_number = np.arange(start, end)
+        r_number = np.arange(start, end)  # r_number spanning the full protein range, not just the covered range
 
         # Full sequence
         _seq = np.full_like(r_number, fill_value='X', dtype='U')  # Full sequence
@@ -706,7 +706,7 @@ class KineticsSeries(object):
         self.peptides = [PeptideMeasurements(elem) for elem in selected]
 
         # Create coverage object from the first time point (as all are now equal)
-        self.cov = Coverage(selected[0])
+        self.cov = Coverage(selected[0], c_term=metadata.get('c_term'))
 
     @property
     def temperature(self):
