@@ -1430,5 +1430,14 @@ class DeveloperControl(ControlPanel):
         control_panels = main_ctrl.control_panels
         figure_panels = main_ctrl.figure_panels
         sources = main_ctrl.sources
+        deltaG_figure = self.parent.figure_panels['DeltaGFigure']
 
         print('Time for a break')
+
+    def _action_test(self):
+        deltaG_figure = self.parent.figure_panels['DeltaGFigure']
+        deltaG_figure._data_updated_callback('attr', 'old', 'new')
+
+    def _action_trigger(self):
+        deltaG_figure = self.parent.figure_panels['DeltaGFigure']
+        deltaG_figure.bk_pane.param.trigger('object')
