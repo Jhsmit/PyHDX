@@ -977,11 +977,14 @@ class ClassificationControl(ControlPanel):
     def target_array(self):
         """returns the array to calculate colors from, NaN entries are removed"""
 
-        y_vals = self.parent.sources[self.target][self.quantity]
-        return y_vals[~np.isnan(y_vals)]
+        try:
+            y_vals = self.parent.sources[self.target][self.quantity]
+            return y_vals[~np.isnan(y_vals)]
+        except KeyError:
+            return None
 
     def _action_otsu(self):
-        if self.num_colors > 1 and self.target:
+        if self.num_colors > 1 and self.target_array is not None:
             func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
             thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
             for thd, widget in zip(thds[::-1], self.values_widgets):  # Values from high to low
