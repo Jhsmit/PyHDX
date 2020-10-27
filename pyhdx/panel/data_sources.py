@@ -20,7 +20,7 @@ class DataSource(param.Parameterized):
         default_color = 'color' if 'color' in dic else self.default_color
         self.render_kwargs['color'] = self.render_kwargs.get('color', default_color)
 
-        self.source = ColumnDataSource(dic)
+        self.source = ColumnDataSource(dic, name=self.name)
 
     def __getitem__(self, item):
         return self.source.data.__getitem__(item)

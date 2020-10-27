@@ -109,6 +109,18 @@ class ThdFigure(LinearLogFigure):
     def _draw_thds(self, *events):
         #todo duplicate code, subclass
         spans = self.figure.select(tags='thd')
+
+        if not self.figure.renderers:
+            return
+
+        y_names, source_names = zip(*[(renderer.glyph.y, renderer.data_source.name) for renderer in self.figure.renderers])
+        if not self.control_panels['ClassificationControl'].target in source_names:
+            self._hide_thds()
+            return
+        if not self.control_panels['ClassificationControl'].quantity in y_names:
+            self._hide_thds()
+            return
+
         spans.sort(key=lambda x: x.id)
         for i, span in enumerate(spans):
             if i < len(self.control_panels['ClassificationControl'].values):
@@ -117,6 +129,10 @@ class ThdFigure(LinearLogFigure):
             else:
                 span.visible = False
 
+    def _hide_thds(self):
+        spans = self.figure.select(tags='thd')
+        for i, span in enumerate(spans):
+            span.visible = False
 
 class RateFigure(ThdFigure):
     title = 'Rates'
@@ -126,6 +142,9 @@ class RateFigure(ThdFigure):
     def setup_hooks(self):
         super().setup_hooks()
         self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+
+    def render_sources(self, src_dict, **render_kwargs):
+        super().render_sources(src_dict, **render_kwargs)
 
 
 class PFactFigure(ThdFigure):
@@ -138,9 +157,8 @@ class PFactFigure(ThdFigure):
         super().setup_hooks()
         self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
 
-
     def render_sources(self, src_dict, **render_kwargs):
-        super().render_sources(src_dict, y='pfact')
+        super().render_sources(src_dict, y='pfact', **render_kwargs)
 
 
 class DeltaGFigure(ThdFigure):
@@ -157,7 +175,8 @@ class DeltaGFigure(ThdFigure):
         return super().draw_figure(y_axis_type='linear')
 
     def render_sources(self, src_dict, **render_kwargs):
-        super().render_sources(src_dict, y='deltaG')
+        super().render_sources(src_dict, y='deltaG', **render_kwargs)
+
 
 class BinaryComparisonFigure(ThdFigure):
     title = 'Binary Comparison'
