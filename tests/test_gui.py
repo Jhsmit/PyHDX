@@ -100,7 +100,7 @@ class TestMainGUISimulated(object):
         initial_guess._action_fit()
         assert 'fit1' in ctrl.sources.keys()
 
-    def test_tf_fit(self):
+    def test_global_fit(self):
         tmpl, ctrl = _main_app()
         ctrl.cluster = None
         ctrl.series = self.series
@@ -109,14 +109,15 @@ class TestMainGUISimulated(object):
         initial_guess._action_fit()
 
         fit = ctrl.control_panels['FitControl']
+        fit.epochs = 20
         fit._do_fitting()
-        assert 'pfact' in ctrl.sources.keys()
+        assert 'global_fit' in ctrl.sources.keys()
 
 
 class TestDiffApp(object):
     @classmethod
     def setup_class(cls):
-        cls.fpath = directory / 'test_data' / 'SecB WT apo_pfact_linear.txt'
+        cls.fpath = directory / 'test_data' / 'ecSecB_torch_fit.txt'
 
         with open(cls.fpath, 'rb') as f_obj:
             cls.file_binary = f_obj.read()
@@ -127,7 +128,7 @@ class TestDiffApp(object):
         f_input = ctrl.control_panels['MappingFileInputControl']
         f_input._widget_dict['input_file'].filename = str(self.fpath)
         f_input.input_file = self.file_binary
-        assert f_input.dataset_name == 'SecB WT apo_pfact_linear'
+        assert f_input.dataset_name == 'ecSecB_torch_fit'
         f_input.dataset_name = 'DS1'
         f_input._action_add_dataset()
         assert f_input.input_file == b''
@@ -146,7 +147,7 @@ class TestDiffApp(object):
         comparison_name = 'Diff_ds1_ds2'
         diff.comparison_name = comparison_name
         quantity_objects = diff.param['comparison_quantity'].objects
-        assert quantity_objects == sorted(['log_P_full', 'log_P', 'deltaG'])
+        assert quantity_objects == sorted(['deltaG', 'pfact'])
 
         diff.comparison_quantity = 'deltaG'
         diff._action_add_comparison()
