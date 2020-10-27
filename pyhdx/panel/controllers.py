@@ -700,9 +700,9 @@ class InitialGuessControl(ControlPanel):
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
 
         data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                 renderer='circle', size=10)
+                                 renderer='circle', size=10, name='fit1')
 
-        self.parent.publish_data('fit1', data_source)
+        self.parent.publish_data('fit1', data_source)  #todo refactor to force require setting name on DataSource Ojbect
         self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
 
         self.param['do_fit1'].constant = False
@@ -729,7 +729,7 @@ class InitialGuessControl(ControlPanel):
             dic['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
 
             data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                     renderer='circle', size=10)
+                                     renderer='circle', size=10, name='half-life')
 
             self.parent.publish_data('half-life', data_source)
             self.parent.fit_results['half-life'] = fit_result
@@ -825,11 +825,11 @@ class FitControl(ControlPanel):
                                      patience=self.stop_patience, stop_loss=self.stop_loss)
 
         output = result.output
+        output_name = 'global_fit'
         output.df['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
-        data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'],
+        data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'], name=output_name,
                                  renderer='circle', size=10)
 
-        output_name = 'global_fit'
         self.parent.fit_results['fr_' + output_name] = result
         self.parent.publish_data(output_name, data_source)
 
