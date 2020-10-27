@@ -1410,8 +1410,9 @@ class DeveloperControl(ControlPanel):
     header = 'Developer Options'
     test_logging = param.Action(lambda self: self._action_test_logging())
     breakpoint_btn = param.Action(lambda self: self._action_break())
+    test_btn = param.Action(lambda self: self._action_test())
+    trigger_btn = param.Action(lambda self: self._action_trigger())
     print_btn = param.Action(lambda self: self._action_print())
-    test_btn = param.Boolean()
 
     def __init__(self, parent, **params):
         super(DeveloperControl, self).__init__(parent, **params)
