@@ -786,9 +786,7 @@ class FitControl(ControlPanel):
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()
         super(FitControl, self).__init__(parent, **params)
-
         self.parent.param.watch(self._parent_fit_results_updated, ['fit_results'])
-        self.parent.param.watch(self._parent_series_updated, ['series'])
 
     def make_dict(self):
         #todo update to NumericInput?
