@@ -1017,7 +1017,7 @@ class ClassificationControl(ControlPanel):
             #todo adjust add/ remove color widgets methods
         self.param.trigger('num_colors')
 
-    @param.depends('values', 'colors', 'quantity', 'target', watch=True)
+    @param.depends('values', 'colors', watch=True)
     def _get_colors(self):
         # todo or?
         if np.all(self.values == 0):
@@ -1438,8 +1438,17 @@ class DeveloperControl(ControlPanel):
         print('Time for a break')
 
     def _action_test(self):
-        deltaG_figure = self.parent.figure_panels['DeltaGFigure']
-        deltaG_figure._data_updated_callback('attr', 'old', 'new')
+        from pathlib import Path
+        src_file = r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_torch_fit.txt'
+        array = txt_to_np(src_file)
+        data_dict = {name: array[name] for name in array.dtype.names}
+
+        data_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
+        data_source = DataSource(data_dict, x='r_number', tags=['mapping', 'pfact', 'deltaG'],
+                                 renderer='circle', size=10, name='global_fit')
+
+        self.parent.publish_data('global_fit', data_source)
+
 
     def _action_trigger(self):
         deltaG_figure = self.parent.figure_panels['DeltaGFigure']
