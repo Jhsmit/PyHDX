@@ -114,7 +114,7 @@ class GoldenElvis(object):
 
         return template
 
-    def view(self, fig_panel, title=None, width=None, height=None, scrollable=False):
+    def view(self, fig_panel, title=None, width=None, height=None):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
@@ -137,9 +137,9 @@ class GoldenElvis(object):
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""
         height_str = "height: %s," % str(height) if height is not None else ""
-        scroll_str = "css_classes: ['overflow:hidden']" if not scrollable else ""
+        #scroll_str = "css_classes: ['overflow:hidden']" if not scrollable else ""
         #scroll_str = "overflow: hidden," if not scrollable else ""
-        settings = title_str + height_str + width_str + scroll_str
+        settings = title_str + height_str + width_str #+ scroll_str
         return self.VIEW % (panel_ID, settings)
 
     def _block(self, *args, container='stack'):
