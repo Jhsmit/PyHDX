@@ -1,13 +1,39 @@
 import pathlib
-
+from panel.util import url_path
 from panel.template import GoldenTemplate
+from pyhdx.panel.base import STATIC_DIR
 import panel as pn
 import string
+import os
+
+dist_path = '/pyhdx/'
 
 
 class ExtendedGoldenTemplate(GoldenTemplate):
-
     _template = pathlib.Path(__file__).parent / 'golden.html'
+
+    def _template_resources(self):
+        name = type(self).__name__.lower()
+
+        # External resources
+        css_files = dict(self._resources['css'])
+        for cssname, css in css_files.items():
+            css_path = url_path(css)
+            css_files[cssname] = dist_path + f'{name}/{css_path}'
+        js_files = dict(self._resources['js'])
+        for jsname, js in js_files.items():
+            js_path = url_path(js)
+            js_files[jsname] = dist_path + f'{name}/{js_path}'
+
+        # CSS files
+        base_css = os.path.basename(self._css)
+        css_files['base'] = dist_path + f'{name}/{base_css}'
+        if self.theme:
+            theme = self.theme.find_theme(type(self))
+            if theme and theme.css:
+                basename = os.path.basename(theme.css)
+                css_files['theme'] = dist_path + f'{name}/{basename}'
+        return {'css': css_files, 'js': js_files}
 
 
 class ReadString(str):
@@ -88,7 +114,7 @@ class GoldenElvis(object):
 
         return template
 
-    def view(self, fig_panel, title=None, width=None, height=None, scrollable=True):
+    def view(self, fig_panel, title=None, width=None, height=None):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
@@ -111,8 +137,9 @@ class GoldenElvis(object):
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""
         height_str = "height: %s," % str(height) if height is not None else ""
-        scroll_str = "css_classes: ['not_scrollable']" if not scrollable else ""
-        settings = title_str + height_str + width_str + scroll_str
+        #scroll_str = "css_classes: ['overflow:hidden']" if not scrollable else ""
+        #scroll_str = "overflow: hidden," if not scrollable else ""
+        settings = title_str + height_str + width_str #+ scroll_str
         return self.VIEW % (panel_ID, settings)
 
     def _block(self, *args, container='stack'):
