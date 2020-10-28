@@ -8,7 +8,7 @@ import sys
 from pyhdx import VERSION_STRING_SHORT
 
 
-DEBUG = True
+DEBUG = False
 cluster = '127.0.0.1:52123'
 
 
