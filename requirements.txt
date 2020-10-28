@@ -4,7 +4,7 @@ numpy
 tqdm
 scikit-image
 scipy
-panel>=0.10.0
+panel>=0.10.1
 matplotlib
 bokeh
 dask[distributed]
