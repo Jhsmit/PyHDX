@@ -2,17 +2,33 @@
 
 <!-- goes in body -->
 {% block preamble %}
-<script type="text/javascript" src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
-<script type="text/javascript" src="https://golden-layout.com/files/latest/js/goldenlayout.js"></script>
-<link type="text/css" rel="stylesheet" href="https://golden-layout.com/files/latest/css/goldenlayout-base.css" />
+{% if app_favicon %}<link rel="icon" href="{{ app_favicon }}" type="{{favicon_type}}">{% endif %}
+{% if meta_name %}<meta name="name" content="{{ meta_name }}">{% endif %}
+{% if meta_description %}<meta name="description" content="{{ meta_description }}">{% endif %}
+{% if meta_keywords %}<meta name="keywords" content="{{ meta_keywords }}">{% endif %}
+{% if meta_author %}<meta name="author" content="{{ meta_author }}">{% endif %}
+{% if meta_refresh %}<meta http-equiv="refresh" content="{{ meta_refresh }}">{% endif %}
+{% if meta_viewport %}<meta name="viewport" content="{{ meta_viewport }}">{% endif %}
+{% if base_url and base_target %}<base href="{{ base_url }}" target="{{ base_target }}">{% endif %}
+
+<link rel="stylesheet" href="{{ template_resources['css']['base'] }}">
+<link rel="stylesheet" href="{{ template_resources['css']['theme'] }}">
+<link type="text/css" rel="stylesheet" href="{{ template_resources['css']['goldenlayout'] }}" />
+<script type="text/javascript" src="{{ template_resources['js']['jquery'] }}"></script>
+<script type="text/javascript" src="{{ template_resources['js']['goldenlayout'] }}"></script>
 {% endblock %}
 
 <!-- goes in body -->
 {% block contents %}
 <header class="app-bar" id="header">
   <div style="display: contents;">
-    <span class="header-title">{{ app_title }}</span>
-    <section>
+    <div class="app-header">
+      {% if app_logo %}<a href="/"><img src="{{ app_logo }}" class="app-logo"></a>{% endif %}
+      {% if site_title %}<a class="title" href="/" >{{ site_title }}</a>{% endif %}
+      {% if site_title and app_title%}<span class="title">&nbsp;-&nbsp;</span>{% endif %}
+      {% if app_title %}<a class="title" href="" >{{ app_title }}</a>{% endif %}
+    </div>
+	<section class="header-contents">
 	  {% for doc in docs %}
       {% for root in doc.roots %}
       {% if "header" in root.tags %}
@@ -56,11 +72,10 @@
             componentName: 'view',
             componentState: {
               title: "Sidebar",
-              model: '{% for doc in docs %}{% for root in doc.roots %}{% if "nav" in root.tags %} {{ embed(root) }} {% endif %}{% endfor %}{% endfor %}',
-              width: 350,
-              css_classes: ['scrollable']
+              model: '<div class="sidebar-contents">{% for doc in docs %}{% for root in doc.roots %}{% if "nav" in root.tags %} {{ embed(root) }} {% endif %}{% endfor %}{% endfor %}</div>'
             },
-            width: 20
+            width: 20,
+            isClosable: false
           },
           {
             type: 'stack',
@@ -84,7 +99,10 @@
           }
         ]
       }
-    ]
+    ],
+    settings: {
+      showPopoutIcon: false
+    }
   };
 
   var myLayout = new GoldenLayout(config, $('#main-content'));
@@ -109,7 +127,7 @@
   myLayout.init()
   window.addEventListener('resize', (event) => {
     if (!resizing) {
-      myLayout.updateSize(window.innerWidth, window.innerHeight)
+      myLayout.updateSize($('#main-content').width(), $('#main-content').height())
     }
   });
 

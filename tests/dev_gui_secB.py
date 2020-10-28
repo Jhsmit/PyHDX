@@ -8,7 +8,7 @@ from pyhdx import PeptideMasterTable
 import pickle
 from pyhdx.panel.apps import _main_app
 from pyhdx.panel.utils import reload_previous
-from pyhdx.panel.base import DEFAULT_COLORS
+from pyhdx.panel.base import DEFAULT_COLORS, STATIC_DIR
 from pyhdx.panel.data_sources import DataSource
 import panel as pn
 import numpy as np
@@ -44,5 +44,4 @@ ctrl = reload_previous(dic, ctrl)
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl, show=False)
-
+    pn.serve(tmpl, show=False, static_dirs={'pyhdx': STATIC_DIR})

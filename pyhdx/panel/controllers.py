@@ -937,7 +937,7 @@ class ClassificationControl(ControlPanel):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
     def make_dict(self):
-        return self.generate_widgets(num_colors=pn.widgets.Spinner, mode=pn.widgets.RadioButtonGroup)
+        return self.generate_widgets(num_colors=pn.widgets.IntInput, mode=pn.widgets.RadioButtonGroup)
 
     def _parent_sources_updated(self, *events):
         data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
