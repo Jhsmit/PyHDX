@@ -2,6 +2,7 @@ import param
 import panel as pn
 from bokeh.plotting import figure
 from functools import partial
+from pathlib import Path
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -11,6 +12,7 @@ DEFAULT_CLASS_COLORS = ['#0a0ac2', '#0ac20a', '#c20a0a']  # rigid to flexible  (
 
 
 MIN_BORDER_LEFT = 65
+STATIC_DIR = Path(__file__).parent / 'static'
 
 
 class PanelBase(param.Parameterized):

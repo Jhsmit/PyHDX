@@ -30,6 +30,7 @@ class NumericInput(pn.widgets.input.Widget):
     _widget_type = _BkTextInput
 
     def __init__(self, **params):
+
         super(NumericInput, self).__init__(**params)
         self._state = ''
         self._validate(None)

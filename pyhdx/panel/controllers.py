@@ -130,14 +130,12 @@ class PeptideFileInputControl(ControlPanel):
                                 label='Deuterium percentage')
     load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
 
+    #todo refactor back exchange
     norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
     norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
     norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
     be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
                               label='Back exchange percentage')
-
-    #zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
-    #zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
 
     exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
     exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
@@ -153,8 +151,8 @@ class PeptideFileInputControl(ControlPanel):
         super(PeptideFileInputControl, self).__init__(parent, **params)
 
     def make_dict(self):
-        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=NumericInput,
-                                     d_percentage=NumericInput)
+        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.FloatInput,
+                                     d_percentage=pn.widgets.FloatInput)
 
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'd_percentage', 'load_button',
@@ -267,7 +265,6 @@ class PeptideFileInputControl(ControlPanel):
         self.exp_exposures = exposures
 
         self.c_term = int(np.max(self.parent.peptides.data['end'][b]))
-
 
 
 class PeptideFoldingFileInputControl(PeptideFileInputControl):
@@ -788,11 +785,6 @@ class FitControl(ControlPanel):
         super(FitControl, self).__init__(parent, **params)
         self.parent.param.watch(self._parent_fit_results_updated, ['fit_results'])
 
-    def make_dict(self):
-        #todo update to NumericInput?
-        kwargs = {name: pn.param.LiteralInputTyped(param.Number(0.)) for name in ['temperature', 'pH', 'stop_loss', 'learning_rate', 'l1_regularizer', 'l2_regularizer']}
-        return self.generate_widgets(**kwargs)
-
     def _parent_fit_results_updated(self, *events):
         possible_initial_guesses = ['half-life', 'fit1']
         objects = [name for name in possible_initial_guesses if name in self.parent.fit_results.keys()]
@@ -911,7 +903,7 @@ class ClassificationControl(ControlPanel):
 
     mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'],
                           doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
-    num_colors = param.Number(3, bounds=(1, 10),
+    num_colors = param.Integer(3, bounds=(1, 10),
                               doc='Number of classification colors.')
     otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
                             doc="Automatically perform thresholding based on Otsu's method.")
@@ -937,7 +929,7 @@ class ClassificationControl(ControlPanel):
         self.parent.param.watch(self._parent_sources_updated, ['sources'])
 
     def make_dict(self):
-        return self.generate_widgets(num_colors=pn.widgets.Spinner, mode=pn.widgets.RadioButtonGroup)
+        return self.generate_widgets(num_colors=pn.widgets.IntInput, mode=pn.widgets.RadioButtonGroup)
 
     def _parent_sources_updated(self, *events):
         data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
@@ -1075,7 +1067,7 @@ class ClassificationControl(ControlPanel):
         self.values.append(default)
 
         name = 'Threshold {}'.format(len(self.values_widgets) + 1)
-        widget = NumericInput(name=name, value=default)
+        widget = pn.widgets.FloatInput(name=name, value=default)
         self.values_widgets.append(widget)
         i = len(self.values_widgets) + self.box_index('show_thds')
         self._box.insert(i, widget)
