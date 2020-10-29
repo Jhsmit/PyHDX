@@ -572,7 +572,7 @@ class Coverage(object):
             seq[i:j] = [s for s in d['sequence']]
 
         #todo check if this is always correctly determined (n terminal residues usw)
-        exchanges = [s.isupper() and (s != 'X') for s in seq]  # Boolean array True if residue exchanges
+        exchanges = [s.isupper() and (s != 'X') for s in seq]  # Boolean array True if residue exchanges, full length
         coverage = seq != 'X'  # Boolean array for coverage
         dic = {'r_number': r_number, 'sequence': _seq, 'coverage': coverage, 'exchanges': exchanges}
 
@@ -581,12 +581,15 @@ class Coverage(object):
         self.protein = Protein(dic, index='r_number')
 
         # matrix dimensions N_peptides N_residues, dtype for TF compatibility
-        self.X = np.zeros((len(self.data), self.interval[1] - self.interval[0]), dtype=int) # cast to float for tf fit
+        _exchanges = self['exchanges']  # Array only on covered part
+        self.X = np.zeros((len(self.data), self.interval[1] - self.interval[0]), dtype=int)
+        self.Z = np.zeros_like(self.X, dtype=float)
         for row, entry in enumerate(self.data):
             i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
             self.X[row][i0:i1] = 1
+            self.Z[row][i0:i1] = _exchanges[i0:i1]
 
-        self.Z = self.X / self.data['ex_residues'][:, np.newaxis]
+        self.Z = self.Z / self.data['ex_residues'][:, np.newaxis]
 
     def __len__(self):
         return len(self.data)

@@ -1,4 +1,4 @@
-# start,end,exposure,state,sequence,ex_residues,uptake
+# start,end,exposure,state,sequence,length,uptake
 5,15,0.167,state1,TPPRILALSAP,11,0.41213193
 5,15,0.5,state1,TPPRILALSAP,11,1.1839184
 5,15,1,state1,TPPRILALSAP,11,2.2276706
