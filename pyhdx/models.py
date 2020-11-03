@@ -746,13 +746,12 @@ class KineticsSeries(object):
 
     @property
     def c_term(self):
-        try:
-            return self.metadata['c_term']
-        except KeyError:
-            return None
+        return self.cov.protein.c_term
 
     @c_term.setter
     def c_term(self, value):
+        raise NotImplementedError('Cannot change c_term after object initialization')
+        #todo allow this by making an new protein / coverage object
         self.metadata['c_term'] = value
 
     @property
