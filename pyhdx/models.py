@@ -146,7 +146,19 @@ class Protein(object):
         with open(file_path, 'w') as f:
             print(io.getvalue(), file=f)
 
-    def to_dict(self, orient='dict', into=dict):
+    def to_dict(self, orient='list', into=dict):
+        """
+        Panda's `to_dict`, with different default options
+
+        Parameters
+        ----------
+        orient
+        into
+
+        Returns
+        -------
+
+        """
         return self.df.to_dict(orient=orient, into=into)
 
     def set_k_int(self, temperature, pH):
