@@ -7,6 +7,7 @@ import pandas as pd
 from io import StringIO
 from functools import reduce
 from operator import add
+from hdxrate import k_int_from_sequence
 from pyhdx.support import reduce_inter, make_view, fields_view
 from pyhdx.fileIO import fmt_export
 from pyhdx.expfact.kint import calculate_kint_per_residue
@@ -186,19 +187,11 @@ class Protein(object):
         if 'sequence' not in self:
             raise ValueError('No sequence data available to calculate intrinsic exchange rates.')
 
-        k_int_list = [-1.]  # first residue
-        for i, (previous, current) in enumerate(zip(self['sequence'][:-1], self['sequence'][1:])):
-            if previous == 'X' or current == 'X':
-                k_int_list.append(0.)
-            elif current == 'P':
-                k_int_list.append(0.)
-            else:
-                k_int = calculate_kint_per_residue(previous, current, i + 2, self.c_term, temperature, pH)
-                k_int_list.append(k_int)
+        sequence = list(self['sequence'])  # Includes 'X' padding at cterm if cterm > last peptide
+        k_int = k_int_from_sequence(sequence, temperature, pH) * 60  # convert to per minute from per second
 
-        self.df['k_int'] = k_int_list
-
-        return np.array(k_int_list)
+        self.df['k_int'] = k_int
+        return np.array(k_int)
 
     @property
     def c_term(self):

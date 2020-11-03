@@ -12,3 +12,4 @@ pytorch
 expfact
 param
 pandas
+hdxrate
