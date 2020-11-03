@@ -235,13 +235,18 @@ class TestProtein(object):
 
         protein.df.rename(columns={'k_int': 'k_int_saved'}, inplace=True)
         protein.set_k_int(300, 8)
+
         assert np.allclose(protein['k_int'], protein['k_int_saved'])
 
         # ecSecB
         self.series.cov.protein.set_k_int(300., 8.)
+
         k_int = self.series.cov.protein['k_int'].to_numpy()
         assert k_int[0] == 0.  # N terminal exchange rate is zero
         assert np.all(k_int[-10:] == 0.)
         assert len(k_int) == self.series.c_term
+
+        prolines = self.series.cov.protein['sequence'].to_numpy() == 'P'
+        assert np.all(k_int[prolines] == 0)
 
 
