@@ -10,6 +10,7 @@ import pyhdx.models as models
 import warnings
 
 def series_intersection(series_list):
+    #todo use to make unifrom?
     """finds and returns series where peptides are the intersection of all series"""
     full_arrays = [series.full_data for series in series_list]
     arrays = [fields_view(full_data, ['start', 'end']) for full_data in full_arrays]
