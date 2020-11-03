@@ -2,20 +2,21 @@ import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.models import Protein
-from pyhdx.fileIO import read_dynamx, txt_to_np
+from pyhdx.fileIO import read_dynamx, txt_to_np, txt_to_protein
 from pyhdx.expfact.kint import calculate_kint_for_sequence, calculate_kint_per_residue
 import numpy as np
 from functools import reduce
 from operator import add
+from pathlib import Path
 
-directory = os.path.dirname(__file__)
 
+directory = Path(__file__).parent
 
 class TestUptakeFileModels(object):
 
     @classmethod
     def setup_class(cls):
-        fpath = os.path.join(directory, 'test_data', 'ecSecB_apo.csv')
+        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
 
     def test_peptidemastertable(self):
@@ -56,7 +57,7 @@ class TestUptakeFileModels(object):
 class TestSeries(object):
     @classmethod
     def setup_class(cls):
-        fpath = os.path.join(directory, 'test_data', 'ecSecB_apo.csv')
+        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
 
     def test_coverage(self):
@@ -78,7 +79,7 @@ class TestSeries(object):
 class TestSimulatedData(object):
     @classmethod
     def setup_class(cls):
-        fpath = os.path.join(directory, 'test_data', 'simulated_data.csv')
+        fpath = directory / 'test_data' / 'simulated_data.csv'
         cls.data = txt_to_np(fpath, delimiter=',')
         cls.data['end'] += 1 # because this simulated data is in old format of inclusive, inclusive
         cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
@@ -149,7 +150,7 @@ class TestSimulatedData(object):
 class TestCoverage(object):
     @classmethod
     def setup_class(cls):
-        fpath = os.path.join(directory, 'test_data', 'simulated_data_uptake.csv')
+        fpath = directory / 'test_data' / 'simulated_data_uptake.csv'
         data = read_dynamx(fpath)
         cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
 
@@ -187,6 +188,8 @@ class TestProtein(object):
         array3['banana'] = -(np.random.rand(10) + 20)
         cls.array3 = array3
 
+        cls.protein = txt_to_protein(directory / 'test_data' / 'simulated_data_info.txt')
+
     def test_artithmetic(self):
         p1 = Protein(self.array1, index='r_number')
         p2 = Protein(self.array2, index='r_number')
@@ -221,3 +224,12 @@ class TestProtein(object):
         comparison = p1 * p2
         output['comparison'] = output['value1'] * output['value2']
         assert np.allclose(comparison['apple'], output['comparison'], equal_nan=True)
+
+    def test_k_int(self):
+        protein = self.protein.copy()
+
+        protein.df.rename(columns={'k_int': 'k_int_saved'}, inplace=True)
+        protein.set_k_int(300, 8)
+        assert np.allclose(protein['k_int'], protein['k_int_saved'])
+
+
