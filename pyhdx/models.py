@@ -323,7 +323,7 @@ class PeptideMasterTable(object):
     def __len__(self):
         return len(self.data)
 
-    def groupby_state(self):
+    def groupby_state(self, **kwargs):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a
         :class:`~pyhdx.pyhdx.KineticSeries`.
@@ -331,11 +331,13 @@ class PeptideMasterTable(object):
         Returns
         -------
         out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`
+            Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`.
+        **kwargs
+            Additional keyword arguments to be passed to the :class:`~pyhdx.pyhdx.KineticSeries`.
         """
 
         states = np.unique(self.data['state'])
-        return {state: KineticsSeries(self.data[self.data['state'] == state]) for state in states}
+        return {state: KineticsSeries(self.data[self.data['state'] == state], **kwargs) for state in states}
 
     @staticmethod
     def isin_by_idx(array, test_array):
