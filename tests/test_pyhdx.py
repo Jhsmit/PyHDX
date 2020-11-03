@@ -190,6 +190,11 @@ class TestProtein(object):
 
         cls.protein = txt_to_protein(directory / 'test_data' / 'simulated_data_info.txt')
 
+        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        pf1 = PeptideMasterTable(read_dynamx(fpath))
+        states = pf1.groupby_state(c_term=200)
+        cls.series = states['SecB WT apo']
+
     def test_artithmetic(self):
         p1 = Protein(self.array1, index='r_number')
         p2 = Protein(self.array2, index='r_number')
@@ -231,5 +236,12 @@ class TestProtein(object):
         protein.df.rename(columns={'k_int': 'k_int_saved'}, inplace=True)
         protein.set_k_int(300, 8)
         assert np.allclose(protein['k_int'], protein['k_int_saved'])
+
+        # ecSecB
+        self.series.cov.protein.set_k_int(300., 8.)
+        k_int = self.series.cov.protein['k_int'].to_numpy()
+        assert k_int[0] == 0.  # N terminal exchange rate is zero
+        assert np.all(k_int[-10:] == 0.)
+        assert len(k_int) == self.series.c_term
 
 
