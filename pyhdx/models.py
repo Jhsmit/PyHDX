@@ -196,6 +196,10 @@ class Protein(object):
     def index(self):
         return self.df.index
 
+    def copy(self):
+        df = self.df.copy()
+        return Protein(df, index=df.index.name, **self.metadata.copy())  #todo
+
     def __getitem__(self, item):
         return self.df.__getitem__(item)
 
