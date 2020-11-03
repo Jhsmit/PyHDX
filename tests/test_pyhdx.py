@@ -162,7 +162,7 @@ class TestCoverage(object):
         pmt.set_backexchange(0.)
         states = pmt.groupby_state()
         cls.series = states['state1']
-        cls.series.make_uniform()
+
 
 
 class TestProtein(object):
