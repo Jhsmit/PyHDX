@@ -222,6 +222,7 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
     hdr = delimiter.join(hdr)
     return fmt, hdr
 
+
 #move to fileIO?
 def np_from_txt(file_path, delimiter='\t'):
     warnings.warn("np_from_txt is moved to pyhdx.fileIO as txt_to_np", PendingDeprecationWarning)
