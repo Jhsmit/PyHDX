@@ -208,6 +208,38 @@ def folding_app():
     return tmpl
 
 
+def _full_deuteration_app():
+    control_panels = [
+        FDPeptideFileInputControl,
+        FDCoverageControl,
+        OptionsControl
+    ]
+
+    if DEBUG:
+        control_panels.append(DeveloperControl)
+
+    figure_panels = [
+        CoverageFigure,
+        LoggingFigure
+    ]
+
+    elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
+    ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
+    ctrl.logger.addHandler(get_default_handler(sys.stdout))
+    tmpl = elvis.compose(ctrl,
+                         elvis.column(
+                                 elvis.view(ctrl.figure_panels['CoverageFigure']),
+                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
+                             ))
+
+    return tmpl, ctrl
+
+
+def full_deuteration_app():
+    tmpl, ctrl = _full_deuteration_app()
+    return tmpl
+
+
 if __name__ == '__main__':
     tmpl, ctrl = _folding_app()
     pn.serve(tmpl)

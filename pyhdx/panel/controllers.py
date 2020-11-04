@@ -10,6 +10,7 @@ from scipy import constants
 import param
 import panel as pn
 import numpy as np
+from numpy.lib.recfunctions import append_fields
 from pathlib import Path
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays
@@ -264,6 +265,32 @@ class PeptideFileInputControl(ControlPanel):
         self.exp_exposures = exposures
 
         self.c_term = int(np.max(self.parent.peptides.data['end'][b]))
+
+
+class FDPeptideFileInputControl(PeptideFileInputControl):
+    def make_list(self):
+        parameters = ['add_button', 'clear_button', 'drop_first', 'load_button',
+                      'fd_state', 'fd_exposure', 'parse_button']
+        first_widgets = list([self._widget_dict[par] for par in parameters])
+        return self.file_selectors + first_widgets
+
+    def _action_parse(self):
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+        pmt = self.parent.peptides
+
+        data_states = pmt.data[pmt.data['state'] == self.fd_state]
+        data_exposure = data_states[data_states['exposure'] == self.fd_exposure]
+
+        scores = 100 * data_exposure['uptake'] / data_exposure['ex_residues']
+        data_final = append_fields(data_exposure, 'scores', data=scores, usemask=False)
+
+        # pmt.set_control((fd_state, fd_exposure))
+        series = KineticsSeries(data_final)
+
+        self.parent.series = series
+
+        self.parent.logger.info(f"Loaded FD control '{self.exp_state}' with {len(series.cov)} peptides")
+        self.parent.logger.info(f'Mean deuteration is {scores.mean()}%, std {scores.std()}%')
 
 
 class PeptideFoldingFileInputControl(PeptideFileInputControl):
@@ -610,6 +637,11 @@ class CoverageControl(ControlPanel):
         except (KeyError, AttributeError):
             pass
 
+
+class FDCoverageControl(CoverageControl):
+    def make_list(self):
+        lst = super(CoverageControl, self).make_list()
+        return lst[:-1]
 
 class InitialGuessControl(ControlPanel):
     """
