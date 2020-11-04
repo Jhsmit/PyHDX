@@ -130,10 +130,9 @@ class PeptideFileInputControl(ControlPanel):
                                 label='Deuterium percentage')
     load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
 
-    #todo refactor back exchange
-    norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory'])
-    norm_state = param.Selector(doc='State used to normalize uptake', label='Norm State')
-    norm_exposure = param.Selector(doc='Exposure used to normalize uptake', label='Norm exposure')
+    be_mode = param.Selector(doc='Select method of back exchange correction', label='Norm mode', objects=['Exp', 'Theory'])
+    fd_state = param.Selector(doc='State used to normalize uptake', label='FD State')
+    fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='FD Exposure')
     be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
                               label='Back exchange percentage')
 
@@ -156,7 +155,7 @@ class PeptideFileInputControl(ControlPanel):
 
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'd_percentage', 'load_button',
-                      'norm_mode', 'norm_state', 'norm_exposure', 'exp_state',
+                      'be_mode', 'fd_state', 'fd_exposure', 'exp_state',
                       'exp_exposures', 'c_term', 'parse_button']
         first_widgets = list([self._widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
@@ -193,8 +192,8 @@ class PeptideFileInputControl(ControlPanel):
                                                   drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
         states = list(np.unique(self.parent.peptides.data['state']))
-        self.param['norm_state'].objects = states
-        self.norm_state = states[0]
+        self.param['fd_state'].objects = states
+        self.fd_state = states[0]
         #self.param['zero_state'].objects = ['None'] + states
         #self.zero_state = 'None'
 
@@ -204,10 +203,10 @@ class PeptideFileInputControl(ControlPanel):
 
     def _action_parse(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
-        if self.norm_mode == 'Exp':
+        if self.be_mode == 'Exp':
             control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
-            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
-        elif self.norm_mode == 'Theory':
+            self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
+        elif self.be_mode == 'Theory':
             self.parent.peptides.set_backexchange(self.be_percent)
 
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
@@ -219,17 +218,17 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.cov)} peptides each)')
 
-    @param.depends('norm_mode', watch=True)
-    def _update_norm_mode(self):
-        if self.norm_mode == 'Exp':
+    @param.depends('be_mode', watch=True)
+    def _update_be_mode(self):
+        if self.be_mode == 'Exp':
             self.box_pop('be_percent')
-            self.box_insert_after('norm_mode', 'norm_state')
-            self.box_insert_after('norm_state', 'norm_exposure')
+            self.box_insert_after('be_mode', 'fd_state')
+            self.box_insert_after('fd_state', 'fd_exposure')
 
-        elif self.norm_mode == 'Theory':
-            self.box_pop('norm_state')
-            self.box_pop('norm_exposure')
-            self.box_insert_after('norm_mode', 'be_percent')
+        elif self.be_mode == 'Theory':
+            self.box_pop('fd_state')
+            self.box_pop('fd_exposure')
+            self.box_insert_after('be_mode', 'be_percent')
 
             try:
                 states = np.unique(self.parent.peptides.data['state'])
@@ -238,20 +237,20 @@ class PeptideFileInputControl(ControlPanel):
             except (TypeError, AttributeError):
                 pass
 
-    @param.depends('norm_state', watch=True)
+    @param.depends('fd_state', watch=True)
     def _update_norm_exposure(self):
-        b = self.parent.peptides.data['state'] == self.norm_state
+        b = self.parent.peptides.data['state'] == self.fd_state
         data = self.parent.peptides.data[b]
         exposures = list(np.unique(data['exposure']))
-        self.param['norm_exposure'].objects = exposures
+        self.param['fd_exposure'].objects = exposures
         if exposures:
-            self.norm_exposure = exposures[0]
+            self.fd_exposure = exposures[0]
 
     #todo refactor norm to FD
-    @param.depends('norm_state', 'norm_exposure', watch=True)
+    @param.depends('fd_state', 'fd_exposure', watch=True)
     def _update_experiment(self):
         #TODO THIS needs to be updated to also incorporate the zero (?)
-        pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
+        pm_dict = self.parent.peptides.return_by_name(self.fd_state, self.fd_exposure)
         states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
         self.exp_state = states[0] if not self.exp_state else self.exp_state
@@ -268,8 +267,8 @@ class PeptideFileInputControl(ControlPanel):
 
 
 class PeptideFoldingFileInputControl(PeptideFileInputControl):
-    norm_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory']
-                               , precedence=-1)
+    be_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory']
+                             , precedence=-1)
     zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
     zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
 
@@ -278,7 +277,7 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
 
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
-                      'norm_state', 'norm_exposure', 'zero_state', 'zero_exposure', 'exp_state',
+                      'fd_state', 'fd_exposure', 'zero_state', 'zero_exposure', 'exp_state',
                       'exp_exposures', 'parse_button']
         first_widgets = list([self._widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
@@ -289,10 +288,10 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
         self.param['zero_state'].objects = states
         self.zero_state = states[0]
 
-    @param.depends('norm_state', 'norm_exposure', watch=True)
+    @param.depends('fd_state', 'fd_exposure', watch=True)
     def _update_experiment(self):
         #TODO THIS needs to be updated to also incorporate the zero (?)
-        pm_dict = self.parent.peptides.return_by_name(self.norm_state, self.norm_exposure)
+        pm_dict = self.parent.peptides.return_by_name(self.fd_state, self.fd_exposure)
         states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
         self.exp_state = states[0] if not self.exp_state else self.exp_state
@@ -310,7 +309,7 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
         if self.norm_mode == 'Exp':
             control_0 = self.zero_state, self.zero_exposure
-            self.parent.peptides.set_control((self.norm_state, self.norm_exposure), control_0=control_0)
+            self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
 
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]

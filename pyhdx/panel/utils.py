@@ -28,8 +28,8 @@ def reload_previous(dic, ctrl):
         pass
 
     if file_input.norm_mode == 'Exp':
-        file_input.norm_state = dic['norm_state']
-        file_input.norm_exposure = dic['norm_exposure']
+        file_input.norm_state = dic['fd_state']
+        file_input.norm_exposure = dic['fd_exposure']
     else:
         file_input.be_percent = dic['be_percent']
 

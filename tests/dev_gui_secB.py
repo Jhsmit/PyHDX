@@ -21,8 +21,8 @@ fpath = directory / 'test_data' / 'ecSecB_apo.csv'
 dic = {}
 dic['file_path'] = directory / 'test_data' / 'ecSecB_apo.csv'
 dic['norm_mode'] = 'Exp'
-dic['norm_state'] = 'Full deuteration control'
-dic['norm_exposure'] = 0.167
+dic['fd_state'] = 'Full deuteration control'
+dic['fd_exposure'] = 0.167
 dic['exp_state'] = 'SecB WT apo'
 
 src_file = directory / 'test_data' / 'ecSecB_torch_fit.txt'
