@@ -150,7 +150,7 @@ class PeptideFileInputControl(ControlPanel):
         super(PeptideFileInputControl, self).__init__(parent, **params)
 
     def make_dict(self):
-        return self.generate_widgets(norm_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.FloatInput,
+        return self.generate_widgets(be_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.FloatInput,
                                      d_percentage=pn.widgets.FloatInput)
 
     def make_list(self):
