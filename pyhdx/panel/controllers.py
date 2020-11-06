@@ -977,7 +977,7 @@ class ClassificationControl(ControlPanel):
     @param.depends('target', watch=True)
     def _target_updated(self):
         data_source = self.parent.sources[self.target]
-        self.param['quantity'].objects = data_source.scalar_fields
+        self.param['quantity'].objects = [f for f in data_source.scalar_fields if not f.startswith('_')]
         default_priority = ['deltaG', 'comparison']  # Select these fields by default if they are present
         if not self.quantity and data_source.scalar_fields:
             for field in default_priority:
