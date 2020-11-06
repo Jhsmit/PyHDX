@@ -7,6 +7,7 @@ from pathlib import Path
 directory = Path(__file__).parent
 fpath = directory / 'test_data' / 'ecSecB_apo.csv'
 
+guess = False
 state = 'SecB WT apo'
 control = ('Full deuteration control', 0.167)
 
@@ -20,12 +21,12 @@ series = states[state]
 temperature, pH = 273.15 + 30, 8.
 kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 
-# wt_avg_result = kf.weighted_avg_fit()
-# output = wt_avg_result.output
-# output.to_file(directory / 'test_data' / 'ecSecB_guess.txt')
-
-
-output = txt_to_protein(directory / 'test_data' / 'ecSecB_guess.txt')
+if guess:
+    wt_avg_result = kf.weighted_avg_fit()
+    output = wt_avg_result.output
+    output.to_file(directory / 'test_data' / 'ecSecB_guess.txt')
+else:
+    output = txt_to_protein(directory / 'test_data' / 'ecSecB_guess.txt')
 
 
 fr_torch = kf.global_fit_torch(output)
