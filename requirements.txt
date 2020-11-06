@@ -8,7 +8,7 @@ panel>=0.10.1
 matplotlib
 bokeh
 dask[distributed]
-pytorch
+torch
 param
 pandas
 hdxrate
