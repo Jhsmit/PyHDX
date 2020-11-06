@@ -34,7 +34,7 @@ class TestSimulatedDataFit(object):
         fr1 = kf.weighted_avg_fit()
 
         out1 = fr1.output
-        check1 = txt_to_protein(os.path.join(directory, 'test_data', 'Fit_simulated_wt_avg.txt'))
+        check1 = txt_to_protein(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.txt'))
         for name in ['rate', 'k1', 'k2', 'r']:
             np.allclose(out1[name], check1[name])
 
