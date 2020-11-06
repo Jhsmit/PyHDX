@@ -643,6 +643,7 @@ class FDCoverageControl(CoverageControl):
         lst = super(CoverageControl, self).make_list()
         return lst[:-1]
 
+
 class InitialGuessControl(ControlPanel):
     """
     This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
