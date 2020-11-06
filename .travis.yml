@@ -4,9 +4,11 @@ python:
 - '3.7'
 - '3.8'
 - '3.9'
-install: pip install -r requirements.txt
+install:
+- pip install -r requirements.txt
+- pip install .
 script:
-- python -m pytest tests
+- pytest
 before_deploy:
 - pip install setuptools wheel pbr
 deploy:
