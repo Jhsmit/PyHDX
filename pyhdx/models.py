@@ -10,7 +10,6 @@ from operator import add
 from hdxrate import k_int_from_sequence
 from pyhdx.support import reduce_inter, make_view, fields_view
 from pyhdx.fileIO import fmt_export
-from pyhdx.expfact.kint import calculate_kint_per_residue
 import pyhdx
 
 

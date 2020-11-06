@@ -3,7 +3,6 @@ import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.models import Protein
 from pyhdx.fileIO import read_dynamx, txt_to_np, txt_to_protein
-from pyhdx.expfact.kint import calculate_kint_for_sequence, calculate_kint_per_residue
 import numpy as np
 from functools import reduce
 from operator import add
