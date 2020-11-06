@@ -43,11 +43,11 @@ class TestMainGUISecB(object):
 
         file_input_control.file_selectors[0].value = binary
         file_input_control._action_load()
-        assert file_input_control.norm_state == 'Full deuteration control'
-        assert file_input_control.norm_exposure == 0.0
+        assert file_input_control.fd_state == 'Full deuteration control'
+        assert file_input_control.fd_exposure == 0.0
 
-        file_input_control.norm_state = self.control[0]
-        file_input_control.norm_exposure = self.control[1]
+        file_input_control.fd_state = self.control[0]
+        file_input_control.fdexposure = self.control[1]
 
         file_input_control.exp_state = self.state
         assert file_input_control.exp_exposures == [0.0, 0.167, 0.5, 1.0, 5.0, 10.0, 100.000008]
@@ -194,7 +194,7 @@ class TestDiffApp(object):
         comparison_name = 'Diff_ds1_ds2'
         diff.comparison_name = comparison_name
         quantity_objects = diff.param['comparison_quantity'].objects
-        assert quantity_objects == sorted(['deltaG', 'pfact'])
+        assert quantity_objects == sorted(['_deltaG', 'deltaG', 'pfact'])
 
         diff.comparison_quantity = 'deltaG'
         diff._action_add_comparison()

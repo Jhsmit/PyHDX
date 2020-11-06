@@ -1302,9 +1302,6 @@ class DifferenceFileExportControl(FileExportControl):
         if 'r_number' in self.export_dict.keys():
             self.pml_script_download.filename = self.target + '_pymol.pml'
 
-        r_max = int(np.nanmax(self.export_dict['r_number'])) + 5
-        if self.c_term < r_max:
-            self.c_term = r_max
 
 
 class ProteinViewControl(ControlPanel):
