@@ -6,6 +6,8 @@ from functools import reduce
 from io import StringIO
 from skimage.filters import threshold_multiotsu
 import pyhdx.models as models
+import pandas as pd
+from itertools import count, groupby
 
 import warnings
 
@@ -312,25 +314,26 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
         optional residue number of the c terminal of the last peptide doedsnt cover the c terminal
     """
 
+    #todo replace with pandas dataframe magic
+
     c_term = c_term or np.max(r_number)
-    full_r = np.arange(1, c_term + 1)
-    idx = np.searchsorted(full_r, r_number)
-    full_color = np.full_like(full_r, fill_value=no_coverage, dtype=color_arr.dtype)
-    full_color[idx] = color_arr
+    pd_series = pd.Series(color_arr, index=r_number)
+    pd_series = pd_series.reindex(np.arange(1, c_term + 1))
+    pd_series = pd_series.replace('nan', no_coverage)  # No coverage at nan entries
+
+    grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
 
     s_out = ''
-    for i, c in enumerate(np.unique(full_color)):
+    for c, pd_series in grp:
         r, g, b = hex_to_rgb(c)
-        s_out += f'set_color color_{i}, [{r},{g},{b}]\n'
+        s_out += f'set_color color_{c}, [{r},{g},{b}]\n'
 
-    s_out += '\n'
+    # https://stackoverflow.com/questions/30993182/how-to-get-the-index-range-of-a-list-that-the-values-satisfy-some-criterion-in-p
+    for c, pd_series in grp:
+        result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+        residues = [f'resi {g[0]}-{g[-1]}' for g in result]
 
-    grp_idx = list(group_with_index(full_color))
-    for i, c in enumerate(np.unique(full_color)):
-        residues = [f'resi {full_r[idx]}-{full_r[idx] + length - 1}' for color, length, idx in grp_idx if
-                    color == c]
-        line = f'color color_{i}, ' + ' + '.join(residues)
-        s_out += line + '\n'
+        s_out += f'color color_{c}, ' + ' + '.join(residues) + '\n'
 
     return s_out
 
