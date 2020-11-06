@@ -23,13 +23,13 @@ def reload_previous(dic, ctrl):
 
     # Set back exchange parameters
     try:
-        file_input.norm_mode = dic['norm_mode']
+        file_input.be_mode = dic['be_mode']
     except KeyError:
         pass
 
-    if file_input.norm_mode == 'Exp':
-        file_input.norm_state = dic['fd_state']
-        file_input.norm_exposure = dic['fd_exposure']
+    if file_input.be_mode == 'Exp':
+        file_input.fd_state = dic['fd_state']
+        file_input.fd_exposure = dic['fd_exposure']
     else:
         file_input.be_percent = dic['be_percent']
 
