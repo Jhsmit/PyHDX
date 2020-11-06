@@ -1207,9 +1207,6 @@ class FileExportControl(ControlPanel):
         self.c_term = int(self.parent.series.cov.protein.c_term)
 
     def _make_pml(self, target):
-        # Removes nan entries (no coverage)  (#todo do this in colors_to_pymol function)
-        bools = ~np.isnan(self.export_data_source.y)
-
         try:
             #todo add no coverage field and link to the other no coverage field
             no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
@@ -1218,8 +1215,8 @@ class FileExportControl(ControlPanel):
             self.parent.logger.warning('No coverage color found, using default grey')
 
         try:
-            script = colors_to_pymol(self.export_dict['r_number'][bools], self.export_dict['color'][bools],
-                                     c_term=self.series.c_term, no_coverage=no_coverage)
+            script = colors_to_pymol(self.export_dict['r_number'], self.export_dict['color'],
+                                     c_term=self.parent.series.c_term, no_coverage=no_coverage)
             return script
         except KeyError:
             return None
