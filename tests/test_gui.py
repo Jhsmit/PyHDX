@@ -44,12 +44,21 @@ class TestMainGUISecB(object):
         tmpl, ctrl = _main_app()
         ctrl.series = self.series
 
-    def test_initial_guesses(self):
+        cov_figure = ctrl.figure_panels['CoverageFigure']
+        renderer = cov_figure.figure.renderers[0]
+
+        assert renderer.data_source.name == f'coverage_{self.series.state}'
+
+    def test_initial_guesses_and_fit(self):
         tmpl, ctrl = _main_app()
         ctrl.series = self.series
 
         ctrl.control_panels['InitialGuessControl']._action_fit()
         assert 'half-life' in ctrl.sources.keys()
+
+        fit_control = ctrl.control_panels['FitControl']
+        fit_control.epochs = 10
+        fit_control.do_fit()
 
 
 class TestMainGUISimulated(object):

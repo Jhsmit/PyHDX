@@ -615,7 +615,7 @@ class CoverageControl(ControlPanel):
         #plot_dict = dict(x=x, y=y, width=width, color=self.color, index=index)
         prop_dict = {name: self.peptide_measurement.data[name] for name in self.peptide_measurement.data.dtype.names}
         prop_dict.update(color=self.color, index=index, width=width, x=x, y=y)  # if the names are x and y no need to specify through render_kwargs
-        source = DataSource(prop_dict, tags=['coverage'])
+        source = DataSource(prop_dict, tags=['coverage'], name=f'coverage_{self.parent.series.state}')
 
         self.parent.publish_data('coverage', source)
 
