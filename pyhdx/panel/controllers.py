@@ -1180,7 +1180,6 @@ class FileExportControl(ControlPanel):
     header = "File Export"
     target = param.Selector(label='Target dataset', doc='Name of the dataset to export')
     #todo add color param an dlink with protein viewer color
-    c_term = param.Integer(0, bounds=(0, None))
 
     def __init__(self, parent, **param):
         self.export_linear_download = pn.widgets.FileDownload(filename='<no data>', callback=self.linear_export_callback)
@@ -1212,6 +1211,7 @@ class FileExportControl(ControlPanel):
         bools = ~np.isnan(self.export_data_source.y)
 
         try:
+            #todo add no coverage field and link to the other no coverage field
             no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
         except KeyError:
             no_coverage = '#8c8c8c'
@@ -1219,7 +1219,7 @@ class FileExportControl(ControlPanel):
 
         try:
             script = colors_to_pymol(self.export_dict['r_number'][bools], self.export_dict['color'][bools],
-                                     c_term=self.c_term, no_coverage=no_coverage)
+                                     c_term=self.series.c_term, no_coverage=no_coverage)
             return script
         except KeyError:
             return None
