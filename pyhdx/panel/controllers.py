@@ -268,8 +268,9 @@ class PeptideFileInputControl(ControlPanel):
 
 
 class FDPeptideFileInputControl(PeptideFileInputControl):
+
     def make_list(self):
-        parameters = ['add_button', 'clear_button', 'drop_first', 'load_button',
+        parameters = ['add_button', 'clear_button', 'drop_first', 'load_button', 'd_percentage',
                       'fd_state', 'fd_exposure', 'parse_button']
         first_widgets = list([self._widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
