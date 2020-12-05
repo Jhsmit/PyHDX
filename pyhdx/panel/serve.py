@@ -10,7 +10,7 @@ APP_DICT = {
     'full_deuteration': full_deuteration_app
 }
 
-
-pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
+if __name__ == '__main__':
+    pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
 
 

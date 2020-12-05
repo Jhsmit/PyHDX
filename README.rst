@@ -2,7 +2,7 @@
 PyHDX
 =====
 
-|biorxiv| |zenodo| |license|
+|biorxiv| |travis| |zenodo| |license|
 
 .. |zenodo| image:: https://zenodo.org/badge/206772076.svg
    :target: https://zenodo.org/badge/latestdoi/206772076
@@ -12,6 +12,9 @@ PyHDX
    
 .. |license| image:: https://img.shields.io/badge/License-MIT-yellow.svg
     :target: https://opensource.org/licenses/MIT
+
+.. |travis| image:: https://travis-ci.com/Jhsmit/PyHDX.svg?branch=master
+    :target: https://travis-ci.com/Jhsmit/PyHDX
 
 .. raw:: html
 
