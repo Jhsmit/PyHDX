@@ -56,6 +56,7 @@ class TestSimulatedDataFit(object):
         # np.allclose(check_pfact['log_P'], out_pfact['log_P'], equal_nan=True)
 
     def test_torch_fitting(self):
+        #todo reduce epochs
         pmt = PeptideMasterTable(self.data, drop_first=1, ignore_prolines=True, remove_nan=False)
         pmt.set_backexchange(0.)
         states = pmt.groupby_state()
