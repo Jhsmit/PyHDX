@@ -44,6 +44,9 @@ class DataSource(param.Parameterized):
             dic['color'] = color
         return dic
 
+    def to_numpy(self):
+        raise NotImplementedError('Converting to numpy rec array not implemented')
+
     @property
     def scalar_fields(self):
         """Returns a list of names of fields with scalar dtype"""
