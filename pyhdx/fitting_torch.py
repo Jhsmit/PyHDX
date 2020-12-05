@@ -12,7 +12,7 @@ class DeltaGFit(nn.Module):
         super(DeltaGFit, self).__init__()
         self.deltaG = deltaG
 
-    def forward(self, inputs):
+    def forward(self, temperature, X, k_int, timepoints):
         """
         # inputs, list of:
             temperatures: scalar (1,)
@@ -20,7 +20,7 @@ class DeltaGFit(nn.Module):
             k_int: (N_peptides, 1)
 
         """
-        temperature, X, k_int, timepoints = inputs
+         #= inputs
 
         pfact = t.exp(self.deltaG / (constants.R * temperature))
         uptake = 1 - t.exp(-t.matmul((k_int / (1 + pfact)), timepoints))
@@ -57,7 +57,7 @@ class TorchFitResult(object):
             timepoints = t.Tensor(timepoints).unsqueeze(0)  # 1 x Nt
             inputs = [temperature, X, k_int, timepoints]
 
-            output = self.model(inputs)
+            output = self.model(*inputs)
         return output.detach().numpy()
 
 

@@ -885,7 +885,7 @@ class KineticsFitting(object):
 
         for epoch in range(epochs):
             optimizer.zero_grad()
-            output = model(inputs)
+            output = model(*inputs)
             loss = criterion(output, output_data)
             mse_loss.append(loss)
 
