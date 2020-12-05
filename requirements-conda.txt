@@ -1,0 +1,14 @@
+pbr
+symfit
+numpy
+tqdm
+scikit-image
+scipy
+panel>=0.10.1
+matplotlib
+bokeh
+dask[distributed]
+pytorch
+param
+pandas
+hdxrate
