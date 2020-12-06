@@ -40,7 +40,7 @@ To launch the web application:
 
 .. code-block:: console
 
-    $ panel serve panel/serve.py
+    $ python panel/serve.py
 
 
 Dependencies
