@@ -710,12 +710,12 @@ class KineticsSeries(object):
         self.timepoints = np.sort(np.unique(data['exposure']))
 
         data_list = [(data[data['exposure'] == exposure]) for exposure in self.timepoints]
-        sets = [{tuple(elem) for elem in fields_view(d, ['start', 'end'])} for d in data_list]
+        sets = [{tuple(elem) for elem in fields_view(d, ['_start', '_end'])} for d in data_list]
         intersection = set.intersection(*sets)
-        intersection_array = np.array([tup for tup in intersection], dtype=[('start', int), ('end', int)])
+        intersection_array = np.array([tup for tup in intersection], dtype=[('_start', int), ('_end', int)])
 
         # Select entries in data array which are in the interesection between all timepoints
-        selected = [elem[np.isin(fields_view(elem, ['start', 'end']), intersection_array)] for elem in data_list]
+        selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in data_list]
         self.peptides = [PeptideMeasurements(elem) for elem in selected]
 
         # Create coverage object from the first time point (as all are now equal)
