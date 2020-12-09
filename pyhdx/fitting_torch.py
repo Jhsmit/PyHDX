@@ -39,7 +39,7 @@ class TorchFitResult(object):
         out_dict = {}
         out_dict['r_number'] = self.series.cov.r_number
         out_dict['_deltaG'] = self.model.deltaG.detach().numpy().squeeze()
-        out_dict['deltaG'] = out_dict['_deltaG']
+        out_dict['deltaG'] = out_dict['_deltaG'].copy()
         out_dict['deltaG'][~self.series.cov['exchanges']] = np.nan
         if self.temperature is not None:
             pfact = np.exp(out_dict['deltaG'] / (constants.R * self.temperature))
