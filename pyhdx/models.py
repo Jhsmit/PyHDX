@@ -895,3 +895,29 @@ def contiguous_regions(condition):
     # Reshape the result into two columns
     idx.shape = (-1,2)
     return idx
+
+
+def series_intersection(series_list):
+    """
+    Finds the intersection between peptides in :class:`~pydhx.models.KineticSeries` and returns new objects such that
+    all peptide coverage between the series is identical.
+
+    Parameters
+    ----------
+    series_list: :obj:`list`
+        Input list of :class:`~pyhdx.models.KineticSeries`
+
+    Returns
+    -------
+    series_out: :obj:`list`
+        Output list of :class:`~pyhdx.models.KineticSeries`
+    """
+
+    full_arrays = [series.full_data for series in series_list]
+    sets = [{tuple(elem) for elem in fields_view(d, ['_start', '_end'])} for d in full_arrays]
+    intersection = set.intersection(*sets)
+    intersection_array = np.array([tup for tup in intersection], dtype=[('_start', int), ('_end', int)])
+
+    selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in full_arrays]
+    series_out = [KineticsSeries(data, **series.metadata) for data, series in zip(selected, series_list)]
+    return series_out
