@@ -93,14 +93,27 @@ class ColoredStaticText(StaticText):
 
 
 class NGLViewer(HTML):
-    pdb_string = param.String()
-    rcsb_id = param.String()
-    no_coverage = param.Color(default='#8c8c8c')
-    color_list = param.List([])
-    representation = param.Selector(default='cartoon',
-                                    objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
-                                             'ribbon', 'rope', 'spacefill', 'surface'])
-    spin = param.Boolean(default=False)
+    pdb_string = param.String(
+        doc="""Raw string of PDB file representing molecular structure to visualize."""
+    )
+    rcsb_id = param.String(
+        doc="""ID of PDB structure to fetch from the RCSB Protein Data Bank and visualize."""
+    )
+    no_coverage = param.Color(
+        default='#8c8c8c',
+        doc="""Hexadecimal color code to use for residues without coverage"""
+    )
+    color_list = param.List(default=[], doc="""List of """)
+    representation = param.Selector(
+        default='cartoon',
+        objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
+                 'ribbon', 'rope', 'spacefill', 'surface'],
+        doc="""The type of representation used to visualize the molecular structure."""
+    )
+    spin = param.Boolean(
+        default=False,
+        doc="""Toggle spinning of the molecular structure."""
+    )
     priority = 0
     _rename = dict(HTML._rename, pdb_string=None, rcsb_id=None, representation=None, spin=None, color_list=None,
                    no_coverage=None)
