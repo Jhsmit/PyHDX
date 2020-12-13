@@ -897,15 +897,19 @@ def contiguous_regions(condition):
     return idx
 
 
-def series_intersection(series_list):
+def series_intersection(series_list, fields=None):
     """
     Finds the intersection between peptides in :class:`~pydhx.models.KineticSeries` and returns new objects such that
-    all peptide coverage between the series is identical.
+    all peptides (coverage, exposure) between the series is identical.
+
+    Optionally intersections by custom fields can be made.
 
     Parameters
     ----------
     series_list: :obj:`list`
         Input list of :class:`~pyhdx.models.KineticSeries`
+    fields: :obj:`list`
+        By which fields to take the intersections. Default is ['_start', '_end', 'exposure']
 
     Returns
     -------
@@ -913,11 +917,11 @@ def series_intersection(series_list):
         Output list of :class:`~pyhdx.models.KineticSeries`
     """
 
-    full_arrays = [series.full_data for series in series_list]
-    sets = [{tuple(elem) for elem in fields_view(d, ['_start', '_end'])} for d in full_arrays]
-    intersection = set.intersection(*sets)
-    intersection_array = np.array([tup for tup in intersection], dtype=[('_start', int), ('_end', int)])
+    fields = fields or ['_start', '_end', 'exposure']
 
-    selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in full_arrays]
+    full_arrays = [series.full_data for series in series_list]
+    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in full_arrays])
+    selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in full_arrays]
+
     series_out = [KineticsSeries(data, **series.metadata) for data, series in zip(selected, series_list)]
     return series_out
