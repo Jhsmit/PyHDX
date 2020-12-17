@@ -2,7 +2,7 @@
 PyHDX
 =====
 
-|biorxiv| |travis| |zenodo| |license|
+|biorxiv| |travis| |zenodo| |license| |docs|
 
 .. |zenodo| image:: https://zenodo.org/badge/206772076.svg
    :target: https://zenodo.org/badge/latestdoi/206772076
@@ -15,6 +15,8 @@ PyHDX
 
 .. |travis| image:: https://travis-ci.com/Jhsmit/PyHDX.svg?branch=master
     :target: https://travis-ci.com/Jhsmit/PyHDX
+.. |docs| image:: https://readthedocs.org/projects/pyhdx/badge/?version=latest
+    :target: https://pyhdx.readthedocs.io/en/latest/?badge=latest
 
 .. raw:: html
 
@@ -24,7 +26,7 @@ PyHDX is python project which can be used to derive Gibbs free energy and Protec
 Currently the project is functional but in beta. Please refer to docs/installation.rst for installation instructions.
 
 
-`Preliminary Documentation <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/docs/_build/latex/pyhdx.pdf>`_
+`Preliminary Documentation <https://pyhdx.readthedocs.io>`_
 
 
 Web Application
