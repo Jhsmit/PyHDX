@@ -29,6 +29,7 @@ import pyhdx
 numfig = True
 latex_engine = 'xelatex'
 nbsphinx_allow_errors = True
+nbsphinx_execute = 'never'
 
 # -- General configuration ---------------------------------------------
 
