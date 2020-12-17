@@ -34,7 +34,7 @@ nbsphinx_allow_errors = True
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-# needs_sphinx = '1.0'
+needs_sphinx = '3.2.1'
 
 
 def setup(app):
