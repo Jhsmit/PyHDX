@@ -37,10 +37,10 @@ nbsphinx_allow_errors = True
 # needs_sphinx = '1.0'
 
 
-
 def setup(app):
     from pyhdx.panel.paramdoc import param_format_basic
     app.connect("autodoc-process-docstring", param_format_basic, priority=-100)
+
 
 extensions = [
     'sphinx.ext.autodoc',

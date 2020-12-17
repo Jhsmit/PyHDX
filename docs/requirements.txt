@@ -12,3 +12,5 @@ param
 hdxrate>=0.2.0
 pandas
 torch
+numpydoc
+nbsphinx
