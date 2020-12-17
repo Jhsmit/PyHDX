@@ -20,10 +20,10 @@ Fitting
     :members:
 
 
-Fitting TensorFlow
-------------------
+Fitting PyTorch
+---------------
 
-.. automodule:: pyhdx.fitting_tf
+.. automodule:: pyhdx.fitting_torch
     :members:
 
 
@@ -31,6 +31,8 @@ FileIO
 ------
 
 .. automodule:: pyhdx.fileIO
+    :members:
+
 
 Output
 ------
