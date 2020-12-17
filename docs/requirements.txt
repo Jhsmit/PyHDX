@@ -4,11 +4,11 @@ numpy
 tqdm
 scikit-image
 scipy
-panel
+panel>=0.10.1
 matplotlib
 bokeh
 dask[distributed]
 param
-hdxrate>0.2.0
+hdxrate>=0.2.0
 pandas
 torch
