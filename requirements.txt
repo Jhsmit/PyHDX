@@ -11,4 +11,4 @@ dask[distributed]
 torch
 param
 pandas
-hdxrate
+hdxrate>0.2.0

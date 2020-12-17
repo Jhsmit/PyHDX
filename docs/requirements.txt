@@ -8,5 +8,7 @@ panel
 matplotlib
 bokeh
 dask[distributed]
-tensorflow
 param
+hdxrate>0.2.0
+pandas
+torch
