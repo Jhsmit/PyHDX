@@ -861,7 +861,7 @@ class FitResultControl(ControlPanel):
 
     header = 'Fit Results'
 
-    peptide_index = param.Number(0, bounds=(0, None),
+    peptide_index = param.Integer(0, bounds=(0, None),
                                  doc='Index of the peptide to display.')
     x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'],
                                  doc='Choose whether to plot the x axis as Logarithmic axis or Linear.')
