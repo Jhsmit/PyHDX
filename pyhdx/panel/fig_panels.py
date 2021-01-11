@@ -233,6 +233,32 @@ class BinaryComparisonFigure(ThdFigure):
         return super().draw_figure(y_axis_type=y_axis_type, **kwargs)
 
 
+class ScoresFigure(LinearLogFigure):
+    title = 'Scores'
+    accepted_tags = [('scores', 'mapping')]
+    x_label = 'Residue number'
+    y_label = 'Value'
+
+    def render_sources(self, src_dict):
+        for name, data_source in src_dict.items():
+            for y_field in data_source.render_kwargs['y']:
+                glyph_func = getattr(self.figure, data_source.renderer)
+                kwargs = data_source.render_kwargs.copy()
+                kwargs.pop('y')
+
+                renderer = glyph_func(**kwargs, y=y_field, source=data_source.source, name=name,
+                                      legend_label=f'{y_field}')
+
+                self.renderers[name] = renderer
+                # hovertool = HoverTool(renderers=[renderer],
+                #                       tooltips=[('Residue', '@r_number{int}'), (self.y_label, f'@{data_source.render_kwargs["y"]}')],
+                #                       mode='vline')
+                # self.figure.add_tools(hovertool)
+
+            if self.renderers:
+                self.figure.legend.click_policy = 'hide'
+
+
 class SingleValueFigure(LinearLogFigure):
     title = 'Values'
     accepted_tags = [('comparison', 'mapping')]

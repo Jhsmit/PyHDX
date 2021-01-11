@@ -344,6 +344,13 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
         series = KineticsSeries(data)
         self.parent.series = series
 
+        exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(series.scores_stack, series.timepoints)}
+        data_dict = dict(r_number=series.cov.r_number, **exposure_data_dict)
+
+        data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
+                                 renderer='circle', size=10, name='scores')
+        self.parent.publish_data('scores', data_source)
+
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.cov)} peptides each)')
 
@@ -1438,7 +1445,6 @@ class DeveloperControl(ControlPanel):
         control_panels = main_ctrl.control_panels
         figure_panels = main_ctrl.figure_panels
         sources = main_ctrl.sources
-        deltaG_figure = self.parent.figure_panels['DeltaGFigure']
 
         print('Time for a break')
 

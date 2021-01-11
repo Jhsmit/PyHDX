@@ -175,6 +175,7 @@ def _folding_app():
     figure_panels = [
         CoverageFigure,
         RateFigure,
+        ScoresFigure,
         FitResultFigure,
         ProteinFigure,
         LoggingFigure
@@ -192,6 +193,7 @@ def _folding_app():
                              elvis.row(
                                  elvis.stack(
                                      elvis.view(ctrl.figure_panels['RateFigure']),
+                                     elvis.view(ctrl.figure_panels['ScoresFigure']),
                                      elvis.view(ctrl.figure_panels['FitResultFigure'])
                                  ),
                              elvis.view(ctrl.figure_panels['LoggingFigure']),

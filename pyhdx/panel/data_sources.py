@@ -56,7 +56,10 @@ class DataSource(param.Parameterized):
     def y(self):
         """:class:`~numpy.ndarray`: Array of y values"""
         if 'y' in self.render_kwargs:
-            return self.source.data[self.render_kwargs['y']]
+            try:
+                return self.source.data[self.render_kwargs['y']]
+            except TypeError:
+                return None #  'y' might be a list of y values
         elif 'y' in self.source.data:
             return self.source.data['y']
         else:
