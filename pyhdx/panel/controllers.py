@@ -335,9 +335,8 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
 
     def _action_parse(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
-        if self.norm_mode == 'Exp':
-            control_0 = self.zero_state, self.zero_exposure
-            self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
+        control_0 = self.zero_state, self.zero_exposure
+        self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
 
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
