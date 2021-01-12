@@ -241,7 +241,7 @@ class TestProtein(object):
         self.series.cov.protein.set_k_int(300., 8.)
 
         k_int = self.series.cov.protein['k_int'].to_numpy()
-        assert k_int[0] == 0.  # N terminal exchange rate is zero
+        assert k_int[0] == np.inf  # N terminal exchange rate is zero
         assert np.all(k_int[-10:] == 0.)
         assert len(k_int) == self.series.c_term
 

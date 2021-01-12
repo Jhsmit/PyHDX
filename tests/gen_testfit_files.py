@@ -3,9 +3,13 @@ import numpy as np
 from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx
 from pathlib import Path
 import pickle
+import torch
 
 directory = Path(__file__).parent
+
+torch.manual_seed(43)
 np.random.seed(43)
+epochs = 1000
 
 fpath = directory / 'test_data' / 'simulated_data_uptake.csv'
 data = read_dynamx(fpath)
@@ -33,7 +37,7 @@ out1.to_file(directory / 'test_data' / 'fit_simulated_wt_avg.txt')
 with open(directory / 'test_data' / 'fit_simulated_wt_avg.pick', 'wb') as f:
     pickle.dump(fr1, f)
 
-fr_torch = kf.global_fit_torch(out1)
+fr_torch = kf.global_fit_torch(out1, epochs=epochs)
 out_deltaG = fr_torch.output
 
 out_deltaG.to_file(directory / 'test_data' / 'fit_simulated_torch.txt')
