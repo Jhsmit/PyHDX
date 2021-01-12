@@ -13,8 +13,13 @@ jobs:
       with:
         python-version: 3.8
     - name: Git tags
-      run:
+      run: |
+        git fetch --all --tags
         git tag
+        echo git tag
+    - name: Get the version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
     - name: Build
       run: |
         pip install wheel
