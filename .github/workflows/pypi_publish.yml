@@ -13,7 +13,7 @@ jobs:
       with:
         python-version: 3.8
     - name: Build
-      run:|
+      run: |
         pip install wheel
         python setup.py sdist bdist_wheel
     - name: Publish distribution 📦 to Test PyPI
