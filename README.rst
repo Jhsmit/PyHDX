@@ -2,7 +2,7 @@
 PyHDX
 =====
 
-|biorxiv| |travis| |zenodo| |license| |docs|
+|biorxiv| |test_action| |zenodo| |license| |docs|
 
 .. |zenodo| image:: https://zenodo.org/badge/206772076.svg
    :target: https://zenodo.org/badge/latestdoi/206772076
@@ -13,8 +13,8 @@ PyHDX
 .. |license| image:: https://img.shields.io/badge/License-MIT-yellow.svg
     :target: https://opensource.org/licenses/MIT
 
-.. |travis| image:: https://travis-ci.com/Jhsmit/PyHDX.svg?branch=master
-    :target: https://travis-ci.com/Jhsmit/PyHDX
+.. |test_action| image:: https://github.com/Jhsmit/PyHDX/workflows/test-pyhdx/badge.svg
+    :target: https://github.com/Jhsmit/PyHDX/actions?query=workflow%3Atest-pyhdx
 .. |docs| image:: https://readthedocs.org/projects/pyhdx/badge/?version=latest
     :target: https://pyhdx.readthedocs.io/en/latest/?badge=latest
 
