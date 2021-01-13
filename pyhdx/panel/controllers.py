@@ -1039,7 +1039,7 @@ class ClassificationControl(ControlPanel):
             #todo adjust add/ remove color widgets methods
         self.param.trigger('num_colors')
 
-    @param.depends('values', 'colors', watch=True)
+    @param.depends('values', 'colors', 'target', 'quantity', watch=True)
     def _get_colors(self):
         # todo or?
         if np.all(self.values == 0):
