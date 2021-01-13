@@ -297,8 +297,10 @@ class FDPeptideFileInputControl(PeptideFileInputControl):
 class PeptideFoldingFileInputControl(PeptideFileInputControl):
     be_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory']
                              , precedence=-1)
-    zero_state = param.Selector(doc='State used to zero uptake', label='Zero state')
-    zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='Zero exposure')
+    fd_state = param.Selector(doc='State used to normalize uptake', label='100% Control State')
+    fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='100% Control Exposure')
+    zero_state = param.Selector(doc='State used to zero uptake', label='0% Control State')
+    zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='0% Control Exposure')
 
     def make_dict(self):
         return self.generate_widgets()
