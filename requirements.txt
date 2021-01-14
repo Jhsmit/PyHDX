@@ -1,4 +1,4 @@
-pbr
+pbr; python_version < '3.8'
 symfit
 numpy
 tqdm

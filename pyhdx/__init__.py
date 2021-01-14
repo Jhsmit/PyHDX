@@ -5,12 +5,17 @@ from .fitting import KineticsFitting
 from .fileIO import read_dynamx
 from .output import Output
 from pathlib import Path
-import importlib.metadata
 
 
 package_name = 'pyhdx'
 
-__version__ = importlib.metadata.version(package_name)
+try:
+    import importlib.metadata
+    __version__ = importlib.metadata.version(package_name)
+    has_importlib_metadata = True
+except ModuleNotFoundError:
+    has_importlib_metadata = False
+
 
 try:
     from pbr import version
@@ -18,6 +23,9 @@ try:
     has_pbr = True
 except ModuleNotFoundError:
     has_pbr = False
+
+if not has_importlib_metadata and not has_pbr:
+    raise ModuleNotFoundError('Must have pbr for python < 3.8')
 
 info = version.VersionInfo(package_name)
 git_dir = Path(__file__).parent.parent / '.git'
