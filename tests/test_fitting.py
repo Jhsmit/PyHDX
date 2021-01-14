@@ -1,4 +1,3 @@
-import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.fileIO import read_dynamx, fmt_export, txt_to_protein, txt_to_np
