@@ -14,6 +14,7 @@ try:
     __version__ = importlib.metadata.version(package_name)
     has_importlib_metadata = True
 except ModuleNotFoundError:
+    __version__ = None
     has_importlib_metadata = False
 
 
@@ -27,11 +28,12 @@ except ModuleNotFoundError:
 if not has_importlib_metadata and not has_pbr:
     raise ModuleNotFoundError('Must have pbr for python < 3.8')
 
-info = version.VersionInfo(package_name)
 git_dir = Path(__file__).parent.parent / '.git'
 
 if has_pbr:
     try:
+        info = version.VersionInfo(package_name)
+        __version__ = __version__ or info.version_string()
         __git_sha__ = git.get_git_short_sha(git_dir)
 
     except Exception:  # Pbr throws very broad Exception, for some reason DistributionNotFound does not want to be caught
@@ -41,8 +43,7 @@ if has_pbr:
                 ['describe', '--tags'], git_dir,
                 throw_on_error=True).replace('-', '.')
             semantic_version = version.SemanticVersion.from_pip_string(tagged)
-            __version__ = semantic_version.brief_string()
-            __dev_version__ = semantic_version._long_version(None)
+            __version__ = __version__ or semantic_version._long_version(None)
             __git_sha__ = git.get_git_short_sha(git_dir)
         except FileNotFoundError:
             # Git not installed
