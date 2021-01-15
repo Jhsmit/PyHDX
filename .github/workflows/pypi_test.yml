@@ -1,4 +1,4 @@
-name: PyPi distribute
+name: PyPi distribute test push
 on: [push]
 
 jobs:
