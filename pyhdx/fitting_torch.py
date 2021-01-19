@@ -79,6 +79,7 @@ class TorchFitResult(object):
             out_dict['pfact'] = pfact
 
         #todo add possibility to add append series to protein?
+        #todo update order of columns
         protein = Protein(out_dict, index='r_number')
         protein_errors = self.estimate_errors()
         protein = protein.merge(protein_errors, left_index=True, right_index=True)
