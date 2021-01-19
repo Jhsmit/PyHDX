@@ -20,7 +20,6 @@ class DeltaGFit(nn.Module):
             k_int: (N_peptides, 1)
 
         """
-         #= inputs
 
         pfact = t.exp(self.deltaG / (constants.R * temperature))
         uptake = 1 - t.exp(-t.matmul((k_int / (1 + pfact)), timepoints))
@@ -34,18 +33,56 @@ class TorchFitResult(object):
         self.temperature = temperature
         self.metadata = metadata
 
+    def estimate_errors(self):
+        # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
+        bools = self.series.cov['exchanges'].to_numpy()
+        r_number = self.series.cov.r_number[bools]  # Residue number which exchange
+
+        dtype = t.float64
+        temperature = t.tensor([self.temperature], dtype=dtype)
+        X = t.tensor(self.series.cov.X[:, bools], dtype=dtype)  # Np x Nr, non-exchanging residues removed
+        k_int = t.tensor(self.series.cov['k_int'][bools].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
+        timepoints = t.tensor(self.series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
+
+        deltaG = t.tensor(self.deltaG[bools], dtype=dtype)
+        output_data = t.tensor(self.series.uptake_corrected.T, dtype=dtype)
+
+        def calc_loss(deltaG_input):
+            criterion = t.nn.MSELoss(reduction='sum')
+            pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * temperature))
+            uptake = 1 - t.exp(-t.matmul((k_int / (1 + pfact)), timepoints))
+            output = t.matmul(X, uptake)
+
+            loss = criterion(output, output_data)
+            return loss
+
+        hessian = t.autograd.functional.hessian(calc_loss, deltaG)
+        hessian_inverse = t.inverse(-hessian)
+        errors = np.sqrt(np.diagonal(hessian_inverse))
+
+        return Protein({'error': errors, 'r_number': r_number}, index='r_number')
+
+    @property
+    def deltaG(self):
+        return self.model.deltaG.detach().numpy().squeeze()
+
     @property
     def output(self):
         out_dict = {}
         out_dict['r_number'] = self.series.cov.r_number
-        out_dict['_deltaG'] = self.model.deltaG.detach().numpy().squeeze()
+        #out_dict['sequence'] = self.series.cov['sequence']
+        out_dict['_deltaG'] = self.deltaG
         out_dict['deltaG'] = out_dict['_deltaG'].copy()
         out_dict['deltaG'][~self.series.cov['exchanges']] = np.nan
         if self.temperature is not None:
             pfact = np.exp(out_dict['deltaG'] / (constants.R * self.temperature))
             out_dict['pfact'] = pfact
 
-        return Protein(out_dict, index='r_number')
+        #todo add possibility to add append series to protein?
+        protein = Protein(out_dict, index='r_number')
+        protein_errors = self.estimate_errors()
+        protein = protein.merge(protein_errors, left_index=True, right_index=True)
+        return protein
 
     def __call__(self, timepoints):
         """output: Np x Nt array"""
