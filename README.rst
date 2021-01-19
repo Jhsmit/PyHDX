@@ -13,8 +13,8 @@ PyHDX
 .. |license| image:: https://img.shields.io/badge/License-MIT-yellow.svg
     :target: https://opensource.org/licenses/MIT
 
-.. |test_action| image:: https://github.com/Jhsmit/PyHDX/workflows/test-pyhdx/badge.svg
-    :target: https://github.com/Jhsmit/PyHDX/actions?query=workflow%3Atest-pyhdx
+.. |test_action| image:: https://github.com/Jhsmit/PyHDX/workflows/pytest/badge.svg
+    :target: https://github.com/Jhsmit/PyHDX/actions?query=workflow%3Apytest
 .. |docs| image:: https://readthedocs.org/projects/pyhdx/badge/?version=latest
     :target: https://pyhdx.readthedocs.io/en/latest/?badge=latest
 
