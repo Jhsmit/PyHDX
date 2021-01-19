@@ -70,7 +70,7 @@ class TorchFitResult(object):
     def output(self):
         out_dict = {}
         out_dict['r_number'] = self.series.cov.r_number
-        #out_dict['sequence'] = self.series.cov['sequence']
+        out_dict['sequence'] = self.series.cov['sequence'].to_numpy()
         out_dict['_deltaG'] = self.deltaG
         out_dict['deltaG'] = out_dict['_deltaG'].copy()
         out_dict['deltaG'][~self.series.cov['exchanges']] = np.nan

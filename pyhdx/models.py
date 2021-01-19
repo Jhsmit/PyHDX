@@ -35,7 +35,7 @@ class Protein(object):
         if self.df.index.name is None:
             self.df.set_index(index, inplace=True)
 
-        self.df.sort_values(index, inplace=True)
+        self.df.sort_index(inplace=True)
 
     def __str__(self):
         s = self.df.__str__()
@@ -73,8 +73,8 @@ class Protein(object):
         df_out = pd.concat([self.df, other.df], axis=1)
         return self._make_protein(df_out, other)
 
-    def merge(self, other, ignore_index=False, verify_integrity=False, sort=None):
-        df_out = self.df.merge(other.df, how='left', validate='m:m')
+    def merge(self, other, **kwargs):
+        df_out = self.df.merge(other.df, **kwargs)
         return self._make_protein(df_out, other)
 
     def add_column(self, index, data, name):

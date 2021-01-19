@@ -1,5 +1,5 @@
-# pyHDX version 0.3.0, development version 0.3.0.0rc2.dev30 (990dada) 
-# 2021/01/12 14:47:12 (1610459232) 
+# pyHDX version 0.3.1, development version 0ce0214 
+# 2021/01/19 21:35:41 (1611088541) 
 # r_number	sequence	coverage	exchanges	k_int    
 1         	X       	0       	0        	inf      
 2         	X       	0       	0        	0        
