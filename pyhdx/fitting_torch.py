@@ -58,9 +58,9 @@ class TorchFitResult(object):
 
         hessian = t.autograd.functional.hessian(calc_loss, deltaG)
         hessian_inverse = t.inverse(-hessian)
-        errors = np.sqrt(np.diagonal(hessian_inverse))
+        covariance = np.sqrt(np.abs(np.diagonal(hessian_inverse)))
 
-        return Protein({'error': errors, 'r_number': r_number}, index='r_number')
+        return Protein({'covariance': covariance, 'r_number': r_number}, index='r_number')
 
     @property
     def deltaG(self):
@@ -81,8 +81,8 @@ class TorchFitResult(object):
         #todo add possibility to add append series to protein?
         #todo update order of columns
         protein = Protein(out_dict, index='r_number')
-        protein_errors = self.estimate_errors()
-        protein = protein.merge(protein_errors, left_index=True, right_index=True)
+        protein_cov = self.estimate_errors()
+        protein = protein.join(protein_cov)
         return protein
 
     def __call__(self, timepoints):
