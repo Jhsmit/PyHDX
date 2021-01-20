@@ -4,7 +4,7 @@ from .log import setup_md_log
 from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
-from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span, Rect, Range1d
+from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span, Rect, Range1d, Whisker
 from bokeh.models.markers import Triangle, Circle, Diamond
 import panel as pn
 import numpy as np
@@ -88,10 +88,6 @@ class ThdFigure(LinearLogFigure):
     def render_sources(self, src_dict, **render_kwargs):
         for name, data_source in src_dict.items():
             kwargs = {**data_source.render_kwargs, **render_kwargs}
-            # try:
-            #     y_name = render_kwargs.pop('y')
-            # except KeyError:
-            #     y_name = data_source.render_kwargs.pop('y')
 
             glyph_func = getattr(self.figure, data_source.renderer)
             renderer = glyph_func(source=data_source.source, name=name,
@@ -133,6 +129,7 @@ class ThdFigure(LinearLogFigure):
         spans = self.figure.select(tags='thd')
         for i, span in enumerate(spans):
             span.visible = False
+
 
 class RateFigure(ThdFigure):
     title = 'Rates'
@@ -176,6 +173,16 @@ class DeltaGFigure(ThdFigure):
 
     def render_sources(self, src_dict, **render_kwargs):
         super().render_sources(src_dict, y='deltaG', **render_kwargs)
+
+        #todo make sure that if a new deltaG get plotted the graph is redrawn
+        for name, data_source in src_dict.items():
+            if 'covariance' in data_source.source.data.keys():
+                y = data_source.source.data['deltaG']
+                x = data_source.source.data['r_number']
+                cov = data_source.source.data['covariance']
+                error_cds = ColumnDataSource({'base': x, 'upper': y + cov, 'lower': y - cov})
+                whiskers = Whisker(source=error_cds, base='base', upper='upper', lower='lower')
+                self.figure.add_layout(whiskers)
 
 
 class BinaryComparisonFigure(ThdFigure):
