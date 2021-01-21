@@ -4,7 +4,7 @@ from pyhdx.panel.data_sources import DataSource
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export
-from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex
+from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba
 from pyhdx import VERSION_STRING
 from scipy import constants
 import param
@@ -61,6 +61,24 @@ class MappingFileInputControl(ControlPanel):
     def _input_file_updated(self):
         self.dataset_name = self.dataset_name or Path(self._widget_dict['input_file'].filename).stem
 
+    @property
+    def protein(self):
+        """The protein object from the currently selected file in the file widget"""
+
+        try:
+            sio = StringIO(self.input_file.decode())
+            array = txt_to_np(sio)
+            assert 'r_number' in array.dtype.names, "Input file needs to have an 'r_number' column"
+            array['r_number'] += self.offset
+            protein = Protein(array, index='r_number')
+            return protein
+        except UnicodeDecodeError:
+            self.parent.logger.info('Invalid file type, supplied file is not a text file')
+            return None
+
+    def _add_dataset(self):
+        self.parent.datasets[self.dataset_name] = self.protein
+
     #todo refactor dataset to protein_something
     def _action_add_dataset(self):
         if self.dataset_name in self.parent.datasets.keys():
@@ -69,17 +87,9 @@ class MappingFileInputControl(ControlPanel):
             self.parent.logger.info('The added comparison needs to have a name')
         elif not self.input_file:
             self.parent.logger.info('Empty or no file selected')
-        else:
-            try:
-                sio = StringIO(self.input_file.decode())
-                array = txt_to_np(sio)
-                assert 'r_number' in array.dtype.names, "Input file needs to have an 'r_number' column"
-                array['r_number'] += self.offset
-                protein = Protein(array, index='r_number')
-                self.parent.datasets[self.dataset_name] = protein
-                self.parent.param.trigger('datasets')
-            except UnicodeDecodeError:
-                self.parent.logger.info('Invalid file type, supplied file is not a text file')
+        elif self.protein is not None:
+            self._add_dataset()
+            self.parent.param.trigger('datasets')
 
         self._widget_dict['input_file'].filename = ''
         self._widget_dict['input_file'].value = b''
@@ -87,9 +97,10 @@ class MappingFileInputControl(ControlPanel):
         self.dataset_name = ''
 
     def _action_remove_dataset(self):
-        for dataset_name in self.datasets_list:
-            self.parent.datasets.pop(dataset_name)
-        self.parent.param.trigger('datasets')
+        if self.datasets_list is not None:
+            for dataset_name in self.datasets_list:
+                self.parent.datasets.pop(dataset_name)
+            self.parent.param.trigger('datasets')
 
     def _datasets_updated(self, events):
         self.param['datasets_list'].objects = list(self.parent.datasets.keys())
@@ -112,6 +123,63 @@ class SingleMappingFileInputControl(MappingFileInputControl):
             data_source = DataSource(records, tags=['comparison', 'mapping'], x='r_number',
                                      renderer='circle', size=10)
             self.parent.publish_data(key, data_source)
+
+
+class MatrixMappingFileInputControl(SingleMappingFileInputControl):
+    datapoints = param.ListSelector(doc='Select datapoints to include in the matrix')
+
+    def _action_add_dataset(self):
+        super()._action_add_dataset()
+
+        N = 20
+        img = np.empty((N, N), dtype=np.uint32)
+        view = img.view(dtype=np.uint8).reshape((N, N, 4))
+        for i in range(N):
+            for j in range(N):
+                view[i, j, 0] = int(i / N * 255)
+                view[i, j, 1] = 158
+                view[i, j, 2] = int(j / N * 255)
+                view[i, j, 3] = 255
+
+        values = np.random.random(img.shape)
+
+        img_ds_dict = {'img': [img], 'scores': [values]}
+        data_source = DataSource(img_ds_dict, tags=['image'], name='scores_image', x=0, y=0)
+
+        self.parent.publish_data('scores_image', data_source)
+
+    def make_list(self):
+        widget_list = super().make_list()
+        datapoints_widget = widget_list.pop()
+        widget_list.insert(3, datapoints_widget)
+        return widget_list
+
+    def _add_dataset(self):
+        full_dict = self.protein.to_dict()
+        data_dict = {k: v for k, v in full_dict.items() if k in self.datapoints}
+        data_dict['r_number'] = self.protein.index
+        protein = Protein(data_dict, index='r_number')
+        self.parent.datasets[self.dataset_name] = protein
+
+    @param.depends('input_file', watch=True)
+    def _input_file_updated(self):
+        super()._input_file_updated()
+        if self.input_file:
+            header_fields = self.protein.df.columns
+
+            float_fields = [f for f in header_fields if f.replace('.', '', 1).isdigit()]
+            self.param['datapoints'].objects = float_fields
+            self.datapoints = float_fields
+
+#        self.dataset_name = self.dataset_name or Path(self._widget_dict['input_file'].filename).stem
+
+
+class MatrixImageControl(ControlPanel):
+    """
+    This controller takes an input loaded matrix and converts it to an (rgba) interpolated rendered image
+
+    O rly
+    """
 
 
 class PeptideFileInputControl(ControlPanel):
@@ -1048,18 +1116,7 @@ class ClassificationControl(ControlPanel):
             #todo adjust add/ remove color widgets methods
         self.param.trigger('num_colors')
 
-    @param.depends('values', 'colors', 'target', 'quantity', watch=True)
-    def _get_colors(self):
-        # todo or?
-        if np.all(self.values == 0):
-            return
-        elif np.any(np.diff(self.values) > 0):  # Skip applying colors when not strictly monotonic descending
-            return
-        elif not self.target:
-            return
-
-        y_vals = self.parent.sources[self.target][self.quantity]  # full array including nan entries
-
+    def _calc_colors(self, y_vals):
         if self.num_colors == 1:
             colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
             colors[np.isnan(y_vals)] = np.nan
@@ -1083,6 +1140,21 @@ class ClassificationControl(ControlPanel):
             except ValueError as err:
                 self.parent.logger.warning(err)
                 return
+
+        return colors
+
+    @param.depends('values', 'colors', 'target', 'quantity', watch=True)
+    def _get_colors(self):
+        # todo or?
+        if np.all(self.values == 0):
+            return
+        elif np.any(np.diff(self.values) > 0):  # Skip applying colors when not strictly monotonic descending
+            return
+        elif not self.target:
+            return
+
+        y_vals = self.parent.sources[self.target][self.quantity]  # full array including nan entries
+        colors = self._calc_colors(y_vals)
 
         self.parent.sources[self.target].source.data['color'] = colors  # this triggers an update of the graph
 
@@ -1182,6 +1254,63 @@ class ClassificationControl(ControlPanel):
                 widget.start = np.nextafter(next_value, next_value + 1)
             else:
                 widget.start = None
+
+
+class ColoringControl(ClassificationControl):
+
+    def make_dict(self):
+        widgets_dict = super().make_dict()
+        widgets_dict.pop('quantity')
+
+        return widgets_dict
+
+    @param.depends('values', 'colors', 'target', 'quantity', watch=True)
+    def _get_colors(self):
+        # todo this part is repeated
+        if np.all(self.values == 0):
+            return
+        elif np.any(np.diff(self.values) > 0):  # Skip applying colors when not strictly monotonic descending
+            return
+        elif not self.target:
+            return
+        elif 'scores_image' not in self.parent.sources.keys():
+            return
+
+        tgt_source = self.parent.sources[self.target] # full array including nan entries
+        r_number = tgt_source.source.data['r_number']
+        assert np.all(np.diff(r_number) == 1)
+
+
+        headers = [f for f in tgt_source.source.data.keys() if f.replace('.', '', 1).isdigit()]
+
+        headers.sort(key=float)
+        timepoints = np.array([float(f) for f in headers])
+        N_interP = 1000
+        interp_timepoints = np.linspace(0, timepoints.max(), num=1000, endpoint=True)
+
+        array = np.stack([tgt_source.source.data[k] for k in headers])
+
+        colors_hex = self._calc_colors(array.flatten())  # colors are in hex format
+        if colors_hex is None:  # this is the colors not between 0 and 1 bug / error
+            return
+
+        print(colors_hex)
+        colors_hex[colors_hex == 'nan'] = '#8c8c8c'
+        colors_rgba = np.array([hex_to_rgba(h) for h in colors_hex])
+
+        shape = (len(timepoints), len(r_number))
+        img = np.empty(shape, dtype=np.uint32)
+        view = img.view(dtype=np.uint8).reshape(*shape, 4)
+        view[:] = colors_rgba.reshape(*shape, 4)
+
+        img_source = self.parent.sources['scores_image']
+        img_source.render_kwargs['dw'] = r_number.max()
+        img_source.render_kwargs['dh'] = timepoints.max()
+        img_source.source.data.update(img=[img], scores=[img])
+
+        print('howdoe')
+
+        #self.parent.sources[self.target].source.data['color'] = colors
 
 
 class FileExportControl(ControlPanel):

@@ -49,7 +49,8 @@ class CoverageFigure(BokehFigurePanel):
 
 class LinearLogFigure(BokehFigurePanel):
     """base class for bokeh figure which can switch between log and linear axis
-        This is a very slim base class (perhaps it should be a mixin?)
+        This is a very slim base class (perhaps it should be a mixin?) (yes probably)
+        and it should have a different name
     """
 
     def _redraw_event(self, event):
@@ -76,12 +77,15 @@ class ThdFigure(LinearLogFigure):
         fig.xaxis.axis_label = 'Residue number'
         fig.yaxis.axis_label = self.y_label
 
-        # todo refactor controller access
-        for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):
-            sp = Span(location=0, dimension='width')
-            sp.tags = ['thd']
-            sp.visible = False
-            fig.add_layout(sp)
+        # todo refactor controller access to imporove upon current try/except and allow more controller agnostic behaviour
+        try:
+            for _ in range(self.control_panels['ClassificationControl'].param['num_colors'].bounds[1] - 1):
+                sp = Span(location=0, dimension='width')
+                sp.tags = ['thd']
+                sp.visible = False
+                fig.add_layout(sp)
+        except KeyError:
+            pass
 
         return fig
 
@@ -227,11 +231,19 @@ class BinaryComparisonFigure(ThdFigure):
 
     def setup_hooks(self):
         super().setup_hooks()
-        self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
-        self.control_panels['ClassificationControl'].param.watch(self._log_space_updated, ['log_space'])
-        #self.control_panels['ClassificationControl'].param.watch(self._target_updated, ['target'])
-        self.control_panels['ClassificationControl'].param.watch(self._quantity_updated, ['quantity'])
+        #todo this should be resolved in some other way than the name
+        try:
+            self.control_panels['ClassificationControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+            self.control_panels['ClassificationControl'].param.watch(self._log_space_updated, ['log_space'])
+            self.control_panels['ClassificationControl'].param.watch(self._quantity_updated, ['quantity'])
+        except KeyError:
+            pass
 
+        try:
+            self.control_panels['ColoringControl'].param.watch(self._draw_thds, ['values', 'show_thds'])
+            self.control_panels['ColoringControl'].param.watch(self._log_space_updated, ['log_space'])
+        except KeyError:
+            pass
 
     #todo group into one function?
     def _quantity_updated(self, event):
@@ -425,8 +437,11 @@ class LoggingFigure(FigurePanel):
         # Or the users has to be responsible and set this up correctly
         # if the hook is unwanted, the class should be subclassed with override on setup_hooks
 
-        self.parent.control_panels['OptionsControl'].param.watch(self._update_log_level, ['log_level'])
-        self.parent.control_panels['OptionsControl'].param.trigger('log_level')
+        try:
+            self.parent.control_panels['OptionsControl'].param.watch(self._update_log_level, ['log_level'])
+            self.parent.control_panels['OptionsControl'].param.trigger('log_level')
+        except KeyError:
+            self.parent.logger.debug('Control panel OptionsControl not founc')
 
     def _update_log_level(self, event):
         self.parent.logger.setLevel(event.new)
@@ -434,3 +449,59 @@ class LoggingFigure(FigurePanel):
     @property
     def panel(self):
         return self.markdown
+
+
+class ImageFigure(LinearLogFigure):
+    title = 'Image'
+
+    accepted_tags = ['image']
+    x_label = 'Residue number'
+    y_label = 'Time (probably)'
+
+    def draw_figure(self, **kwargs):
+        figure = super().draw_figure()
+        figure.x_range.range_padding = figure.y_range.range_padding = 0
+
+        return figure
+
+    # @property
+    # def panel(self):
+    #     N = 20
+    #     img = np.empty((N, N), dtype=np.uint32)
+    #     view = img.view(dtype=np.uint8).reshape((N, N, 4))
+    #     for i in range(N):
+    #         for j in range(N):
+    #             view[i, j, 0] = int(i / N * 255)
+    #             view[i, j, 1] = 158
+    #             view[i, j, 2] = int(j / N * 255)
+    #             view[i, j, 3] = 255
+    #
+    #     values = np.random.random(img.shape)
+    #     print(values.shape)
+    #     cds = ColumnDataSource({'img': [img], 'values': [values]})
+    #     p = figure(tooltips=[("x", "$x"), ("y", "$y"), ("value", "@values")])
+    #     p = self.figure
+    #     #p.x_range.range_padding = p.y_range.range_padding = 0
+    #
+    #     # must give a vector of images
+    #     p.image_rgba(image='img', source=cds, x=0, y=0, dw=10, dh=10)
+    #
+    #     self.bk_pane = pn.pane.Bokeh(p, sizing_mode='stretch_both', name=self.title)
+    #
+    #     return self.bk_pane
+
+
+    def render_sources(self, src_dict, **render_kwargs):
+        render_kwargs.pop('color', None)
+        for name, data_source in src_dict.items():
+            ds_kwargs = data_source.render_kwargs
+            ds_kwargs.pop('color', None)   # todo fix color winding up here int he first place
+            self.figure.image_rgba(source=data_source.source, image='img', **ds_kwargs)
+    #
+    #     try:
+    #         self.update()
+    #         print('updating')
+    #
+    #     except AttributeError:
+    #         print('passing')
+    #         pass

@@ -8,7 +8,7 @@ import sys
 from pyhdx import VERSION_STRING_SHORT
 
 
-DEBUG = False
+DEBUG = True
 cluster = '127.0.0.1:52123'
 
 
@@ -53,6 +53,7 @@ def _main_app():
                                  elvis.view(ctrl.figure_panels['DeltaGFigure']),
                                  elvis.view(ctrl.figure_panels['PFactFigure']),
                                  elvis.view(ctrl.figure_panels['FitResultFigure']),
+                                 elvis.view(ctrl.figure_panels['ScoresFigure']),
                                  elvis.view(ctrl.figure_panels['LoggingFigure']),
                              )
                          ))
@@ -241,6 +242,41 @@ def _full_deuteration_app():
 def full_deuteration_app():
     tmpl, ctrl = _full_deuteration_app()
     return tmpl
+
+
+def _color_matrix_app():
+    control_panels = [
+        MatrixMappingFileInputControl,
+        ColoringControl,
+        ProteinViewControl,
+    ]
+
+    if DEBUG:
+        control_panels.append(DeveloperControl)
+
+    figure_panels = [
+        ImageFigure,
+        ProteinFigure,
+        LoggingFigure
+    ]
+
+    elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
+    ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
+    ctrl.logger.addHandler(get_default_handler(sys.stdout))
+    tmpl = elvis.compose(ctrl,
+                         elvis.column(
+                             elvis.stack(
+                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
+                             ),
+                             elvis.row(
+                                 elvis.stack(
+                                    elvis.view(ctrl.figure_panels['ImageFigure']),
+                                 ),
+                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
+                             )
+                         ))
+
+    return tmpl, ctrl
 
 
 if __name__ == '__main__':

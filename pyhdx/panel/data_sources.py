@@ -30,15 +30,18 @@ class DataSource(param.Parameterized):
             dic = {name: input_data[name] for name in input_data.dtype.names}
             #self.array = input_data  #
         elif isinstance(input_data, dict):
-            dic = {k: np.array(v) for k, v in input_data.items()}
+            if 'image' in self.tags:   # Images requires lists of arrays rather than arrays
+                dic = {k: v for k, v in input_data.items()}
+            else:
+                dic = {k: np.array(v) for k, v in input_data.items()}
         elif isinstance(input_data, Protein):
             dic = {k: np.array(v) for k, v in input_data.to_dict('list').items()}
             dic['r_number'] = np.array(input_data.index)
         else:
             raise TypeError("Invalid input data type")
 
-        #todo this does not apply to all data sets?
-        if 'color' not in dic.keys():
+        #todo this does not apply to all data sets? (it does not, for example images)
+        if 'color' not in dic.keys() and 'image' not in self.tags:
             column = next(iter(dic.values()))
             color = np.full_like(column, fill_value=self.default_color, dtype='<U7')
             dic['color'] = color

@@ -8,7 +8,7 @@ import pickle
 import os
 from pyhdx.panel.apps import _single_app
 from pyhdx.panel.utils import reload_previous
-from pyhdx.panel.base import DEFAULT_COLORS
+from pyhdx.panel.base import DEFAULT_COLORS, STATIC_DIR
 from pyhdx.panel.data_sources import DataSource
 import panel as pn
 import numpy as np
@@ -17,7 +17,7 @@ from pathlib import Path
 tmpl, ctrl = _single_app()
 directory = Path(__file__).parent
 
-fpath = directory / 'test_data' / 'SecB WT apo_pfact_linear.txt'
+fpath = directory / 'test_data' / 'ecSecB_torch_fit.txt'
 with open(fpath, 'rb') as f_obj:
     file_binary = f_obj.read()
 
@@ -39,5 +39,5 @@ pv_ctrl.rcsb_id = '1qyn'
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl, show=True)
+    pn.serve(tmpl, show=False, static_dirs={'pyhdx': STATIC_DIR})
 

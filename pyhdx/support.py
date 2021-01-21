@@ -277,8 +277,14 @@ def rgb_to_hex(r, g, b):
 
 
 def hex_to_rgb(h):
+    """returns rgb as int 0-255"""
     r, g, b = tuple(int(h.lstrip('#')[2*i:2*i+2], 16) for i in range(3))
     return r, g, b
+
+
+def hex_to_rgba(h, alpha=255):
+    r, g, b = tuple(int(h.lstrip('#')[2*i:2*i+2], 16) for i in range(3))
+    return r, g, b, alpha
 
 
 def group_with_index(arr):
