@@ -1285,10 +1285,12 @@ class ColoringControl(ClassificationControl):
 
         headers.sort(key=float)
         timepoints = np.array([float(f) for f in headers])
-        N_interP = 1000
-        interp_timepoints = np.linspace(0, timepoints.max(), num=1000, endpoint=True)
+        N_interpolate = 500
+        interp_timepoints = np.linspace(0, timepoints.max(), num=N_interpolate, endpoint=True)
+        data_array = np.stack([tgt_source.source.data[k] for k in headers])
 
-        array = np.stack([tgt_source.source.data[k] for k in headers])
+        array = np.stack([np.interp(interp_timepoints, timepoints, data) for data in data_array.T]).T
+
 
         colors_hex = self._calc_colors(array.flatten())  # colors are in hex format
         if colors_hex is None:  # this is the colors not between 0 and 1 bug / error
@@ -1298,7 +1300,7 @@ class ColoringControl(ClassificationControl):
         colors_hex[colors_hex == 'nan'] = '#8c8c8c'
         colors_rgba = np.array([hex_to_rgba(h) for h in colors_hex])
 
-        shape = (len(timepoints), len(r_number))
+        shape = (N_interpolate, len(r_number))
         img = np.empty(shape, dtype=np.uint32)
         view = img.view(dtype=np.uint8).reshape(*shape, 4)
         view[:] = colors_rgba.reshape(*shape, 4)
@@ -1306,7 +1308,7 @@ class ColoringControl(ClassificationControl):
         img_source = self.parent.sources['scores_image']
         img_source.render_kwargs['dw'] = r_number.max()
         img_source.render_kwargs['dh'] = timepoints.max()
-        img_source.source.data.update(img=[img], scores=[img])
+        img_source.source.data.update(img=[img], scores=[array])
 
         print('howdoe')
 

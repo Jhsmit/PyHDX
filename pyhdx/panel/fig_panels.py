@@ -496,8 +496,14 @@ class ImageFigure(LinearLogFigure):
         for name, data_source in src_dict.items():
             ds_kwargs = data_source.render_kwargs
             ds_kwargs.pop('color', None)   # todo fix color winding up here int he first place
-            self.figure.image_rgba(source=data_source.source, image='img', **ds_kwargs)
+            renderer = self.figure.image_rgba(source=data_source.source, image='img', **ds_kwargs)
+            hovertool = HoverTool(renderers=[renderer],
+                                  tooltips=[("x", "$x"), ("y", "$y"), ("value", "@scores")]
+                                  )
+            self.figure.add_tools(hovertool)
     #
+
+
     #     try:
     #         self.update()
     #         print('updating')
