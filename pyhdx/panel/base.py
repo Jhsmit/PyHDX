@@ -108,8 +108,6 @@ class BokehFigurePanel(FigurePanel):
         self.figure = self.draw_figure()
         self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.title)
 
-
-
     def draw_figure(self, **kwargs):
         """Overload to create a custom figure"""
 
@@ -121,7 +119,6 @@ class BokehFigurePanel(FigurePanel):
 
     def redraw(self, **kwargs):
         """calls draw_figure to make a new figure and then redraws all renderers"""
-
         #src_dict = self.data_sources
         #self.remove_sources(src_dict.keys())
         self.renderers = {}

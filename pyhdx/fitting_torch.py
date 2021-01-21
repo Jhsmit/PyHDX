@@ -97,7 +97,3 @@ class TorchFitResult(object):
 
             output = self.model(*inputs)
         return output.detach().numpy()
-
-
-
-
