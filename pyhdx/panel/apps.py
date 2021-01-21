@@ -33,6 +33,7 @@ def _main_app():
         RateFigure,
         DeltaGFigure,
         PFactFigure,
+        ScoresFigure,
         FitResultFigure,
         ProteinFigure,
         LoggingFigure

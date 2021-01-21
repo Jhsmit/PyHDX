@@ -215,9 +215,18 @@ class PeptideFileInputControl(ControlPanel):
 
         series = KineticsSeries(data, c_term=self.c_term)
         self.parent.series = series
+        self._publish_scores()
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.cov)} peptides each)')
+
+    def _publish_scores(self):
+        exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(self.parent.series.scores_stack, self.parent.series.timepoints)}
+        data_dict = dict(r_number=self.parent.series.cov.r_number, **exposure_data_dict)
+
+        data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
+                                 renderer='circle', size=10, name='scores')
+        self.parent.publish_data('scores', data_source)
 
     @param.depends('be_mode', watch=True)
     def _update_be_mode(self):
@@ -346,12 +355,7 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
         series = KineticsSeries(data)
         self.parent.series = series
 
-        exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(series.scores_stack, series.timepoints)}
-        data_dict = dict(r_number=series.cov.r_number, **exposure_data_dict)
-
-        data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
-                                 renderer='circle', size=10, name='scores')
-        self.parent.publish_data('scores', data_source)
+        self._publish_scores()
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.cov)} peptides each)')
