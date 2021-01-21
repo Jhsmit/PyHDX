@@ -76,7 +76,7 @@ def txt_to_np(file_path, delimiter='\t'):
     file_obj.seek(0)
 
     return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
-                         encoding=None, autostrip=True, comments=None)
+                         encoding=None, autostrip=True, comments=None, deletechars='')
 
 
 def txt_to_protein(file_path):
