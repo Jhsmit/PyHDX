@@ -177,12 +177,28 @@ class DeltaGFigure(ThdFigure):
         #todo make sure that if a new deltaG get plotted the graph is redrawn
         for name, data_source in src_dict.items():
             if 'covariance' in data_source.source.data.keys():
-                y = data_source.source.data['deltaG']
-                x = data_source.source.data['r_number']
-                cov = data_source.source.data['covariance']
-                error_cds = ColumnDataSource({'base': x, 'upper': y + cov, 'lower': y - cov})
-                whiskers = Whisker(source=error_cds, base='base', upper='upper', lower='lower')
+                # y = data_source.source.data['deltaG']
+                # cov = data_source.source.data['covariance']
+                # data_source.source.data['__upper'] = y + cov
+                # data_source.source.data['__lower'] = y - cov
+
+                whiskers = Whisker(source=data_source.source, base='r_number', upper='__upper', lower='__lower')
                 self.figure.add_layout(whiskers)
+
+    # def _data_updated_callback(self, attr, old, new):
+    #     #get layouts and update the cds
+    # #    print(attr, old, new)  # data, dict, propertyvalue columndata
+    #
+    #
+    #     if not np.allclose(old['deltaG'], new['deltaG']):
+    #         y = new['deltaG']
+    #         # x = data_source.source.data['r_number']
+    #         cov = new['covariance']
+    #
+    #         new['__upper'] = y + cov
+    #         new['__lower'] = y - cov
+    #
+    #         super()._data_updated_callback(attr, old, new)
 
 
 class BinaryComparisonFigure(ThdFigure):

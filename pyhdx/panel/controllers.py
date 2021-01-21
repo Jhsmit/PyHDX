@@ -849,6 +849,11 @@ class FitControl(ControlPanel):
         output = result.output
         output_name = 'global_fit'
         output.df['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
+
+        # Add upper/lower bounds covariances for error bar plotting
+        output.df['__lower'] = output.df['deltaG'] - output.df['covariance']
+        output.df['__upper'] = output.df['deltaG'] + output.df['covariance']
+
         data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'], name=output_name,
                                  renderer='circle', size=10)
 
@@ -1232,7 +1237,7 @@ class FileExportControl(ControlPanel):
 
     @property
     def export_dict(self):
-        return self.export_data_source.source.data
+        return {k: v for k, v in self.export_data_source.source.data.items() if not k.startswith('__')}
 
     @property
     def export_data_source(self):
@@ -1270,10 +1275,9 @@ class FileExportControl(ControlPanel):
         io.write('# ' + VERSION_STRING + ' \n')
 
         if self.target:
-            export_dict = {k: np.array(v) for k, v in self.parent.sources[self.target].source.data.items()}  #todo generalize export
-            dtype = [(name, arr.dtype) for name, arr in export_dict.items()]
-            export_data = np.empty_like(next(iter(export_dict.values())), dtype=dtype)
-            for name, arr in export_dict.items():
+            dtype = [(name, arr.dtype) for name, arr in self.export_dict.items()]
+            export_data = np.empty_like(next(iter(self.export_dict.values())), dtype=dtype)
+            for name, arr in self.export_dict.items():
                 export_data[name] = arr
 
             fmt, header = fmt_export(export_data)
@@ -1310,7 +1314,6 @@ class DifferenceFileExportControl(FileExportControl):
         self.export_linear_download.filename = self.target + '_linear.txt'
         if 'r_number' in self.export_dict.keys():
             self.pml_script_download.filename = self.target + '_pymol.pml'
-
 
 
 class ProteinViewControl(ControlPanel):
