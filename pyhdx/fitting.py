@@ -597,71 +597,6 @@ class KineticsFitting(object):
 
         return b_lower, b_upper
 
-    def _prepare_blocks_fit(self, initial_result, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
-        raise DeprecationWarning('Blocks fit was deprecated in favour of global_fit')
-        split = self.k_series.split()
-
-        models = []
-        intervals = []
-        d_list = []
-        for section in split.values():
-            s, e = section.cov.start, section.cov.end  #inclusive, exclusive
-            intervals.append((s, e))  #inclusive, exclusive
-
-            blocks = block_func(section.cov, **block_kwargs)
-            model = LSQKinetics(initial_result, section, blocks, self.bounds, model_type=model_type)
-
-            data_dict = {d_var.name: scores for d_var, scores in zip(model.d_vars, section.scores_peptides.T)}
-            data_dict[model.t_var.name] = section.timepoints
-            d_list.append(data_dict)
-
-            models.append(model)
-
-        return d_list, intervals, models
-
-    async def blocks_fit_async(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
-        """ initial_result: KineticsFitResult object from global_fitting"""
-        raise DeprecationWarning('Blocks fit was deprecated in favour of global_fit')
-        assert self.k_series.uniform
-        d_list, intervals, models = self._prepare_blocks_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
-        sf_models = list([m.sf_model for m in models])
-
-        # for some reason if using the function fit_global from outer scope this doesnt work
-        def func(model, data):
-            fit = Fit(model, **data)
-            res = fit.execute()
-            return res
-
-        client = await Client(self.cluster)
-        futures = client.map(func, sf_models, d_list)
-        if pbar:
-            pbar.num_tasks = len(d_list)
-            await pbar.run(futures)
-
-        results = client.gather(futures)
-        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
-
-        return fit_result
-
-    def blocks_fit(self, initial_result, pbar=None, model_type='association', block_func=get_reduced_blocks, **block_kwargs):
-        """ initial_result: KineticsFitResult object from global_fitting"""
-        raise DeprecationWarning('Blocks fit was deprecated in favour of global_fit')
-
-        assert self.k_series.uniform
-
-        d_list, intervals, models = self._prepare_blocks_fit(initial_result, model_type=model_type, block_func=block_func, **block_kwargs)
-
-        results = []
-        for data, model in zip(d_list, models):
-            result = fit_global(data, model)
-            if pbar:
-                pbar.increment()
-            results.append(result)
-
-        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
-
-        return fit_result
-
     def _prepare_wt_avg_fit(self, model_type='association'):
         models = []
         intervals = []  # Intervals; (start, end); (inclusive, exclusive)
@@ -798,57 +733,6 @@ class KineticsFitting(object):
             p_guess.iloc[start + 1:stop + 1] = replacement[1:-1]
 
         return p_guess
-
-    def global_fit_tf(self, initial_result, learning_rate=0.01, l1=2e3, l2=0., epochs=10000, callbacks=None):
-        """TF global fitting"""
-
-        #todo sessions?
-        #https: // stackoverflow.com / questions / 51747660 / running - different - models - in -one - script - in -tensorflow - 1 - 9
-        #todo property on series
-        if 'k_int' not in self.k_series.cov.protein:
-            self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
-
-        p_guess = self._initial_guess(initial_result, self.k_series.cov.protein)
-        guess_vals = self.k_series.cov.apply_interval(np.log10(p_guess).to_numpy())
-
-        if np.any(np.isnan(guess_vals)):
-            raise ValueError('NaN values in initial guess values')
-
-        import pyhdx.fitting_tf as tf
-
-        regularizer = tf.L1L2Differential(l1, l2)
-        parameter = tf.TFParameter('log_P', (len(guess_vals), 1), regularizer=regularizer)
-        func = tf.AssociationPFactFunc(self.k_series.timepoints)  #todo make time also input of NN
-
-        # expand dimensions of k_int to allow outer product with time and match the shape of parameter
-        inputs_list = [self.k_series.cov.X, np.expand_dims(self.k_series.cov['k_int'], -1)]
-        input_layers = [tf.Input(array.shape) for array in inputs_list]
-        layer = tf.CurveFit([parameter], func, name='association')
-        outputs = layer(input_layers)
-
-        wts = np.expand_dims(guess_vals.astype(np.float32), -1)
-        layer.set_weights([wts])
-
-        model = tf.Model(inputs=input_layers, outputs=outputs)
-
-        input_data = [np.expand_dims(array, 0) for array in inputs_list]  # np.expand_dims(section.cov.X, 0)
-        output_data = np.expand_dims(self.k_series.uptake_corrected.T, 0)
-
-        early_stop = tf.EarlyStopping(monitor='loss', min_delta=0.1, patience=50)
-        callbacks = [early_stop] if callbacks is None else callbacks
-        if not np.any([isinstance(cb, tf.EarlyStopping) for cb in callbacks]):
-            callbacks.append(early_stop)
-
-        cb = tf.LossHistory()
-        model.compile(loss='mse', optimizer=tf.Adagrad(learning_rate=learning_rate))
-        result = model.fit(input_data, output_data, verbose=0, epochs=epochs, callbacks=callbacks + [cb])
-
-        wts = np.squeeze(cb.weights[-1][0])  # weights are the first weights from the last layer
-
-        intervals = [self.k_series.cov.interval]
-        tf_fitresult = tf.TFFitResult(self.k_series, intervals, [func], [wts], [input_data], loss=[result.history['loss']])
-
-        return tf_fitresult
 
     def global_fit_torch(self, initial_result, reg=2, learning_rate=10, momentum=0.5, nesterov=True,
                          epochs=100000, patience=50, stop_loss=0.05):

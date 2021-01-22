@@ -464,33 +464,6 @@ class ImageFigure(LinearLogFigure):
 
         return figure
 
-    # @property
-    # def panel(self):
-    #     N = 20
-    #     img = np.empty((N, N), dtype=np.uint32)
-    #     view = img.view(dtype=np.uint8).reshape((N, N, 4))
-    #     for i in range(N):
-    #         for j in range(N):
-    #             view[i, j, 0] = int(i / N * 255)
-    #             view[i, j, 1] = 158
-    #             view[i, j, 2] = int(j / N * 255)
-    #             view[i, j, 3] = 255
-    #
-    #     values = np.random.random(img.shape)
-    #     print(values.shape)
-    #     cds = ColumnDataSource({'img': [img], 'values': [values]})
-    #     p = figure(tooltips=[("x", "$x"), ("y", "$y"), ("value", "@values")])
-    #     p = self.figure
-    #     #p.x_range.range_padding = p.y_range.range_padding = 0
-    #
-    #     # must give a vector of images
-    #     p.image_rgba(image='img', source=cds, x=0, y=0, dw=10, dh=10)
-    #
-    #     self.bk_pane = pn.pane.Bokeh(p, sizing_mode='stretch_both', name=self.title)
-    #
-    #     return self.bk_pane
-
-
     def render_sources(self, src_dict, **render_kwargs):
         render_kwargs.pop('color', None)
         for name, data_source in src_dict.items():
@@ -502,12 +475,3 @@ class ImageFigure(LinearLogFigure):
                                   )
             self.figure.add_tools(hovertool)
     #
-
-
-    #     try:
-    #         self.update()
-    #         print('updating')
-    #
-    #     except AttributeError:
-    #         print('passing')
-    #         pass
