@@ -1,7 +1,9 @@
 from pyhdx.support import get_reduced_blocks, temporary_seed
 from pyhdx.models import Protein
+from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
 from scipy import constants
 from scipy.optimize import fsolve
+import torch
 import numpy as np
 from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
 from symfit.core.minimizers import DifferentialEvolution, Powell
@@ -734,34 +736,45 @@ class KineticsFitting(object):
 
         return p_guess
 
-    def global_fit_torch(self, initial_result, reg=2, learning_rate=10, momentum=0.5, nesterov=True,
-                         epochs=100000, patience=50, stop_loss=0.05):
+    def global_fit_torch(self, initial_result, regularizer=2, epochs=100000, patience=50, stop_loss=0.05,
+                         optimizer='SGD', **optimizer_kwargs):
         """Pytorch global fitting"""
 
         if 'k_int' not in self.k_series.cov.protein:
             self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
 
-        import pyhdx.fitting_torch as torch
-
         # Prepare input data in the correct shapes for fitting
-        temperature = torch.t.Tensor([self.temperature])
-        X = torch.t.Tensor(self.k_series.cov.X) # Np x Nr
-        k_int = torch.t.Tensor(self.k_series.cov['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
-        timepoints = torch.t.Tensor(self.k_series.timepoints).unsqueeze(0)  # 1 x Nt
+        temperature = torch.Tensor([self.temperature])
+        X = torch.Tensor(self.k_series.cov.X) # Np x Nr
+        k_int = torch.Tensor(self.k_series.cov['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
+        timepoints = torch.Tensor(self.k_series.timepoints).unsqueeze(0)  # 1 x Nt
         inputs = [temperature, X, k_int, timepoints]
 
         # Prepare output data in the correct shape for fitting
-        output_data = torch.t.tensor(self.k_series.uptake_corrected.T, dtype=torch.t.float32)
+        output_data = torch.tensor(self.k_series.uptake_corrected.T, dtype=torch.float32)
 
         # Get initial guess values for deltaG
         gibbs_values = self.k_series.cov.apply_interval(self._guess_deltaG(initial_result)).to_numpy()
         if np.any(np.isnan(gibbs_values)):
             raise ValueError('NaN values in initial guess values')
-        deltaG = torch.nn.Parameter(torch.t.Tensor(gibbs_values).unsqueeze(-1))
+        deltaG = torch.nn.Parameter(torch.Tensor(gibbs_values).unsqueeze(-1))
 
-        model = torch.DeltaGFit(deltaG)
-        criterion = torch.t.nn.MSELoss(reduction='sum')
-        optimizer = torch.SGD(model.parameters(), lr=learning_rate, momentum=momentum, nesterov=nesterov)
+        model = DeltaGFit(deltaG)
+        criterion = torch.nn.MSELoss(reduction='sum')
+
+        # Take default optimizer kwargs and update them with supplied kwargs
+        optimizer_defaults = {
+            'SGD': {
+                'lr': 10,
+                'momentum': 0.5,
+                'nesterov': True
+            }
+        }
+        kwargs = optimizer_defaults[optimizer]
+        kwargs.update(**optimizer_kwargs)
+
+        optimizer_klass = getattr(torch.optim, optimizer)
+        optimizer = optimizer_klass(model.parameters(), **kwargs)
 
         mse_loss = [np.inf]  # Mean squared loss only
         reg_loss = [np.inf]  # Loss including regularization loss
@@ -774,7 +787,7 @@ class KineticsFitting(object):
             mse_loss.append(loss)
 
             for pname, param in model.named_parameters():
-                loss = loss + reg * torch.t.mean(torch.t.abs(param[:-1] - param[1:]))
+                loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
             reg_loss.append(loss)
             diff = reg_loss[-2] - loss
             if diff < stop_loss:
@@ -787,8 +800,8 @@ class KineticsFitting(object):
             loss.backward()
             optimizer.step()
 
-        result = torch.TorchFitResult(self.k_series, model, temperature=temperature,
-                                      mse_loss=mse_loss, reg_loss=reg_loss)
+        result = TorchFitResult(self.k_series, model, temperature=temperature,
+                                mse_loss=mse_loss, reg_loss=reg_loss)
 
         return result
 
