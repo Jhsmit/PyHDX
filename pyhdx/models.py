@@ -546,6 +546,8 @@ class Coverage(object):
     ----------
     data : ~class:`~numpy.ndarray`
         Numpy structured array with input peptides
+    c_term : :obj:`int`
+        Residue index number of the C-terminal residue (where first residue in index number 1)
 
     Attributes
     ----------
