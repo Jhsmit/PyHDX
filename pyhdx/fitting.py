@@ -736,6 +736,7 @@ class KineticsFitting(object):
 
         return p_guess
 
+    #todo might make more sense to have initial result as deltaG vecotor as input
     def global_fit_torch(self, initial_result, regularizer=2, epochs=100000, patience=50, stop_loss=0.05,
                          optimizer='SGD', **optimizer_kwargs):
         """Pytorch global fitting"""
@@ -743,15 +744,18 @@ class KineticsFitting(object):
         if 'k_int' not in self.k_series.cov.protein:
             self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
 
+
+        dtype = torch.float64
+
         # Prepare input data in the correct shapes for fitting
-        temperature = torch.Tensor([self.temperature])
-        X = torch.Tensor(self.k_series.cov.X) # Np x Nr
-        k_int = torch.Tensor(self.k_series.cov['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
-        timepoints = torch.Tensor(self.k_series.timepoints).unsqueeze(0)  # 1 x Nt
+        temperature = torch.tensor([self.temperature], dtype=dtype)
+        X = torch.tensor(self.k_series.cov.X, dtype=dtype) # Np x Nr
+        k_int = torch.tensor(self.k_series.cov['k_int'].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
+        timepoints = torch.tensor(self.k_series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
         inputs = [temperature, X, k_int, timepoints]
 
         # Prepare output data in the correct shape for fitting
-        output_data = torch.tensor(self.k_series.uptake_corrected.T, dtype=torch.float32)
+        output_data = torch.tensor(self.k_series.uptake_corrected.T, dtype=dtype)
 
         # Get initial guess values for deltaG
         gibbs_values = self.k_series.cov.apply_interval(self._guess_deltaG(initial_result)).to_numpy()
@@ -768,37 +772,61 @@ class KineticsFitting(object):
                 'lr': 10,
                 'momentum': 0.5,
                 'nesterov': True
-            }
+            },
         }
-        kwargs = optimizer_defaults[optimizer]
+        kwargs = optimizer_defaults.get(optimizer, {})
         kwargs.update(**optimizer_kwargs)
 
         optimizer_klass = getattr(torch.optim, optimizer)
-        optimizer = optimizer_klass(model.parameters(), **kwargs)
+        optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
 
         mse_loss = [np.inf]  # Mean squared loss only
         reg_loss = [np.inf]  # Loss including regularization loss
         stop = 0
 
-        for epoch in range(epochs):
-            optimizer.zero_grad()
-            output = model(*inputs)
-            loss = criterion(output, output_data)
-            mse_loss.append(loss)
 
-            for pname, param in model.named_parameters():
-                loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
-            reg_loss.append(loss)
-            diff = reg_loss[-2] - loss
-            if diff < stop_loss:
-                stop += 1
-                if stop > patience:
-                    break
-            else:
-                stop = 0
+        #todo if/else probably not needed as other optimizers can also use closure function
+        if optimizer == 'LBFGS':
+            for epoch in range(epochs):
+                #move function outside of loop?
+                def closure():
+                    # if torch.is_grad_enabled():
+                    #     optimizer.zero_grad()
+                    output = model(*inputs)
+                    loss = criterion(output, output_data)
+                    for pname, param in model.named_parameters():
+                        loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
+                    loss.backward()
+                    return loss
 
-            loss.backward()
-            optimizer.step()
+                loss = optimizer_obj.step(closure)
+                reg_loss.append(loss)
+                diff = reg_loss[-2] - loss
+                if diff < stop_loss:
+                    stop += 1
+                    if stop > patience:
+                        break
+
+        else:
+            for epoch in range(epochs):
+                optimizer_obj.zero_grad()
+                output = model(*inputs)
+                loss = criterion(output, output_data)
+                mse_loss.append(loss)
+
+                for pname, param in model.named_parameters():
+                    loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
+                reg_loss.append(loss)
+                diff = reg_loss[-2] - loss
+                if diff < stop_loss:
+                    stop += 1
+                    if stop > patience:
+                        break
+                else:
+                    stop = 0
+
+                loss.backward()
+                optimizer_obj.step()
 
         result = TorchFitResult(self.k_series, model, temperature=temperature,
                                 mse_loss=mse_loss, reg_loss=reg_loss)
