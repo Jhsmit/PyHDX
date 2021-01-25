@@ -1356,6 +1356,8 @@ class FileExportControl(ControlPanel):
         self.c_term = int(self.parent.series.cov.protein.c_term)
 
     def _make_pml(self, target):
+        assert 'r_number' in self.export_dict.keys(), "Target export data must have 'r_number' column"
+
         try:
             #todo add no coverage field and link to the other no coverage field
             no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
@@ -1364,8 +1366,13 @@ class FileExportControl(ControlPanel):
             self.parent.logger.warning('No coverage color found, using default grey')
 
         try:
+            c_term = self.parent.series.c_term
+        except AttributeError:
+            c_term = None
+
+        try:
             script = colors_to_pymol(self.export_dict['r_number'], self.export_dict['color'],
-                                     c_term=self.parent.series.c_term, no_coverage=no_coverage)
+                                     c_term=c_term, no_coverage=no_coverage)
             return script
         except KeyError:
             return None
