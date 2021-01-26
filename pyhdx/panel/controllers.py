@@ -781,7 +781,7 @@ class InitialGuessControl(ControlPanel):
         output = fit_result.output.to_records('r_number')  # todo remove in between numpy step
         #todo duplicate code in fit - > method on parent?
         dic = {name: output[name] for name in output.dtype.names}
-        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
+        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding # todo this is obsolete way of doing this
         dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
 
         data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
