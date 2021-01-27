@@ -1,0 +1,11 @@
+filenames:
+  - ecSecB_apo.csv
+control: [Full deuteration control, 0.167]
+series_name: 'SecB WT apo'
+pH: 8.
+d_percentage: 90.
+temperature: 30.
+temperature_unit: Celsius
+sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+c_term: 155
+author: Foo Bar

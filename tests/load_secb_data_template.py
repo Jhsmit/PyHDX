@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 import numpy as np
 from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx
 from pyhdx.fileIO import txt_to_np, fmt_export
@@ -16,14 +16,5 @@ pmt.set_control(('Full deuteration control', 0.167))
 states = pmt.groupby_state()
 
 series = states['SecB WT apo']
-
-print(series.cov.X)
-print(series.cov.Z)
-
-fmt, hdr = fmt_export(series.cov.data)
-np.savetxt('tempfile_secB.txt', series.cov.data, fmt=fmt, header=hdr)
-
-Z = series.cov.Z
-print(np.sum(Z, axis=1))
 
 
