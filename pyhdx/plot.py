@@ -8,6 +8,23 @@ from bokeh.layouts import row, column
 
 
 def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs):
+    """
+    FUNCTION IS MOST LIKELY OUT OF DATE
+
+    Parameters
+    ----------
+    pm
+    scores
+    ax
+    cmap
+    bad
+    cbar
+    kwargs
+
+    Returns
+    -------
+
+    """
     img = (pm.X > 0).astype(float)
     if scores is not None:
         img *= scores[:, np.newaxis]
@@ -32,6 +49,7 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, *
 
 def make_kinetics_figure(pm_dict, cmap='cool'):
     """
+    FUNCTION IS MOST LIKELY OUT OF DATE
 
     :param pm_dict: dictionary of PeptideMeasuements
     :param times: array_like of
@@ -82,6 +100,8 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
 
 def plot_peptides(pm, wrap, ax, color=True, labels=False, cmap='jet', **kwargs):
     """
+
+    TODO: needs to be checked if intervals (start, end) are still accurately taking inclusive, exclusive into account
     Plots peptides as rectangles in the provided axes
 
     Parameters
@@ -126,7 +146,8 @@ def plot_peptides(pm, wrap, ax, color=True, labels=False, cmap='jet', **kwargs):
         i -= 1
 
     ax.set_ylim(-wrap, 0)
-    ax.set_xlim(0, pm.end + 5)
+    end = pm.interval[1]
+    ax.set_xlim(0, end)
     ax.set_yticks([])
 
 
