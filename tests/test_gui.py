@@ -194,7 +194,7 @@ class TestDiffApp(object):
         comparison_name = 'Diff_ds1_ds2'
         diff.comparison_name = comparison_name
         quantity_objects = diff.param['comparison_quantity'].objects
-        assert quantity_objects == sorted(['_deltaG', 'deltaG', 'pfact'])
+        assert quantity_objects == sorted(['_deltaG', 'covariance', 'deltaG', 'pfact'])
 
         diff.comparison_quantity = 'deltaG'
         diff._action_add_comparison()
