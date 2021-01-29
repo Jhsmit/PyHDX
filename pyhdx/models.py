@@ -410,6 +410,10 @@ class PeptideMasterTable(object):
         else:
             control_0 = self.get_data(*control_0)
 
+        #todo this should probably go to the log (but atm there isnt any for running without GUI)
+        assert control_100.size > 0, f"No peptides found with state '{control_100[0]}' and exposure '{control_100[1]}'"
+        assert control_0.size > 0, f"No peptides found with state '{control_0[0]}' and exposure '{control_0[1]}'"
+
         b_100 = self.isin_by_idx(self.data, control_100)
         b_0 = self.isin_by_idx(self.data, control_0)
         data_selected = self.data[np.logical_and(b_100, b_0)]
