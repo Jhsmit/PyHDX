@@ -142,6 +142,7 @@ class Protein(object):
         None
 
         """
+        #todo update to pathlib Path
         io = self.to_stringio(include_version=include_version, include_metadata=include_metadata)
         with open(file_path, 'w') as f:
             print(io.getvalue(), file=f)
