@@ -587,6 +587,19 @@ class KineticsFitting(object):
         self.c_term = c_term
         self.cluster = cluster
 
+    def set_k_int(self):
+        """
+        Sets intrinsic rates of exchange on the KineticsSeries protein object
+
+        Returns
+        -------
+
+        Nothing
+
+        """
+
+        self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
+
     def _get_bounds(self):
         #todo document
         #todo this is now causing confusion when getting protection factors as output
@@ -742,7 +755,7 @@ class KineticsFitting(object):
         """Pytorch global fitting"""
 
         if 'k_int' not in self.k_series.cov.protein:
-            self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
+            self.set_k_int()
 
 
         dtype = torch.float64
