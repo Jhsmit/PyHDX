@@ -8,8 +8,15 @@ Installation
 Stable release
 --------------
 
-(Currently PyHDX is not yet distributed on PyPi/conda. This section will updated soon)
+Installation with `conda`:
 
+.. code-block::
+    $ conda install -c conda-forge pyhdx
+
+Installation with `pip`:
+
+.. code-block::
+    $ pip install pyhdx
 
 
 
