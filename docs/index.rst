@@ -7,10 +7,10 @@ Welcome to PyHDX's documentation!
 
    readme
    installation
-   fitting
+   using_the_gui
    examples
    modules
-   GUI_autodoc
+   web_app_autodoc
    contributing
    authors
    history
