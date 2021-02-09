@@ -1,19 +1,19 @@
-.. _web_application_autodoc:
+.. _web-application-autodoc:
 
-Web Application
-===============
+Web Application Reference
+=========================
 
 This page contains auto-generated docs for PyHDX' web application.
 
 There are five applications available:
 
- - **Main Application** (main)
+- **Main Application** (main)
     Fitting of HDX-MS datasets (PFs and ΔG), classification, visualization and exporting data.
 
- - **Single Classification** (single)
+- **Single Classification** (single)
     Reload exported data from the main application for classification, visualization and exporting data.
 
- - **Binary Comparison** (diff)
+- **Binary Comparison** (diff)
     Reload multiple exported datasets from the main application and calculate differences between pairs of datasets.
     The resulting differences can again be classified, visualized and exported.
 

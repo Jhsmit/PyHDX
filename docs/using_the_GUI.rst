@@ -3,14 +3,14 @@ Using the web application
 
 
 This section will describe a typical workflow of using the main web interface application. Detailed information on each
-parameter can be found in the web application reference docs :ref:`_web_application_autodoc`. The web application consists of
+parameter can be found in the web application reference docs :ref:`web-application-autodoc`. The web application consists of
 a sidebar with controls and input, divided into sections, and a main view area with graphs and visualization. We will
 go through the functionality of the web interface per section.
 
 Peptide Input
 `````````````
 
-Use `Browse` button to select peptide data files to upload. These should be 'peptide master tables' which is **long format** data
+Use the `Browse` button to select peptide data files to upload. These should be 'peptide master tables' which is **long format** data
 where each entry should at least have the entries of:
 
  - start (inclusive residue number at which the detected peptide starts, first residue = 1)
@@ -23,7 +23,7 @@ where each entry should at least have the entries of:
 Currently the only data format accepted is exported 'state data' from Waters DynamX, which is .csv format. DynamX exposure
 time units is assumed to be minutes. Other data format support can be added on request (eg HDExaminer).
 
-Multiple files can be uploaded by usiung the 'Add File' button after which these files will be combined. Make sure there
+Multiple files can be uploaded by using the 'Add File' button after which these files will be combined. Make sure there
 are no overlaps/clashes between 'state' entries when combining multiple files.
 
 In the 'Drop first' entry the number of N-terminal residues for each peptides can be chosen which should be ignored when
@@ -92,7 +92,7 @@ of the labelling reaction and the pH of the labelling reaction (uncorrected pH r
 
 The value of the regalizer control the degree of 'smoothing' which prevents overfitting. Typical values are 0.5 to 2, depending
 on the input data, where lower values give more detail but should only be selected if the degree of peptide coverage and
-overlap is high. For the other fitting hyperparameters, see the reference docs :ref:`_web_application_autodoc`.
+overlap is high. For the other fitting hyperparameters, see the reference docs :ref:`web-application-autodoc`.
 
 The output of the fit is ΔG, protection factor (PF), covariance (for ΔG) for each residue. All values can be exported in .txt
 format and the ΔG and PF values are plotted in their respective graph windows.
@@ -142,8 +142,6 @@ using the built in `NGL`_ protein viewer. A datasets should be selected which as
 **Classification**. Two structure input options are available, either a direct transfer from the RCSB PDB (choose Rcsb id
 in the field below) or uploading a .pdb file.
 
-
-:ref:`_web_application_autodoc`
 
 .. _NGL: https://nglviewer.org
 .. _bioRxiv: https://doi.org/10.1101/2020.09.30.320887
