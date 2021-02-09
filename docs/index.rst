@@ -7,7 +7,7 @@ Welcome to PyHDX's documentation!
 
    readme
    installation
-   using_the_gui
+   using_the_GUI
    examples
    modules
    web_app_autodoc
