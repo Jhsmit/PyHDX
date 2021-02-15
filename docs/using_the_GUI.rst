@@ -56,14 +56,11 @@ By hovering the mouse over the peptides in the graph, more information is shown 
 
 - Pos: current x (residue) position of the mouse
 - Index: Index of the peptide per timepoint starting at the first peptide at 0
-- Start: Inclusive index of the starting point of the peptide taking prolines and N-terminal residues into account. Original
-number from the input data is in brackets.
+- Start: Inclusive index of the starting point of the peptide taking prolines and N-terminal residues into account. Original number from the input data is in brackets.
 - End: Exclusive index of the end of the peptide, original number from the input data in brackets.
 - Sequence: Sequence of the peptide with back-exchanging N-terminal residues marked as 'x' and prolines in lower case.
-- Score: Percentage of deuterium uptake with respect to the maximum uptake as calculated from FD control, N-terminal
-residues and prolines.
-- Uptake: Absolute amount of deuterium uptake as measured (Corrected uptake / number of exhangeing residues, max uptake
-as specified in the input data file).
+- Score: Percentage of deuterium uptake with respect to the maximum uptake as calculated from FD control, N-terminal residues and prolines.
+- Uptake: Absolute amount of deuterium uptake as measured (Corrected uptake / number of exhangeing residues, max uptake as specified in the input data file).
 
 Initial Guesses
 ```````````````
