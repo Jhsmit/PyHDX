@@ -110,6 +110,7 @@ def load_folding_from_yaml(yaml_dict, data_dir=None):  #name: load what from yam
 
 
 def do_fitting_from_yaml(yaml_dict, kf_obj):
+    yaml_dict = copy.deepcopy(yaml_dict)  # Make local copy to not affect the supplied dict by pop
     guess = yaml_dict['initial_guess']
     if 'file_path' in guess.keys():
         initial_guess = txt_to_protein(guess['file_path'])
