@@ -4,6 +4,7 @@ from pyhdx.models import PeptideMasterTable
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx, txt_to_protein
 import asyncio
+import copy
 
 
 def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
