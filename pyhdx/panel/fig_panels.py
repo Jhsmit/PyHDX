@@ -1,7 +1,6 @@
 from .base import BokehFigurePanel, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
 from .widgets import NGLViewer, LoggingMarkdown
 from .log import setup_md_log
-from pyhdx.plot import _bokeh_coverage
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
 from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span, Rect, Range1d, Whisker
