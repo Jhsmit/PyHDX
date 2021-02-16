@@ -147,6 +147,21 @@ class TestMainGUISimulated(object):
         initial_guess._action_fit()
         assert 'fit1' in ctrl.sources.keys()
 
+    def test_classification(self):
+        tmpl, ctrl = _main_app()
+        ctrl.cluster = None
+        ctrl.series = self.series
+
+        initial_guess = ctrl.control_panels['InitialGuessControl']
+        initial_guess._action_fit()
+        assert 'half-life' in ctrl.sources.keys()
+
+        classification = ctrl.control_panels['ClassificationControl']
+        classification.target = 'half-life'
+        classification.quantity = 'rate'
+        classification._action_otsu()
+
+
     def test_global_fit(self):
         tmpl, ctrl = _main_app()
         ctrl.cluster = None
