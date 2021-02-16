@@ -1134,9 +1134,11 @@ class ClassificationControl(ControlPanel):
             cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
 
             try:
-                colors_rgba = cmap(norm(func(y_vals)))
-                colors = np.array([rgb_to_hex(int(r*255), int(g*255), int(b*255)) for r, g, b, a in colors_rgba])
+                colors_rgba = cmap(norm(func(y_vals)), bytes=True, alpha=0)
+                colors = rgb_to_hex(colors_rgba)
+
                 colors[np.isnan(y_vals)] = np.nan
+
             except ValueError as err:
                 self.parent.logger.warning(err)
                 return
