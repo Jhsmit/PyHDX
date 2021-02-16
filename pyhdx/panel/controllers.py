@@ -1156,7 +1156,8 @@ class ClassificationControl(ControlPanel):
         y_vals = self.parent.sources[self.target][self.quantity]  # full array including nan entries
         colors = self._calc_colors(y_vals)
 
-        self.parent.sources[self.target].source.data['color'] = colors  # this triggers an update of the graph
+        if colors is not None:
+            self.parent.sources[self.target].source.data['color'] = colors  # this triggers an update of the graph
 
     @param.depends('num_colors', watch=True)
     def _update_num_colors(self):
