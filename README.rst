@@ -2,7 +2,7 @@
 PyHDX
 =====
 
-|biorxiv| |test_action| |zenodo| |license| |docs|
+|biorxiv| |test_action| |zenodo| |license| |docs| |coverage|
 
 .. |zenodo| image:: https://zenodo.org/badge/206772076.svg
    :target: https://zenodo.org/badge/latestdoi/206772076
@@ -15,8 +15,13 @@ PyHDX
 
 .. |test_action| image:: https://github.com/Jhsmit/PyHDX/workflows/pytest/badge.svg
     :target: https://github.com/Jhsmit/PyHDX/actions?query=workflow%3Apytest
+    
 .. |docs| image:: https://readthedocs.org/projects/pyhdx/badge/?version=latest
     :target: https://pyhdx.readthedocs.io/en/latest/?badge=latest
+
+.. |coverage| image:: https://codecov.io/gh/Jhsmit/PyHDX/branch/master/graph/badge.svg?token=PUQAEMAUHH
+      :target: https://codecov.io/gh/Jhsmit/PyHDX
+    
 
 `Documentation <https://pyhdx.readthedocs.io>`_
 
