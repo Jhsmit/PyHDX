@@ -96,7 +96,7 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
     return fig, (ax1, ax2, cbar_ax)
 
 
-def plot_peptides(pm, ax, wrap=None, color=True, labels=False, intervals='corrected', cmap='jet', **kwargs):
+def plot_peptides(pm, ax, wrap=None, color=True, labels=False, cbar=False, intervals='corrected', cmap='jet', **kwargs):
     """
 
     TODO: needs to be checked if intervals (start, end) are still accurately taking inclusive, exclusive into account
@@ -122,6 +122,7 @@ def plot_peptides(pm, ax, wrap=None, color=True, labels=False, intervals='correc
     rect_kwargs.update(kwargs)
 
     cmap = mpl.cm.get_cmap(cmap)
+    norm = mpl.colors.Normalize(vmin=0, vmax=100)
     i = -1
 
     for p_num, e in enumerate(pm.data):
@@ -129,7 +130,7 @@ def plot_peptides(pm, ax, wrap=None, color=True, labels=False, intervals='correc
             i = -1
 
         if color:
-            c = cmap(e['scores'] / 100)
+            c = cmap(norm(e['scores']))
         else:
             c = '#707070'
 
@@ -150,6 +151,10 @@ def plot_peptides(pm, ax, wrap=None, color=True, labels=False, intervals='correc
             ax.annotate(str(p_num), (cx, cy), color='k', fontsize=6, va='bottom', ha='right')
 
         i -= 1
+
+    if cbar:
+        scalar_mappable = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
+        plt.colorbar(scalar_mappable, label='Percentage D')
 
     ax.set_ylim(-wrap, 0)
     end = pm.interval[1]
