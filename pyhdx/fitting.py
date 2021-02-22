@@ -701,6 +701,7 @@ class KineticsFitting(object):
         return fit_result
 
     def _guess_deltaG(self, guess_rates):
+        #todo make public
         protein = self.k_series.cov.protein
         p_guess = (protein['k_int'] / guess_rates['rate']) - 1
         p_guess.clip(0., None, inplace=True)  # Some initial guesses will have negative PF values
@@ -722,6 +723,7 @@ class KineticsFitting(object):
 
     def _initial_guess(self, initial_guess, protein):
         #todo refactor prepare_initial_guess?
+        #todo deprecate
         """
 
         Parameters
