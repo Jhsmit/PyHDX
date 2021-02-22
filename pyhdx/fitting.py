@@ -759,7 +759,6 @@ class KineticsFitting(object):
         if 'k_int' not in self.k_series.cov.protein:
             self.set_k_int()
 
-
         dtype = torch.float64
 
         # Prepare input data in the correct shapes for fitting

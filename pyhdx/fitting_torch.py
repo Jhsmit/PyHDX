@@ -37,7 +37,6 @@ class TorchFitResult(object):
         # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
         bools = self.series.cov['exchanges'].to_numpy()
         r_number = self.series.cov.r_number[bools]  # Residue number which exchange
-
         dtype = t.float64
         temperature = t.tensor([self.temperature], dtype=dtype)
         X = t.tensor(self.series.cov.X[:, bools], dtype=dtype)  # Np x Nr, non-exchanging residues removed
