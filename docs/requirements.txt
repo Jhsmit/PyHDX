@@ -15,3 +15,4 @@ torch
 numpydoc
 nbsphinx
 sphinx>=3.2.1
+ipython
