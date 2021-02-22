@@ -579,8 +579,8 @@ def fit_global(data, model):
 
 class KineticsFitting(object):
 
-    def __init__(self, k_series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
-        self.k_series = k_series
+    def __init__(self, series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
+        self.series = series
         self.bounds = bounds or self._get_bounds()
         self.temperature = temperature
         self.pH = pH
@@ -598,12 +598,12 @@ class KineticsFitting(object):
 
         """
 
-        self.k_series.cov.protein.set_k_int(self.temperature, self.pH)
+        self.series.cov.protein.set_k_int(self.temperature, self.pH)
 
     def _get_bounds(self):
         #todo document
         #todo this is now causing confusion when getting protection factors as output
-        times = self.k_series.timepoints
+        times = self.series.timepoints
         nonzero_times = times[np.nonzero(times)]
         t_first = np.min(nonzero_times)
         t_last = np.max(nonzero_times)
@@ -616,7 +616,7 @@ class KineticsFitting(object):
         models = []
         intervals = []  # Intervals; (start, end); (inclusive, exclusive)
         d_list = []
-        series = self.k_series
+        series = self.series
 
         arr = series.scores_stack.T
         i = 0
@@ -658,7 +658,7 @@ class KineticsFitting(object):
         """
 
         d_list, intervals, models = self._prepare_wt_avg_fit(model_type=model_type)
-        fit_func = partial(fit_kinetics, self.k_series.timepoints)
+        fit_func = partial(fit_kinetics, self.series.timepoints)
         client = await Client(self.cluster)
         futures = client.map(fit_func, d_list, models, chisq_thd=chisq_thd)
         if pbar:
@@ -667,7 +667,7 @@ class KineticsFitting(object):
 
         results = client.gather(futures)
 
-        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
+        fit_result = KineticsFitResult(self.series, intervals, results, models)
         return fit_result
 
     def weighted_avg_fit(self, chisq_thd=20, model_type='association', pbar=None, callbacks=None):
@@ -693,16 +693,16 @@ class KineticsFitting(object):
 
         results = []
         for d, model in zip(d_list, models):
-            result = fit_kinetics(self.k_series.timepoints, d, model, chisq_thd=chisq_thd)
+            result = fit_kinetics(self.series.timepoints, d, model, chisq_thd=chisq_thd)
             inc()
             results.append(result)
 
-        fit_result = KineticsFitResult(self.k_series, intervals, results, models)
+        fit_result = KineticsFitResult(self.series, intervals, results, models)
         return fit_result
 
     def _guess_deltaG(self, guess_rates):
         #todo make public
-        protein = self.k_series.cov.protein
+        protein = self.series.cov.protein
         p_guess = (protein['k_int'] / guess_rates['rate']) - 1
         p_guess.clip(0., None, inplace=True)  # Some initial guesses will have negative PF values
         deltaG = np.log(p_guess) * constants.R * self.temperature
@@ -756,23 +756,23 @@ class KineticsFitting(object):
                          optimizer='SGD', **optimizer_kwargs):
         """Pytorch global fitting"""
 
-        if 'k_int' not in self.k_series.cov.protein:
+        if 'k_int' not in self.series.cov.protein:
             self.set_k_int()
 
         dtype = torch.float64
 
         # Prepare input data in the correct shapes for fitting
         temperature = torch.tensor([self.temperature], dtype=dtype)
-        X = torch.tensor(self.k_series.cov.X, dtype=dtype) # Np x Nr
-        k_int = torch.tensor(self.k_series.cov['k_int'].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
-        timepoints = torch.tensor(self.k_series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
+        X = torch.tensor(self.series.cov.X, dtype=dtype) # Np x Nr
+        k_int = torch.tensor(self.series.cov['k_int'].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
+        timepoints = torch.tensor(self.series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
         inputs = [temperature, X, k_int, timepoints]
 
         # Prepare output data in the correct shape for fitting
-        output_data = torch.tensor(self.k_series.uptake_corrected.T, dtype=dtype)
+        output_data = torch.tensor(self.series.uptake_corrected.T, dtype=dtype)
 
         # Get initial guess values for deltaG
-        gibbs_values = self.k_series.cov.apply_interval(self._guess_deltaG(initial_result)).to_numpy()
+        gibbs_values = self.series.cov.apply_interval(self._guess_deltaG(initial_result)).to_numpy()
         if np.any(np.isnan(gibbs_values)):
             raise ValueError('NaN values in initial guess values')
         deltaG = torch.nn.Parameter(torch.Tensor(gibbs_values).unsqueeze(-1))
@@ -842,7 +842,7 @@ class KineticsFitting(object):
                 loss.backward()
                 optimizer_obj.step()
 
-        result = TorchFitResult(self.k_series, model, temperature=temperature,
+        result = TorchFitResult(self.series, model, temperature=temperature,
                                 mse_loss=mse_loss, reg_loss=reg_loss)
 
         return result
@@ -860,20 +860,20 @@ class KineticsFitting(object):
 
         """
         #todo this is uing the soon to be depcrecated coverage object
-        interpolated = np.array([np.interp(50, d_uptake, self.k_series.timepoints) for d_uptake in self.k_series.scores_stack.T])
+        interpolated = np.array([np.interp(50, d_uptake, self.series.timepoints) for d_uptake in self.series.scores_stack.T])
 
         output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
-        output['r_number'] = self.k_series.cov.r_number
+        output['r_number'] = self.series.cov.r_number
         output['rate'] = np.log(2) / interpolated
 
         return Protein(output, index='r_number')
 
     def weighted_avg_linearize(self):
         rates = []
-        output = np.empty_like(self.k_series.cov.r_number, dtype=[('r_number', int), ('rate', float)])
-        output['r_number'] = self.k_series.cov.r_number
+        output = np.empty_like(self.series.cov.r_number, dtype=[('r_number', int), ('rate', float)])
+        output['r_number'] = self.series.cov.r_number
 
-        for i, dpts in enumerate(self.k_series.scores_stack.T):
+        for i, dpts in enumerate(self.series.scores_stack.T):
             if np.any(np.isnan(dpts)):
                 output['rate'][i] = np.nan
                 rates.append(np.nan)
@@ -881,9 +881,9 @@ class KineticsFitting(object):
                 y_lin = np.log(1 - (dpts / 100))
                 b = ~np.isnan(y_lin)
                 try:
-                    rate, offset = np.polyfit(self.k_series.timepoints[b], -y_lin[b], 1)
+                    rate, offset = np.polyfit(self.series.timepoints[b], -y_lin[b], 1)
                 except np.linalg.LinAlgError:
-                    t50 = np.interp(50, dpts, self.k_series.timepoints)
+                    t50 = np.interp(50, dpts, self.series.timepoints)
                     rate = np.log(2) / t50
                 output['rate'][i] = rate
 
@@ -1042,7 +1042,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         Parameters
         ----------
         initial_result array with r_number and rate
-        k_series kineticsseries object for the section
+        series kineticsseries object for the section
         """
         super(LSQKinetics, self).__init__(bounds)
         t_var = self.make_variable('t')
