@@ -1183,5 +1183,129 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         return 0.5 - r * np.exp(-k1*t) - (1 - r) * np.exp(-k2*t)
 
 
+class BatchFitting(object):
+    """Fit multiple datasets simultanuously in batch"""
+
+    def __init__(self, states, guesses=None):
+        self.states = states
+        self.guesses = guesses
+
+    def setup_fit(self):
+        intervals = np.array([kf.series.cov.interval for kf in self.states])
+        interval = (intervals[0].min(), intervals[1].max())
+        r_number = np.arange(*interval)
+
+        Ns = len(self.states)
+        Nr = len(r_number)
+        Np = np.max([kf.series.cov.X.shape[0] for kf in self.states])
+        Nt = np.max([len(kf.series.timepoints) for kf in self.states])
+
+        # Create numpy arrays with correct shapes as input data
+        X = np.zeros((Ns, Np, Nr))
+        D = np.zeros((Ns, Np, Nt))
+        k_int = np.zeros((Ns, len(r_number)))
+        gibbs = 15e4 * np.ones((Ns, len(r_number)))  #todo default value for gibbs
+        timepoints = np.zeros((Ns, Nt))
+
+        # Set values for numpy input data
+        for i, kf in enumerate(self.states):
+            if 'k_int' not in kf.series.cov.protein:
+                kf.set_k_int()
+
+            interval_sample = kf.series.cov.interval
+            # Indices of residues
+            i0 = interval_sample[0] - interval[0]
+            i1 = interval_sample[1] - interval[0]
+
+            Npi = kf.series.cov.X.shape[0]  # number of peptides in this particular state
+            Nti = len(kf.series.timepoints) # number of timepoints in this particular state
+
+            temperature = np.array([kf.temperature for kf in self.states])
+
+            k_int_values = kf.series.cov['k_int'].to_numpy()
+            k_int[i, i0:i1] = k_int_values
+
+            np.zeros((Ns, len(r_number)))
+
+            gibbs_values = kf.series.cov.apply_interval(kf._guess_deltaG(self.guesses[i])).to_numpy()
+            gibbs[i, i0:i1] = gibbs_values
+
+            X[i, 0: Npi, i0:i1] = kf.series.cov.X
+            timepoints[i, -Nti:] = kf.series.timepoints
+            D[i, 0: Npi, -Nti:] = kf.series.uptake_corrected.T
+
+
+        # Create pytorch tensors from input data, assign final shapes for matrix batch multiplication by tf.matmul
+        dtype = torch.float64
+        temperature_T = torch.tensor(temperature, dtype=dtype).unsqueeze(-1).unsqueeze(-1)  # Ns x 1 x 1
+        k_int_T = torch.tensor(k_int, dtype=dtype).unsqueeze(-1)
+        deltaG_T = torch.tensor(gibbs, dtype=dtype).unsqueeze(-1)
+        timepoints_T = torch.tensor(timepoints, dtype=dtype).unsqueeze(1)
+        X_T = torch.tensor(X, dtype=dtype)
+        D_T = torch.tensor(D, dtype=dtype)
+
+        deltaG_par = torch.nn.Parameter(deltaG_T)
+        inputs = [temperature_T, X_T, k_int_T, timepoints_T]
+        output_data = D_T
+
+        return deltaG_par, inputs, output_data
+
+    def global_fit(self, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
+                   optimizer='SGD', **optimizer_kwargs):
+
+        deltaG_par, inputs, output_data = self.setup_fit()
+
+        model = DeltaGFit(deltaG_par)
+
+        #todo base class global fit function
+        optimizer_defaults = {
+            'SGD': {
+                'lr': 10,
+                'momentum': 0.5,
+                'nesterov': True
+            },
+        }
+        kwargs = optimizer_defaults.get(optimizer, {})
+        kwargs.update(**optimizer_kwargs)
+
+        optimizer_klass = getattr(torch.optim, optimizer)
+        optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
+
+        criterion = torch.nn.MSELoss(reduction='sum')
+
+        mse_loss = [np.inf]  # Mean squared loss only
+        reg_loss = [np.inf]  # Loss including regularization loss
+        stop = 0
+
+        for epoch in range(epochs):
+            optimizer_obj.zero_grad()
+            output = model(*inputs)
+
+            loss = criterion(output, output_data)
+            mse_loss.append(loss)
+
+            for pname, param in model.named_parameters():
+                d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
+                d_ax2 = torch.abs(param - torch.mean(param, axis=0))
+                loss = loss + r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
+
+            diff = reg_loss[-2] - loss
+            if diff < stop_loss:
+                stop += 1
+                if stop > patience:
+                    break
+            else:
+                stop = 0
+
+            loss.backward()
+            optimizer_obj.step()
+
+        # todo return proper fitresult object
+        return model
+
+    def do_guesses(self):
+        raise NotImplementedError("This function should do guesses in batch on all kfs")
+
+
 
 
