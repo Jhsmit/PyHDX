@@ -1301,6 +1301,7 @@ class BatchFitting(object):
             optimizer_obj.step()
 
         # todo return proper fitresult object
+        # use multi index df: https://stackoverflow.com/questions/24290495/constructing-3d-pandas-dataframe
         return model
 
     def do_guesses(self):
