@@ -798,7 +798,6 @@ class KineticsFitting(object):
         reg_loss = [np.inf]  # Loss including regularization loss
         stop = 0
 
-
         #todo if/else probably not needed as other optimizers can also use closure function
         if optimizer == 'LBFGS':
             for epoch in range(epochs):
@@ -1207,7 +1206,7 @@ class BatchFitting(object):
         X = np.zeros((Ns, Np, Nr))
         D = np.zeros((Ns, Np, Nt))
         k_int = np.zeros((Ns, len(r_number)))
-        gibbs = 15e4 * np.ones((Ns, len(r_number)))  #todo default value for gibbs
+        gibbs = np.full((Ns, len(r_number)), fill_value=np.nan)  #todo default value for gibbs
         timepoints = np.zeros((Ns, Nt))
 
         # Set values for numpy input data
@@ -1232,6 +1231,16 @@ class BatchFitting(object):
 
             gibbs_values = kf.series.cov.apply_interval(kf._guess_deltaG(self.guesses[i])).to_numpy()
             gibbs[i, i0:i1] = gibbs_values
+
+            # Fill missing gibbs values (NaN entries) at start and end with extrapolated values
+            g_row = gibbs[i]
+            idx, = np.diff(np.isnan(g_row)).nonzero()
+            if np.isnan(gibbs[i, 0]):
+                fill_value = g_row[idx[0] + 1]
+                g_row[:idx[0] + 1] = fill_value
+            if np.isnan(g_row[-1]):
+                fill_value = g_row[idx[-1]]
+                g_row[idx[-1] + 1:] = fill_value
 
             X[i, 0: Npi, i0:i1] = kf.series.cov.X
             timepoints[i, -Nti:] = kf.series.timepoints
