@@ -1292,6 +1292,7 @@ class BatchFitting(object):
                 d_ax2 = torch.abs(param - torch.mean(param, axis=0))
                 loss = loss + r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
 
+            reg_loss.append(loss)
             diff = reg_loss[-2] - loss
             if diff < stop_loss:
                 stop += 1
@@ -1304,8 +1305,9 @@ class BatchFitting(object):
             optimizer_obj.step()
 
         # todo return proper fitresult object
-        # use multi index df: https://stackoverflow.com/questions/24290495/constructing-3d-pandas-dataframe
-        return model
+
+        result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
+        return result
 
     def do_guesses(self):
         raise NotImplementedError("This function should do guesses in batch on all kfs")
