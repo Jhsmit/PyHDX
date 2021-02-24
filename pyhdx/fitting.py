@@ -1190,10 +1190,13 @@ class BatchFitting(object):
         self.states = states
         self.guesses = guesses
 
+        self.r_number = None
+
     def setup_fit(self):
         intervals = np.array([kf.series.cov.interval for kf in self.states])
         interval = (intervals[0].min(), intervals[1].max())
         r_number = np.arange(*interval)
+        self.r_number = r_number
 
         Ns = len(self.states)
         Nr = len(r_number)
