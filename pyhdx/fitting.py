@@ -1187,27 +1187,28 @@ class BatchFitting(object):
 
     def __init__(self, states, guesses=None):
         self.states = states
-        self.guesses = guesses
 
-        self.r_number = None
-
-    def setup_fit(self):
+        #todo create Coverage object for the 3d case
         intervals = np.array([kf.series.cov.interval for kf in self.states])
-        interval = (intervals[0].min(), intervals[1].max())
-        r_number = np.arange(*interval)
+        self.interval = (intervals[0].min(), intervals[1].max())
+        r_number = np.arange(*self.interval)
         self.r_number = r_number
 
-        Ns = len(self.states)
-        Nr = len(r_number)
-        Np = np.max([kf.series.cov.X.shape[0] for kf in self.states])
-        Nt = np.max([len(kf.series.timepoints) for kf in self.states])
+        self.Ns = len(self.states)
+        self.Nr = len(r_number)
+        self.Np = np.max([kf.series.cov.X.shape[0] for kf in self.states])
+        self.Nt = np.max([len(kf.series.timepoints) for kf in self.states])
 
+        self.guesses = guesses
+
+    def setup_fit(self):
+        assert self.guesses is not None, 'Guesses are required to set up the fit'
         # Create numpy arrays with correct shapes as input data
-        X = np.zeros((Ns, Np, Nr))
-        D = np.zeros((Ns, Np, Nt))
-        k_int = np.zeros((Ns, len(r_number)))
-        gibbs = np.full((Ns, len(r_number)), fill_value=np.nan)  #todo default value for gibbs
-        timepoints = np.zeros((Ns, Nt))
+        X = np.zeros((self.Ns, self.Np, self.Nr))
+        D = np.zeros((self.Ns, self.Np, self.Nt))
+        k_int = np.zeros((self.Ns, self.Nr))  #todo self.Nr
+        gibbs = np.full((self.Ns, self.Nr), fill_value=np.nan)  #todo default value for gibbs
+        timepoints = np.zeros((self.Ns, self.Nt))
 
         # Set values for numpy input data
         for i, kf in enumerate(self.states):
@@ -1216,8 +1217,8 @@ class BatchFitting(object):
 
             interval_sample = kf.series.cov.interval
             # Indices of residues
-            i0 = interval_sample[0] - interval[0]
-            i1 = interval_sample[1] - interval[0]
+            i0 = interval_sample[0] - self.interval[0]
+            i1 = interval_sample[1] - self.interval[0]
 
             Npi = kf.series.cov.X.shape[0]  # number of peptides in this particular state
             Nti = len(kf.series.timepoints) # number of timepoints in this particular state
@@ -1227,7 +1228,7 @@ class BatchFitting(object):
             k_int_values = kf.series.cov['k_int'].to_numpy()
             k_int[i, i0:i1] = k_int_values
 
-            np.zeros((Ns, len(r_number)))
+            np.zeros((self.Ns, self.Nr))
 
             gibbs_values = kf.series.cov.apply_interval(kf._guess_deltaG(self.guesses[i])).to_numpy()
             gibbs[i, i0:i1] = gibbs_values
