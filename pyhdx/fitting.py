@@ -1,6 +1,6 @@
 from pyhdx.support import get_reduced_blocks, temporary_seed
 from pyhdx.models import Protein
-from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
+from pyhdx.fitting_torch import DeltaGFit, TorchFitResult, TorchBatchFitResult
 from scipy import constants
 from scipy.optimize import fsolve
 import torch

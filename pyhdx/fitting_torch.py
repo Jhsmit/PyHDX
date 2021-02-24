@@ -27,6 +27,7 @@ class DeltaGFit(nn.Module):
 
 
 class TorchFitResult(object):
+    #todo perhaps pass KineticsFitting object (which includes temperature) (yes do then it can also have methods which return inputs)
     def __init__(self, series, model, temperature=None, **metadata):
         self.series = series
         self.model = model
@@ -96,3 +97,20 @@ class TorchFitResult(object):
 
             output = self.model(*inputs)
         return output.detach().numpy()
+
+
+class TorchBatchFitResult(object):
+    def __init__(self, fit_object, model, **metadata):
+        self.fit_object = fit_object
+        self.model = model
+        self.metadata = metadata
+
+    #todo baseclass
+    @property
+    def deltaG(self):
+        return self.model.deltaG.detach().numpy().squeeze()
+
+    @property
+    def output(self):
+        pass
+        # use multi index df: https://stackoverflow.com/questions/24290495/constructing-3d-pandas-dataframe
