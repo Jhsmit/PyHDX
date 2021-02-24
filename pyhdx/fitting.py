@@ -1319,6 +1319,22 @@ class BatchFitting(object):
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result
 
+    @property
+    def temperature(self):
+        return np.array([kf.temperature for kf in self.states])
+
+    @property
+    def exchanges(self):
+        exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
+        for i, kf in enumerate(self.states):
+            interval_sample = kf.series.cov.interval
+            # Indices of residues
+            i0 = interval_sample[0] - self.interval[0]
+            i1 = interval_sample[1] - self.interval[0]
+            exchanges[i, i0:i1] = kf.series.cov['exchanges']
+
+        return exchanges
+
     def do_guesses(self):
         raise NotImplementedError("This function should do guesses in batch on all kfs")
 
