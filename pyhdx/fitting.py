@@ -1190,7 +1190,7 @@ class BatchFitting(object):
 
         #todo create Coverage object for the 3d case
         intervals = np.array([kf.series.cov.interval for kf in self.states])
-        self.interval = (intervals[0].min(), intervals[1].max())
+        self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
         r_number = np.arange(*self.interval)
         self.r_number = r_number
 
