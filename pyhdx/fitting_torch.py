@@ -4,6 +4,7 @@ from torch.optim import SGD
 import torch as t
 from scipy import constants
 import numpy as np
+import pandas as pd
 from pyhdx.models import Protein
 
 
@@ -112,5 +113,25 @@ class TorchBatchFitResult(object):
 
     @property
     def output(self):
-        pass
+        #todo protein object accepts dataframes
+
+        quantities = ['_deltaG', 'deltaG', 'covariance', 'pfact']
+        iterables = [[kf.series.state for kf in self.fit_object.states], quantities]
+        col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
+        output_data = np.zeros((self.fit_object.Nr, self.fit_object.Ns * len(quantities)))
+
+        g_values = self.deltaG
+        g_values_nan = g_values.copy()
+        g_values_nan[~self.fit_object.exchanges] = np.nan
+        pfact = np.exp(g_values / (constants.R * self.fit_object.temperature[:, np.newaxis]))
+
+        output_data[:, 0::len(quantities)] = g_values.T
+        output_data[:, 1::len(quantities)] = g_values_nan.T
+        #todo covariances
+        output_data[:, 3::len(quantities)] = pfact.T
+
+        df = pd.DataFrame(output_data, index=self.fit_object.r_number, columns=col_index)
+
+        return df
+
         # use multi index df: https://stackoverflow.com/questions/24290495/constructing-3d-pandas-dataframe
