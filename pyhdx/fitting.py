@@ -1319,6 +1319,68 @@ class BatchFitting(object):
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result
 
+    def global_fit_aligned(self, indices, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
+                   optimizer='SGD', **optimizer_kwargs):
+
+        i0 = torch.tensor(indices[0], dtype=torch.long)
+        i1 = torch.tensor(indices[1], dtype=torch.long)
+        deltaG_par, inputs, output_data = self.setup_fit()
+
+        model = DeltaGFit(deltaG_par)
+
+        #todo base class global fit function
+        optimizer_defaults = {
+            'SGD': {
+                'lr': 10,
+                'momentum': 0.5,
+                'nesterov': True
+            },
+        }
+        kwargs = optimizer_defaults.get(optimizer, {})
+        kwargs.update(**optimizer_kwargs)
+
+        optimizer_klass = getattr(torch.optim, optimizer)
+        optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
+
+        criterion = torch.nn.MSELoss(reduction='sum')
+
+        mse_loss = [np.inf]  # Mean squared loss only
+        reg_loss = [np.inf]  # Loss including regularization loss
+        stop = 0
+
+        for epoch in range(epochs):
+            optimizer_obj.zero_grad()
+            output = model(*inputs)
+
+            loss = criterion(output, output_data)
+            mse_loss.append(loss)
+
+            for pname, param in model.named_parameters():
+                d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
+                #d_ax2 = torch.abs(param - torch.mean(param, axis=0))
+                d_ax2 = torch.abs(param[0][i0] - param[1][i1])
+                #d_ax2 = np.abs(param[0].index_select(0, i0) - param[1].index_select(0, i1))
+
+
+                loss = loss + r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
+
+            reg_loss.append(loss)
+            diff = reg_loss[-2] - loss
+            if diff < stop_loss:
+                stop += 1
+                if stop > patience:
+                    break
+            else:
+                stop = 0
+
+            loss.backward()
+            optimizer_obj.step()
+
+        # todo return proper fitresult object
+
+        result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
+        return result
+
     @property
     def temperature(self):
         return np.array([kf.temperature for kf in self.states])
