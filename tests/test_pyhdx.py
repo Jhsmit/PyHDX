@@ -163,7 +163,6 @@ class TestCoverage(object):
         cls.series = states['state1']
 
 
-
 class TestProtein(object):
     @classmethod
     def setup_class(cls):
