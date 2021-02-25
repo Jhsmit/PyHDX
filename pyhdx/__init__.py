@@ -26,6 +26,7 @@ except ModuleNotFoundError:
     has_pbr = False
 
 if not has_importlib_metadata and not has_pbr:
+    # This can also happen with py>3.8 on conda editable install
     raise ModuleNotFoundError('Must have pbr for python < 3.8')
 
 git_dir = Path(__file__).parent.parent / '.git'
