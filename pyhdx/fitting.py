@@ -1319,8 +1319,43 @@ class BatchFitting(object):
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result
 
-    def global_fit_aligned(self, indices, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
+    def global_fit_aligned(self, alignment_array, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
                    optimizer='SGD', **optimizer_kwargs):
+        """
+
+        Parameters
+        ----------
+        alignment_array:
+            Array of
+        r1
+        r2
+        epochs
+        patience
+        stop_loss
+        optimizer
+        optimizer_kwargs
+
+        Returns
+        -------
+
+        """
+        r_numbers = np.cumsum(alignment_array != '-', axis=1)  #residue numbers in alignment array
+        aligned_bool = np.all(alignment_array != '-', axis=0) # Array True where residues align
+        aligned_residues = np.array([row[aligned_bool] for row in r_numbers])  # Residue numbers of aligned residues
+
+        try:
+            r0 = np.where(aligned_residues.min(axis=0) < self.interval[0])[0].max() + 1
+        except ValueError:
+            r0 = 0
+        try:
+            r1 = np.where(aligned_residues.max(axis=0) > self.interval[1] - 1)[0].min()
+        except ValueError:
+            r1 = aligned_residues.shape[1]
+
+        # Crop aligned_residues to the part which corresponds to residues covered by measurements
+        aligned_residues = aligned_residues[:, r0:r1]
+        # Tranform residue number to index of corresponding deltaG values
+        indices = aligned_residues - self.interval[0]
 
         i0 = torch.tensor(indices[0], dtype=torch.long)
         i1 = torch.tensor(indices[1], dtype=torch.long)
@@ -1357,10 +1392,7 @@ class BatchFitting(object):
 
             for pname, param in model.named_parameters():
                 d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
-                #d_ax2 = torch.abs(param - torch.mean(param, axis=0))
                 d_ax2 = torch.abs(param[0][i0] - param[1][i1])
-                #d_ax2 = np.abs(param[0].index_select(0, i0) - param[1].index_select(0, i1))
-
 
                 loss = loss + r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
 
