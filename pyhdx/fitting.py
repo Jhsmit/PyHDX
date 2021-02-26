@@ -1344,16 +1344,16 @@ class BatchFitting(object):
         aligned_residues = np.array([row[aligned_bool] for row in r_numbers])  # Residue numbers of aligned residues
 
         try:
-            r0 = np.where(aligned_residues.min(axis=0) < self.interval[0])[0].max() + 1
+            r_i0 = np.where(aligned_residues.min(axis=0) < self.interval[0])[0].max() + 1
         except ValueError:
-            r0 = 0
+            r_i0 = 0
         try:
-            r1 = np.where(aligned_residues.max(axis=0) > self.interval[1] - 1)[0].min()
+            r_i1 = np.where(aligned_residues.max(axis=0) > self.interval[1] - 1)[0].min()
         except ValueError:
-            r1 = aligned_residues.shape[1]
+            r_i1 = aligned_residues.shape[1]
 
         # Crop aligned_residues to the part which corresponds to residues covered by measurements
-        aligned_residues = aligned_residues[:, r0:r1]
+        aligned_residues = aligned_residues[:, r_i0:r_i1]
         # Tranform residue number to index of corresponding deltaG values
         indices = aligned_residues - self.interval[0]
 
