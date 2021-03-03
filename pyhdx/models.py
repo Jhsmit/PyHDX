@@ -131,7 +131,7 @@ class Protein(object):
         ----------
         file_path : :obj:`str`
             File path to create and write to.
-        include_version : :obj`bool`
+        include_version : :obj:`bool`
             Set `True` to include PyHDX version and current time/date
         include_metadata
             Not Implemented
@@ -179,7 +179,7 @@ class Protein(object):
         Returns
         -------
 
-        k_int : ~class:`~numpy.ndarray`
+        k_int : class:`~numpy.ndarray`
             Array of intrisic exchange rates
 
         """
@@ -200,6 +200,7 @@ class Protein(object):
     @property
     def index(self):
         return self.df.index
+
 
     def copy(self):
         df = self.df.copy()
@@ -267,7 +268,7 @@ class PeptideMasterTable(object):
 
     Parameters
     ----------
-    data : ~:class:`np.ndarray`
+    data : :class:`~np.ndarray`
         Numpy recarray with peptide entries.
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
@@ -278,7 +279,7 @@ class PeptideMasterTable(object):
         in the protein.
     sort: :obj:`bool`
         Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
-    remove_nan: :obj`bool`
+    remove_nan: :obj:`bool`
         Set to ``True`` to remove NaN entries in uptake
 
     """
@@ -326,14 +327,14 @@ class PeptideMasterTable(object):
     def groupby_state(self, **kwargs):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a
-        :class:`~pyhdx.pyhdx.KineticSeries`.
+        :class:`~pyhdx.models.KineticSeries`.
 
         Returns
         -------
         out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`.
+            Dictionary where keys are state names and values are :class:`~pyhdx.models.KineticSeries`.
         **kwargs
-            Additional keyword arguments to be passed to the :class:`~pyhdx.pyhdx.KineticSeries`.
+            Additional keyword arguments to be passed to the :class:`~pyhdx.models.KineticSeries`.
         """
 
         states = np.unique(self.data['state'])
@@ -371,7 +372,7 @@ class PeptideMasterTable(object):
 
         Parameters
         ----------
-        back_exchange :  `obj`:float:
+        back_exchange :  :obj:`float`
             Percentage of back exchange
 
         """
@@ -473,7 +474,7 @@ class PeptideMasterTable(object):
         Returns
         -------
         out : :obj:`dict`
-            Dictionary of :class:`~pyhdx.pyhdx.PeptideMeasurement` objects
+            Dictionary of :class:`~pyhdx.models.PeptideMeasurement` objects
 
         """
         bc1 = self.data['state'] == control_state
@@ -533,12 +534,12 @@ class PeptideMasterTable(object):
 
     @property
     def states(self):
-        """:~classs:np.ndarray: Array with unique states"""
+        """:classs:`~np.ndarray` Array with unique states"""
         return np.unique(self.data['state'])
 
     @property
     def exposures(self):
-        """:~classs:np.ndarray: Array with unique exposures"""
+        """:classs:`~np.ndarray` Array with unique exposures"""
         return np.unique(self.data['exposure'])
 
 
@@ -635,7 +636,7 @@ class Coverage(object):
 
     @property
     def r_number(self):
-        """:class:`~np.ndarray: Array of residue numbers corresponding to the part of the protein covered by peptides"""
+        """:class:`~np.ndarray`: Array of residue numbers corresponding to the part of the protein covered by peptides"""
         #todo perhaps obtain through apply_interval
         return np.arange(*self.interval)
 
@@ -685,15 +686,15 @@ class Coverage(object):
 
 class KineticsSeries(object):
     """
-    A series of :class:`~pyhdx.pyhdx.PeptideMeasurements` which correspond to the same state but with different exposures.
+    A series of :class:`~pyhdx.models.PeptideMeasurements` which correspond to the same state but with different exposures.
 
     Parameters
     ----------
     data : :class:`~numpy.ndarray` or :obj:`list`
         Numpy structured array with peptide entries corresponding to a single state,
-        or list of :class:`~pyhdx.pyhdx.PeptideMeasurements`
+        or list of :class:`~pyhdx.models.PeptideMeasurements`
     make_uniform : :obj:`bool`
-        If `True` the :class:`~pyhdx.pyhdx.KineticSeries` instance is made uniform
+        If `True` the :class:`~pyhdx.models.KineticSeries` instance is made uniform
     **metadata
         Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
 
@@ -799,7 +800,7 @@ class PeptideMeasurements(Coverage):
 
     Parameters
     ----------
-    data : :class`~numpy.ndarray`
+    data : :class:`~numpy.ndarray`
         Numpy structured array with input data
     scores : :class:`~numpy.ndarray`
         Array with D/H uptake scores, typically in percentages or absolute uptake numbers.
@@ -869,7 +870,7 @@ class PeptideMeasurements(Coverage):
         Returns
         -------
 
-        scores : :class`~numpy.ndarray`
+        scores : :class:`~numpy.ndarray`
             Array of scores per peptide
         """
 

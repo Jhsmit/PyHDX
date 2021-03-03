@@ -47,7 +47,7 @@ class KineticsModel(object):
 
     def make_parameter(self, name, value=None, min=None, max=None):
         """
-        Create a new :class:~symfit.Parameter.
+        Create a new :class:`~symfit.Parameter`.
 
         Parameters
         ----------

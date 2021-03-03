@@ -423,7 +423,7 @@ def multi_otsu(*rates, classes=3):
 
     Returns
     -------
-    thds: `obj`:tuple:
+    thds: :obj:`tuple`
         tuple with thresholds
 
     """
