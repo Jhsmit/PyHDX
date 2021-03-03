@@ -77,7 +77,7 @@ class KineticsModel(object):
 
     def make_variable(self, name):
         """
-        Create a new :class:~symfit.Variable.
+        Create a new :class:`~symfit.Variable`.
 
         Parameters
         ----------
@@ -258,9 +258,9 @@ class OneComponentAssociationModel(SingleKineticModel):
 
         Parameters
         ----------
-        t : :class:~`numpy.ndarray`
+        t : :class:`~numpy.ndarray`
             Array with time points
-        d : :class:~`numpy.ndarray`
+        d : :class:`~numpy.ndarray`
             Array with uptake values
 
         """
@@ -303,9 +303,9 @@ class TwoComponentDissociationModel(SingleKineticModel):
 
         Parameters
         ----------
-        t : :class:~`numpy.ndarray`
+        t : :class:`~numpy.ndarray`
             Array with time points
-        d : :class:~`numpy.ndarray`
+        d : :class:`~numpy.ndarray`
             Array with uptake values
 
         """
@@ -409,9 +409,9 @@ class OneComponentDissociationModel(SingleKineticModel):
 
         Parameters
         ----------
-        t : :class:~`numpy.ndarray`
+        t : :class:`~numpy.ndarray`
             Array with time points
-        d : :class:~`numpy.ndarray`
+        d : :class:`~numpy.ndarray`
             Array with uptake values
 
         """
@@ -854,7 +854,7 @@ class KineticsFitting(object):
         Returns
         -------
 
-        output: :~class:np.ndarray
+        output: :class:`~np.ndarray`
             array with fields r_number, rate
 
         """
