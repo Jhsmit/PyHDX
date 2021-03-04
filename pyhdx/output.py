@@ -159,14 +159,14 @@ class Output(object):
 
         Parameters
         ----------
-        fit_name: :obj:`str`
+        fit_name : :obj:`str`
             Name of the fit result to use from `fit_results` dictionary
-        time: array_like
+        time : array_like
             Optional array of timepoints
 
         Returns
         -------
-        uptake: :obj:`str`
+        uptake : :obj:`str`
             Numpy array with fitted uptake values for each peptide per row
         """
         fit_timepoints = time or self.fit_timepoints

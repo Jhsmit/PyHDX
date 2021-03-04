@@ -51,13 +51,13 @@ class KineticsModel(object):
 
         Parameters
         ----------
-        name: :obj:`str`
+        name : :obj:`str`
             Human-readable name for the parameter
-        value: :obj:`float`
+        value : :obj:`float`
             Initial guess value
-        min: :obj:`float`
+        min : :obj:`float`
             Lower bound value. If `None`, the value from `bounds` is used.
-        max: :obj:`float`
+        max : :obj:`float`
             Lower bound value. If `None`, the value from `bounds` is used.
 
         Returns
@@ -81,7 +81,7 @@ class KineticsModel(object):
 
         Parameters
         ----------
-        name: :obj:`str`
+        name : :obj:`str`
             Human-readable name for the variable
 
         Returns
@@ -463,7 +463,7 @@ def func_long_dis(k, tt, A, k1):
         Selected time point
     A : :obj:`float`
         Target amplitude
-    k1: : obj:`float`
+    k1 : :obj:`float`
         Rate of fast time component
 
     Returns
@@ -509,7 +509,7 @@ def func_long_ass(k, tt, A, k1):
         Selected time point
     A : :obj:`float`
         Target amplitude
-    k1: : obj:`float`
+    k1 : :obj:`float`
         Rate of fast time component
 
     Returns
@@ -535,7 +535,7 @@ def fit_kinetics(t, d, model, chisq_thd):
         Array of time points
     d : :class:`~numpy.ndarray`
         Array of uptake values
-    chisq_thd: :obj:`float`
+    chisq_thd : :obj:`float`
         Threshold chi squared above which the fitting is repeated with the Differential Evolution algorithm.
 
     Returns

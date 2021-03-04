@@ -74,7 +74,7 @@ def get_original_blocks(coverage):
 def reduce_inter(args, gap_size=-1):
     """
 
-    gap_size: :obj:`int`
+    gap_size : :obj:`int`
             Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
             with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
             and larger values tolerate larger gap sizes.
@@ -416,14 +416,14 @@ def multi_otsu(*rates, classes=3):
 
     Parameters
     ----------
-    rates: iterable
+    rates : iterable
         iterable of numpy structured arrays with  a 'rate' field
-    classes: :obj:`int`
+    classes : :obj:`int`
         Number of classes to divide the data into
 
     Returns
     -------
-    thds: :obj:`tuple`
+    thds : :obj:`tuple`
         tuple with thresholds
 
     """
