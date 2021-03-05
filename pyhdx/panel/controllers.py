@@ -654,7 +654,7 @@ class CoverageControl(ControlPanel):
 
     @property
     def palette(self):
-        """`obj`:tuple: Tuple of hex colors"""
+        """:obj:`tuple` Tuple of hex colors"""
         cmap = mpl.cm.get_cmap(self.color_map)
         pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
         return pal
@@ -673,7 +673,7 @@ class CoverageControl(ControlPanel):
 
     @property
     def color(self):
-        """~class:`np.ndarray`: array of color for each peptide based on their uptake score"""
+        """class:`~np.ndarray`: array of color for each peptide based on their uptake score"""
         cmap = mpl.cm.get_cmap(self.color_map)
         c_rgba = cmap(self.peptide_measurement.data['scores'] / 100)
         c = [mpl.colors.to_hex(color) for color in c_rgba]

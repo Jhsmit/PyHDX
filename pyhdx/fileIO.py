@@ -9,11 +9,11 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
 
     Parameters
     ----------
-    file_paths: :obj:`iterable`
+    file_paths : :obj:`iterable`
         File path of the .csv file or StringIO object
-    intervals: :obj:`tuple`
+    intervals : :obj:`tuple`
         Format of how start and end intervals are specified.
-    time_unit :obj:`str`
+    time_unit : :obj:`str`
         Not implemented
 
     Returns

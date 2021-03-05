@@ -47,17 +47,17 @@ class KineticsModel(object):
 
     def make_parameter(self, name, value=None, min=None, max=None):
         """
-        Create a new :class:~symfit.Parameter.
+        Create a new :class:`~symfit.Parameter`.
 
         Parameters
         ----------
-        name: :obj:`str`
+        name : :obj:`str`
             Human-readable name for the parameter
-        value: :obj:`float`
+        value : :obj:`float`
             Initial guess value
-        min: :obj:`float`
+        min : :obj:`float`
             Lower bound value. If `None`, the value from `bounds` is used.
-        max: :obj:`float`
+        max : :obj:`float`
             Lower bound value. If `None`, the value from `bounds` is used.
 
         Returns
@@ -77,11 +77,11 @@ class KineticsModel(object):
 
     def make_variable(self, name):
         """
-        Create a new :class:~symfit.Variable.
+        Create a new :class:`~symfit.Variable`.
 
         Parameters
         ----------
-        name: :obj:`str`
+        name : :obj:`str`
             Human-readable name for the variable
 
         Returns
@@ -258,9 +258,9 @@ class OneComponentAssociationModel(SingleKineticModel):
 
         Parameters
         ----------
-        t : :class:~`numpy.ndarray`
+        t : :class:`~numpy.ndarray`
             Array with time points
-        d : :class:~`numpy.ndarray`
+        d : :class:`~numpy.ndarray`
             Array with uptake values
 
         """
@@ -303,9 +303,9 @@ class TwoComponentDissociationModel(SingleKineticModel):
 
         Parameters
         ----------
-        t : :class:~`numpy.ndarray`
+        t : :class:`~numpy.ndarray`
             Array with time points
-        d : :class:~`numpy.ndarray`
+        d : :class:`~numpy.ndarray`
             Array with uptake values
 
         """
@@ -409,9 +409,9 @@ class OneComponentDissociationModel(SingleKineticModel):
 
         Parameters
         ----------
-        t : :class:~`numpy.ndarray`
+        t : :class:`~numpy.ndarray`
             Array with time points
-        d : :class:~`numpy.ndarray`
+        d : :class:`~numpy.ndarray`
             Array with uptake values
 
         """
@@ -463,7 +463,7 @@ def func_long_dis(k, tt, A, k1):
         Selected time point
     A : :obj:`float`
         Target amplitude
-    k1: : obj:`float`
+    k1 : :obj:`float`
         Rate of fast time component
 
     Returns
@@ -509,7 +509,7 @@ def func_long_ass(k, tt, A, k1):
         Selected time point
     A : :obj:`float`
         Target amplitude
-    k1: : obj:`float`
+    k1 : :obj:`float`
         Rate of fast time component
 
     Returns
@@ -535,7 +535,7 @@ def fit_kinetics(t, d, model, chisq_thd):
         Array of time points
     d : :class:`~numpy.ndarray`
         Array of uptake values
-    chisq_thd: :obj:`float`
+    chisq_thd : :obj:`float`
         Threshold chi squared above which the fitting is repeated with the Differential Evolution algorithm.
 
     Returns
@@ -793,7 +793,7 @@ class KineticsFitting(object):
 
         optimizer_klass = getattr(torch.optim, optimizer)
         optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
-
+        
         mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
         reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
@@ -829,8 +829,6 @@ class KineticsFitting(object):
 
                 for pname, param in model.named_parameters():
                     loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
-
-
                 reg_loss.append(loss)
                 diff = reg_loss[-2] - loss
                 if diff < stop_loss:
@@ -842,10 +840,10 @@ class KineticsFitting(object):
 
                 loss.backward()
                 optimizer_obj.step()
-
+                
         mse_loss = np.array([val.detach().numpy() for val in mse_loss])
         reg_loss = np.array([val.detach().numpy() for val in reg_loss])
-
+        
         result = TorchFitResult(self.series, model, temperature=temperature,
                                 mse_loss=mse_loss, reg_loss=reg_loss)
 
@@ -859,7 +857,7 @@ class KineticsFitting(object):
         Returns
         -------
 
-        output: :~class:np.ndarray
+        output: :class:`~np.ndarray`
             array with fields r_number, rate
 
         """
@@ -1252,6 +1250,7 @@ class BatchFitting(object):
             timepoints[i, -Nti:] = kf.series.timepoints
             D[i, 0: Npi, -Nti:] = kf.series.uptake_corrected.T
 
+
         # Create pytorch tensors from input data, assign final shapes for matrix batch multiplication by tf.matmul
         dtype = torch.float64
         temperature_T = torch.tensor(temperature, dtype=dtype).unsqueeze(-1).unsqueeze(-1)  # Ns x 1 x 1
@@ -1289,7 +1288,7 @@ class BatchFitting(object):
         optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
 
         criterion = torch.nn.MSELoss(reduction='sum')
-
+        
         mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
         reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
@@ -1317,7 +1316,7 @@ class BatchFitting(object):
 
             loss.backward()
             optimizer_obj.step()
-
+        
         mse_loss = np.array([val.detach().numpy() for val in mse_loss])
         reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
@@ -1344,8 +1343,8 @@ class BatchFitting(object):
         -------
 
         """
-        r_numbers = np.cumsum(alignment_array != '-', axis=1)  # residue numbers in alignment array
-        aligned_bool = np.all(alignment_array != '-', axis=0)  # Array True where residues align
+        r_numbers = np.cumsum(alignment_array != '-', axis=1)  #residue numbers in alignment array
+        aligned_bool = np.all(alignment_array != '-', axis=0) # Array True where residues align
         aligned_residues = np.array([row[aligned_bool] for row in r_numbers])  # Residue numbers of aligned residues
 
         try:
@@ -1412,9 +1411,10 @@ class BatchFitting(object):
 
             loss.backward()
             optimizer_obj.step()
-
+            
+      
         mse_loss = np.array([val.detach().numpy() for val in mse_loss])
-        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
+        reg_loss = np.array([val.detach().numpy() for val in reg_loss]) 
 
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result
