@@ -12,13 +12,13 @@ class MainController(param.Parameterized):
 
     Parameters
     ----------
-    control_panels: :obj:`list`
+    control_panels : :obj:`list`
         List of strings referring to which ControlPanels to use for this MainController instance
         Should refer to subclasses of :class:`~pyhdx.panel.base.ControlPanel`
-    figure_panels: :obj:`list`
+    figure_panels : :obj:`list`
         List of string referring to which FigurePanels to use for this MainController instance
         Should refer to subclasses :class:`~pyhdx.panel.base.FigurePanel`
-    cluster: :obj:`str`
+    cluster : :obj:`str`
         IP:port address for Dask cluster (optional)
 
     Attributes
@@ -30,7 +30,7 @@ class MainController(param.Parameterized):
         Logger instance
     control_panels : :obj:`dict`
         Dictionary with :class:`~pyhdx.panel.base.ControlPanel` instances (__name__ as keys)
-    figure_panels : :obj`dict`
+    figure_panels : :obj:`dict`
         Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
 
     """
@@ -59,9 +59,9 @@ class MainController(param.Parameterized):
 
         Parameters
         ----------
-        name: :obj:`str`
+        name : :obj:`str`
             Name of the dataset
-        data_source_obj: :class:`~pyhdx.panel.data_sources.DataSource`
+        data_source_obj : :class:`~pyhdx.panel.data_sources.DataSource`
             Data source object
         """
 

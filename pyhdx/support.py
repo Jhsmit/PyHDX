@@ -74,7 +74,7 @@ def get_original_blocks(coverage):
 def reduce_inter(args, gap_size=-1):
     """
 
-    gap_size: :obj:`int`
+    gap_size : :obj:`int`
             Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
             with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
             and larger values tolerate larger gap sizes.
@@ -356,7 +356,6 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     pd_series = pd.Series(color_arr, index=r_number)
     pd_series = pd_series.reindex(np.arange(1, c_term + 1))
     pd_series = pd_series.replace('nan', no_coverage)  # No coverage at nan entries
-    pd_series = pd_series.replace(np.nan, no_coverage)
 
     grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
 
@@ -417,14 +416,14 @@ def multi_otsu(*rates, classes=3):
 
     Parameters
     ----------
-    rates: iterable
+    rates : iterable
         iterable of numpy structured arrays with  a 'rate' field
-    classes: :obj:`int`
+    classes : :obj:`int`
         Number of classes to divide the data into
 
     Returns
     -------
-    thds: `obj`:tuple:
+    thds : :obj:`tuple`
         tuple with thresholds
 
     """
