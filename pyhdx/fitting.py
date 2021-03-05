@@ -1286,8 +1286,8 @@ class BatchFitting(object):
 
         criterion = torch.nn.MSELoss(reduction='sum')
 
-        mse_loss = [np.inf]  # Mean squared loss only
-        reg_loss = [np.inf]  # Loss including regularization loss
+        mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
+        reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
 
         for epoch in range(epochs):
@@ -1314,7 +1314,8 @@ class BatchFitting(object):
             loss.backward()
             optimizer_obj.step()
 
-        # todo return proper fitresult object
+        mse_loss = np.array([val.detach().numpy() for val in mse_loss])
+        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result
@@ -1379,8 +1380,8 @@ class BatchFitting(object):
 
         criterion = torch.nn.MSELoss(reduction='sum')
 
-        mse_loss = [np.inf]  # Mean squared loss only
-        reg_loss = [np.inf]  # Loss including regularization loss
+        mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
+        reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
 
         for epoch in range(epochs):
@@ -1408,7 +1409,8 @@ class BatchFitting(object):
             loss.backward()
             optimizer_obj.step()
 
-        # todo return proper fitresult object
+        mse_loss = np.array([val.detach().numpy() for val in mse_loss])
+        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result
