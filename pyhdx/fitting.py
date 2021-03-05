@@ -794,8 +794,8 @@ class KineticsFitting(object):
         optimizer_klass = getattr(torch.optim, optimizer)
         optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
 
-        mse_loss = [np.inf]  # Mean squared loss only
-        reg_loss = [np.inf]  # Loss including regularization loss
+        mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
+        reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
 
         #todo if/else probably not needed as other optimizers can also use closure function
@@ -829,6 +829,8 @@ class KineticsFitting(object):
 
                 for pname, param in model.named_parameters():
                     loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
+
+
                 reg_loss.append(loss)
                 diff = reg_loss[-2] - loss
                 if diff < stop_loss:
@@ -840,6 +842,9 @@ class KineticsFitting(object):
 
                 loss.backward()
                 optimizer_obj.step()
+
+        mse_loss = np.array([val.detach().numpy() for val in mse_loss])
+        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
         result = TorchFitResult(self.series, model, temperature=temperature,
                                 mse_loss=mse_loss, reg_loss=reg_loss)
@@ -1247,7 +1252,6 @@ class BatchFitting(object):
             timepoints[i, -Nti:] = kf.series.timepoints
             D[i, 0: Npi, -Nti:] = kf.series.uptake_corrected.T
 
-
         # Create pytorch tensors from input data, assign final shapes for matrix batch multiplication by tf.matmul
         dtype = torch.float64
         temperature_T = torch.tensor(temperature, dtype=dtype).unsqueeze(-1).unsqueeze(-1)  # Ns x 1 x 1
@@ -1286,8 +1290,8 @@ class BatchFitting(object):
 
         criterion = torch.nn.MSELoss(reduction='sum')
 
-        mse_loss = [np.inf]  # Mean squared loss only
-        reg_loss = [np.inf]  # Loss including regularization loss
+        mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
+        reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
 
         for epoch in range(epochs):
@@ -1314,7 +1318,8 @@ class BatchFitting(object):
             loss.backward()
             optimizer_obj.step()
 
-        # todo return proper fitresult object
+        mse_loss = np.array([val.detach().numpy() for val in mse_loss])
+        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result
@@ -1339,8 +1344,8 @@ class BatchFitting(object):
         -------
 
         """
-        r_numbers = np.cumsum(alignment_array != '-', axis=1)  #residue numbers in alignment array
-        aligned_bool = np.all(alignment_array != '-', axis=0) # Array True where residues align
+        r_numbers = np.cumsum(alignment_array != '-', axis=1)  # residue numbers in alignment array
+        aligned_bool = np.all(alignment_array != '-', axis=0)  # Array True where residues align
         aligned_residues = np.array([row[aligned_bool] for row in r_numbers])  # Residue numbers of aligned residues
 
         try:
@@ -1379,8 +1384,8 @@ class BatchFitting(object):
 
         criterion = torch.nn.MSELoss(reduction='sum')
 
-        mse_loss = [np.inf]  # Mean squared loss only
-        reg_loss = [np.inf]  # Loss including regularization loss
+        mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
+        reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
 
         for epoch in range(epochs):
@@ -1408,7 +1413,8 @@ class BatchFitting(object):
             loss.backward()
             optimizer_obj.step()
 
-        # todo return proper fitresult object
+        mse_loss = np.array([val.detach().numpy() for val in mse_loss])
+        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
         return result

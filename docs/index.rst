@@ -11,6 +11,7 @@ Welcome to PyHDX's documentation!
    examples
    modules
    web_app_autodoc
+   missing_file
    contributing
    authors
    history
