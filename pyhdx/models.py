@@ -18,9 +18,9 @@ class Protein(object):
 
     Parameters
     ----------
-    data : :class:`~np.ndarray` or ?
+    data : :class:`~numpy.ndarray` or ?
         data object to initiate the protein object from
-    index: :obj:`str`
+    index : :obj:`str`
         Name of the column with the residue number (index column)
 
     **metadata
@@ -98,7 +98,7 @@ class Protein(object):
         io : :class:`~io.StringIO`, optional
             StringIO to write to. If `None` a new StringIO object is created.
         include_version : :obj:`bool`
-            Set `True` to include PyHDX version and current time/date
+            Set ``True`` to include PyHDX version and current time/date
         include_metadata
             Not Implemented
 
@@ -131,8 +131,8 @@ class Protein(object):
         ----------
         file_path : :obj:`str`
             File path to create and write to.
-        include_version : :obj`bool`
-            Set `True` to include PyHDX version and current time/date
+        include_version : :obj:`bool`
+            Set ``True`` to include PyHDX version and current time/date
         include_metadata
             Not Implemented
 
@@ -171,7 +171,7 @@ class Protein(object):
 
         Parameters
         ----------
-        temperature: : :obj:`float`
+        temperature : :obj:`float`
             Temperature of the labelling reaction (Kelvin)
         pH : :obj:`float`
             pH of the labelling reaction
@@ -179,7 +179,7 @@ class Protein(object):
         Returns
         -------
 
-        k_int : ~class:`~numpy.ndarray`
+        k_int : :class:`~numpy.ndarray`
             Array of intrisic exchange rates
 
         """
@@ -200,6 +200,7 @@ class Protein(object):
     @property
     def index(self):
         return self.df.index
+
 
     def copy(self):
         df = self.df.copy()
@@ -267,18 +268,18 @@ class PeptideMasterTable(object):
 
     Parameters
     ----------
-    data : ~:class:`np.ndarray`
+    data : :class:`~numpy.ndarray`
         Numpy recarray with peptide entries.
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
     d_percentage : :obj:`float`
         Percentage of deuterium in the labelling solution.
-    ignore_prolines: :obj:`bool`
+    ignore_prolines : :obj:`bool`
         Boolean to toggle ignoring of proline residues. When True these residues are treated as if they're not present
         in the protein.
-    sort: :obj:`bool`
+    sort : :obj:`bool`
         Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
-    remove_nan: :obj`bool`
+    remove_nan : :obj:`bool`
         Set to ``True`` to remove NaN entries in uptake
 
     """
@@ -326,14 +327,14 @@ class PeptideMasterTable(object):
     def groupby_state(self, **kwargs):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a
-        :class:`~pyhdx.pyhdx.KineticSeries`.
+        :class:`~pyhdx.models.KineticSeries`.
 
         Returns
         -------
         out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`~pyhdx.pyhdx.KineticSeries`.
+            Dictionary where keys are state names and values are :class:`~pyhdx.models.KineticSeries`.
         **kwargs
-            Additional keyword arguments to be passed to the :class:`~pyhdx.pyhdx.KineticSeries`.
+            Additional keyword arguments to be passed to the :class:`~pyhdx.models.KineticSeries`.
         """
 
         states = np.unique(self.data['state'])
@@ -353,7 +354,7 @@ class PeptideMasterTable(object):
 
         Returns
         -------
-        isin: ndarray, bool
+        isin : :obj:`ndarray`, :obj:`bool`
             Boolean array of the same shape as `array` where entries are `True` if they are in `test_array`
 
         """
@@ -371,7 +372,7 @@ class PeptideMasterTable(object):
 
         Parameters
         ----------
-        back_exchange :  `obj`:float:
+        back_exchange :  :obj:`float`
             Percentage of back exchange
 
         """
@@ -395,10 +396,10 @@ class PeptideMasterTable(object):
 
         Parameters
         ----------
-        control_100 : tuple
+        control_100 : :obj:`tuple`
             tuple with (`state`, `exposure`) for peptides to use for normalization to 100%
             Numpy structured array with control peptides to use for normalization to 100%
-        control_0 : tuple, optional
+        control_0 : :obj:`tuple`, optional
             tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values to 100%
 
         """
@@ -473,7 +474,7 @@ class PeptideMasterTable(object):
         Returns
         -------
         out : :obj:`dict`
-            Dictionary of :class:`~pyhdx.pyhdx.PeptideMeasurement` objects
+            Dictionary of :class:`~pyhdx.models.PeptideMeasurement` objects
 
         """
         bc1 = self.data['state'] == control_state
@@ -533,12 +534,12 @@ class PeptideMasterTable(object):
 
     @property
     def states(self):
-        """:~classs:np.ndarray: Array with unique states"""
+        """:class:`~numpy.ndarray` Array with unique states"""
         return np.unique(self.data['state'])
 
     @property
     def exposures(self):
-        """:~classs:np.ndarray: Array with unique exposures"""
+        """:class:`~numpy.ndarray` Array with unique exposures"""
         return np.unique(self.data['exposure'])
 
 
@@ -635,7 +636,7 @@ class Coverage(object):
 
     @property
     def r_number(self):
-        """:class:`~np.ndarray: Array of residue numbers corresponding to the part of the protein covered by peptides"""
+        """:class:`~numpy.ndarray`: Array of residue numbers corresponding to the part of the protein covered by peptides"""
         #todo perhaps obtain through apply_interval
         return np.arange(*self.interval)
 
@@ -654,19 +655,19 @@ class Coverage(object):
 
     @property
     def X_norm(self):
-        """:class:`~np.ndarray`: `X` coefficient matrix normalized column wise."""
+        """:class:`~numpy.ndarray`: `X` coefficient matrix normalized column wise."""
         return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
 
     @property
     def Z_norm(self):
-        """:class:`~np.ndarray`: `Z` coefficient matrix normalized column wise."""
+        """:class:`~numpy.ndarray`: `Z` coefficient matrix normalized column wise."""
         return self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
 
     def get_sections(self, gap_size=-1):
         """get the intervals of sections of coverage
         intervals are inclusive, exclusive
 
-            gap_size: :obj:`int`
+            gap_size : :obj:`int`
         Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
         with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
         and larger values tolerate larger gap sizes.
@@ -685,15 +686,15 @@ class Coverage(object):
 
 class KineticsSeries(object):
     """
-    A series of :class:`~pyhdx.pyhdx.PeptideMeasurements` which correspond to the same state but with different exposures.
+    A series of :class:`~pyhdx.models.PeptideMeasurements` which correspond to the same state but with different exposures.
 
     Parameters
     ----------
     data : :class:`~numpy.ndarray` or :obj:`list`
         Numpy structured array with peptide entries corresponding to a single state,
-        or list of :class:`~pyhdx.pyhdx.PeptideMeasurements`
+        or list of :class:`~pyhdx.models.PeptideMeasurements`
     make_uniform : :obj:`bool`
-        If `True` the :class:`~pyhdx.pyhdx.KineticSeries` instance is made uniform
+        If `True` the :class:`~pyhdx.models.KineticSeries` instance is made uniform
     **metadata
         Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
 
@@ -704,9 +705,9 @@ class KineticsSeries(object):
         State of the kinetic series
     timepoints : :class:`~numpy.ndarray`
         Array with exposure times (sorted)
-    peptides: :obj:`list`
+    peptides : :obj:`list`
         List of :class:`~pyhdx.models.PeptideMeasurements`, one list element per timepoint.
-    cov: :class:`~pyhdx.models.Coverage`
+    cov : :class:`~pyhdx.models.Coverage`
         Coverage object describing peptide layout. When this `uniform` is `False`, this attribute is `None`
 
     """
@@ -799,7 +800,7 @@ class PeptideMeasurements(Coverage):
 
     Parameters
     ----------
-    data : :class`~numpy.ndarray`
+    data : :class:`~numpy.ndarray`
         Numpy structured array with input data
     scores : :class:`~numpy.ndarray`
         Array with D/H uptake scores, typically in percentages or absolute uptake numbers.
@@ -869,7 +870,7 @@ class PeptideMeasurements(Coverage):
         Returns
         -------
 
-        scores : :class`~numpy.ndarray`
+        scores : :class:`~numpy.ndarray`
             Array of scores per peptide
         """
 
@@ -913,14 +914,14 @@ def series_intersection(series_list, fields=None):
 
     Parameters
     ----------
-    series_list: :obj:`list`
+    series_list : :obj:`list`
         Input list of :class:`~pyhdx.models.KineticSeries`
-    fields: :obj:`list`
+    fields : :obj:`list`
         By which fields to take the intersections. Default is ['_start', '_end', 'exposure']
 
     Returns
     -------
-    series_out: :obj:`list`
+    series_out : :obj:`list`
         Output list of :class:`~pyhdx.models.KineticSeries`
     """
 
