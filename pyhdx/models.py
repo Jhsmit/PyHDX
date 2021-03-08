@@ -785,7 +785,7 @@ class KineticsSeries(object):
 
     @property
     def c_term(self):
-        warnings.warn("'c_term' property will be moved to Coverage object", warnings.DeprecationWarning)
+        warnings.warn("'c_term' property will be moved to Coverage object", DeprecationWarning)
         return self.cov.protein.c_term
 
     @c_term.setter
