@@ -2,6 +2,7 @@ import numpy as np
 from numpy.lib.recfunctions import append_fields
 import itertools
 import scipy
+import warnings
 from datetime import datetime
 import pandas as pd
 from io import StringIO
@@ -200,7 +201,6 @@ class Protein(object):
     @property
     def index(self):
         return self.df.index
-
 
     def copy(self):
         df = self.df.copy()
@@ -554,6 +554,13 @@ class Coverage(object):
         Numpy structured array with input peptides
     c_term : :obj:`int`
         Residue index number of the C-terminal residue (where first residue in index number 1)
+    n_term: :obj`int`
+        Residue index of the N-terminal residue. Default value is 1, can be negative to accomodate for N-terminal
+        purification tags
+    sequence: :ob:`str`
+        Amino acid sequence of the protein in one-letter FASTA encoding. Optional, if not specified the amino acid sequence
+        from the peptide data is used to (partially) reconstruct the sequence. Supplied amino acid sequence must be
+        compatible with sequence information in the peptides.
 
     Attributes
     ----------
@@ -568,14 +575,18 @@ class Coverage(object):
 
     """
 
-    def __init__(self, data, c_term=None):
+    def __init__(self, data, c_term=None, n_term=1, sequence=None):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
         self.data = np.sort(data, order=['start', 'end'])
 
         start = min(np.min(self.data['_start']), 1)
+        if n_term:
+            start = min(start, n_term)
         end = np.max(self.data['_end'])
+        if sequence and c_term is not None:
+            c_term = len(sequence) + n_term - 1
         if c_term:
             end = max(end, c_term + 1)  # c_term is inclusive, therefore plus one
         r_number = np.arange(start, end)  # r_number spanning the full protein range, not just the covered range
@@ -588,6 +599,15 @@ class Coverage(object):
             i, j = np.searchsorted(r_number, [d['_start'], d['_end']])
             _seq[i:j] = [s for s in d['_sequence']]
             seq[i:j] = [s for s in d['sequence']]
+
+        if sequence:
+            for r, s1, s2 in zip(r_number, sequence, _seq):
+                if s2 != 'X' and s1 != s2:
+                    raise ValueError(
+                        f"Mismatch in supplied sequence and peptides sequence at residue {r}, expected '{s2}', got '{s1}'")
+            if len(sequence) != len(_seq):
+                raise ValueError("Invalid length of supplied sequence. Please check 'n_term' and 'c_term' parameters")
+            _seq = list(sequence)
 
         #todo check if this is always correctly determined (n terminal residues usw)
         exchanges = [s.isupper() and (s != 'X') for s in seq]  # Boolean array True if residue exchanges, full length
@@ -727,7 +747,8 @@ class KineticsSeries(object):
         self.peptides = [PeptideMeasurements(elem) for elem in selected]
 
         # Create coverage object from the first time point (as all are now equal)
-        self.cov = Coverage(selected[0], c_term=metadata.get('c_term'))
+        cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ['c_term', 'n_term', 'sequence']}
+        self.cov = Coverage(selected[0], **cov_kwargs)
 
     @property
     def temperature(self):
@@ -753,6 +774,7 @@ class KineticsSeries(object):
 
     @property
     def c_term(self):
+        warnings.warn("'c_term' property will be moved to Coverage object", warnings.DeprecationWarning)
         return self.cov.protein.c_term
 
     @c_term.setter
