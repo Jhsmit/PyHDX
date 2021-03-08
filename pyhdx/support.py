@@ -358,7 +358,6 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     pd_series = pd_series.replace('nan', no_coverage)  # No coverage at nan entries
     pd_series = pd_series.replace(np.nan, no_coverage)  # Numpy NaNs
 
-
     grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
 
     s_out = ''

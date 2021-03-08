@@ -793,9 +793,9 @@ class KineticsFitting(object):
 
         optimizer_klass = getattr(torch.optim, optimizer)
         optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
-
-        mse_loss = [np.inf]  # Mean squared loss only
-        reg_loss = [np.inf]  # Loss including regularization loss
+        
+        mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
+        reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
         stop = 0
 
         #todo if/else probably not needed as other optimizers can also use closure function
@@ -840,7 +840,10 @@ class KineticsFitting(object):
 
                 loss.backward()
                 optimizer_obj.step()
-
+                
+        mse_loss = np.array([val.detach().numpy() for val in mse_loss])
+        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
+        
         result = TorchFitResult(self.series, model, temperature=temperature,
                                 mse_loss=mse_loss, reg_loss=reg_loss)
 
