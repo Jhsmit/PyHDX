@@ -119,7 +119,7 @@ def do_fitting_from_yaml(yaml_dict, kf_obj):
 
     global_fit = yaml_dict['global_fit']
     optimizer_kwargs = global_fit.pop('optimizer_kwargs')
-    fit_result = kf_obj.global_fit_torch(initial_guess, **global_fit, **optimizer_kwargs)
+    fit_result = kf_obj.global_fit(initial_guess, **global_fit, **optimizer_kwargs)
 
     return fit_result
 

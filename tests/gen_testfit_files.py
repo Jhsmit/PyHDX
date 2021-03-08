@@ -37,7 +37,7 @@ out1.to_file(directory / 'test_data' / 'fit_simulated_wt_avg.txt')
 with open(directory / 'test_data' / 'fit_simulated_wt_avg.pick', 'wb') as f:
     pickle.dump(fr1, f)
 
-fr_torch = kf.global_fit_torch(out1, epochs=epochs)
+fr_torch = kf.global_fit(out1, epochs=epochs)
 out_deltaG = fr_torch.output
 
 out_deltaG.to_file(directory / 'test_data' / 'fit_simulated_torch.txt')

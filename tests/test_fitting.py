@@ -45,7 +45,7 @@ class TestSimulatedDataFit(object):
         kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=300, pH=8)
         initial_rates = txt_to_protein(os.path.join(directory, 'test_data', 'fit_simulated_wt_avg.txt'))
 
-        fr_pfact = kf.global_fit_torch(initial_rates, epochs=1000)
+        fr_pfact = kf.global_fit(initial_rates, epochs=1000)
         out_deltaG = fr_pfact.output
         check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'fit_simulated_torch.txt'))
 
@@ -80,7 +80,7 @@ class TestSecBDataFit(object):
         kf = KineticsFitting(self.series, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH)
         initial_rates = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
 
-        fr_global = kf.global_fit_torch(initial_rates, epochs=1000)
+        fr_global = kf.global_fit(initial_rates, epochs=1000)
         out_deltaG = fr_global.output
         check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
 

@@ -752,8 +752,8 @@ class KineticsFitting(object):
         return p_guess
 
     #todo might make more sense to have initial result as deltaG vecotor as input
-    def global_fit_torch(self, initial_result, regularizer=2, epochs=100000, patience=50, stop_loss=0.05,
-                         optimizer='SGD', **optimizer_kwargs):
+    def global_fit(self, initial_result, regularizer=2, epochs=100000, patience=50, stop_loss=0.05,
+                   optimizer='SGD', **optimizer_kwargs):
         """Pytorch global fitting"""
 
         if 'k_int' not in self.series.cov.protein:

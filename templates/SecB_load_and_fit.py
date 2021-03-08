@@ -29,7 +29,7 @@ else:
 
 from time import time
 t0 = time()  # 25 secondjes (defualt settings)
-fr_torch = kf.global_fit_torch(init_guess)
+fr_torch = kf.global_fit(init_guess)
 t1 = time()
 
 print(t1 - t0)

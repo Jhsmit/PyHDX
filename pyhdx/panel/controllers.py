@@ -915,9 +915,9 @@ class FitControl(ControlPanel):
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
         initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
-        result = kf.global_fit_torch(initial_result, regularizer=self.regularizer, lr=self.learning_rate,
-                                     momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
-                                     patience=self.stop_patience, stop_loss=self.stop_loss)
+        result = kf.global_fit(initial_result, regularizer=self.regularizer, lr=self.learning_rate,
+                               momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
+                               patience=self.stop_patience, stop_loss=self.stop_loss)
 
         output = result.output
         output_name = 'global_fit'
