@@ -655,6 +655,17 @@ class Coverage(object):
         return covered_slice
 
     @property
+    def Np(self):
+        """:obj:`int`: Number of peptides."""
+        return self.X.shape[0]
+
+    @property
+    def Nr(self):
+        """:obj:`int`: Total number of residues spanned by the peptides."""
+
+        return self.X.shape[1]
+
+    @property
     def r_number(self):
         """:class:`~numpy.ndarray`: Array of residue numbers corresponding to the part of the protein covered by peptides"""
         #todo perhaps obtain through apply_interval
@@ -782,6 +793,22 @@ class KineticsSeries(object):
         raise NotImplementedError('Cannot change c_term after object initialization')
         #todo allow this by making an new protein / coverage object
         self.metadata['c_term'] = value
+
+    @property
+    def Np(self):
+        """:obj:`int`: Number of peptides."""
+        return self.cov.Np
+
+    @property
+    def Nr(self):
+        """:obj:`int`: Total number of residues spanned by the peptides."""
+
+        return self.cov.Nr
+
+    @property
+    def Nt(self):
+        """:obj:`int`: Number of timepoints."""
+        return len(self.timepoints)
 
     @property
     def full_data(self):

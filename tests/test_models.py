@@ -57,12 +57,12 @@ class TestSeries(object):
     @classmethod
     def setup_class(cls):
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
-        cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
+        cls.pmt = PeptideMasterTable(read_dynamx(fpath))
+        d = cls.pmt.groupby_state()
+        cls.series = d['SecB WT apo']
 
-
-    def test_coverage(self):
-        states = self.pf1.groupby_state()
-        series = states['SecB WT apo']
+    def test_dim(self):
+        assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
 
 
 
@@ -147,7 +147,7 @@ class TestCoverage(object):
         cls.sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQM' \
                        'AHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
-    def test_coverage(self):
+    def test_sequence(self):
         data = self.series[0].data
         cov = Coverage(data)
 
@@ -162,7 +162,10 @@ class TestCoverage(object):
         for r, s in zip(cov_seq.r_number, cov_seq['sequence']):
             assert self.sequence[r - 1] == s
 
-
+    def test_dim(self):
+        cov = self.series.cov
+        assert cov.Np == len(np.unique(cov.data['sequence']))
+        assert cov.Nr == len(cov.r_number)
 
 
 
