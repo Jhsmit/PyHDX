@@ -9,7 +9,7 @@ root_dir = Path().resolve().parent
 test_data_dir = root_dir / 'tests' / 'test_data'
 input_file_path = test_data_dir / 'ecSecB_apo.csv'
 
-data = read_dynamx(input_file_path)
+data = read_dynamx(test_data_dir / 'ecSecB_apo.csv', test_data_dir / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
 pmt.set_control(('Full deuteration control', 0.167))
