@@ -11,7 +11,7 @@ from collections import namedtuple
 from functools import reduce, partial
 from operator import add
 from dask.distributed import Client
-
+import warnings
 
 class KineticsModel(object):
     """
@@ -1046,6 +1046,9 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         initial_result array with r_number and rate
         series kineticsseries object for the section
         """
+
+        warnings.warn("'LSQKinetics' object will be removed", DeprecationWarning)
+
         super(LSQKinetics, self).__init__(bounds)
         t_var = self.make_variable('t')
 
