@@ -1,2 +1,5 @@
 ignore:
   - setup.py
+  
+fixes:
+  - "src/master/::" 
