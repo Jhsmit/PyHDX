@@ -50,7 +50,7 @@ class TestSimulatedDataFit(object):
         out_deltaG = fr_pfact.output
         check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'fit_simulated_torch.txt'))
 
-        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True)
+        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
 
 
 class TestSecBDataFit(object):
@@ -77,7 +77,7 @@ class TestSecBDataFit(object):
         out_deltaG = fr_global.output
         check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
 
-        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True)
+        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
 
     def test_batch_fit(self):
         kfs = [KineticsFitting(series, temperature=self.temperature, pH=self.pH) for series in [self.series_apo, self.series_dimer]]
@@ -93,4 +93,4 @@ class TestSecBDataFit(object):
         states = ['SecB WT apo', 'SecB his dimer apo']
 
         for state in states:
-            assert np.allclose(output[state]['deltaG'], df[state]['deltaG'], equal_nan=True)
+            assert np.allclose(output[state]['deltaG'], df[state]['deltaG'], equal_nan=True, rtol=0.01)
