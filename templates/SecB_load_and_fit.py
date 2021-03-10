@@ -4,7 +4,7 @@ from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx
 from pyhdx.fileIO import txt_to_protein
 
 guess = False
-
+epochs = 100000
 root_dir = Path().resolve().parent
 test_data_dir = root_dir / 'tests' / 'test_data'
 input_file_path = test_data_dir / 'ecSecB_apo.csv'
@@ -26,19 +26,5 @@ if guess:
 else:
     init_guess = txt_to_protein(test_data_dir / 'ecSecB_guess.txt')
 
+fr_torch = kf.global_fit(init_guess, epochs=epochs, r1=0.1, stop_loss=0.001, patience=100)
 
-from time import time
-t0 = time()  # 25 secondjes (defualt settings)
-fr_torch = kf.global_fit(init_guess)
-t1 = time()
-
-print(t1 - t0)
-
-import matplotlib.pyplot as plt
-
-print(fr_torch)
-loss = fr_torch.metadata['reg_loss']
-print(loss[-1])
-
-plt.plot(loss)
-plt.show()
