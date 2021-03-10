@@ -239,6 +239,7 @@ class PeptideFileInputControl(ControlPanel):
 
     def _action_clear(self):
         """Clear all file selectors and set number of file selectors to one."""
+        #todo @tejas: Add test
         self.parent.logger.debug('Cleared file selectors')
 
         while self.file_selectors:
@@ -277,6 +278,7 @@ class PeptideFileInputControl(ControlPanel):
             control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
             self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
         elif self.be_mode == 'Theory':
+            # todo @tejas: Add test
             self.parent.peptides.set_backexchange(self.be_percent)
 
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
@@ -299,6 +301,7 @@ class PeptideFileInputControl(ControlPanel):
 
     @param.depends('be_mode', watch=True)
     def _update_be_mode(self):
+        # todo @tejas: Add test
         if self.be_mode == 'Exp':
             self.box_pop('be_percent')
             self.box_insert_after('be_mode', 'fd_state')
@@ -346,7 +349,8 @@ class PeptideFileInputControl(ControlPanel):
 
 
 class FDPeptideFileInputControl(PeptideFileInputControl):
-
+    # todo @tejas: Add test
+    # This requires making a test function with the full_deuteration_app in apps.py
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'load_button', 'd_percentage',
                       'fd_state', 'fd_exposure', 'parse_button']
@@ -373,6 +377,9 @@ class FDPeptideFileInputControl(PeptideFileInputControl):
 
 
 class PeptideFoldingFileInputControl(PeptideFileInputControl):
+    # todo @tejas: Add test
+    # This requires making a test function with the folding in apps.py
+
     be_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory']
                              , precedence=-1)
     fd_state = param.Selector(doc='State used to normalize uptake', label='100% Control State')
@@ -534,6 +541,8 @@ class DifferenceControl(ControlPanel):
 
 
 class SingleControl(ControlPanel):
+    # todo @tejas: Add test
+
     """
     This controller allows users to select a dataset from available datasets, and choose a quantity to classify/visualize,
     and add this quantity to the available datasets.
@@ -628,7 +637,8 @@ class CoverageControl(ControlPanel):
         return self.generate_widgets(index=pn.widgets.IntSlider)
 
     @param.depends('color_map', watch=True)
-    def _update_cbar(self):
+    def _update_cbar(self): # pragma: no cover
+        # Function is currently not used
         cmap = mpl.cm.get_cmap(self.color_map)
         pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
         self.color_mapper.palette = pal
@@ -915,7 +925,7 @@ class FitControl(ControlPanel):
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
         initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
-        result = kf.global_fit(initial_result, regularizer=self.regularizer, lr=self.learning_rate,
+        result = kf.global_fit(initial_result, r1=self.regularizer, lr=self.learning_rate,
                                momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
                                patience=self.stop_patience, stop_loss=self.stop_loss)
 
@@ -942,6 +952,8 @@ class FitControl(ControlPanel):
 
 
 class FitResultControl(ControlPanel):
+    # @tejas skip test, currently bugged, issue #182
+
     """
     This controller allows users to view to fit result and how it describes the uptake of every peptide.
     """
@@ -1261,6 +1273,8 @@ class ClassificationControl(ControlPanel):
 
 
 class ColoringControl(ClassificationControl):
+    # WIP class, skip tests
+
 
     def make_dict(self):
         widgets_dict = super().make_dict()

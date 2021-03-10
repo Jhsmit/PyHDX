@@ -3,9 +3,9 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
 from pyhdx.support import autowrap
+import warnings
 
-
-def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs):
+def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs): # pragma: no cover
     """
     FUNCTION IS MOST LIKELY OUT OF DATE
 
@@ -23,6 +23,9 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, *
     -------
 
     """
+
+    warnings.warn("This function will be removed", DeprecationWarning)
+
     img = (pm.X > 0).astype(float)
     if scores is not None:
         img *= scores[:, np.newaxis]
@@ -45,7 +48,7 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, *
     ax.set_ylabel('Peptide index')
 
 
-def make_kinetics_figure(pm_dict, cmap='cool'):
+def make_kinetics_figure(pm_dict, cmap='cool'): # pragma: no cover
     """
     FUNCTION IS MOST LIKELY OUT OF DATE
 
@@ -56,6 +59,8 @@ def make_kinetics_figure(pm_dict, cmap='cool'):
     """
 
     """returns matplotlib figure for visualization of kinetics"""
+
+    warnings.warn("This function will be removed", DeprecationWarning)
 
     fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 4), sharex=True, gridspec_kw={'hspace': 0})
     times = [p.exposure for p in pm_dict.values()]
