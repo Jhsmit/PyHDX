@@ -5,6 +5,7 @@ from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting
 import numpy as np
 import torch
 import pandas as pd
+import time
 
 directory = os.path.dirname(__file__)
 np.random.seed(43)
@@ -73,7 +74,11 @@ class TestSecBDataFit(object):
         kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH)
         initial_rates = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
 
+        t0 = time.time()  # Very crude benchmarks
         fr_global = kf.global_fit(initial_rates, epochs=1000)
+        t1 = time.time()
+
+        assert t1 - t0 < 5
         out_deltaG = fr_global.output
         check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
 
