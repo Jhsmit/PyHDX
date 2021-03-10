@@ -831,10 +831,10 @@ class KineticsFitting(object):
         optimizer_klass = getattr(torch.optim, optimizer)
         optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
 
-        def regularizer_func(param):
+        def regularizer(param):
             return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
 
-        mse_loss, total_loss = run_optimizer(inputs, output_data, optimizer_obj, model, criterion, regularizer_func,
+        mse_loss, total_loss = run_optimizer(inputs, output_data, optimizer_obj, model, criterion, regularizer,
                                              epochs=epochs, patience=patience, stop_loss=stop_loss)
 
         result = TorchFitResult(self.series, model, temperature=temperature,
