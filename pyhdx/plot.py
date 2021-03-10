@@ -5,7 +5,7 @@ import numpy as np
 from pyhdx.support import autowrap
 import warnings
 
-def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs):
+def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs): # pragma: no cover
     """
     FUNCTION IS MOST LIKELY OUT OF DATE
 
@@ -48,7 +48,7 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, *
     ax.set_ylabel('Peptide index')
 
 
-def make_kinetics_figure(pm_dict, cmap='cool'):
+def make_kinetics_figure(pm_dict, cmap='cool'): # pragma: no cover
     """
     FUNCTION IS MOST LIKELY OUT OF DATE
 
