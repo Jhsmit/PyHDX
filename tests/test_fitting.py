@@ -83,6 +83,8 @@ class TestSecBDataFit(object):
         check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
 
         assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
+        assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
+
 
     def test_batch_fit(self):
         kfs = [KineticsFitting(series, temperature=self.temperature, pH=self.pH) for series in [self.series_apo, self.series_dimer]]
