@@ -795,7 +795,7 @@ class KineticsFitting(object):
         return p_guess
 
     #todo might make more sense to have initial result as deltaG vecotor as input
-    def global_fit(self, initial_result, regularizer=2, epochs=100000, patience=50, stop_loss=0.05,
+    def global_fit(self, initial_result, r1=2, epochs=100000, patience=50, stop_loss=0.05,
                    optimizer='SGD', **optimizer_kwargs):
         #todo @tejas: Missing docstring
         """Pytorch global fitting"""
@@ -831,9 +831,8 @@ class KineticsFitting(object):
         optimizer_klass = getattr(torch.optim, optimizer)
         optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
 
-        #todo refactor regularizer to r1
         def regularizer_func(param):
-            return regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
+            return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
 
         mse_loss, total_loss = run_optimizer(inputs, output_data, optimizer_obj, model, criterion, regularizer_func,
                                              epochs=epochs, patience=patience, stop_loss=stop_loss)
