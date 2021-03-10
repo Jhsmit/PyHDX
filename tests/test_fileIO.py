@@ -1,19 +1,18 @@
-from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
-from pyhdx.fileIO import txt_to_protein, txt_to_np, read_dynamx, fmt_export, _get_f_width
-from pyhdx.panel.apps import _main_app, _diff_app
-from pyhdx.panel.data_sources import DataSource
+from pyhdx.fileIO import txt_to_protein, txt_to_np, read_dynamx, fmt_export
+from pyhdx.models import Protein
 from pathlib import Path
 from io import StringIO
+import numpy as np
 import pytest
 
 directory = Path(__file__).parent
+
 
 class TestFileIO(object):
 
     @classmethod
     def setup_class(cls):
         cls.fpath = directory / 'test_data' / 'ecSecB_apo.csv'
-
 
     def test_read_dynamx(self):
         data = read_dynamx(self.fpath)
@@ -33,22 +32,38 @@ class TestFileIO(object):
             data = read_dynamx(self.fpath, intervals=('inclusive', 'bar'))
 
         with open(self.fpath, mode='r') as f:
-            read_dynamx(StringIO(f.read()))
+            data = read_dynamx(StringIO(f.read()))
+            assert data.size == 567
 
-
-    def test_methods(self):
+    def test_fmt_export(self):
+        # testing fmt_export
         data = read_dynamx(self.fpath)
-        path = directory / 'test_data' / 'ecSecB_guess.txt';
-
-        #testing fmt_export
         with pytest.raises(ValueError):
             fmt_export(data, delimiter=',', width="foo")
 
-        #testing txt_to_protein
-        txt_to_protein(path)
+        fmt, hdr = fmt_export(data, delimiter=',', width=0)
+        assert 'protein' in hdr
 
-        #testing txt_to_np
+        fmt, hdr = fmt_export(data, delimiter=',', width='auto')
+        assert 'protein' in hdr
+
+        fmt, hdr = fmt_export(data, header=False)
+        assert len(hdr) == 0
+
+        data = np.genfromtxt(self.fpath, skip_header=1, delimiter=',', dtype=[('foo', 'V'), ('bar', 'V')])
+        with pytest.raises(TypeError):
+            fmt_export(data, delimiter=',', width=0)
+
+    # testing other functions in fileIO
+    def test_methods(self):
+        path = directory / 'test_data' / 'ecSecB_guess.txt'
+
+        # testing txt_to_protein
+        ret = txt_to_protein(path)
+        assert type(ret) == Protein
+        assert ret.index.name == 'r_number'
+
+        # testing txt_to_np
         with open(path, mode='r') as f:
-            txt_to_np(StringIO('f'))
-
-
+            ret = txt_to_np(StringIO(f.read()))
+            assert 'r_number' in ret.dtype.names
