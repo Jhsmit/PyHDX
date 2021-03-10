@@ -13,6 +13,7 @@ from operator import add
 from dask.distributed import Client
 import warnings
 
+
 class KineticsModel(object):
     """
     Base class for kinetics models. Main function is to generate :ref:`symfit` Variables and Parameters. The class
@@ -577,6 +578,48 @@ def fit_global(data, model):
     return res
 
 
+
+# Defaults for PyTorch optimizations
+optimizer_defaults = {
+    'SGD': {
+        'lr': 10,
+        'momentum': 0.5,
+        'nesterov': True
+    },
+}
+
+def run_optimizer(inputs, output_data, optimizer, model, criterion, regularizer,
+                  epochs=100000, patience=50, stop_loss=0.05):
+
+    mse_loss_list = [np.inf]
+    total_loss_list = [np.inf]
+
+    def closure():
+        output = model(*inputs)
+        loss = criterion(output, output_data)
+        mse_loss_list.append(loss.detach())
+        reg_loss = regularizer(model.deltaG)
+        total_loss = loss + reg_loss
+        total_loss_list.append(total_loss.detach())
+        total_loss.backward()
+        return total_loss
+
+    stop = 0
+    for epoch in range(epochs):
+        optimizer.zero_grad()
+        loss = optimizer.step(closure)
+
+        diff = total_loss_list[-2] - total_loss_list[-1]
+        if diff < stop_loss:
+            stop += 1
+            if stop > patience:
+                break
+        else:
+            stop = 0
+
+    return np.array(mse_loss_list), np.array(total_loss_list)
+
+
 class KineticsFitting(object):
 
     def __init__(self, series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
@@ -781,71 +824,21 @@ class KineticsFitting(object):
         criterion = torch.nn.MSELoss(reduction='sum')
 
         # Take default optimizer kwargs and update them with supplied kwargs
-        optimizer_defaults = {
-            'SGD': {
-                'lr': 10,
-                'momentum': 0.5,
-                'nesterov': True
-            },
-        }
         kwargs = optimizer_defaults.get(optimizer, {})
         kwargs.update(**optimizer_kwargs)
 
         optimizer_klass = getattr(torch.optim, optimizer)
         optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
-        
-        mse_loss = [torch.tensor(np.inf)]  # Mean squared loss only
-        reg_loss = [torch.tensor(np.inf)]  # Loss including regularization loss
-        stop = 0
 
-        #todo if/else probably not needed as other optimizers can also use closure function
-        if optimizer == 'LBFGS':
-            for epoch in range(epochs):
-                #move function outside of loop?
-                def closure():
-                    # if torch.is_grad_enabled():
-                    #     optimizer.zero_grad()
-                    output = model(*inputs)
-                    loss = criterion(output, output_data)
-                    for pname, param in model.named_parameters():
-                        loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
-                    loss.backward()
-                    return loss
+        #todo refactor regularizer to r1
+        def regularizer_func(param):
+            return regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
 
-                loss = optimizer_obj.step(closure)
-                reg_loss.append(loss)
-                diff = reg_loss[-2] - loss
-                if diff < stop_loss:
-                    stop += 1
-                    if stop > patience:
-                        break
+        mse_loss, total_loss = run_optimizer(inputs, output_data, optimizer_obj, model, criterion, regularizer_func,
+                                             epochs=epochs, patience=patience, stop_loss=stop_loss)
 
-        else:
-            for epoch in range(epochs):
-                optimizer_obj.zero_grad()
-                output = model(*inputs)
-                loss = criterion(output, output_data)
-                mse_loss.append(loss)
-
-                for pname, param in model.named_parameters():
-                    loss = loss + regularizer * torch.mean(torch.abs(param[:-1] - param[1:]))
-                reg_loss.append(loss)
-                diff = reg_loss[-2] - loss
-                if diff < stop_loss:
-                    stop += 1
-                    if stop > patience:
-                        break
-                else:
-                    stop = 0
-
-                loss.backward()
-                optimizer_obj.step()
-                
-        mse_loss = np.array([val.detach().numpy() for val in mse_loss])
-        reg_loss = np.array([val.detach().numpy() for val in reg_loss])
-        
         result = TorchFitResult(self.series, model, temperature=temperature,
-                                mse_loss=mse_loss, reg_loss=reg_loss)
+                                mse_loss=mse_loss, total_loss=total_loss)
 
         return result
 
@@ -1276,14 +1269,6 @@ class BatchFitting(object):
 
         model = DeltaGFit(deltaG_par)
 
-        #todo base class global fit function
-        optimizer_defaults = {
-            'SGD': {
-                'lr': 10,
-                'momentum': 0.5,
-                'nesterov': True
-            },
-        }
         kwargs = optimizer_defaults.get(optimizer, {})
         kwargs.update(**optimizer_kwargs)
 
@@ -1371,13 +1356,6 @@ class BatchFitting(object):
         model = DeltaGFit(deltaG_par)
 
         #todo base class global fit function
-        optimizer_defaults = {
-            'SGD': {
-                'lr': 10,
-                'momentum': 0.5,
-                'nesterov': True
-            },
-        }
         kwargs = optimizer_defaults.get(optimizer, {})
         kwargs.update(**optimizer_kwargs)
 
