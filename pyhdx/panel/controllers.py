@@ -290,6 +290,8 @@ class PeptideFileInputControl(ControlPanel):
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.cov)} peptides each)')
+        self.parent.logger.info(f'Average coverage: {series.cov.percent_coverage:.3}%, '
+                                f'Redundancy: {series.cov.redundancy:.2}')
 
     def _publish_scores(self):
         exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(self.parent.series.scores_stack, self.parent.series.timepoints)}

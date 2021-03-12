@@ -655,6 +655,17 @@ class Coverage(object):
         return covered_slice
 
     @property
+    def percent_coverage(self):
+        """:obj:`float`: Percentage of residues covered by peptides"""
+        return 100*np.mean(self.protein['coverage'])
+
+    @property
+    def redundancy(self):
+        """:obj:`float`: Average redundancy of peptides in regions with at least 1 peptide"""
+        x_coverage = self.X[:, self['coverage']]
+        return np.mean(np.sum(x_coverage, axis=0))
+
+    @property
     def Np(self):
         """:obj:`int`: Number of peptides."""
         return self.X.shape[0]
