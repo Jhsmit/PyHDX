@@ -1,6 +1,6 @@
 from pyhdx.support import get_reduced_blocks, temporary_seed
 from pyhdx.models import Protein
-from pyhdx.fitting_torch import DeltaGFit, TorchFitResult, TorchBatchFitResult
+from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
 from scipy import constants
 from scipy.optimize import fsolve
 import torch
@@ -578,7 +578,6 @@ def fit_global(data, model):
     return res
 
 
-
 # Defaults for PyTorch optimizations
 optimizer_defaults = {
     'SGD': {
@@ -587,7 +586,6 @@ optimizer_defaults = {
         'nesterov': True
     },
 }
-
 def run_optimizer(inputs, output_data, optimizer, model, criterion, regularizer,
                   epochs=100000, patience=50, stop_loss=0.05):
 
@@ -837,8 +835,8 @@ class KineticsFitting(object):
         mse_loss, total_loss = run_optimizer(inputs, output_data, optimizer_obj, model, criterion, regularizer,
                                              epochs=epochs, patience=patience, stop_loss=stop_loss)
 
-        result = TorchFitResult(self.series, model, temperature=temperature,
-                                mse_loss=mse_loss, total_loss=total_loss)
+        result = TorchSingleFitResult(self, model,
+                                      mse_loss=mse_loss, total_loss=total_loss)
 
         return result
 

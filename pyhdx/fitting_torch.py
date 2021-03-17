@@ -28,12 +28,50 @@ class DeltaGFit(nn.Module):
 
 
 class TorchFitResult(object):
-    #todo perhaps pass KineticsFitting object (which includes temperature) (yes do then it can also have methods which return inputs)
-    def __init__(self, series, model, temperature=None, **metadata):
-        self.series = series
+    def __init__(self, fit_object, model, **metadata):
+        self.fit_object = fit_object
         self.model = model
-        self.temperature = temperature
         self.metadata = metadata
+
+    @property
+    def mse_loss(self):
+        """obj:`float`: Losses from mean squared error part of Lagrangian"""
+        mse_loss = self.metadata['mse_loss'][-1]
+        return mse_loss
+
+    @property
+    def total_loss(self):
+        """obj:`float`: Total loss value of the Lagrangian"""
+        total_loss = self.metadata['total_loss'][-1]
+        return total_loss
+
+    @property
+    def reg_loss(self):
+        """obj:`float`: Losses from regularization part of Lagrangian"""
+        return self.total_loss - self.mse_loss
+
+    @property
+    def regularization_percentage(self):
+        """obj:`float`: Percentage part of the total loss that is regularization loss"""
+        return (self.reg_loss / self.total_loss) * 100
+
+    @property
+    def deltaG(self):
+        return self.model.deltaG.detach().numpy().squeeze()
+
+
+class TorchSingleFitResult(TorchFitResult):
+    #todo perhaps pass KineticsFitting object (which includes temperature) (yes do then it can also have methods which return inputs)
+    def __init__(self, *args, **kwargs):
+        super(TorchSingleFitResult, self).__init__(*args, **kwargs)
+
+    @property
+    def series(self):
+        return self.fit_object.series
+
+    @property
+    def temperature(self):
+        return self.fit_object.temperature
 
     def estimate_errors(self):
         # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
@@ -64,31 +102,7 @@ class TorchFitResult(object):
         return Protein({'covariance': covariance, 'r_number': r_number}, index='r_number')
 
 
-    @property
-    def mse_loss(self):
-        """obj:`float`: Losses from mean squared error part of Lagrangian"""
-        mse_loss = self.metadata['mse_loss'][-1]
-        return mse_loss
 
-    @property
-    def total_loss(self):
-        """obj:`float`: Total loss value of the Lagrangian"""
-        total_loss = self.metadata['total_loss'][-1]
-        return total_loss
-
-    @property
-    def reg_loss(self):
-        """obj:`float`: Losses from regularization part of Lagrangian"""
-        return self.total_loss - self.mse_loss
-
-    @property
-    def regularization_percentage(self):
-        """obj:`float`: Percentage part of the total loss that is regularization loss"""
-        return (self.reg_loss / self.total_loss) * 100
-
-    @property
-    def deltaG(self):
-        return self.model.deltaG.detach().numpy().squeeze()
 
     @property
     def output(self):
@@ -123,16 +137,9 @@ class TorchFitResult(object):
         return output.detach().numpy()
 
 
-class TorchBatchFitResult(object):
-    def __init__(self, fit_object, model, **metadata):
-        self.fit_object = fit_object
-        self.model = model
-        self.metadata = metadata
-
-    #todo baseclass
-    @property
-    def deltaG(self):
-        return self.model.deltaG.detach().numpy().squeeze()
+class TorchBatchFitResult(TorchFitResult):
+    def __init__(self, *args, **kwargs):
+        super(TorchBatchFitResult, self).__init__(*args, **kwargs)
 
     @property
     def output(self):
