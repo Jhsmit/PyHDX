@@ -105,7 +105,7 @@ class GoldenElvis(object):
         self.template_cls._template = template_code
 
         template = self.template_cls(title=self.title, theme=self.theme_cls)
-        controls = pn.Column(*[controller.panel for controller in controllers])
+        controls = pn.Accordion(*[controller.panel for controller in controllers], toggle=True)
 
         template.sidebar.append(controls)
 
