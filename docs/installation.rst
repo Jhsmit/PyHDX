@@ -29,7 +29,13 @@ To install the dependencies:
 
 .. code-block:: console
 
-    $ conda install --file requirements-conda.txt -c conda-forge -c pyviz -c pytorch
+    $ conda install -c conda-forge pyhdx --only-deps
+
+Additional `pbr` dependency is needed when using `develop` install:
+
+.. code-block:: console
+
+    $ conda install pbr
 
 Then clone the repository:
 
@@ -37,7 +43,7 @@ Then clone the repository:
 
     $ git clone git://github.com/Jhsmit/pyhdx
 
-And install pyHDX with ``conda`` (requires ``conda build``):
+And install PyHDX with ``conda`` (requires ``conda build``):
 
 .. code-block:: console
 
