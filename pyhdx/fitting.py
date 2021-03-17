@@ -741,7 +741,7 @@ class KineticsFitting(object):
         fit_result = KineticsFitResult(self.series, intervals, results, models)
         return fit_result
 
-    def _guess_deltaG(self, guess_rates):
+    def guess_deltaG(self, guess_rates):
         #todo make public
         protein = self.series.cov.protein
         p_guess = (protein['k_int'] / guess_rates['rate']) - 1
@@ -814,7 +814,7 @@ class KineticsFitting(object):
         output_data = torch.tensor(self.series.uptake_corrected.T, dtype=dtype)
 
         # Get initial guess values for deltaG
-        gibbs_values = self.series.cov.apply_interval(self._guess_deltaG(initial_result)).to_numpy()
+        gibbs_values = self.series.cov.apply_interval(self.guess_deltaG(initial_result)).to_numpy()
         if np.any(np.isnan(gibbs_values)):
             raise ValueError('NaN values in initial guess values')
         deltaG = torch.nn.Parameter(torch.Tensor(gibbs_values).unsqueeze(-1))
@@ -1228,7 +1228,7 @@ class BatchFitting(object):
 
             np.zeros((self.Ns, self.Nr))
 
-            gibbs_values = kf.series.cov.apply_interval(kf._guess_deltaG(self.guesses[i])).to_numpy()
+            gibbs_values = kf.series.cov.apply_interval(kf.guess_deltaG(self.guesses[i])).to_numpy()
             gibbs[i, i0:i1] = gibbs_values
 
             # Fill missing gibbs values (NaN entries) at start and end with extrapolated values
