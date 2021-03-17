@@ -948,9 +948,11 @@ class FitControl(ControlPanel):
         self.widget_dict['do_fit'].loading = False
         self.parent.param.trigger('fit_results')
 
-        self.parent.logger.debug('Finished PyTorch fit')
+        self.parent.logger.info('Finished PyTorch fit')
         loss = result.metadata['mse_loss']
-        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {loss[-1]}")
+        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                f"({result.regularization_percentage:1f}%)")
 
 
 class FitResultControl(ControlPanel):

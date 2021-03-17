@@ -63,6 +63,29 @@ class TorchFitResult(object):
 
         return Protein({'covariance': covariance, 'r_number': r_number}, index='r_number')
 
+
+    @property
+    def mse_loss(self):
+        """obj:`float`: Losses from mean squared error part of Lagrangian"""
+        mse_loss = self.metadata['mse_loss'][-1]
+        return mse_loss
+
+    @property
+    def total_loss(self):
+        """obj:`float`: Total loss value of the Lagrangian"""
+        total_loss = self.metadata['total_loss'][-1]
+        return total_loss
+
+    @property
+    def reg_loss(self):
+        """obj:`float`: Losses from regularization part of Lagrangian"""
+        return self.total_loss - self.mse_loss
+
+    @property
+    def regularization_percentage(self):
+        """obj:`float`: Percentage part of the total loss that is regularization loss"""
+        return (self.reg_loss / self.total_loss) * 100
+
     @property
     def deltaG(self):
         return self.model.deltaG.detach().numpy().squeeze()
