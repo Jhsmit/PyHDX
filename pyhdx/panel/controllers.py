@@ -59,7 +59,7 @@ class MappingFileInputControl(ControlPanel):
 
     @param.depends('input_file', watch=True)
     def _input_file_updated(self):
-        self.dataset_name = self.dataset_name or Path(self._widget_dict['input_file'].filename).stem
+        self.dataset_name = self.dataset_name or Path(self.widget_dict['input_file'].filename).stem
 
     @property
     def protein(self):
@@ -91,8 +91,8 @@ class MappingFileInputControl(ControlPanel):
             self._add_dataset()
             self.parent.param.trigger('datasets')
 
-        self._widget_dict['input_file'].filename = ''
-        self._widget_dict['input_file'].value = b''
+        self.widget_dict['input_file'].filename = ''
+        self.widget_dict['input_file'].value = b''
 
         self.dataset_name = ''
 
@@ -171,7 +171,7 @@ class MatrixMappingFileInputControl(SingleMappingFileInputControl):
             self.param['datapoints'].objects = float_fields
             self.datapoints = float_fields
 
-#        self.dataset_name = self.dataset_name or Path(self._widget_dict['input_file'].filename).stem
+#        self.dataset_name = self.dataset_name or Path(self.widget_dict['input_file'].filename).stem
 
 
 class MatrixImageControl(ControlPanel):
@@ -227,7 +227,7 @@ class PeptideFileInputControl(ControlPanel):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'd_percentage', 'load_button',
                       'be_mode', 'fd_state', 'fd_exposure', 'exp_state',
                       'exp_exposures', 'c_term', 'parse_button']
-        first_widgets = list([self._widget_dict[par] for par in parameters])
+        first_widgets = list([self.widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
 
     def _action_add(self):
@@ -356,7 +356,7 @@ class FDPeptideFileInputControl(PeptideFileInputControl):
     def make_list(self):
         parameters = ['add_button', 'clear_button', 'drop_first', 'load_button', 'd_percentage',
                       'fd_state', 'fd_exposure', 'parse_button']
-        first_widgets = list([self._widget_dict[par] for par in parameters])
+        first_widgets = list([self.widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
 
     def _action_parse(self):
@@ -396,7 +396,7 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
         parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
                       'fd_state', 'fd_exposure', 'zero_state', 'zero_exposure', 'exp_state',
                       'exp_exposures', 'parse_button']
-        first_widgets = list([self._widget_dict[par] for par in parameters])
+        first_widgets = list([self.widget_dict[par] for par in parameters])
         return self.file_selectors + first_widgets
 
     def _action_load(self):
@@ -763,10 +763,10 @@ class InitialGuessControl(ControlPanel):
         return self.generate_widgets(lower_bound=pn.widgets.LiteralInput, upper_bound=pn.widgets.LiteralInput)
 
     def make_list(self):
-        self._widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+        self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
         parameters = ['fitting_model', 'do_fit1', 'pbar1']
 
-        widget_list = list([self._widget_dict[par] for par in parameters])
+        widget_list = list([self.widget_dict[par] for par in parameters])
         return widget_list
 
     @param.depends('fitting_model', watch=True)
@@ -872,10 +872,10 @@ class FoldingFitting(InitialGuessControl):
                                    doc='Choose method for determining initial guesses.')
 
     def make_list(self):
-        self._widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+        self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
         parameters = ['fitting_model', 'lower_bound', 'upper_bound', 'do_fit1', 'pbar1']
 
-        widget_list = list([self._widget_dict[par] for par in parameters])
+        widget_list = list([self.widget_dict[par] for par in parameters])
         return widget_list
 
 
@@ -922,7 +922,7 @@ class FitControl(ControlPanel):
             self.initial_guess = objects[0]
 
     def _do_fitting(self):
-        self._widget_dict['do_fit'].loading = True
+        self.widget_dict['do_fit'].loading = True
         self.parent.logger.debug('Start PyTorch fit')
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
@@ -945,7 +945,7 @@ class FitControl(ControlPanel):
         self.parent.fit_results['fr_' + output_name] = result
         self.parent.publish_data(output_name, data_source)
 
-        self._widget_dict['do_fit'].loading = False
+        self.widget_dict['do_fit'].loading = False
         self.parent.param.trigger('fit_results')
 
         self.parent.logger.debug('Finished PyTorch fit')
@@ -1362,7 +1362,7 @@ class FileExportControl(ControlPanel):
             pass
 
     def make_list(self):
-        self._widget_dict.update(export_linear_download=self.export_linear_download, pml_script_download=self.pml_script_download)
+        self.widget_dict.update(export_linear_download=self.export_linear_download, pml_script_download=self.pml_script_download)
         return super(FileExportControl, self).make_list()
 
     def _sources_updated(self, *events):

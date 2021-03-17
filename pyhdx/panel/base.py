@@ -176,12 +176,12 @@ class ControlPanel(PanelBase):
         self.parent = parent
         super(ControlPanel, self).__init__(**params)
 
-        self._widget_dict = self.make_dict()  # should maybe not be private
-        self._widget_list = self.make_list()  # this list after its made isnt / shouldnt be used?
+        self.widget_dict = self.make_dict()
+        self.widget_list = self.make_list()  # this attr isnt really used except for making the box
         self._box = self.make_box()
 
     def make_box(self):
-        return pn.Card(title=self.header, collapsed=True, *self._widget_list)
+        return pn.Card(title=self.header, collapsed=True, *self.widget_list)
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
@@ -196,7 +196,7 @@ class ControlPanel(PanelBase):
 
     def make_list(self):
         """override this method to modify mapping of dict to list"""
-        return list(self._widget_dict.values())
+        return list(self.widget_dict.values())
 
     def make_dict(self):
         """dict of widgets to be shown
@@ -208,7 +208,7 @@ class ControlPanel(PanelBase):
     def box_index(self, p_name_or_widget):
         ""'return the index of the widget in the box with parameter p_name'
         if isinstance(p_name_or_widget, str):
-            return list(self._box).index(self._widget_dict[p_name_or_widget])
+            return list(self._box).index(self.widget_dict[p_name_or_widget])
         else:
             return list(self._box).index(p_name_or_widget)
 
@@ -221,7 +221,7 @@ class ControlPanel(PanelBase):
         """insert widget corresponding to parameter with name after the widget name_after """
         index = self.box_index(name_or_widget_after)
         if isinstance(name_or_widget_insert, str):
-            widget = self._widget_dict[name_or_widget_insert]
+            widget = self.widget_dict[name_or_widget_insert]
         else:
             widget = name_or_widget_insert
         self._box.insert(index + 1, widget)

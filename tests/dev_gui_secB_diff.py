@@ -24,13 +24,13 @@ with open(fpath, 'rb') as f_obj:
 f_input = ctrl.control_panels['MappingFileInputControl']
 
 
-f_input._widget_dict['input_file'].filename = str(fpath)
+f_input.widget_dict['input_file'].filename = str(fpath)
 f_input.input_file = file_binary
 f_input.dataset_name = 'DS1'
 f_input._action_add_dataset()
 
 
-f_input._widget_dict['input_file'].filename = str(fpath)
+f_input.widget_dict['input_file'].filename = str(fpath)
 f_input.input_file = file_binary
 f_input.dataset_name = 'DS2'
 f_input._action_add_dataset()

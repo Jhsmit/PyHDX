@@ -20,7 +20,7 @@ directory = Path(__file__).parent
 input_file_path = directory / 'test_data' / 'ec_SecB_scores.txt'
 
 file_input_ctrl = ctrl.control_panels['MatrixMappingFileInputControl']
-file_input_widget = file_input_ctrl._widget_dict['input_file']
+file_input_widget = file_input_ctrl.widget_dict['input_file']
 file_input_widget.filename = input_file_path.name
 file_input_widget.value = input_file_path.read_bytes()
 

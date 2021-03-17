@@ -188,7 +188,7 @@ class TestDiffApp(object):
         tmpl, ctrl = _diff_app()
 
         f_input = ctrl.control_panels['MappingFileInputControl']
-        f_input._widget_dict['input_file'].filename = str(self.fpath)
+        f_input.widget_dict['input_file'].filename = str(self.fpath)
         f_input.input_file = self.file_binary
         assert f_input.dataset_name == 'ecSecB_torch_fit'
         f_input.dataset_name = 'DS1'
@@ -197,7 +197,7 @@ class TestDiffApp(object):
         assert f_input.dataset_name == ''
 
         f_input = ctrl.control_panels['MappingFileInputControl']
-        f_input._widget_dict['input_file'].filename = str(self.fpath)
+        f_input.widget_dict['input_file'].filename = str(self.fpath)
         f_input.input_file = self.file_binary
         f_input.dataset_name = 'DS2'
         f_input._action_add_dataset()

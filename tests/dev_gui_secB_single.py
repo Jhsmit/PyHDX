@@ -22,7 +22,7 @@ with open(fpath, 'rb') as f_obj:
     file_binary = f_obj.read()
 
 f_input = ctrl.control_panels['SingleMappingFileInputControl']
-f_input._widget_dict['input_file'].filename = str(fpath)
+f_input.widget_dict['input_file'].filename = str(fpath)
 f_input.input_file = file_binary
 
 f_input.dataset_name = 'DS1'
