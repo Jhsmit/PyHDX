@@ -891,9 +891,9 @@ class FitControl(ControlPanel):
     temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
     pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
 
-    stop_loss = param.Number(0.05, bounds=(0, None),
+    stop_loss = param.Number(0.01, bounds=(0, None),
                              doc='Threshold loss difference below which to stop fitting.')
-    stop_patience = param.Integer(50, bounds=(1, None),
+    stop_patience = param.Integer(100, bounds=(1, None),
                                   doc='Number of epochs where stop loss should be satisfied before stopping.')
     learning_rate = param.Number(10, bounds=(0, None),
                                  doc='Learning rate parameter for optimization.')
@@ -902,7 +902,7 @@ class FitControl(ControlPanel):
     nesterov = param.Boolean(True, doc='Use Nesterov type of momentum for SGD')
     epochs = param.Number(100000, bounds=(1, None),
                           doc='Maximum number of epochs (iterations.')
-    regularizer = param.Number(2, bounds=(0, None), doc='Value for the regularizer.')
+    regularizer = param.Number(0.5, bounds=(0, None), doc='Value for the regularizer.')
     do_fit = param.Action(lambda self: self._do_fitting(), constant=True, label='Do Fitting',
                           doc='Start global fitting')
 
