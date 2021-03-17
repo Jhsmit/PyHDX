@@ -922,7 +922,7 @@ class FitControl(ControlPanel):
             self.initial_guess = objects[0]
 
     def _do_fitting(self):
-        self.param['do_fit'].constant = True
+        self._widget_dict['do_fit'].loading = True
         self.parent.logger.debug('Start PyTorch fit')
 
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
@@ -945,7 +945,7 @@ class FitControl(ControlPanel):
         self.parent.fit_results['fr_' + output_name] = result
         self.parent.publish_data(output_name, data_source)
 
-        self.param['do_fit'].constant = False
+        self._widget_dict['do_fit'].loading = False
         self.parent.param.trigger('fit_results')
 
         self.parent.logger.debug('Finished PyTorch fit')
