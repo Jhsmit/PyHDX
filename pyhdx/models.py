@@ -19,9 +19,9 @@ class Protein(object):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray` or ?
+    data : :class:`~numpy.ndarray` or dict or dataframe
         data object to initiate the protein object from
-    index : :obj:`str`
+    index : :obj:`str`, optional
         Name of the column with the residue number (index column)
 
     **metadata
@@ -30,11 +30,15 @@ class Protein(object):
 
     """
 
-    def __init__(self, data, index, **metadata):
+    def __init__(self, data, index=None, **metadata):
         self.metadata = metadata
-        self.df = pd.DataFrame(data)
-        if self.df.index.name is None:
+        if isinstance(data, dict) or isinstance(data, np.ndarray):
+            self.df = pd.DataFrame(data)
             self.df.set_index(index, inplace=True)
+        elif isinstance(data, pd.DataFrame):
+            self.df = data.copy()
+            if not isinstance(self.df.index, pd.Int64Index):
+                raise ValueError(f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be {pd.Int64Index}")
 
         self.df.sort_index(inplace=True)
 
