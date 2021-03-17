@@ -159,10 +159,7 @@ class TorchBatchFitResult(TorchFitResult):
         for i, kf in enumerate(self.fit_object.states):
             cov = estimate_errors(kf, g_values[i])
             pd_series = cov['covariance']
-            print(pd_series)
-
             pd_series = pd_series.reindex(self.fit_object.r_number)
-            print(pd_series)
 
             output_data[:, 2+i*len(quantities)] = pd_series.to_numpy()
 
@@ -170,6 +167,6 @@ class TorchBatchFitResult(TorchFitResult):
 
         df = pd.DataFrame(output_data, index=self.fit_object.r_number, columns=col_index)
 
-        return df
+        return Protein(df)
 
         # use multi index df: https://stackoverflow.com/questions/24290495/constructing-3d-pandas-dataframe
