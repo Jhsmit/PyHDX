@@ -1,12 +1,11 @@
 import numpy as np
 from numpy.lib.recfunctions import append_fields
 import itertools
-import scipy
 import warnings
 from datetime import datetime
 import pandas as pd
 from io import StringIO
-from functools import reduce
+from functools import reduce, partial
 from operator import add
 from hdxrate import k_int_from_sequence
 from pyhdx.support import reduce_inter, make_view, fields_view
@@ -14,8 +13,22 @@ from pyhdx.fileIO import fmt_export
 import pyhdx
 
 
+def protein_wrapper(func, *args, **kwargs):
+    metadata = kwargs.pop('metadata', {})
+    [metadata.update(arg.metadata) for arg in args if isinstance(arg, Protein)]
+
+    df_args = [arg.df if isinstance(arg, Protein) else arg for arg in args]
+    return_value = func(*df_args, **kwargs)
+    if isinstance(return_value, pd.DataFrame):
+        return Protein(return_value, **metadata)
+
+    return return_value
+
+
 class Protein(object):
     """Object describing a protein
+
+    Protein objects are based on panda's DataFrame's with added functionality
 
     Parameters
     ----------
@@ -44,55 +57,30 @@ class Protein(object):
 
     def __str__(self):
         s = self.df.__str__()
-        full_s = "Protein <name>\n" + s
-        return full_s
+        try:
+            full_s = f"Protein {self.metadata['name']}\n" + s
+            return full_s
+        except KeyError:
+            return s
 
     def __len__(self):
         return len(self.df)
 
-    def join(self, other, on=None, how='left', lsuffix='', rsuffix='', sort=False):
-        """
-        Metadata is merged (overlapping values are taken from other)
-
-        Parameters
-        ----------
-        other
-        on
-        how
-        lsuffix
-        rsuffix
-        sort
-
-        Returns
-        -------
-
-        """
-        df_out = self.df.join(other.df, on=on, how=how, lsuffix=lsuffix, rsuffix=rsuffix, sort=sort)
-        return self._make_protein(df_out, other)
-
-    def append(self, other, ignore_index=False, verify_integrity=False, sort=None):
-        df_out = self.df.append(other.df, ignore_index=ignore_index, verify_integrity=verify_integrity, sort=sort)
-        return self._make_protein(df_out, other)
-
-    def concat(self, other):
-        df_out = pd.concat([self.df, other.df], axis=1)
-        return self._make_protein(df_out, other)
-
-    def merge(self, other, **kwargs):
-        df_out = self.df.merge(other.df, **kwargs)
-        return self._make_protein(df_out, other)
-
-    def add_column(self, index, data, name):
-        pass
+    def __getattr__(self, item):
+        attr = getattr(self.df, item)
+        if callable(attr):
+            return partial(protein_wrapper, attr, metadata=self.metadata)
+        else:
+            return attr
 
     def _make_protein(self, df_out, other):
         """Make a new :class:`~pyhdx.models.Protein` object and combine metadata with other metadata"""
         metadata = {**self.metadata, **other.metadata}
         protein_out = Protein(df_out, index=df_out.index.name, **metadata)
         return protein_out
-
-    def to_records(self, index=True, column_dtypes=None, index_dtypes=None):
-        return self.df.to_records(index=index, column_dtypes=column_dtypes, index_dtypes=index_dtypes)
+    #
+    # def to_records(self, index=True, column_dtypes=None, index_dtypes=None):
+    #     return self.df.to_records(index=index, column_dtypes=column_dtypes, index_dtypes=index_dtypes)
 
     def to_stringio(self, io=None, include_version=True, include_metadata=True):
         """
@@ -202,44 +190,30 @@ class Protein(object):
     def c_term(self):
         return self.df.index.max()
 
-    @property
-    def index(self):
-        return self.df.index
-
-    def copy(self):
-        df = self.df.copy()
-        return Protein(df, index=df.index.name, **self.metadata.copy())  #todo
-
     def __getitem__(self, item):
         return self.df.__getitem__(item)
+
+    def __setitem__(self, index, value):
+        self.df.__setitem__(index, value)
 
     def __contains__(self, item):
         return self.df.__contains__(item)
 
     def __sub__(self, other):
-        assert isinstance(other, Protein)
-        df_out = self.df.subtract(other.df)
-        return self._make_protein(df_out, other)
+        return protein_wrapper(self.df.subtract, other, metadata=self.metadata)
 
     def __add__(self, other):
-        assert isinstance(other, Protein)
-        df_out = self.df.add(other.df)
-        return self._make_protein(df_out, other)
+        return protein_wrapper(self.df.add, other, metadata=self.metadata)
 
     def __truediv__(self, other):
-        assert isinstance(other, Protein)
-        df_out = self.df.truediv(other.df)
-        return self._make_protein(df_out, other)
+        return protein_wrapper(self.df.truediv, other, metadata=self.metadata)
 
     def __floordiv__(self, other):
-        assert isinstance(other, Protein)
-        df_out = self.df.floordiv(other.df)
-        return self._make_protein(df_out, other)
+        return protein_wrapper(self.df.floordiv, other, metadata=self.metadata)
 
     def __mul__(self, other):
-        assert isinstance(other, Protein)
-        df_out = self.df.mul(other.df)
-        return self._make_protein(df_out, other)
+        return protein_wrapper(self.df.mul, other, metadata=self.metadata)
+
 
 
 class PeptideMasterTable(object):

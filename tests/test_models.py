@@ -7,6 +7,7 @@ import numpy as np
 from functools import reduce
 from operator import add
 from pathlib import Path
+import pandas as pd
 
 
 directory = Path(__file__).parent
@@ -168,7 +169,6 @@ class TestCoverage(object):
         assert cov.Nr == len(cov.r_number)
 
 
-
 class TestProtein(object):
     @classmethod
     def setup_class(cls):
@@ -233,6 +233,12 @@ class TestProtein(object):
         comparison = p1 * p2
         output['comparison'] = output['value1'] * output['value2']
         assert np.allclose(comparison['apple'], output['comparison'], equal_nan=True)
+
+        data = np.random.rand(len(p1))
+        pd_series = pd.Series(data, index=p1.index, name='apple')
+        sub_result = p1.sub(pd_series, axis='index')
+        assert np.allclose(sub_result['apple'], p1['apple'] - data)
+        assert isinstance(sub_result, Protein)
 
     def test_k_int(self):
         protein = self.protein.copy()
