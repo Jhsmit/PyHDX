@@ -76,11 +76,10 @@ def csv_to_np(file_path, delimiter='\t', column_depth=None):
     if column_depth is None:
         column_depth = 0
 
-        while line := file_obj.readline():
+        while True:
+            line = file_obj.readline()
             column_depth += 1
 
-            print(line)
-            print(np.mean([c.isdigit() for c in line]))
             if np.mean([c.isdigit() for c in line]) > 0.1:
                 break
 
