@@ -3,7 +3,7 @@ from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.data_sources import DataSource
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting
-from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export
+from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba
 from pyhdx import VERSION_STRING
 from scipy import constants
@@ -67,10 +67,7 @@ class MappingFileInputControl(ControlPanel):
 
         try:
             sio = StringIO(self.input_file.decode())
-            array = txt_to_np(sio)
-            assert 'r_number' in array.dtype.names, "Input file needs to have an 'r_number' column"
-            array['r_number'] += self.offset
-            protein = Protein(array, index='r_number')
+            protein = csv_to_protein(sio)
             return protein
         except UnicodeDecodeError:
             self.parent.logger.info('Invalid file type, supplied file is not a text file')
@@ -1439,14 +1436,7 @@ class FileExportControl(ControlPanel):
         io.write('# ' + VERSION_STRING + ' \n')
 
         if self.target:
-            dtype = [(name, arr.dtype) for name, arr in self.export_dict.items()]
-            export_data = np.empty_like(next(iter(self.export_dict.values())), dtype=dtype)
-            for name, arr in self.export_dict.items():
-                export_data[name] = arr
-
-            fmt, header = fmt_export(export_data)
-            np.savetxt(io, export_data, fmt=fmt, header=header)
-
+            self.export_data_source.export_df.to_csv(io, index=False)
             io.seek(0)
             return io
         else:

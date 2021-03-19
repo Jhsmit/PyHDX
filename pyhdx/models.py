@@ -78,9 +78,6 @@ class Protein(object):
         metadata = {**self.metadata, **other.metadata}
         protein_out = Protein(df_out, index=df_out.index.name, **metadata)
         return protein_out
-    #
-    # def to_records(self, index=True, column_dtypes=None, index_dtypes=None):
-    #     return self.df.to_records(index=index, column_dtypes=column_dtypes, index_dtypes=index_dtypes)
 
     def to_stringio(self, io=None, include_version=True, include_metadata=True):
         """
@@ -108,11 +105,10 @@ class Protein(object):
             now = datetime.now()
             io.write(f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
 
-        records = self.to_records()
-        fmt, hdr = fmt_export(records)
-        np.savetxt(io, records, fmt=fmt, header=hdr)
+        self.df.to_csv(io, line_terminator='\n')
 
         io.seek(0)
+
         return io
 
     def to_file(self, file_path, include_version=True, include_metadata=True):
@@ -139,21 +135,6 @@ class Protein(object):
         io = self.to_stringio(include_version=include_version, include_metadata=include_metadata)
         with open(file_path, 'w') as f:
             print(io.getvalue(), file=f)
-
-    def to_dict(self, orient='list', into=dict):
-        """
-        Panda's `to_dict`, with different default options
-
-        Parameters
-        ----------
-        orient
-        into
-
-        Returns
-        -------
-
-        """
-        return self.df.to_dict(orient=orient, into=into)
 
     def set_k_int(self, temperature, pH):
         """

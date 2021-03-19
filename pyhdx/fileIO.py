@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.lib.recfunctions import stack_arrays
 from io import StringIO
+import pandas as pd
 import pyhdx
 
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
@@ -77,6 +78,61 @@ def txt_to_np(file_path, delimiter='\t'):
 
     return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
                          encoding=None, autostrip=True, comments=None, deletechars='')
+
+def txt_to_pd(file_path):
+
+    pass
+
+def csv_to_dataframe(file_path, column_depth=None):
+    #todo @tejas: intersphinx + update docstring
+    """
+    Read .csv file and return <pandas dataframe>
+
+    Parameters
+    ----------
+    file_path
+    column_depth
+
+    Returns
+    -------
+
+    """
+    if isinstance(file_path, StringIO):
+        file_obj = file_path
+    else:
+        file_obj = open(file_path, 'r')
+
+    num_comments_lines = 0
+    while file_obj.readline().startswith('#'):
+        num_comments_lines += 1
+
+    if column_depth is None:
+        column_depth = 1
+        while np.mean([c.isdigit() for c in file_obj.readline()]) < 0.1:
+            column_depth += 1
+
+    file_obj.seek(0)
+    header = [i + num_comments_lines for i in range(column_depth)]
+    df = pd.read_csv(file_path, index_col=0, header=header)
+    return df
+
+
+def csv_to_protein(file_path, column_depth=None):
+    #todo @tejas: intersphinx + update docstring
+    """
+
+    Parameters
+    ----------
+    file_path
+    column_depth
+
+    Returns
+    -------
+
+    """
+
+    df = csv_to_dataframe(file_path, column_depth=column_depth)
+    return pyhdx.models.Protein(df) #todo metadata
 
 
 def txt_to_protein(file_path):

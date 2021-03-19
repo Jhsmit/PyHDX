@@ -2,7 +2,7 @@ import param
 from bokeh.models import ColumnDataSource
 import numpy as np
 from pyhdx.models import Protein
-
+import pandas as pd
 
 #todo refactor module to models?
 
@@ -13,6 +13,7 @@ class DataSource(param.Parameterized):
     default_color = param.Color(default='#0611d4')  # todo get default color from css?
 
     def __init__(self, input_data, **params):
+        #update to lumen / pandas dataframes
         self.render_kwargs = {k: params.pop(k) for k in list(params.keys()) if k not in self.param}
         #todo currently this override colors in dic
         super(DataSource, self).__init__(**params)
@@ -24,6 +25,16 @@ class DataSource(param.Parameterized):
 
     def __getitem__(self, item):
         return self.source.data.__getitem__(item)
+
+    @property  #cached property?
+    def df(self):
+        df = pd.DataFrame(self.source.data)
+        return df
+
+    @property
+    def export_df(self):
+        df = pd.DataFrame({k: v for k, v in self.source.data.items() if not k.startswith('__')})
+        return df
 
     def get_dic(self, input_data):
         if isinstance(input_data, np.ndarray):
