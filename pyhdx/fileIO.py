@@ -57,6 +57,49 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
 
     return full_data
 
+def csv_to_np(file_path, delimiter='\t', column_depth=None):
+    """Read csv file and returns a numpy ndarray"""
+    if isinstance(file_path, StringIO):
+        file_obj = file_path
+    else:
+        file_obj = open(file_path, 'r')
+
+    lines = []
+    num_comments_lines = 0
+    while line := file_obj.readline():
+        num_comments_lines += 1
+        lines.append(line)
+        if not line.startswith('#'):
+            break
+          #first two lines
+
+    if column_depth is None:
+        column_depth = 0
+
+        while line := file_obj.readline():
+            column_depth += 1
+
+            print(line)
+            print(np.mean([c.isdigit() for c in line]))
+            if np.mean([c.isdigit() for c in line]) > 0.1:
+                break
+
+            lines.append(line)
+    else:
+        for i in range(column_depth - 1):
+            line = file_obj.readline()
+            lines.append(line)
+
+    names = lines[-1].split(',')
+
+    if column_depth > 1:
+        raise ValueError('Cannot read multi-index column files into numpy structured array')
+
+    file_obj.seek(0)
+
+    return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=num_comments_lines+column_depth, delimiter=delimiter,
+                         encoding=None, autostrip=True, comments=None, deletechars='')
+
 
 def txt_to_np(file_path, delimiter='\t'):
     """Read .txt file and returns a numpy ndarray"""
@@ -83,7 +126,7 @@ def txt_to_pd(file_path):
 
     pass
 
-def csv_to_dataframe(file_path, column_depth=None):
+def csv_to_dataframe(file_path, column_depth=None, **kwargs):
     #todo @tejas: intersphinx + update docstring
     """
     Read .csv file and return <pandas dataframe>
@@ -91,7 +134,7 @@ def csv_to_dataframe(file_path, column_depth=None):
     Parameters
     ----------
     file_path
-    column_depth
+    column_depth: number of lines after header which describe column headings (typical = 1)
 
     Returns
     -------
@@ -113,7 +156,7 @@ def csv_to_dataframe(file_path, column_depth=None):
 
     file_obj.seek(0)
     header = [i + num_comments_lines for i in range(column_depth)]
-    df = pd.read_csv(file_path, index_col=0, header=header)
+    df = pd.read_csv(file_path, header=header, **kwargs)
     return df
 
 
@@ -131,7 +174,8 @@ def csv_to_protein(file_path, column_depth=None):
 
     """
 
-    df = csv_to_dataframe(file_path, column_depth=column_depth)
+    df = csv_to_dataframe(file_path, column_depth=column_depth, index_col=0)
+
     return pyhdx.models.Protein(df) #todo metadata
 
 

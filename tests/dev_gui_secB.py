@@ -3,7 +3,7 @@ Reload SecB and fitted data and launch  GUI
 
 """
 
-from pyhdx.fileIO import read_dynamx, txt_to_np
+from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_dataframe
 from pyhdx import PeptideMasterTable
 import pickle
 from pyhdx.panel.apps import _main_app
@@ -26,11 +26,13 @@ dic['fd_exposure'] = 0.167
 dic['exp_state'] = 'SecB WT apo'
 
 src_file = directory / 'test_data' / 'ecSecB_torch_fit.txt'
-array = txt_to_np(src_file)
-data_dict = {name: array[name] for name in array.dtype.names}
+df = csv_to_dataframe(src_file)
+data_dict = df.to_dict(orient='series')
+
+print(data_dict)
 
 
-data_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
+data_dict['color'] = np.full_like(data_dict['r_number'], fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
 data_source = DataSource(data_dict, x='r_number', tags=['mapping', 'pfact', 'deltaG'],
                          renderer='circle', size=10, name='global_fit')
 

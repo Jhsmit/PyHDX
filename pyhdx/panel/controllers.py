@@ -930,7 +930,7 @@ class FitControl(ControlPanel):
 
         output = result.output
         output_name = 'global_fit'
-        output.df['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
+        output.df['color'] = np.full(len(output), fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
 
         # Add upper/lower bounds covariances for error bar plotting
         output.df['__lower'] = output.df['deltaG'] - output.df['covariance']

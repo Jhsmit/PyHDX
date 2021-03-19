@@ -37,6 +37,7 @@ class DataSource(param.Parameterized):
         return df
 
     def get_dic(self, input_data):
+        #todo allow dataframes
         if isinstance(input_data, np.ndarray):
             dic = {name: input_data[name] for name in input_data.dtype.names}
             #self.array = input_data  #

@@ -1,4 +1,4 @@
-from pyhdx.fileIO import txt_to_protein, txt_to_np, read_dynamx, fmt_export
+from pyhdx.fileIO import csv_to_protein, txt_to_np, read_dynamx, fmt_export, csv_to_np
 from pyhdx.models import Protein
 from pathlib import Path
 from io import StringIO
@@ -58,12 +58,12 @@ class TestFileIO(object):
     def test_methods(self):
         path = directory / 'test_data' / 'ecSecB_guess.txt'
 
-        # testing txt_to_protein
-        ret = txt_to_protein(path)
+        # testing csv_to_protein
+        ret = csv_to_protein(path)
         assert type(ret) == Protein
         assert ret.index.name == 'r_number'
 
         # testing txt_to_np
         with open(path, mode='r') as f:
-            ret = txt_to_np(StringIO(f.read()))
+            ret = csv_to_np(StringIO(f.read()))
             assert 'r_number' in ret.dtype.names

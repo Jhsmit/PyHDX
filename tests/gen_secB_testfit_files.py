@@ -1,4 +1,4 @@
-from pyhdx.fileIO import read_dynamx, txt_to_protein
+from pyhdx.fileIO import read_dynamx, csv_to_protein
 from pyhdx import PeptideMasterTable, KineticsFitting, BatchFitting
 import numpy as np
 import pickle
@@ -30,18 +30,18 @@ if guess:
     output = wt_avg_result.output
     output.to_file(directory / 'test_data' / 'ecSecB_guess.txt')
 else:
-    output = txt_to_protein(directory / 'test_data' / 'ecSecB_guess.txt')
+    output = csv_to_protein(directory / 'test_data' / 'ecSecB_guess.txt')
 
 
 fr_torch = kf.global_fit(output, epochs=epochs)
+temp = fr_torch.output
+
 fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt')
-with open(directory / 'test_data' / 'ecSecB_torch_fit.pick', 'wb') as f:
-    pickle.dump(fr_torch, f)
 
 series_dimer = states['SecB his dimer apo']
 kf_dimer = KineticsFitting(series_dimer, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 bf = BatchFitting([kf, kf_dimer], [output, output])
 
 batch_result = bf.global_fit(epochs=epochs)
-
-batch_result.output.to_csv(directory / 'test_data' / 'ecSecB_batch.csv')
+output = batch_result.output
+batch_result.output.to_file(directory / 'test_data' / 'ecSecB_batch.csv')

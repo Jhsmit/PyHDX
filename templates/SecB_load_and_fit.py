@@ -26,5 +26,6 @@ if guess:
 else:
     init_guess = txt_to_protein(test_data_dir / 'ecSecB_guess.txt')
 
-fr_torch = kf.global_fit(init_guess, epochs=epochs, r1=0.1, stop_loss=0.001, patience=100)
-
+#fr_torch = kf.global_fit(init_guess, epochs=epochs, r1=0.1, stop_loss=0.001, patience=100)
+print(series.cov.percent_coverage)
+print(series.cov.redundancy)

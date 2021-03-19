@@ -1,5 +1,5 @@
 from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
-from pyhdx.fileIO import txt_to_protein, txt_to_np
+from pyhdx.fileIO import csv_to_protein, txt_to_np
 from pyhdx.panel.apps import _main_app, _diff_app
 from pyhdx.panel.data_sources import DataSource
 from pathlib import Path
@@ -29,7 +29,7 @@ class TestMainGUISecB(object):
         states = cls.pmt.groupby_state()
         cls.series = states[cls.state]
 
-        cls.prot_fit_result = txt_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
+        cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
 
         cls.ds_fit = DataSource(cls.prot_fit_result, name='global_fit', x='r_number', tags=['mapping', 'pfact', 'deltaG'],
                                 renderer='circle', size=10)
@@ -95,8 +95,6 @@ class TestMainGUISecB(object):
         val = io.getvalue()
 
         assert val.count('\n') == 148
-        array = txt_to_np(io)
-        assert np.allclose(f_export.export_dict['deltaG'], array['deltaG'], equal_nan=True)
 
 
 class TestMainGUISimulated(object):
