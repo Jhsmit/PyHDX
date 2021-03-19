@@ -141,7 +141,7 @@ class TorchBatchFitResult(TorchFitResult):
 
     @property
     def output(self):
-        #todo protein object accepts dataframes
+        #todo directly create dataframe
 
         quantities = ['_deltaG', 'deltaG', 'covariance', 'pfact']
         iterables = [[kf.series.state for kf in self.fit_object.states], quantities]
@@ -157,7 +157,11 @@ class TorchBatchFitResult(TorchFitResult):
         output_data[:, 1::len(quantities)] = g_values_nan.T
 
         for i, kf in enumerate(self.fit_object.states):
-            cov = estimate_errors(kf, g_values[i])
+            #todo this could use some pandas
+            i0 = kf.series.cov.interval[0] - self.fit_object.interval[0]
+            i1 = kf.series.cov.interval[1] - self.fit_object.interval[0]
+
+            cov = estimate_errors(kf, g_values[i, i0:i1])  # returns a protein? should be series
             pd_series = cov['covariance']
             pd_series = pd_series.reindex(self.fit_object.r_number)
 
