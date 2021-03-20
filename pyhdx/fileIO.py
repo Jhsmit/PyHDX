@@ -66,7 +66,8 @@ def csv_to_np(file_path, delimiter='\t', column_depth=None):
 
     lines = []
     num_comments_lines = 0
-    while line := file_obj.readline():
+    while True:
+        line = file_obj.readline()
         num_comments_lines += 1
         lines.append(line)
         if not line.startswith('#'):
