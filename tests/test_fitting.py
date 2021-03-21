@@ -1,6 +1,6 @@
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
-from pyhdx.fileIO import read_dynamx, fmt_export, txt_to_protein, txt_to_np
+from pyhdx.fileIO import read_dynamx, fmt_export, txt_to_protein, txt_to_np, csv_to_protein
 from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting
 import numpy as np
 import torch
@@ -72,7 +72,7 @@ class TestSecBDataFit(object):
 
     def test_global_fit(self):
         kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH)
-        initial_rates = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
+        initial_rates = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
 
         t0 = time.time()  # Very crude benchmarks
         fr_global = kf.global_fit(initial_rates, epochs=1000)
@@ -80,26 +80,25 @@ class TestSecBDataFit(object):
 
         assert t1 - t0 < 5
         out_deltaG = fr_global.output
-        check_deltaG = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
+        check_deltaG = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
 
         assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
 
     def test_batch_fit(self):
         kfs = [KineticsFitting(series, temperature=self.temperature, pH=self.pH) for series in [self.series_apo, self.series_dimer]]
-        guess = txt_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
+        guess = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
 
         bf = BatchFitting(kfs, [guess, guess])
         result = bf.global_fit(epochs=1000)
         output = result.output
 
-        df = pd.read_csv(os.path.join(directory, 'test_data', 'ecSecB_batch.csv'), index_col=0,
-                         header=[0, 1])
+        check_protein = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_batch.csv'))
 
         states = ['SecB WT apo', 'SecB his dimer apo']
 
         for state in states:
-            assert np.allclose(output[state]['deltaG'], df[state]['deltaG'], equal_nan=True, rtol=0.01)
+            assert np.allclose(output[state]['deltaG'], check_protein[state]['deltaG'], equal_nan=True, rtol=0.01)
 
 
 
