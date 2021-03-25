@@ -800,12 +800,11 @@ class InitialGuessControl(ControlPanel):
         data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
                                  renderer='circle', size=10)
 
-        #trigger plot update
+        # Trigger plot update
         callback = partial(self.parent.publish_data, 'fit1', data_source)
         self.parent.doc.add_next_tick_callback(callback)
 
         with pn.io.unlocked():
-             #self.parent.publish_data('fit1', data_source)
              self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
              self.pbar1.reset()
              self.param['do_fit1'].constant = False
@@ -903,7 +902,7 @@ class FitControl(ControlPanel):
     epochs = param.Number(100000, bounds=(1, None),
                           doc='Maximum number of epochs (iterations.')
     regularizer = param.Number(0.5, bounds=(0, None), doc='Value for the regularizer.')
-    do_fit = param.Action(lambda self: self._do_fitting(), constant=True, label='Do Fitting',
+    do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
                           doc='Start global fitting')
 
     def __init__(self, parent, **params):
@@ -921,38 +920,80 @@ class FitControl(ControlPanel):
         if not self.initial_guess and objects:
             self.initial_guess = objects[0]
 
-    def _do_fitting(self):
-        self.widget_dict['do_fit'].loading = True
-        self.parent.logger.debug('Start PyTorch fit')
-
-        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
-        initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
-        result = kf.global_fit(initial_result, r1=self.regularizer, lr=self.learning_rate,
-                               momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
-                               patience=self.stop_patience, stop_loss=self.stop_loss)
-
-        output = result.output
-        output_name = 'global_fit'
+    @staticmethod
+    def result_to_data_source(output):
         output.df['color'] = np.full(len(output), fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
 
         # Add upper/lower bounds covariances for error bar plotting
         output.df['__lower'] = output.df['deltaG'] - output.df['covariance']
         output.df['__upper'] = output.df['deltaG'] + output.df['covariance']
 
+        output_name = 'global_fit'  # Appears twice
         data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'], name=output_name,
                                  renderer='circle', size=10)
 
-        self.parent.fit_results['fr_' + output_name] = result
-        self.parent.publish_data(output_name, data_source)
+        return data_source
 
-        self.widget_dict['do_fit'].loading = False
+    async def _do_fitting_async(self):
+        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
+        initial_result = self.parent.fit_results[self.initial_guess].output
+
+        result = await kf.global_fit_async(initial_result, r1=self.regularizer, lr=self.learning_rate,
+                                           momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
+                                           patience=self.stop_patience, stop_loss=self.stop_loss)
+
+        # Duplicate code
+        self.parent.logger.info('Finished PyTorch fit')
+        loss = result.metadata['mse_loss']
+        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                f"({result.regularization_percentage:.1f}%)")
+
         self.parent.param.trigger('fit_results')
+
+        data_source = self.result_to_data_source(result.output)
+        output_name = 'global_fit'
+        callback = partial(self.parent.publish_data, output_name, data_source)
+        self.parent.doc.add_next_tick_callback(callback)
+
+        self.parent.fit_results['fr_' + output_name] = result
+        with pn.io.unlocked():
+             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
+             self.widget_dict['do_fit'].loading = False
+
+    def _do_fitting(self):
+        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
+        initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
+        result = kf.global_fit(initial_result, r1=self.regularizer, lr=self.learning_rate,
+                               momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
+                               patience=self.stop_patience, stop_loss=self.stop_loss)
 
         self.parent.logger.info('Finished PyTorch fit')
         loss = result.metadata['mse_loss']
         self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
         self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                f"({result.regularization_percentage:1f}%)")
+                                f"({result.regularization_percentage:.1f}%)")
+
+        self.parent.param.trigger('fit_results')
+
+        data_source = self.result_to_data_source(result.output)
+        output_name = 'global_fit'
+        self.parent.fit_results['fr_' + output_name] = result
+        self.parent.publish_data(output_name, data_source)
+
+        self.widget_dict['do_fit'].loading = False
+
+    def _action_fit(self):
+        self.widget_dict['do_fit'].loading = True
+        self.parent.logger.debug('Start PyTorch fit')
+
+        if self.parent.cluster:
+            self.parent._doc = pn.state.curdoc
+            loop = IOLoop.current()
+            loop.add_callback(self._do_fitting_async)
+        else:
+            self._do_fitting()
+
 
 
 class FitResultControl(ControlPanel):
