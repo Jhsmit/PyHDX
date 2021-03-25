@@ -586,8 +586,15 @@ optimizer_defaults = {
         'nesterov': True
     },
 }
-def run_optimizer(inputs, output_data, optimizer, model, criterion, regularizer,
+
+
+def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
                   epochs=100000, patience=50, stop_loss=0.05):
+
+    optimizer_obj = optimizer_klass(model.parameters(), **optimizer_kwargs)
+
+    np.random.seed(43)
+    torch.manual_seed(43)
 
     mse_loss_list = [np.inf]
     total_loss_list = [np.inf]
@@ -604,8 +611,8 @@ def run_optimizer(inputs, output_data, optimizer, model, criterion, regularizer,
 
     stop = 0
     for epoch in range(epochs):
-        optimizer.zero_grad()
-        loss = optimizer.step(closure)
+        optimizer_obj.zero_grad()
+        loss = optimizer_obj.step(closure)
 
         diff = total_loss_list[-2] - total_loss_list[-1]
         if diff < stop_loss:
@@ -615,7 +622,8 @@ def run_optimizer(inputs, output_data, optimizer, model, criterion, regularizer,
         else:
             stop = 0
 
-    return np.array(mse_loss_list), np.array(total_loss_list)
+    #par = model.deltaG.detach().numpy()
+    return np.array(mse_loss_list), np.array(total_loss_list), model
 
 
 class KineticsFitting(object):
@@ -798,6 +806,31 @@ class KineticsFitting(object):
         #todo @tejas: Missing docstring
         """Pytorch global fitting"""
 
+        deltaG_par, inputs, output_data = self.setup_global_fit(initial_result)
+        model = DeltaGFit(deltaG_par)
+        criterion = torch.nn.MSELoss(reduction='sum')
+
+        # Take default optimizer kwargs and update them with supplied kwargs
+        optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
+        optimizer_klass = getattr(torch.optim, optimizer)
+
+        def regularizer(param):
+            return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
+
+        # returned_model is the same object as model
+        mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
+                                                             model, criterion, regularizer, epochs=epochs,
+                                                             patience=patience, stop_loss=stop_loss)
+
+        result = TorchSingleFitResult(self, model,
+                                      mse_loss=mse_loss, total_loss=total_loss)
+
+        return result
+
+    def setup_global_fit(self, initial_result, r1=2):
+        #todo @tejas: Missing docstring
+        """Pytorch global fitting"""
+
         if 'k_int' not in self.series.cov.protein:
             self.set_k_int()
 
@@ -817,26 +850,38 @@ class KineticsFitting(object):
         gibbs_values = self.series.cov.apply_interval(self.guess_deltaG(initial_result)).to_numpy()
         if np.any(np.isnan(gibbs_values)):
             raise ValueError('NaN values in initial guess values')
-        deltaG = torch.nn.Parameter(torch.Tensor(gibbs_values).unsqueeze(-1))
 
-        model = DeltaGFit(deltaG)
+        deltaG_par = torch.nn.Parameter(torch.Tensor(gibbs_values).unsqueeze(-1))
+
+        return deltaG_par, inputs, output_data
+
+    async def global_fit_async(self, initial_result, r1=2, epochs=100000, patience=50, stop_loss=0.05,
+                               optimizer='SGD', **optimizer_kwargs):
+
+        deltaG_par, inputs, output_data = self.setup_global_fit(initial_result)
+
+        model = DeltaGFit(deltaG_par)
         criterion = torch.nn.MSELoss(reduction='sum')
 
-        # Take default optimizer kwargs and update them with supplied kwargs
-        kwargs = optimizer_defaults.get(optimizer, {})
-        kwargs.update(**optimizer_kwargs)
+        #todo repeated code with global_fit
 
+        # Take default optimizer kwargs and update them with supplied kwargs
+        optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
         optimizer_klass = getattr(torch.optim, optimizer)
-        optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
 
         def regularizer(param):
             return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
 
-        mse_loss, total_loss = run_optimizer(inputs, output_data, optimizer_obj, model, criterion, regularizer,
-                                             epochs=epochs, patience=patience, stop_loss=stop_loss)
+        fit_func = partial(run_optimizer, inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
+                           epochs=epochs, patience=patience, stop_loss=stop_loss)
+        client = await Client(self.cluster, asynchronous=True)
+        future = client.submit(fit_func)
 
-        result = TorchSingleFitResult(self, model,
-                                      mse_loss=mse_loss, total_loss=total_loss)
+        # Get returned_model from Dask client which has updated params which are the fitted parameters
+        mse_loss, total_loss, returned_model = await future
+
+        await client.close()
+        result = TorchSingleFitResult(self, returned_model, mse_loss=mse_loss, total_loss=total_loss)
 
         return result
 
@@ -1238,7 +1283,6 @@ class BatchFitting(object):
             timepoints[i, -Nti:] = kf.series.timepoints
             D[i, 0: Npi, -Nti:] = kf.series.uptake_corrected.T
 
-
         # Create pytorch tensors from input data, assign final shapes for matrix batch multiplication by tf.matmul
         dtype = torch.float64
         temperature_T = torch.tensor(temperature, dtype=dtype).unsqueeze(-1).unsqueeze(-1)  # Ns x 1 x 1
@@ -1261,11 +1305,11 @@ class BatchFitting(object):
 
         model = DeltaGFit(deltaG_par)
 
-        kwargs = optimizer_defaults.get(optimizer, {})
-        kwargs.update(**optimizer_kwargs)
+        # Take default optimizer kwargs and update them with supplied kwargs
+        optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}
 
         optimizer_klass = getattr(torch.optim, optimizer)
-        optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
+        #optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
 
         criterion = torch.nn.MSELoss(reduction='sum')
 
@@ -1275,8 +1319,9 @@ class BatchFitting(object):
             reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
             return reg_loss
 
-        mse_loss, total_loss = run_optimizer(inputs, output_data, optimizer_obj, model, criterion, regularizer,
-                                             epochs=epochs, patience=patience, stop_loss=stop_loss)
+        mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
+                                                             model, criterion, regularizer, epochs=epochs,
+                                                             patience=patience, stop_loss=stop_loss)
 
         result = TorchBatchFitResult(self, model, mse_loss=mse_loss, total_loss=total_loss)
         return result

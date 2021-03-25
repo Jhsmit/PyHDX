@@ -6,6 +6,8 @@ import numpy as np
 import torch
 import pandas as pd
 import time
+from dask.distributed import LocalCluster
+import asyncio
 
 directory = os.path.dirname(__file__)
 np.random.seed(43)
@@ -70,12 +72,30 @@ class TestSecBDataFit(object):
         cls.series_apo = states['SecB WT apo']
         cls.series_dimer = states['SecB his dimer apo']
 
+        cluster = LocalCluster()
+        cls.address = cluster.scheduler_address
+
     def test_global_fit(self):
         kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH)
         initial_rates = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
 
         t0 = time.time()  # Very crude benchmarks
         fr_global = kf.global_fit(initial_rates, epochs=1000)
+        t1 = time.time()
+
+        assert t1 - t0 < 5
+        out_deltaG = fr_global.output
+        check_deltaG = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
+
+        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
+        assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
+
+    def test_global_fit_async(self):
+        kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH, cluster=self.address)
+        initial_rates = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
+
+        t0 = time.time()  # Very crude benchmarks
+        fr_global = asyncio.run(kf.global_fit_async(initial_rates, epochs=1000))
         t1 = time.time()
 
         assert t1 - t0 < 5
