@@ -948,13 +948,6 @@ class KineticsFitResult(object):
     def __len__(self):
         return len(self.results)
 
-    def __getitem__(self, item):
-        raise DeprecationWarning()
-        if isinstance(item, int):
-            return self.results[item], self.models[item], self.block_length[item]
-        else:
-            return KineticsFitResult(self.results[item], self.models[item], self.block_length[item])
-
     def __iter__(self):
         raise DeprecationWarning()
         iterable = [(r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)]
