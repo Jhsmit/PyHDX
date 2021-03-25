@@ -1204,7 +1204,7 @@ class BatchFitting(object):
         # Create numpy arrays with correct shapes as input data
         X = np.zeros((self.Ns, self.Np, self.Nr))
         D = np.zeros((self.Ns, self.Np, self.Nt))
-        k_int = np.zeros((self.Ns, self.Nr))  #todo self.Nr
+        k_int = np.zeros((self.Ns, self.Nr))
         gibbs = np.full((self.Ns, self.Nr), fill_value=np.nan)  #todo default value for gibbs
         timepoints = np.zeros((self.Ns, self.Nt))
 

@@ -57,6 +57,7 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
 
     return full_data
 
+
 def csv_to_np(file_path, delimiter='\t', column_depth=None):
     """Read csv file and returns a numpy ndarray"""
     if isinstance(file_path, StringIO):

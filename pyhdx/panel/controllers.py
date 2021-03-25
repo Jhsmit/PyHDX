@@ -3,7 +3,7 @@ from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.data_sources import DataSource
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting
-from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein
+from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba
 from pyhdx import VERSION_STRING
 from scipy import constants
@@ -67,11 +67,14 @@ class MappingFileInputControl(ControlPanel):
 
         try:
             sio = StringIO(self.input_file.decode())
-            protein = csv_to_protein(sio)
-            return protein
         except UnicodeDecodeError:
             self.parent.logger.info('Invalid file type, supplied file is not a text file')
             return None
+        try:
+            protein = txt_to_protein(sio)
+        except KeyError:
+            protein = csv_to_protein(sio)
+        return protein
 
     def _add_dataset(self):
         self.parent.datasets[self.dataset_name] = self.protein
