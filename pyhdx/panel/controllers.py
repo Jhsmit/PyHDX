@@ -1146,7 +1146,10 @@ class ClassificationControl(ControlPanel):
             func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
             thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
             for thd, widget in zip(thds[::-1], self.values_widgets):  # Values from high to low
+                widget.start = None
+                widget.end = None
                 widget.value = np.exp(thd) if self.log_space else thd
+        self._update_bounds()
         self._get_colors()
 
     def _action_linear(self):
@@ -1161,7 +1164,7 @@ class ClassificationControl(ControlPanel):
             widget.start = None
             widget.end = None
             widget.value = thd
-            self._update_bounds()
+        self._update_bounds()
 
     @param.depends('mode', watch=True)
     def _mode_updated(self):
