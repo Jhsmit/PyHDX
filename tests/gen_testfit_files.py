@@ -25,8 +25,8 @@ states = pmt.groupby_state()
 series = states['state1']
 
 temperature, pH = 300, 8
-series.cov.protein.set_k_int(temperature=temperature, pH=pH)
-series.cov.protein.to_file(directory / 'test_data' / 'simulated_data_info.txt')
+series.coverage.protein.set_k_int(temperature=temperature, pH=pH)
+series.coverage.protein.to_file(directory / 'test_data' / 'simulated_data_info.txt')
 
 kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 

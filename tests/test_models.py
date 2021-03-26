@@ -164,7 +164,7 @@ class TestCoverage(object):
             assert self.sequence[r - 1] == s
 
     def test_dim(self):
-        cov = self.series.cov
+        cov = self.series.coverage
         assert cov.Np == len(np.unique(cov.data['sequence']))
         assert cov.Nr == len(cov.r_number)
 
@@ -249,14 +249,14 @@ class TestProtein(object):
         assert np.allclose(protein['k_int'], protein['k_int_saved'])
 
         # ecSecB
-        self.series.cov.protein.set_k_int(300., 8.)
+        self.series.coverage.protein.set_k_int(300., 8.)
 
-        k_int = self.series.cov.protein['k_int'].to_numpy()
+        k_int = self.series.coverage.protein['k_int'].to_numpy()
         assert k_int[0] == np.inf  # N terminal exchange rate is zero
         assert np.all(k_int[-10:] == 0.)
         assert len(k_int) == self.series.c_term
 
-        prolines = self.series.cov.protein['sequence'].to_numpy() == 'P'
+        prolines = self.series.coverage.protein['sequence'].to_numpy() == 'P'
         assert np.all(k_int[prolines] == 0)
 
 

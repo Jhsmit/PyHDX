@@ -24,15 +24,15 @@ series = states['state1']
 
 print(series.scores_peptides.T.shape)
 print(series.uptake_corrected.shape)  ## N_t, N_p
-print(series.cov.X.shape)
+print(series.coverage.X.shape)
 
-print(series.cov.X)
-print(series.cov.Z)
+print(series.coverage.X)
+print(series.coverage.Z)
 
-fmt, hdr = fmt_export(series.cov.data)
-np.savetxt('tempfile.txt', series.cov.data, fmt=fmt, header=hdr)
+fmt, hdr = fmt_export(series.coverage.data)
+np.savetxt('tempfile.txt', series.coverage.data, fmt=fmt, header=hdr)
 
-Z = series.cov.Z
+Z = series.coverage.Z
 print(np.sum(Z, axis=1))
 
 init_arr = txt_to_np(os.path.join(fit_dir, 'fit_simulated_wt_avg.txt'))

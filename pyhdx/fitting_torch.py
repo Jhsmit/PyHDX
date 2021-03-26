@@ -29,12 +29,12 @@ class DeltaGFit(nn.Module):
 
 def estimate_errors(kf, deltaG):
     # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
-    bools = kf.series.cov['exchanges'].to_numpy()
-    r_number = kf.series.cov.r_number[bools]  # Residue number which exchange
+    bools = kf.series.coverage['exchanges'].to_numpy()
+    r_number = kf.series.coverage.r_number[bools]  # Residue number which exchange
     dtype = t.float64
     temperature = t.tensor([kf.temperature], dtype=dtype)
-    X = t.tensor(kf.series.cov.X[:, bools], dtype=dtype)  # Np x Nr, non-exchanging residues removed
-    k_int = t.tensor(kf.series.cov['k_int'][bools].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
+    X = t.tensor(kf.series.coverage.X[:, bools], dtype=dtype)  # Np x Nr, non-exchanging residues removed
+    k_int = t.tensor(kf.series.coverage['k_int'][bools].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
     timepoints = t.tensor(kf.series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
 
     deltaG = t.tensor(deltaG[bools], dtype=dtype)
@@ -105,11 +105,11 @@ class TorchSingleFitResult(TorchFitResult):
     @property
     def output(self):
         out_dict = {}
-        out_dict['r_number'] = self.series.cov.r_number
-        out_dict['sequence'] = self.series.cov['sequence'].to_numpy()
+        out_dict['r_number'] = self.series.coverage.r_number
+        out_dict['sequence'] = self.series.coverage['sequence'].to_numpy()
         out_dict['_deltaG'] = self.deltaG
         out_dict['deltaG'] = out_dict['_deltaG'].copy()
-        out_dict['deltaG'][~self.series.cov['exchanges']] = np.nan
+        out_dict['deltaG'][~self.series.coverage['exchanges']] = np.nan
         if self.temperature is not None:
             pfact = np.exp(out_dict['deltaG'] / (constants.R * self.temperature))
             out_dict['pfact'] = pfact
@@ -126,8 +126,8 @@ class TorchSingleFitResult(TorchFitResult):
 
         with t.no_grad():
             temperature = t.Tensor([self.temperature])
-            X = t.Tensor(self.series.cov.X)  # Np x Nr
-            k_int = t.Tensor(self.series.cov['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
+            X = t.Tensor(self.series.coverage.X)  # Np x Nr
+            k_int = t.Tensor(self.series.coverage['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
             timepoints = t.Tensor(timepoints).unsqueeze(0)  # 1 x Nt
             inputs = [temperature, X, k_int, timepoints]
 
@@ -158,8 +158,8 @@ class TorchBatchFitResult(TorchFitResult):
 
         for i, kf in enumerate(self.fit_object.states):
             #todo this could use some pandas
-            i0 = kf.series.cov.interval[0] - self.fit_object.interval[0]
-            i1 = kf.series.cov.interval[1] - self.fit_object.interval[0]
+            i0 = kf.series.coverage.interval[0] - self.fit_object.interval[0]
+            i1 = kf.series.coverage.interval[1] - self.fit_object.interval[0]
 
             cov = estimate_errors(kf, g_values[i, i0:i1])  # returns a protein? should be series
             pd_series = cov['covariance']

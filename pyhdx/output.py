@@ -79,7 +79,7 @@ class Report(object):
         self.make_subfigure(funcs, layout=layout, close=close)
 
     def add_peptide_figures(self, layout=(5, 4), close=True, **kwargs):
-        funcs = [partial(self.output._make_peptide_graph, i, **kwargs) for i in range(len(self.output.series.cov))]
+        funcs = [partial(self.output._make_peptide_graph, i, **kwargs) for i in range(len(self.output.series.coverage))]
         self.make_subfigure(funcs, layout=layout, close=close)
 
     def make_subfigure(self, fig_funcs, layout=(5, 4), close=True):
@@ -178,7 +178,7 @@ class Output(object):
         #     for time in fit_timepoints:
         #         p = fit_result.get_p(time)
         #         p = np.nan_to_num(p)
-        #         d = self.series.cov.X.dot(p)
+        #         d = self.series.coverage.X.dot(p)
         #         d_list.append(d)
         # elif fit_result.model_type == 'Global':
         #     for time in fit_timepoints:
@@ -195,7 +195,7 @@ class Output(object):
         pass
 
     def peptide_graph_generator(self, **kwargs):
-        for i in range(len(self.series.cov)):
+        for i in range(len(self.series.coverage)):
             yield from self._make_peptide_graph(i, **kwargs)
 
     def _make_peptide_graph(self, index, figsize=(4,4), ax_scale='log', **fig_kwargs):
@@ -213,7 +213,7 @@ class Output(object):
         t_unit = f'({t_unit})' if t_unit else t_unit
         ax.set_xlabel(f'Time' + t_unit)
         ax.set_ylabel('Corrected D-uptake')
-        start, end = self.series.cov.data['_start'][index], self.series.cov.data['_end'][index]
+        start, end = self.series.coverage.data['_start'][index], self.series.coverage.data['_end'][index]
         ax.set_title(f'peptide_{start}_{end}')
         ax.legend()
         plt.tight_layout()

@@ -18,7 +18,7 @@ print(states.keys())
 series = states['SecB WT apo']
 split = series.split()
 key = list(split)[1]
-cov = split[key].cov
+cov = split[key].coverage
 
 
 def add_blocks(ax, positions, color):

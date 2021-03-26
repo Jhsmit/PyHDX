@@ -647,7 +647,7 @@ class KineticsFitting(object):
 
         """
 
-        self.series.cov.protein.set_k_int(self.temperature, self.pH)
+        self.series.coverage.protein.set_k_int(self.temperature, self.pH)
 
     def _get_bounds(self):
         #todo document
@@ -670,9 +670,9 @@ class KineticsFitting(object):
         arr = series.scores_stack.T
         i = 0
         # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
-        r_excl = np.append(series.cov.r_number, [series.cov.r_number[-1] + 1])
+        r_excl = np.append(series.coverage.r_number, [series.coverage.r_number[-1] + 1])
 
-        for bl in series.cov.block_length:
+        for bl in series.coverage.block_length:
             d = arr[i]
             if np.all(np.isnan(d)):  # Skip non-coverage blocks
                 i += bl
@@ -751,7 +751,7 @@ class KineticsFitting(object):
 
     def guess_deltaG(self, guess_rates):
         #todo make public
-        protein = self.series.cov.protein
+        protein = self.series.coverage.protein
         p_guess = (protein['k_int'] / guess_rates['rate']) - 1
         p_guess.clip(0., None, inplace=True)  # Some initial guesses will have negative PF values
         deltaG = np.log(p_guess) * constants.R * self.temperature
@@ -831,15 +831,15 @@ class KineticsFitting(object):
         #todo @tejas: Missing docstring
         """Pytorch global fitting"""
 
-        if 'k_int' not in self.series.cov.protein:
+        if 'k_int' not in self.series.coverage.protein:
             self.set_k_int()
 
         dtype = torch.float64
 
         # Prepare input data in the correct shapes for fitting
         temperature = torch.tensor([self.temperature], dtype=dtype)
-        X = torch.tensor(self.series.cov.X, dtype=dtype) # Np x Nr
-        k_int = torch.tensor(self.series.cov['k_int'].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
+        X = torch.tensor(self.series.coverage.X, dtype=dtype) # Np x Nr
+        k_int = torch.tensor(self.series.coverage['k_int'].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
         timepoints = torch.tensor(self.series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
         inputs = [temperature, X, k_int, timepoints]
 
@@ -847,7 +847,7 @@ class KineticsFitting(object):
         output_data = torch.tensor(self.series.uptake_corrected.T, dtype=dtype)
 
         # Get initial guess values for deltaG
-        gibbs_values = self.series.cov.apply_interval(self.guess_deltaG(initial_result)).to_numpy()
+        gibbs_values = self.series.coverage.apply_interval(self.guess_deltaG(initial_result)).to_numpy()
         if np.any(np.isnan(gibbs_values)):
             raise ValueError('NaN values in initial guess values')
 
@@ -901,15 +901,15 @@ class KineticsFitting(object):
         interpolated = np.array([np.interp(50, d_uptake, self.series.timepoints) for d_uptake in self.series.scores_stack.T])
 
         output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
-        output['r_number'] = self.series.cov.r_number
+        output['r_number'] = self.series.coverage.r_number
         output['rate'] = np.log(2) / interpolated
 
         return Protein(output, index='r_number')
 
     def weighted_avg_linearize(self):
         rates = []
-        output = np.empty_like(self.series.cov.r_number, dtype=[('r_number', int), ('rate', float)])
-        output['r_number'] = self.series.cov.r_number
+        output = np.empty_like(self.series.coverage.r_number, dtype=[('r_number', int), ('rate', float)])
+        output['r_number'] = self.series.coverage.r_number
 
         for i, dpts in enumerate(self.series.scores_stack.T):
             if np.any(np.isnan(dpts)):
@@ -939,7 +939,7 @@ class KineticsFitResult(object):
         assert len(results) == len(models)
 #        assert len(models) == len(block_length)
         self.series = series
-        self.r_number = series.cov.r_number
+        self.r_number = series.coverage.r_number
         self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
@@ -960,7 +960,7 @@ class KineticsFitResult(object):
             for time in timepoints:
                 p = self.get_p(time)
                 p = np.nan_to_num(p)
-                d = self.series.cov.X.dot(p)
+                d = self.series.coverage.X.dot(p)
                 d_list.append(d)
         elif self.model_type == 'Global':
             for time in timepoints:
@@ -1086,7 +1086,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         terms = []
 
         r_number = initial_result['r_number']
-        r_index = k_series.cov.start
+        r_index = k_series.coverage.start
         for i, bl in enumerate(blocks):
             current = r_index + (bl // 2)
             idx = np.searchsorted(r_number, current)
@@ -1122,8 +1122,8 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
         #Iterate over rows (peptides) and add terms together which make one peptide
         model_dict = {}
         d_vars = []
-        cs = np.insert(np.cumsum(blocks) + k_series.cov.start, 0, k_series.cov.start)
-        for i, entry in enumerate(k_series.cov.data):
+        cs = np.insert(np.cumsum(blocks) + k_series.coverage.start, 0, k_series.coverage.start)
+        for i, entry in enumerate(k_series.coverage.data):
             d_var = self.make_variable('d_{}'.format(i))
             d_vars.append(d_var)
 
@@ -1225,14 +1225,14 @@ class BatchFitting(object):
         self.states = states
 
         #todo create Coverage object for the 3d case
-        intervals = np.array([kf.series.cov.interval for kf in self.states])
+        intervals = np.array([kf.series.coverage.interval for kf in self.states])
         self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
         r_number = np.arange(*self.interval)
         self.r_number = r_number
 
         self.Ns = len(self.states)
         self.Nr = len(r_number)
-        self.Np = np.max([kf.series.cov.X.shape[0] for kf in self.states])
+        self.Np = np.max([kf.series.coverage.X.shape[0] for kf in self.states])
         self.Nt = np.max([len(kf.series.timepoints) for kf in self.states])
 
         self.guesses = guesses
@@ -1248,25 +1248,25 @@ class BatchFitting(object):
 
         # Set values for numpy input data
         for i, kf in enumerate(self.states):
-            if 'k_int' not in kf.series.cov.protein:
+            if 'k_int' not in kf.series.coverage.protein:
                 kf.set_k_int()
 
-            interval_sample = kf.series.cov.interval
+            interval_sample = kf.series.coverage.interval
             # Indices of residues
             i0 = interval_sample[0] - self.interval[0]
             i1 = interval_sample[1] - self.interval[0]
 
-            Npi = kf.series.cov.X.shape[0]  # number of peptides in this particular state
+            Npi = kf.series.coverage.X.shape[0]  # number of peptides in this particular state
             Nti = len(kf.series.timepoints) # number of timepoints in this particular state
 
             temperature = np.array([kf.temperature for kf in self.states])
 
-            k_int_values = kf.series.cov['k_int'].to_numpy()
+            k_int_values = kf.series.coverage['k_int'].to_numpy()
             k_int[i, i0:i1] = k_int_values
 
             np.zeros((self.Ns, self.Nr))
 
-            gibbs_values = kf.series.cov.apply_interval(kf.guess_deltaG(self.guesses[i])).to_numpy()
+            gibbs_values = kf.series.coverage.apply_interval(kf.guess_deltaG(self.guesses[i])).to_numpy()
             gibbs[i, i0:i1] = gibbs_values
 
             # Fill missing gibbs values (NaN entries) at start and end with extrapolated values
@@ -1279,7 +1279,7 @@ class BatchFitting(object):
                 fill_value = g_row[idx[-1]]
                 g_row[idx[-1] + 1:] = fill_value
 
-            X[i, 0: Npi, i0:i1] = kf.series.cov.X
+            X[i, 0: Npi, i0:i1] = kf.series.coverage.X
             timepoints[i, -Nti:] = kf.series.timepoints
             D[i, 0: Npi, -Nti:] = kf.series.uptake_corrected.T
 
@@ -1425,11 +1425,11 @@ class BatchFitting(object):
     def exchanges(self):
         exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
         for i, kf in enumerate(self.states):
-            interval_sample = kf.series.cov.interval
+            interval_sample = kf.series.coverage.interval
             # Indices of residues
             i0 = interval_sample[0] - self.interval[0]
             i1 = interval_sample[1] - self.interval[0]
-            exchanges[i, i0:i1] = kf.series.cov['exchanges']
+            exchanges[i, i0:i1] = kf.series.coverage['exchanges']
 
         return exchanges
 

@@ -291,13 +291,13 @@ class PeptideFileInputControl(ControlPanel):
         self._publish_scores()
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
-                                f'({len(series)} timepoints, {len(series.cov)} peptides each)')
-        self.parent.logger.info(f'Average coverage: {series.cov.percent_coverage:.3}%, '
-                                f'Redundancy: {series.cov.redundancy:.2}')
+                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
+        self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
+                                f'Redundancy: {series.coverage.redundancy:.2}')
 
     def _publish_scores(self):
         exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(self.parent.series.scores_stack, self.parent.series.timepoints)}
-        data_dict = dict(r_number=self.parent.series.cov.r_number, **exposure_data_dict)
+        data_dict = dict(r_number=self.parent.series.coverage.r_number, **exposure_data_dict)
 
         data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
                                  renderer='circle', size=10, name='scores')
@@ -376,7 +376,7 @@ class FDPeptideFileInputControl(PeptideFileInputControl):
 
         self.parent.series = series
 
-        self.parent.logger.info(f"Loaded FD control '{self.exp_state}' with {len(series.cov)} peptides")
+        self.parent.logger.info(f"Loaded FD control '{self.exp_state}' with {len(series.coverage)} peptides")
         self.parent.logger.info(f'Mean deuteration is {scores.mean()}%, std {scores.std()}%')
 
 
@@ -438,7 +438,7 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
         self._publish_scores()
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
-                                f'({len(series)} timepoints, {len(series.cov)} peptides each)')
+                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
 
 
 class DifferenceControl(ControlPanel):
@@ -683,7 +683,7 @@ class CoverageControl(ControlPanel):
     @property
     def coverage(self):
         """Coverage object describing the peptide layout"""
-        return self.parent.series.cov
+        return self.parent.series.coverage
 
     @property
     def color(self):
@@ -1023,7 +1023,7 @@ class FitResultControl(ControlPanel):
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
     def _series_updated(self, *events):
-        self.param['peptide_index'].bounds = (0, len(self.parent.series.cov.data) - 1)
+        self.param['peptide_index'].bounds = (0, len(self.parent.series.coverage.data) - 1)
         self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
         self._update_sources()
 
@@ -1417,7 +1417,7 @@ class FileExportControl(ControlPanel):
             self.target = objects[0]
 
     def _series_updated(self, *events):
-        self.c_term = int(self.parent.series.cov.protein.c_term)
+        self.c_term = int(self.parent.series.coverage.protein.c_term)
 
     def _make_pml(self, target):
         assert 'r_number' in self.export_dict.keys(), "Target export data must have 'r_number' column"

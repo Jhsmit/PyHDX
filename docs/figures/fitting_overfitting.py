@@ -57,7 +57,7 @@ ax.set_xlabel('Residue')
 ax.set_ylabel('Rate (min⁻¹)')
 ax.set_xlim(16, 59)
 
-cov = series.cov
+cov = series.coverage
 
 plt.tight_layout()
 #plt.show()

@@ -196,7 +196,6 @@ class Protein(object):
         return protein_wrapper(self.df.mul, other, metadata=self.metadata)
 
 
-
 class PeptideMasterTable(object):
     """
     Main peptide input object. The input numpy structured array `data` must have the following entires for each peptide:
@@ -729,7 +728,7 @@ class KineticsSeries(object):
 
         # Create coverage object from the first time point (as all are now equal)
         cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ['c_term', 'n_term', 'sequence']}
-        self.cov = Coverage(selected[0], **cov_kwargs)
+        self.coverage = Coverage(selected[0], **cov_kwargs)
 
     @property
     def temperature(self):
@@ -756,7 +755,7 @@ class KineticsSeries(object):
     @property
     def c_term(self):
         warnings.warn("'c_term' property will be moved to Coverage object", DeprecationWarning)
-        return self.cov.protein.c_term
+        return self.coverage.protein.c_term
 
     @c_term.setter
     def c_term(self, value):
@@ -767,13 +766,13 @@ class KineticsSeries(object):
     @property
     def Np(self):
         """:obj:`int`: Number of peptides."""
-        return self.cov.Np
+        return self.coverage.Np
 
     @property
     def Nr(self):
         """:obj:`int`: Total number of residues spanned by the peptides."""
 
-        return self.cov.Nr
+        return self.coverage.Nr
 
     @property
     def Nt(self):
