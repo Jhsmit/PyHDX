@@ -98,7 +98,6 @@ class TestSecBDataFit(object):
         fr_global = asyncio.get_event_loop().run_until_complete(kf.global_fit_async(initial_rates, epochs=1000))  # py37: run
         t1 = time.time()
 
-        assert t1 - t0 < 5
         out_deltaG = fr_global.output
         check_deltaG = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
 
