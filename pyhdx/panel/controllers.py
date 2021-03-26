@@ -71,8 +71,10 @@ class MappingFileInputControl(ControlPanel):
             self.parent.logger.info('Invalid file type, supplied file is not a text file')
             return None
         try:
+            sio.seek(0)
             protein = txt_to_protein(sio)
         except KeyError:
+            sio.seek(0)
             protein = csv_to_protein(sio)
         return protein
 
