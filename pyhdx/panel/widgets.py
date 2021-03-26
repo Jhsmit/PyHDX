@@ -92,6 +92,22 @@ class ColoredStaticText(StaticText):
     _format = '<b>{title}</b>: <span class ="panel-colored-statictext">{value}</span>'
 
 
+class HTMLTitle(HTML):
+    title = param.String(
+        doc="""Title"""
+    )
+    priority = 0
+    _rename = dict(HTML._rename, title=None)
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        self._update_title()
+
+    @param.depends('title', watch=True)
+    def _update_title(self):
+        self.object = f"""<a class="title" href="" >{self.title}</a>"""
+
+
 class NGLViewer(HTML):
     pdb_string = param.String(
         doc="""Raw string of PDB file representing molecular structure to visualize."""

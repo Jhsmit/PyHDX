@@ -1,6 +1,6 @@
 from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
 from pyhdx.fileIO import csv_to_protein, txt_to_np
-from pyhdx.panel.apps import _main_app, _diff_app
+from pyhdx.panel.apps import main_app, diff_app
 from pyhdx.panel.data_sources import DataSource
 from pathlib import Path
 
@@ -38,7 +38,7 @@ class TestMainGUISecB(object):
         with open(self.fpath, 'rb') as f:
             binary = f.read()
 
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         file_input_control = ctrl.control_panels['PeptideFileInputControl']
 
         file_input_control.file_selectors[0].value = binary
@@ -57,7 +57,7 @@ class TestMainGUISecB(object):
         assert isinstance(ctrl.peptides, PeptideMasterTable)
 
     def test_coverage(self):
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         ctrl.series = self.series
 
         cov_figure = ctrl.figure_panels['CoverageFigure']
@@ -66,7 +66,7 @@ class TestMainGUISecB(object):
         assert renderer.data_source.name == f'coverage_{self.series.state}'
 
     def test_initial_guesses_and_fit(self):
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         ctrl.series = self.series
 
         ctrl.control_panels['InitialGuessControl']._action_fit()
@@ -81,7 +81,7 @@ class TestMainGUISecB(object):
         assert renderer.data_source.name == 'global_fit'
 
     def test_file_download_output(self):
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         ctrl.series = self.series
         ctrl.publish_data('global_fit', self.ds_fit)
 
@@ -113,7 +113,7 @@ class TestMainGUISimulated(object):
         with open(self.fpath, 'rb') as f:
             binary = f.read()
 
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         file_input_control = ctrl.control_panels['PeptideFileInputControl']
 
         file_input_control.file_selectors[0].value = binary
@@ -129,11 +129,11 @@ class TestMainGUISimulated(object):
         assert isinstance(ctrl.peptides, PeptideMasterTable)
 
     def test_coverage(self):
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         ctrl.series = self.series
 
     def test_initial_guesses(self):
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         ctrl.cluster = None
         ctrl.series = self.series
 
@@ -146,7 +146,7 @@ class TestMainGUISimulated(object):
         assert 'fit1' in ctrl.sources.keys()
 
     def test_classification(self):
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         ctrl.cluster = None
         ctrl.series = self.series
 
@@ -159,9 +159,8 @@ class TestMainGUISimulated(object):
         classification.quantity = 'rate'
         classification._action_otsu()
 
-
     def test_global_fit(self):
-        tmpl, ctrl = _main_app()
+        ctrl = main_app()
         ctrl.cluster = None
         ctrl.series = self.series
 
@@ -183,7 +182,7 @@ class TestDiffApp(object):
             cls.file_binary = f_obj.read()
 
     def test_app(self):
-        tmpl, ctrl = _diff_app()
+        ctrl = diff_app()
 
         f_input = ctrl.control_panels['MappingFileInputControl']
         f_input.widget_dict['input_file'].filename = str(self.fpath)

@@ -288,7 +288,9 @@ class PeptideFileInputControl(ControlPanel):
 
         series = KineticsSeries(data, c_term=self.c_term)
         self.parent.series = series
+        self.parent.sample_name = self.exp_state
         self._publish_scores()
+
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.coverage)} peptides each)')

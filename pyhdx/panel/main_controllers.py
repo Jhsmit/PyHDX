@@ -3,7 +3,9 @@ import param
 import panel as pn
 
 from pyhdx.models import PeptideMasterTable, KineticsSeries
+from pyhdx import VERSION_STRING_SHORT
 
+from panel.template import BaseTemplate
 
 class MainController(param.Parameterized):
     """
@@ -48,6 +50,8 @@ class MainController(param.Parameterized):
         #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
         self.figure_panels = {ctrl.name: ctrl(self) for ctrl in figure_panels}
 
+        self.template = None   # Panel template
+
     @property
     def doc(self):
         """ :class:`~bokeh.document.document.Document`: Bokeh document for the application"""
@@ -85,8 +89,14 @@ class PyHDXController(MainController):
     series = param.ClassSelector(KineticsSeries,
                                  doc='KineticsSeries object with current selected and corrected peptides', precedence=-1)
 
+    sample_name = param.String(doc='Name describing the selected protein state')
+
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
+
+    @param.depends('sample_name', watch=True)
+    def _update_name(self):
+        self.template.header[0].title = VERSION_STRING_SHORT + ': ' + self.sample_name
 
 
 class ComparisonController(MainController):

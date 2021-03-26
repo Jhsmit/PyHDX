@@ -12,7 +12,7 @@ DEBUG = True
 cluster = '127.0.0.1:52123'
 
 
-def _main_app():
+def main_app():
     control_panels = [
         PeptideFileInputControl,
         CoverageControl,
@@ -42,32 +42,27 @@ def _main_app():
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
     ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
-    tmpl = elvis.compose(ctrl,
-                         elvis.column(
-                             elvis.stack(
-                                 elvis.view(ctrl.figure_panels['CoverageFigure']),
-                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
-                             ),
-                             elvis.stack(
-                                 elvis.view(ctrl.figure_panels['RateFigure']),
-                                 elvis.view(ctrl.figure_panels['DeltaGFigure']),
-                                 elvis.view(ctrl.figure_panels['PFactFigure']),
-                                 elvis.view(ctrl.figure_panels['FitResultFigure']),
-                                 elvis.view(ctrl.figure_panels['ScoresFigure']),
-                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
-                             )
-                         ))
+    elvis.compose(ctrl,
+                  elvis.column(
+                      elvis.stack(
+                          elvis.view(ctrl.figure_panels['CoverageFigure']),
+                          elvis.view(ctrl.figure_panels['ProteinFigure'])
+                      ),
+                      elvis.stack(
+                          elvis.view(ctrl.figure_panels['RateFigure']),
+                          elvis.view(ctrl.figure_panels['DeltaGFigure']),
+                          elvis.view(ctrl.figure_panels['PFactFigure']),
+                          elvis.view(ctrl.figure_panels['FitResultFigure']),
+                          elvis.view(ctrl.figure_panels['ScoresFigure']),
+                          elvis.view(ctrl.figure_panels['LoggingFigure']),
+                      )
+                  ))
 
     ctrl.control_panels['OptionsControl']._update_link()
-    return tmpl, ctrl
+    return ctrl
 
 
-def main_app():
-    tmpl, ctrl = _main_app()
-    return tmpl
-
-
-def _single_app():
+def single_app():
     control_panels = [
         SingleMappingFileInputControl,
         ClassificationControl,
@@ -89,30 +84,25 @@ def _single_app():
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
     ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
-    tmpl = elvis.compose(ctrl,
-                         elvis.column(
-                             elvis.stack(
-                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
-                             ),
-                             elvis.row(
-                                 elvis.stack(
-                                    elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
-                                 ),
-                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
-                             )
-                         ))
+    elvis.compose(ctrl,
+                  elvis.column(
+                      elvis.stack(
+                          elvis.view(ctrl.figure_panels['ProteinFigure'])
+                      ),
+                      elvis.row(
+                          elvis.stack(
+                             elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
+                          ),
+                          elvis.view(ctrl.figure_panels['LoggingFigure']),
+                      )
+                  ))
 
     ctrl.control_panels['ClassificationControl'].log_space = False
 
-    return tmpl, ctrl
+    return ctrl
 
 
-def single_app():
-    tmpl, ctrl = _single_app()
-    return tmpl
-
-
-def _diff_app():
+def diff_app():
     control_panels = [
         MappingFileInputControl,
         DifferenceControl,
@@ -136,30 +126,25 @@ def _diff_app():
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
     ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
-    tmpl = elvis.compose(ctrl,
-                         elvis.column(
-                             elvis.stack(
-                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
-                             ),
-                             elvis.row(
-                                 elvis.stack(
-                                    elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
-                                    elvis.view(ctrl.figure_panels['SingleValueFigure'])
-                                 ),
-                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
-                             )
-                         ))
+    elvis.compose(ctrl,
+                  elvis.column(
+                      elvis.stack(
+                          elvis.view(ctrl.figure_panels['ProteinFigure'])
+                      ),
+                      elvis.row(
+                          elvis.stack(
+                             elvis.view(ctrl.figure_panels['BinaryComparisonFigure']),
+                             elvis.view(ctrl.figure_panels['SingleValueFigure'])
+                          ),
+                          elvis.view(ctrl.figure_panels['LoggingFigure']),
+                      )
+                  ))
 
     ctrl.control_panels['ClassificationControl'].log_space = False
-    return tmpl, ctrl
+    return ctrl
 
 
-def diff_app():
-    tmpl, ctrl = _diff_app()
-    return tmpl
-
-
-def _folding_app():
+def folding_app():
     control_panels = [
         PeptideFoldingFileInputControl,
         CoverageControl,
@@ -186,33 +171,28 @@ def _folding_app():
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
     ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
-    tmpl = elvis.compose(ctrl,
-                         elvis.column(
-                             elvis.stack(
-                                 elvis.view(ctrl.figure_panels['CoverageFigure']),
-                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
-                             ),
-                             elvis.row(
-                                 elvis.stack(
-                                     elvis.view(ctrl.figure_panels['RateFigure']),
-                                     elvis.view(ctrl.figure_panels['ScoresFigure']),
-                                     elvis.view(ctrl.figure_panels['FitResultFigure'])
-                                 ),
-                             elvis.view(ctrl.figure_panels['LoggingFigure']),
-                            )
-                         )
-                         )
+    elvis.compose(ctrl,
+                  elvis.column(
+                      elvis.stack(
+                          elvis.view(ctrl.figure_panels['CoverageFigure']),
+                          elvis.view(ctrl.figure_panels['ProteinFigure'])
+                      ),
+                      elvis.row(
+                          elvis.stack(
+                              elvis.view(ctrl.figure_panels['RateFigure']),
+                              elvis.view(ctrl.figure_panels['ScoresFigure']),
+                              elvis.view(ctrl.figure_panels['FitResultFigure'])
+                          ),
+                          elvis.view(ctrl.figure_panels['LoggingFigure']),
+                     )
+                  )
+                  )
 
     ctrl.control_panels['ClassificationControl'].log_space = False
-    return tmpl, ctrl
+    return ctrl
 
 
-def folding_app():
-    tmpl, ctrl = _folding_app()
-    return tmpl
-
-
-def _full_deuteration_app():
+def full_deuteration_app():
     control_panels = [
         FDPeptideFileInputControl,
         FDCoverageControl,
@@ -230,21 +210,16 @@ def _full_deuteration_app():
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
     ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
-    tmpl = elvis.compose(ctrl,
-                         elvis.column(
-                                 elvis.view(ctrl.figure_panels['CoverageFigure']),
-                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
-                             ))
+    elvis.compose(ctrl,
+                  elvis.column(
+                          elvis.view(ctrl.figure_panels['CoverageFigure']),
+                          elvis.view(ctrl.figure_panels['LoggingFigure']),
+                      ))
 
-    return tmpl, ctrl
-
-
-def full_deuteration_app():
-    tmpl, ctrl = _full_deuteration_app()
-    return tmpl
+    return ctrl
 
 
-def _color_matrix_app():
+def color_matrix_app():
     control_panels = [
         MatrixMappingFileInputControl,
         ColoringControl,
@@ -263,22 +238,22 @@ def _color_matrix_app():
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
     ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
-    tmpl = elvis.compose(ctrl,
-                         elvis.column(
-                             elvis.stack(
-                                 elvis.view(ctrl.figure_panels['ProteinFigure'])
-                             ),
-                             elvis.row(
-                                 elvis.stack(
-                                    elvis.view(ctrl.figure_panels['ImageFigure']),
-                                 ),
-                                 elvis.view(ctrl.figure_panels['LoggingFigure']),
-                             )
-                         ))
+    elvis.compose(ctrl,
+                  elvis.column(
+                      elvis.stack(
+                          elvis.view(ctrl.figure_panels['ProteinFigure'])
+                      ),
+                      elvis.row(
+                          elvis.stack(
+                             elvis.view(ctrl.figure_panels['ImageFigure']),
+                          ),
+                          elvis.view(ctrl.figure_panels['LoggingFigure']),
+                      )
+                  ))
 
-    return tmpl, ctrl
+    return ctrl
 
 
 if __name__ == '__main__':
-    tmpl, ctrl = _folding_app()
-    pn.serve(tmpl)
+    ctrl = folding_app()
+    pn.serve(ctrl)

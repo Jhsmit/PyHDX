@@ -2,6 +2,7 @@ import pathlib
 from panel.util import url_path
 from panel.template import GoldenTemplate
 from pyhdx.panel.base import STATIC_DIR
+from pyhdx.panel.widgets import HTMLTitle
 import panel as pn
 import string
 import os
@@ -84,6 +85,7 @@ class GoldenElvis(object):
         self.main_controller = None
         self.panels = {}
 
+
     @property
     def jinja_base_string_template(self):
         _base = pathlib.Path(__file__).parent / 'jinja_base.html'
@@ -112,7 +114,12 @@ class GoldenElvis(object):
         for panel_ID, panel in self.panels.items():
             template._render_items[panel_ID] = (panel, ['main'])
 
-        return template
+        title_widget = HTMLTitle(title=self.title)
+        template.header.append(title_widget)
+
+        main_controller.template = template
+
+        #return template
 
     def view(self, fig_panel, title=None, width=None, height=None):
         """
