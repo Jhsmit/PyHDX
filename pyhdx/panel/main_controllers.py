@@ -86,13 +86,21 @@ class PyHDXController(MainController):
     """
     fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
     peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides', precedence=-1)
-    series = param.ClassSelector(KineticsSeries,
-                                 doc='KineticsSeries object with current selected and corrected peptides', precedence=-1)
+    datasets = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
 
     sample_name = param.String(doc='Name describing the selected protein state')
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
+
+    @param.depends('datasets', watch=True)
+    def _datasets_updated(self):
+        if len(self.datasets) == 0:
+            self.sample_name = ''
+        elif len(self.datasets) == 1:
+            self.sample_name = next(iter(self.datasets.values()))
+        elif len(self.datasets) < 5:
+            self.sample_name = ', '.join(self.datasets.keys())
 
     @param.depends('sample_name', watch=True)
     def _update_name(self):
