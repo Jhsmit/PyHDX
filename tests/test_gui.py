@@ -41,19 +41,23 @@ class TestMainGUISecB(object):
         ctrl = main_app()
         file_input_control = ctrl.control_panels['PeptideFileInputControl']
 
-        file_input_control.file_selectors[0].value = binary
+        file_input_control.input_files = [binary]
         file_input_control._action_load()
         assert file_input_control.fd_state == 'Full deuteration control'
         assert file_input_control.fd_exposure == 0.0
 
         file_input_control.fd_state = self.control[0]
-        file_input_control.fdexposure = self.control[1]
+        file_input_control.fd_exposure = self.control[1]
 
         file_input_control.exp_state = self.state
         assert file_input_control.exp_exposures == [0.0, 0.167, 0.5, 1.0, 5.0, 10.0, 100.000008]
         file_input_control._action_parse()
 
         assert isinstance(ctrl.series, KineticsSeries)
+        assert ctrl.series.Nt == 7
+        assert ctrl.series.Np == 63
+        assert ctrl.series.Nr == 146
+        assert np.nanmean(ctrl.series.scores_stack) == 54.05487325857497
         assert isinstance(ctrl.peptides, PeptideMasterTable)
 
     def test_coverage(self):
@@ -116,7 +120,7 @@ class TestMainGUISimulated(object):
         ctrl = main_app()
         file_input_control = ctrl.control_panels['PeptideFileInputControl']
 
-        file_input_control.file_selectors[0].value = binary
+        file_input_control.input_files = [binary]
         file_input_control._action_load()
         file_input_control.norm_mode = 'Theory'
         file_input_control.be_percent = 0.
@@ -126,6 +130,10 @@ class TestMainGUISimulated(object):
         file_input_control._action_parse()
 
         assert isinstance(ctrl.series, KineticsSeries)
+        assert ctrl.series.Nt == 7
+        assert ctrl.series.Np == 7
+        assert ctrl.series.Nr == 38
+        assert np.nanmean(ctrl.series.scores_stack) == 1116.637276769557
         assert isinstance(ctrl.peptides, PeptideMasterTable)
 
     def test_coverage(self):
