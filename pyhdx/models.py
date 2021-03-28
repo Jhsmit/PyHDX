@@ -946,8 +946,30 @@ def series_intersection(series_list, fields=None):
     fields = fields or ['_start', '_end', 'exposure']
 
     full_arrays = [series.full_data for series in series_list]
-    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in full_arrays])
-    selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in full_arrays]
+    selected = array_intersection(full_arrays, fields=fields)
 
     series_out = [KineticsSeries(data, **series.metadata) for data, series in zip(selected, series_list)]
     return series_out
+
+
+def array_intersection(arrays_list, fields):
+    """
+    Find and return the intersecting entries in multiple arrays.
+
+    Parameters
+    ----------
+    arrays_list : :obj:`iterable`
+        Iterable of input structured arrays
+    fields : :obj:`iterable'
+        Iterable of fields to use to decide if entires are intersecting
+
+    Returns
+    -------
+    selected : :obj:`iterable`
+        Output iterable of arrays with only intersecting entries.
+
+    """
+    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays_list])
+    selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays_list]
+
+    return selected
