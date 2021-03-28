@@ -412,64 +412,6 @@ class PeptideMasterTable(object):
 
         self.data = data_final
 
-    def return_by_name(self, control_state, control_exposure):
-        #todo return dictionary of kinetic series instead
-        print('deprecate this')  #currently used by GUI
-        #raise DeprecationWarning
-
-        """
-
-        Finds all peptides in the dataset which match the control peptides and the peptides are grouped by their state
-        and exposure and returned in a dictionary.
-
-        Parameters
-        ----------
-        control_state : :obj:`str`
-            Name of the control state
-        control_exposure : :obj:`float`
-            Exposure time of the control
-
-        Returns
-        -------
-        out : :obj:`dict`
-            Dictionary of :class:`~pyhdx.models.PeptideMeasurement` objects
-
-        """
-        bc1 = self.data['state'] == control_state
-        bc2 = self.data['exposure'] == control_exposure
-
-        control = self.data[np.logical_and(bc1, bc2)]
-        st = np.unique(self.data['state'])
-        exp = np.unique(self.data['exposure'])
-
-        out = {}
-        # Iterative over all permutations of state and exposure time to find all entries
-        for s, e in itertools.product(st, exp):
-            b1 = self.data['state'] == s
-            b2 = self.data['exposure'] == e
-            bf = np.logical_and(b1, b2)
-            name = s + '_' + str(round(e, 3))
-
-            d = self.data[bf]
-            b_data = np.isin(d['sequence'], control['sequence'])  # find the sequences in the measurement that are in control
-            d_selected = d[b_data]
-            b_control = np.isin(control['sequence'], d_selected['sequence']) # find the control entries corresponding to these sequences
-            control_selected = control[b_control]
-
-            #sort both datasets by starting index then by sequence
-            data_final = np.sort(d_selected, order=['start', 'sequence'])
-            control_final = np.sort(control_selected, order=['start', 'sequence'])
-
-            assert np.all(data_final['sequence'] == control_final['sequence'])
-            assert np.all(data_final['start'] == control_final['start'])
-            assert np.all(data_final['end'] == control_final['end'])
-            score = 100 * data_final['uptake'] / control_final['uptake']
-
-            if len(score) > 0:
-                out[name] = PeptideMeasurements(data_final)
-
-        return out
-
     def get_data(self, state, exposure):
         """
         Get all peptides matching `state` and `exposure`.

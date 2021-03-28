@@ -334,12 +334,23 @@ class PeptideFileInputControl(ControlPanel):
         if exposures:
             self.fd_exposure = exposures[0]
 
-    #todo refactor norm to FD
     @param.depends('fd_state', 'fd_exposure', watch=True)
     def _update_experiment(self):
-        #TODO THIS needs to be updated to also incorporate the zero (?)
-        pm_dict = self.parent.peptides.return_by_name(self.fd_state, self.fd_exposure)
-        states = list(np.unique([v.state for v in pm_dict.values()]))
+        data = self.parent.peptides.data
+
+        # Booleans of data entries which are in the selected control
+        control_bools = np.logical_and(data['state'] == self.fd_state, data['exposure'] == self.fd_exposure)
+
+        control_data = data[control_bools]
+        other_data = data[~control_bools]
+
+        intersection = array_intersection([control_data, other_data], fields=['_start', '_end', 'exposure'])
+        states = list(np.unique(intersection[1]['state']))
+
+
+        # #TODO THIS needs to be updated to also incorporate the zero (?)
+        # pm_dict = self.parent.peptides.return_by_name(self.fd_state, self.fd_exposure)
+        # states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
         self.exp_state = states[0] if not self.exp_state else self.exp_state
 
