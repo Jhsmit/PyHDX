@@ -36,7 +36,8 @@ class MainController(param.Parameterized):
         Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
 
     """
-    sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting', precedence=-1)
+    sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
+    transforms = param.Dict({}, doc='Dictionary of transforms')
 
     def __init__(self, control_panels, figure_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
@@ -45,12 +46,18 @@ class MainController(param.Parameterized):
         self.logger = logging.getLogger(str(id(self)))
 
         #available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
-        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}
+        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
         #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
-        self.figure_panels = {ctrl.name: ctrl(self) for ctrl in figure_panels}
+        self.figure_panels = {ctrl.name: ctrl for ctrl in figure_panels} #todo as param?
+
+        #initialize figures
 
         self.template = None   # Panel template
+
+    @property
+    def views(self):
+        return self.figure_panels.values()
 
     @property
     def doc(self):
@@ -72,12 +79,25 @@ class MainController(param.Parameterized):
         try:  # update existing source
             src = self.sources[name]
             #todo next callback??
-            src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds? (yes)
+
+            print('source alreayd there, which should always be the case??')
+            #src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds? (yes)
         except KeyError:
             self.sources[name] = data_source_obj
 
         self.param.trigger('sources')
 
+    def __panel__(self):
+        # This does something but not as expected
+        return self.template
+
+    @property
+    def panel(self):
+        return self.template
+
+    def update(self):
+        for view in self.views:
+            view.update()
 
 class PyHDXController(MainController):
     """
@@ -98,7 +118,7 @@ class PyHDXController(MainController):
         if len(self.datasets) == 0:
             self.sample_name = ''
         elif len(self.datasets) == 1:
-            self.sample_name = next(iter(self.datasets.values()))
+            self.sample_name = str(next(iter(self.datasets.values())))
         elif len(self.datasets) < 5:
             self.sample_name = ', '.join(self.datasets.keys())
 
