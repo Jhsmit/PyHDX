@@ -10,8 +10,68 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import logging
-
+from lumen.views import hvPlotView, View
 import param
+
+import holoviews as hv
+
+
+class hvPlotAppView(hvPlotView):
+
+    def get_panel(self):
+        try:
+            return super().get_panel()
+        except ValueError:
+            return pn.pane.HoloViews()
+
+
+class hvRectangleAppView(View):
+
+    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.")
+
+    view_type = 'rectangles'
+
+    def get_panel(self):
+        kwargs = self._get_params()
+        return pn.pane.HoloViews(**kwargs)
+
+    def get_plot(self, df):
+        """
+        Dataframe df must have columns x0, y0, x1, y1 (in this order) for coordinates
+        bottom-left (x0, y0) and top right (x1, y1). Optionally a fifth value-column can be provided for colors
+
+        Parameters
+        ----------
+        df
+
+        Returns
+        -------
+
+        """
+        # processed = {}
+        # for k, v in self.kwargs.items():
+        #     if k.endswith('formatter') and isinstance(v, str) and '%' not in v:
+        #         v = NumeralTickFormatter(format=v)
+        #     processed[k] = v
+        # if self.streaming:
+        #     processed['stream'] = self._stream
+
+        #hvplots stream? https://holoviews.org/user_guide/Streaming_Data.html
+
+#        plot = hv.Rectangles([(0, 0, 1, 1), (2, 3, 4, 6), (0.5, 2, 1.5, 4), (2, 1, 3.5, 2.5)])
+
+        plot = hv.Rectangles(df, vdims='value')
+        plot = plot.opts(**self.opts) if self.opts else plot
+        # if self.selection_group or 'selection_expr' in self._param_watchers:
+        #     plot = self._link_plot(plot)
+        return plot
+
+    def _get_params(self):
+        df = self.get_data()
+        # if self.streaming:
+        #     from holoviews.streams import Pipe
+        #     self._stream = Pipe(data=df)
+        return dict(object=self.get_plot(df), sizing_mode='stretch_both') # todo update sizing mode
 
 
 class CoverageFigure(BokehFigurePanel):
