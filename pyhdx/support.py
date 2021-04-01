@@ -245,12 +245,18 @@ def np_from_txt(file_path, delimiter='\t'):
                          encoding=None, autostrip=True, comments=None)
 
 
-def try_wrap(coverage, wrap, margin=4):
-    """Check for a given coverage if the value of wrap is high enough to not have peptides overlapping within margin"""
-    x = np.zeros((wrap, len(coverage.r_number) + margin))
+def try_wrap(start, end, wrap, margin=4):
+    """Check for a given coverage if the value of wrap is high enough to not have peptides overlapping within margin
+
+    start, end interval is inclusive, exclusive
+
+    """
+    assert len(start) == len(end), "Unequal length of 'start' and 'end' vectors"
+
+    x = np.zeros((wrap, len(start) + margin))
     wrap_gen = itertools.cycle(range(wrap))
-    for i, elem in zip(wrap_gen, coverage.data):
-        section = x[i, elem['start']: elem['end'] + 1 + margin]
+    for i, s, e in zip(wrap_gen, start, end):
+        section = x[i, s: e + margin]
         if np.any(section):
             return False
         section[:] = 1
@@ -258,12 +264,26 @@ def try_wrap(coverage, wrap, margin=4):
     return True
 
 
-def autowrap(coverage, margin=4):
-    """Automatically finds wrap value for coverage to not have overlapping peptides within margin"""
-    wrap = 5
-    while not try_wrap(coverage, wrap, margin=margin):
-        wrap += 5
-        if wrap > len(coverage.r_number):
+def autowrap(start, end, margin=4, step=5):
+    """
+    Automatically finds wrap value for coverage to not have overlapping peptides within margin
+
+    Parameters
+    ----------
+    start
+    end
+    margin
+
+    Returns
+    -------
+
+    """
+    assert len(start) == len(end), "Unequal length of 'start' and 'end' vectors"
+
+    wrap = step
+    while not try_wrap(start, end, wrap, margin=margin):
+        wrap += step
+        if wrap > len(start):
             break
     return wrap
 
