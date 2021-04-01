@@ -1,0 +1,86 @@
+from lumen.transforms import Transform
+import param
+from matplotlib.colors import Colormap, Normalize
+from pyhdx.support import rgb_to_hex, autowrap
+import itertools
+import pandas as pd
+import numpy as np
+
+class RescaleTransform(Transform):
+    """
+    This transform takes a field from a table and transforms in with a scaling factors
+    """
+
+    transform_type = 'rescale'
+
+    scale_factor = param.Number(doc='Scaling factor to multiply field values with')
+    field = param.String(doc='Name of the field to transform')
+
+    def apply(self, table):
+        table = table.copy()  # Performance-wise this might not be ideal
+        table[self.field] *= self.scale_factor
+
+        return table
+
+
+class ApplyCmapTransform(Transform):
+    """
+    This transform takes data from a specified field, applies a norm and color map, and adds the resulting colors
+    in a new column
+    """
+
+    field = param.String(doc='Name of the field to apply colors to')
+    cmap = param.ClassSelector(Colormap)
+    norm = param.ClassSelector(Normalize)
+    color_column = param.String('color', doc='Name of the added color column')
+    # default_color =
+
+    transform_type = 'color'
+
+
+    def apply(self, table):
+        values = table[self.field]
+        colors = self.cmap(self.norm(values), bytes=True)
+        colors_hex = rgb_to_hex(colors)
+        table[self.color_column] = colors_hex
+
+        return table
+
+
+class PeptideLayoutTransform(Transform):
+    """
+    Takes data with peptide start, end positions and transforms it to bottom, left, right, top positions of rectangles.
+
+    By default, for a given interval start, end (inclusive, exclusive) a rectangle is returned with a height of spanning from
+    (start - 0.5) to (end - 0.5)
+
+    """
+
+    left = param.String('start', doc="Field name to use for left coordinate")
+    right = param.String('end', doc="Field name to use for for the right coordinate")
+
+    height = param.Integer(1, doc="Height of the rectangles", constant=True)
+    value = param.String('', doc="Optional field name to pass through as value column")
+
+    wrap = param.Integer(doc="Amount of peptides to plot on the y axis before wrapping around to y axis top")
+    step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
+    margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
+
+    def apply(self, table):
+        if not self.wrap:
+            self.wrap = autowrap(table[self.left], table[self.right], margin=self.margin, step=self.step)
+
+        # Order of columns determines their role, not the names
+        columns = ['x0', 'y0', 'x1', 'y1']  # bottom-left (x0, y0) and top right (x1, y1)
+        output_table = pd.DataFrame(index=table.index, columns=columns)
+        output_table['x0'] = table[self.left] - 0.5
+        output_table['x1'] = table[self.right] - 0.5
+        cycle = itertools.cycle(range(self.height*self.wrap, 0, -self.height))  # Starts at y top, cyles with wrap
+        yvals = np.array(list(itertools.islice(cycle, len(table)))) # Repeat cycle until the correct length
+        output_table['y0'] = yvals - self.height
+        output_table['y1'] = yvals
+
+        if self.value:
+            output_table['value'] = table[self.value]
+
+        return output_table
