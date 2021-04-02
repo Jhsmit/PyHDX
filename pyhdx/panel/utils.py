@@ -3,19 +3,21 @@ from pyhdx.support import np_from_txt
 
 
 def reload_previous(dic, ctrl):
+    """WIP function to reload a past session into the GUI"""
     file_input = ctrl.control_panels['PeptideFileInputControl']
 
     if 'file_paths' not in dic.keys() and 'file_path' in dic.keys():
         dic['file_paths'] = [dic['file_path']]
 
-    while len(file_input.file_selectors) < len(dic['file_paths']):
-        ctrl._action_add()
 
     # Read files and add them into the file widgets
-    for fs, file_path in zip(file_input.file_selectors, dic['file_paths']):
+    binary_content = []
+    for file_path in dic['file_paths']:
         with open(file_path, 'rb') as f:
             binary = f.read()
-        fs.value = binary
+        binary_content.append(binary)
+
+    file_input.input_files = binary_content
 
     #todo prolines, drop_first
 
