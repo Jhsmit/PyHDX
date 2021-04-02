@@ -3,8 +3,70 @@ from bokeh.models import ColumnDataSource
 import numpy as np
 from pyhdx.models import Protein
 import pandas as pd
+from lumen.util import get_dataframe_schema
 
 #todo refactor module to models?
+
+from lumen.sources import Source, cached_schema
+
+
+class DataFrameSource(Source):
+
+    df = param.ClassSelector(pd.DataFrame, doc='In-memory pandas DataFrame')
+
+    multiindex = param.Boolean(False, doc='Whether the dataframe is column-multiindex')
+
+    tables = param.List([], doc="List of tables in this Source")
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        if self.df.columns.nlevels == 1:
+            self.tables = [self.name]
+            self.multiindex = False
+        elif self.df.columns.nlevels == 2:
+            self.multiindex = True
+            self.tables = [] # todo populate tables for multiindex
+        else:
+            raise ValueError("Currently column multiindex beyond two levels is not supported")
+
+    def get(self, table, **query):
+        if self.multiindex:
+            df = self.df[table]
+        else:
+            if table == self.name:
+                df = self.df
+            else:
+                raise ValueError(f"No table found with name {table}")
+
+        dask = query.pop('__dask', False)
+        df = self._filter_dataframe(df, **query)
+
+        return df
+
+    @cached_schema
+    def get_schema(self, table=None):
+        schemas = {}
+        for name in self.tables:
+            if table is not None and name != table:
+                continue
+            df = self.get(name)
+            schemas[name] = get_dataframe_schema(df)['items']['properties']
+        return schemas if table is None else schemas[table]
+
+    def get_unique(self, table=None, field=None):
+        """Get unique values for specified tables and fields"""
+        unique_values = {}
+        for name in self.tables:
+            if table is not None and name != table:
+                continue
+            df = self.get(name)
+            if field is not None:
+                unique_values[name] = df[field].unique()
+            else:
+                unique_values[name] = {field_name: df[field_name].unique() for field_name in df.columns}
+
+            return unique_values if table is None else unique_values[table]
+
 
 class DataSource(param.Parameterized):
     tags = param.List(doc='List of tags to specify the type of data in the dataobject.')
