@@ -31,8 +31,23 @@ class hvRectangleAppView(View):
 
     view_type = 'rectangles'
 
+    streaming = param.Boolean(default=False, doc="""
+        Whether to stream new data to the plot or rerender the plot.""")
+
+    def __init__(self, **params):
+        # import hvplot.pandas # noqa
+        # if 'dask' in sys.modules:
+        #     try:
+        #         import hvplot.dask # noqa
+        #     except Exception:
+        #         pass
+        self._stream = None
+        self._linked_objs = []
+        super().__init__(**params)
+
     def get_panel(self):
         kwargs = self._get_params()
+        #interactive? https://github.com/holoviz/panel/issues/1824
         return pn.pane.HoloViews(**kwargs)
 
     def get_plot(self, df):
@@ -60,18 +75,68 @@ class hvRectangleAppView(View):
 
 #        plot = hv.Rectangles([(0, 0, 1, 1), (2, 3, 4, 6), (0.5, 2, 1.5, 4), (2, 1, 3.5, 2.5)])
 
-        plot = hv.Rectangles(df, vdims='value')
-        plot = plot.opts(**self.opts) if self.opts else plot
-        # if self.selection_group or 'selection_expr' in self._param_watchers:
-        #     plot = self._link_plot(plot)
+        processed = {}
+        for k, v in self.kwargs.items():
+            if k.endswith('formatter') and isinstance(v, str) and '%' not in v:
+                v = NumeralTickFormatter(format=v)
+            processed[k] = v
+        if self.streaming:
+            #processed['stream'] = self._stream
+
+            plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])
+            plot = plot.apply.opts(**self.opts) if self.opts else plot
+        else:
+            plot = hv.Rectangles(df)
+            plot.opts(**self.opts) if self.opts else plot
+
+        if self.selection_group or 'selection_expr' in self._param_watchers:
+            plot = self._link_plot(plot)
+
         return plot
 
     def _get_params(self):
         df = self.get_data()
-        # if self.streaming:
-        #     from holoviews.streams import Pipe
-        #     self._stream = Pipe(data=df)
+
+        if self.streaming:
+            from holoviews.streams import Pipe
+            self._stream = Pipe(data=df)
         return dict(object=self.get_plot(df), sizing_mode='stretch_both') # todo update sizing mode
+
+    def update(self, *events, invalidate_cache=True):
+        """
+        Triggers an update in the View.
+
+        Parameters
+        ----------
+        events: tuple
+            param events that may trigger an update.
+        invalidate_cache : bool
+            Whether to clear the View's cache.
+
+        Returns
+        -------
+        stale : bool
+            Whether the panel on the View is stale and needs to be
+            rerendered.
+        """
+        # Skip events triggered by a parameter change on this View
+        own_parameters = [self.param[p] for p in self.param]
+        own_events = events and all(
+            isinstance(e.obj, ParamFilter) and
+            (e.obj.parameter in own_parameters or
+            e.new is self._ls.selection_expr)
+            for e in events
+        )
+        if own_events:
+            return False
+        if invalidate_cache:
+            self._cache = None
+        if not self.streaming or self._stream is None:
+            upd = self._update_panel()
+            return upd
+        self._stream.send(self.get_data())
+        return False
+
 
 
 class CoverageFigure(BokehFigurePanel):
