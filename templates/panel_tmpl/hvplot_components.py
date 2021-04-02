@@ -1,7 +1,7 @@
 from pyhdx.panel.main_controllers import PyHDXController
-from pyhdx.panel.controllers import *
+from pyhdx.panel.controllers import CSVFileInputControl
 from pyhdx.panel.base import BokehFigurePanel, STATIC_DIR
-from pyhdx.panel.fig_panels import *
+from pyhdx.panel.fig_panels import hvPlotAppView
 from pyhdx.panel.template import GoldenElvis, ExtendedGoldenTemplate
 from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from pyhdx.panel.log import get_default_handler
@@ -17,7 +17,11 @@ from panel import pane
 from lumen.views import PerspectiveView, hvPlotView
 
 from pathlib import Path
+
 import matplotlib as mpl
+
+current_dir = Path(__file__).parent
+data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 
 
 """
@@ -25,15 +29,13 @@ Example to test Lumen components to construct the web application
 
 """
 
-current_dir = Path(__file__).parent
-data_dir = current_dir.parent.parent / 'tests' / 'test_data'
-
 
 control_panels = [
     CSVFileInputControl
 ]
 
 df = csv_to_dataframe(data_dir / 'ecSecB_torch_fit.txt')
+
 
 source = DataFrameSource(df=df, name='torch_fit')
 
@@ -46,6 +48,15 @@ cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
 plot = hvPlotAppView(source=source, x='r_number', y='deltaG', kind='scatter', name='hvplot', c='color',
                   table='torch_fit', transforms=[rescale_transform, cmap_transform])
 
-plot_panel = plot.get_panel()
+
+table = source.get('torch_fit')
+rescale = rescale_transform.apply(table)
+trs_table = cmap_transform.apply(rescale)
+
+hvplot = trs_table.hvplot(x='r_number', y='deltaG', kind='scatter')
+import holoviews as hv
+rectangles = hv.Rectangles([(0, 0, 1, 1), (2, 3, 4, 6), (0.5, 2, 1.5, 4), (2, 1, 3.5, 2.5)])
+plot_panel = pn.pane.HoloViews(object=hvplot)
 
 pn.serve(plot_panel)
+

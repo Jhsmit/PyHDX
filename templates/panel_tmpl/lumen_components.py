@@ -17,17 +17,16 @@ from panel import pane
 from lumen.views import PerspectiveView, hvPlotView
 
 from pathlib import Path
-
 import matplotlib as mpl
-
-current_dir = Path(__file__).parent
-data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 
 
 """
 Example to test Lumen components to construct the web application
 
 """
+
+current_dir = Path(__file__).parent
+data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 
 
 control_panels = [
@@ -36,24 +35,19 @@ control_panels = [
 
 df = csv_to_dataframe(data_dir / 'ecSecB_torch_fit.txt')
 
-
 source = DataFrameSource(df=df, name='torch_fit')
-transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
+
+print(source.get_schema())
+
+rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
 
 cmap = mpl.cm.get_cmap('viridis')
 norm = mpl.colors.Normalize(vmin=0, vmax=20)
-
 cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
-plot = hvPlotAppView(source=source, x='r_number', y='deltaG', kind='scatter', name='hvplot',
-                  table='torch_fit', transforms=[cmap_transform], opts=opts)
-
-table = source.get('torch_fit')
-rescale = transform.apply(table)
-trs_table = cmap_transform.apply(rescale)
 
 
-hvplot = trs_table.hvplot(x='r_number', y='deltaG', kind='scatter', c=None)
-plot_panel = pn.pane.HoloViews(object=hvplot)
-
-pn.serve(plot_panel)
-
+# plot = hvPlotAppView(source=source, x='r_number', y='deltaG', kind='scatter', name='hvplot', c='color',
+#                   table='torch_fit', transforms=[rescale_transform, cmap_transform])
+#
+# plot_panel = plot.get_panel()
+# pn.serve(plot_panel)
