@@ -108,6 +108,76 @@ class MappingFileInputControl(ControlPanel):
         self.param['datasets_list'].objects = list(self.parent.datasets.keys())
 
 
+import itertools
+cmap_cycle = itertools.cycle(['gray','PiYG', 'jet'])
+
+class CSVFileInputControl(ControlPanel):
+    input_file = param.Parameter()
+    load_file = param.Action(lambda self: self._action_load())
+    temp_new_data = param.Action(lambda self: self._action_new_data())
+    temp_new_cmap = param.Action(lambda self: self._action_new_cmap())
+
+    temp_update_filter = param.Action(lambda self: self._action_exposure())
+    temp_cmap_rect = param.Action(lambda self: self._action_cmap_rect())
+
+    #cmap_obj = param.ObjectSelector(default='viridis', objects=['viridis', 'plasma', 'magma'])
+
+
+    def make_dict(self):
+        return self.generate_widgets(input_file=pn.widgets.FileInput(accept='.csv,.txt'))
+
+    def _action_load(self):
+        sio = StringIO(self.input_file.decode('UTF-8'))
+        df = csv_to_dataframe(sio)
+        source = DataFrameSource(df=df)
+
+    def _action_new_data(self):
+
+        source = self.parent.sources['torch_fit']
+        table = source.get('torch_fit')
+
+        size = len(table)
+
+        new_data = 40e3*np.random.rand(size)
+
+        table['deltaG'] = new_data
+        print('Source data updated')
+
+        self.parent.update()
+
+    def _action_new_cmap(self):
+        cmap_name = np.random.choice(['viridis', 'inferno', 'plasma'])
+        cmap = mpl.cm.get_cmap(cmap_name)
+
+        transform = self.parent.transforms['cmap']
+        transform.cmap = cmap
+
+        print('cmap updated')
+        self.parent.update()
+
+    def _action_exposure(self):
+        print('here we go')
+        filter = self.parent.filters['exposure']
+        filter.widget.value = 0.
+
+        self.parent.update()
+
+    def _action_cmap_rect(self):
+        new_cmap = next(cmap_cycle)
+
+        rect_view = self.parent.figure_panels['rect_plot']
+        rect_view.opts['cmap'] = new_cmap
+
+        self.parent.update()
+
+        item = self.parent.rows['rect_plot'][0]
+        print('item', item)
+        #item.param.trigger('object')
+
+
+
+
+
 class SingleMappingFileInputControl(MappingFileInputControl):
     """
     This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
