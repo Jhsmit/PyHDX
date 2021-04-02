@@ -7,6 +7,12 @@ from pyhdx import VERSION_STRING_SHORT
 
 from panel.template import BaseTemplate
 
+
+from lumen.sources import Source
+from lumen.filters import FacetFilter
+
+from functools import partial
+
 class MainController(param.Parameterized):
     """
     Base class for application main controller
@@ -38,6 +44,7 @@ class MainController(param.Parameterized):
     """
     sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
     transforms = param.Dict({}, doc='Dictionary of transforms')
+    filters = param.Dict({}, doc="Dictionary of filters")
 
     def __init__(self, control_panels, figure_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
@@ -54,6 +61,28 @@ class MainController(param.Parameterized):
         #initialize figures
 
         self.template = None   # Panel template
+
+        for filt in self.filters.values():
+            if isinstance(filt, FacetFilter):
+                continue
+            print(filt)
+            filt.param.watch(partial(self._rerender, invalidate_cache=True), 'value')
+
+        for trs in self.transforms.values():
+            if hasattr(trs, 'updated'):
+                trs.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
+
+        self._update_views()
+
+
+    # from lumen.target.Target
+    def _rerender(self, *events, invalidate_cache=False):
+        print('rerender')
+        self._update_views(invalidate_cache=invalidate_cache)
+
+    def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
+        for view in self.views:
+            view.update(invalidate_cache=invalidate_cache)
 
     @property
     def views(self):
@@ -98,6 +127,12 @@ class MainController(param.Parameterized):
     def update(self):
         for view in self.views:
             view.update()
+
+    def start(self):
+        refresh_rate = 50
+        self._cb = pn.state.add_periodic_callback(
+            self.update, refresh_rate
+        )
 
 class PyHDXController(MainController):
     """
