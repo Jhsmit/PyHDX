@@ -5,6 +5,25 @@ from pyhdx.support import rgb_to_hex, autowrap
 import itertools
 import pandas as pd
 import numpy as np
+import panel as pn
+
+class WebAppTransform(param.Parameterized):
+
+    updated = param.Event()
+
+    @property
+    def panel(self):
+        widget = self.widget.clone()
+        self.widget.link(widget, value='value', bidirectional=True)
+        return widget
+
+    def generate_widgets(self, **kwargs):
+        """returns a dict with keys parameter names and values default mapped widgets"""
+
+        names = [p for p in self.param if self.param[p].precedence is None or self.param[p].precedence > 1]
+        widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
+
+        return {k: v for k, v in zip(names[1:], widgets)}
 
 class RescaleTransform(Transform):
     """
@@ -23,11 +42,13 @@ class RescaleTransform(Transform):
         return table
 
 
-class ApplyCmapTransform(Transform):
+class ApplyCmapTransform(WebAppTransform):
     """
     This transform takes data from a specified field, applies a norm and color map, and adds the resulting colors
     in a new column
     """
+
+    fields = param.Selector(doc='Fields to choose from to apply cmap to')
 
     field = param.String(doc='Name of the field to apply colors to')
     cmap = param.ClassSelector(Colormap)
@@ -37,15 +58,27 @@ class ApplyCmapTransform(Transform):
 
     transform_type = 'color'
 
+    def __init__(self, **params):
+        super().__init__(**params)
+
+        self.widgets = self.generate_widgets()
+
+        #temporariy
+        self.param['fields'].objects = ['deltaG', 'pfact']
+        self.fields = 'deltaG'
 
     def apply(self, table):
-        values = table[self.field]
+        values = table[self.fields]
         colors = self.cmap(self.norm(values), bytes=True)
         colors_hex = rgb_to_hex(colors)
         table[self.color_column] = colors_hex
 
         return table
 
+    @param.depends('cmap', 'fields', watch=True)
+    def _updated(self):
+        print('cmap transform updated trigger')
+        self.updated = True
 
 class PeptideLayoutTransform(Transform):
     """
@@ -65,6 +98,8 @@ class PeptideLayoutTransform(Transform):
     wrap = param.Integer(doc="Amount of peptides to plot on the y axis before wrapping around to y axis top")
     step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
     margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
+
+    transform_type = 'peptide_layout'
 
     def apply(self, table):
         if not self.wrap:
