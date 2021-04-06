@@ -84,7 +84,7 @@ def main_app():
     #                                OPTS
     # ---------------------------------------------------------------------- #
 
-    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 100)}
+    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 100), 'framewise': True}
     cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
 
     opts_list = [cmap_opts]
