@@ -5,6 +5,7 @@ from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
 from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span, Rect, Range1d, Whisker
 from bokeh.models.markers import Triangle, Circle, Diamond
+from bokeh.models.formatters import NumeralTickFormatter
 import panel as pn
 import numpy as np
 import matplotlib as mpl
