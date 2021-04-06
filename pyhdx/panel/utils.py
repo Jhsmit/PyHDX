@@ -21,7 +21,7 @@ def reload_previous(dic, ctrl):
 
     #todo prolines, drop_first
 
-    file_input._action_load()
+    #file_input._action_load()
 
     # Set back exchange parameters
     try:
