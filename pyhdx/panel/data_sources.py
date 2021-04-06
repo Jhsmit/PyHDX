@@ -27,7 +27,7 @@ class DataFrameSource(Source):
         # else:
         #     raise ValueError("Currently column multiindex beyond two levels is not supported")
 
-    def add_df(self, df, table, name):
+    def add_df(self, df, table, name=None):
         """
         #Todo method for adding a table to multindex source
 
@@ -40,8 +40,12 @@ class DataFrameSource(Source):
 
         """
 
+        #todo atm only nlevels = 2 target supported, generalize
+
         target_df = self.tables[table]
         if target_df.columns.nlevels != df.columns.nlevels:
+            if name is None:
+                raise ValueError('When the added DataFrame is not multiindex a name needs to be given')
             new_index = pd.MultiIndex.from_product([[name], df.columns], names=target_df.columns.names)
             df.columns = new_index
 
