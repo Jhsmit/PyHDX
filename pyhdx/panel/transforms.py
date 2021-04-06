@@ -7,15 +7,21 @@ import pandas as pd
 import numpy as np
 import panel as pn
 
-class WebAppTransform(param.Parameterized):
+
+class WebAppTransform(param.Parameterized):  #todo subclass from Transform?
 
     updated = param.Event()
 
+    def __init__(self, **params):
+        super().__init__(**params)
+        self.widgets = self.generate_widgets()
+
     @property
     def panel(self):
-        widget = self.widget.clone()
-        self.widget.link(widget, value='value', bidirectional=True)
-        return widget
+        return pn.Column(*self.widgets.values())
+        # widget = self.widget.clone()
+        # self.widget.link(widget, value='value', bidirectional=True)
+        # return widget
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
@@ -24,6 +30,7 @@ class WebAppTransform(param.Parameterized):
         widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
 
         return {k: v for k, v in zip(names[1:], widgets)}
+
 
 class RescaleTransform(Transform):
     """
@@ -42,7 +49,7 @@ class RescaleTransform(Transform):
         return table
 
 
-class ApplyCmapTransform(WebAppTransform):
+class ApplyCmapTransform(Transform, WebAppTransform):
     """
     This transform takes data from a specified field, applies a norm and color map, and adds the resulting colors
     in a new column
@@ -61,8 +68,6 @@ class ApplyCmapTransform(WebAppTransform):
     def __init__(self, **params):
         super().__init__(**params)
 
-        self.widgets = self.generate_widgets()
-
         #temporariy
         self.param['fields'].objects = ['deltaG', 'pfact']
         self.fields = 'deltaG'
@@ -79,6 +84,7 @@ class ApplyCmapTransform(WebAppTransform):
     def _updated(self):
         print('cmap transform updated trigger')
         self.updated = True
+
 
 class PeptideLayoutTransform(Transform):
     """
