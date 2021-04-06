@@ -355,10 +355,6 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
                                 f'Redundancy: {series.coverage.redundancy:.2}')
 
-        #self.input_files = []
-
-
-
     @param.depends('be_mode', watch=True)
     def _update_be_mode(self):
         # todo @tejas: Add test
@@ -397,7 +393,6 @@ class PeptideFileInputControl(ControlPanel):
             self.fd_state = states[0]
         else:
             self.param['fd_state'].objects = []
-
 
     @param.depends('fd_state', watch=True)
     def _update_fd_exposure(self):
@@ -444,7 +439,7 @@ class PeptideFileInputControl(ControlPanel):
 
     def _datasets_updated(self, events):
         # Update datasets widget as datasets on parents change
-        objects = list(self.parent.datasets.keys())
+        objects = list(self.parent.fit_objects.keys())
         self.param['dataset_list'].objects = objects
 
     def _action_remove_datasets(self):
