@@ -23,9 +23,6 @@ class MainController(param.Parameterized):
     control_panels : :obj:`list`
         List of strings referring to which ControlPanels to use for this MainController instance
         Should refer to subclasses of :class:`~pyhdx.panel.base.ControlPanel`
-    figure_panels : :obj:`list`
-        List of string referring to which FigurePanels to use for this MainController instance
-        Should refer to subclasses :class:`~pyhdx.panel.base.FigurePanel`
     cluster : :obj:`str`
         IP:port address for Dask cluster (optional)
 
@@ -129,6 +126,7 @@ class MainController(param.Parameterized):
             self.update, refresh_rate
         )
 
+
 class PyHDXController(MainController):
     """
     Main controller for PyHDX web application.
@@ -136,21 +134,21 @@ class PyHDXController(MainController):
     """
     fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
     peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides', precedence=-1)
-    datasets = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
+    fit_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
 
     sample_name = param.String(doc='Name describing the selected protein state')
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
 
-    @param.depends('datasets', watch=True)
+    @param.depends('fit_objects', watch=True)
     def _datasets_updated(self):
-        if len(self.datasets) == 0:
+        if len(self.fit_objects) == 0:
             self.sample_name = ''
-        elif len(self.datasets) == 1:
-            self.sample_name = str(next(iter(self.datasets.values())))
+        elif len(self.fit_objects) == 1:
+            self.fit_objects = str(next(iter(self.fit_objects.values())))
         elif len(self.datasets) < 5:
-            self.sample_name = ', '.join(self.datasets.keys())
+            self.fit_objects = ', '.join(self.fit_objects.keys())
 
     @param.depends('sample_name', watch=True)
     def _update_name(self):
