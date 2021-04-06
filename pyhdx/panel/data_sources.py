@@ -15,8 +15,6 @@ class DataFrameSource(Source):
     tables = param.Dict({}, doc="Dictionary of tables in this Source")
 
     updated = param.Event()
-
-
     # def __init__(self, **params):
     #     pass
         # super().__init__(**params)
@@ -43,8 +41,9 @@ class DataFrameSource(Source):
         """
 
         target_df = self.tables[table]
-        new_index = pd.MultiIndex.from_product([[name], df.columns], names=target_df.columns.names)
-        df.columns = new_index
+        if target_df.columns.nlevels != df.columns.nlevels:
+            new_index = pd.MultiIndex.from_product([[name], df.columns], names=target_df.columns.names)
+            df.columns = new_index
 
         new_df = pd.concat([target_df, df], axis=1)
 
