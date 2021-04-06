@@ -1,9 +1,9 @@
-from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein
+from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_intersection
 from pyhdx.panel.widgets import NumericInput
-from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.data_sources import DataSource, MultiIndexDataSource, DataFrameSource
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting
-from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein
+from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba
 from pyhdx import VERSION_STRING
 from scipy import constants
@@ -175,83 +175,33 @@ class CSVFileInputControl(ControlPanel):
         #item.param.trigger('object')
 
 
+class TestFileInputControl(ControlPanel):
+    input_file = param.Parameter()
+    load_file = param.Action(lambda self: self._action_load())
 
 
+    _layout = {
+        'self': None,
+        'filters.exposure_slider': None
+    }
 
-class SingleMappingFileInputControl(MappingFileInputControl):
-    """
-    This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
-    mapped to a linear sequence.
+    def __init__(self, parent, **params):
+        super().__init__(parent, **params)
+        self._layout = {
+            'self': None,
+            'filters.exposure_slider': None
+        }
 
-    The column should be tab separated with on the last header line (starts with '#') the names of the columns. Columns
-    should be tab-delimited.
-    """
+        self.update_box()
+        print('layout in init', self._layout)
 
-    def _action_add_dataset(self):
-        super()._action_add_dataset()
-        to_add_keys = set(self.parent.datasets.keys()) - set(self.parent.sources.keys())
-        for key in to_add_keys:
-            records = self.parent.datasets[key].to_records()
-            data_source = DataSource(records, tags=['comparison', 'mapping'], x='r_number',
-                                     renderer='circle', size=10)
-            self.parent.publish_data(key, data_source)
+    def make_dict(self):
+        return self.generate_widgets(input_file=pn.widgets.FileInput(accept='.csv,.txt'))
 
-
-class MatrixMappingFileInputControl(SingleMappingFileInputControl):
-    datapoints = param.ListSelector(doc='Select datapoints to include in the matrix')
-
-    def _action_add_dataset(self):
-        super()._action_add_dataset()
-
-        N = 20
-        img = np.empty((N, N), dtype=np.uint32)
-        view = img.view(dtype=np.uint8).reshape((N, N, 4))
-        for i in range(N):
-            for j in range(N):
-                view[i, j, 0] = int(i / N * 255)
-                view[i, j, 1] = 158
-                view[i, j, 2] = int(j / N * 255)
-                view[i, j, 3] = 255
-
-        values = np.random.random(img.shape)
-
-        img_ds_dict = {'img': [img], 'scores': [values]}
-        data_source = DataSource(img_ds_dict, tags=['image'], name='scores_image', x=0, y=0)
-
-        self.parent.publish_data('scores_image', data_source)
-
-    def make_list(self):
-        widget_list = super().make_list()
-        datapoints_widget = widget_list.pop()
-        widget_list.insert(3, datapoints_widget)
-        return widget_list
-
-    def _add_dataset(self):
-        full_dict = self.protein.to_dict()
-        data_dict = {k: v for k, v in full_dict.items() if k in self.datapoints}
-        data_dict['r_number'] = self.protein.index
-        protein = Protein(data_dict, index='r_number')
-        self.parent.datasets[self.dataset_name] = protein
-
-    @param.depends('input_file', watch=True)
-    def _input_file_updated(self):
-        super()._input_file_updated()
-        if self.input_file:
-            header_fields = self.protein.df.columns
-
-            float_fields = [f for f in header_fields if f.replace('.', '', 1).isdigit()]
-            self.param['datapoints'].objects = float_fields
-            self.datapoints = float_fields
-
-#        self.dataset_name = self.dataset_name or Path(self.widget_dict['input_file'].filename).stem
-
-
-class MatrixImageControl(ControlPanel):
-    """
-    This controller takes an input loaded matrix and converts it to an (rgba) interpolated rendered image
-
-    O rly
-    """
+    def _action_load(self):
+        sio = StringIO(self.input_file.decode('UTF-8'))
+        df = csv_to_dataframe(sio)
+        source = DataFrameSource(df=df)
 
 
 class PeptideFileInputControl(ControlPanel):
@@ -301,7 +251,6 @@ class PeptideFileInputControl(ControlPanel):
         super(PeptideFileInputControl, self).__init__(parent, **params)
         self.parent.param.watch(self._datasets_updated, ['fit_objects'])
 
-        #excluded = ['be_percent']
         widgets = [name for name in self.widgets.keys() if name not in ['be_percent']]
         self._layout = {'self': widgets}
         self.update_box()
@@ -328,6 +277,9 @@ class PeptideFileInputControl(ControlPanel):
 
     def _action_add_dataset(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+
+        if self._array is None:
+            return
 
         peptides = PeptideMasterTable(self._array, d_percentage=self.d_percentage,
                                       drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
@@ -448,6 +400,301 @@ class PeptideFileInputControl(ControlPanel):
             self.parent.datasets.pop(name)
 
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
+
+
+class CoverageControl(ControlPanel):
+    header = 'Coverage'
+
+    temp_new_data = param.Action(lambda self: self._action_new_data())
+
+    def __init__(self, parent, **params):
+        super().__init__(parent, **params)
+
+        self._layout = {
+            'filters.select_index': None,
+            'filters.exposure_slider': None,
+            'self': None
+        }
+
+        self.update_box()
+
+    def _action_new_data(self):
+        df = csv_to_dataframe(r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_apo_peptides.csv')
+
+        print(len(df))
+        reduced_df = df.query('exposure < 50')
+        print(len(reduced_df))
+
+        source = self.sources['dataframe']
+
+        source.add_df(reduced_df, 'peptides', 'ecSecB_reduced')
+
+
+class InitialGuessControl(ControlPanel):
+    """
+    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
+    """
+
+    #todo remove lambda symbol although its really really funny
+    header = 'Initial Guesses'
+    fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
+                                   doc='Choose method for determining initial guesses.')
+    dataset = param.Selector(default='', doc='Dataset to apply bounds to')
+    global_bounds = param.Boolean(default=False, doc='Set bounds globally across all datasets')
+    lower_bound = param.Number(0., doc='Lower bound for association model fitting')
+    upper_bound = param.Number(0., doc='Upper bound for association model fitting')
+    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
+                           constant=True)
+
+    def __init__(self, parent, **params):
+        self.pbar1 = ASyncProgressBar()
+        self.pbar2 = ASyncProgressBar()
+        super(InitialGuessControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._parent_datasets_updated, ['fit_objects'])  #todo refactor
+
+        excluded = ['lower_bound', 'upper_bound', 'global_bounds']
+        widgets = [name for name in self.widgets.keys() if name not in excluded]
+        self._layout = {'self': widgets}
+        self.update_box()
+
+        print(widgets)
+
+    def make_dict(self):
+        widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
+        widgets.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+
+        return widgets
+
+    # def make_list(self):
+    #     self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+    #     parameters = ['fitting_model', 'do_fit1', 'pbar1']
+    #
+    #     widget_list = list([self.widget_dict[par] for par in parameters])
+    #     return widget_list
+
+    @param.depends('fitting_model', watch=True)
+    def _fitting_model_updated(self):
+        if self.fitting_model == 'Half-life (λ)':
+            excluded = ['lower_bound', 'upper_bound', 'global_bounds']
+
+        elif self.fitting_model in ['Association', 'Dissociation']:
+            excluded = []
+
+        widgets = [name for name in self.widgets.keys() if name not in excluded]
+        print('widgets in updated', widgets)
+        self._layout = {'self': widgets}
+
+        self.update_box()
+
+    @param.depends('global_bounds', watch=True)
+    def _global_bounds_updated(self):
+        if self.global_bounds:
+            self.param['dataset'].constant = True
+        else:
+            self.param['dataset'].constant = False
+
+    @param.depends('dataset', watch=True)
+    def _dataset_updated(self):
+        kf = self.parent.fit_objects[self.dataset]
+        lower, upper = kf.bounds
+        self.lower_bound = lower
+        self.upper_bound = upper
+
+    @param.depends('lower_bound', watch=True)
+    def _lower_bound_updated(self):
+        #this works but maybe not ideal
+        # set param?
+        if self.global_bounds:
+            kfs = self.parent.fit_objects.values()
+        else:
+            kfs = [self.parent.fit_objects[self.dataset]]
+
+        for kf in kfs:
+            lower, upper = kf.bounds
+            kf.bounds = (self.lower_bound, upper)
+
+    @param.depends('upper_bound', watch=True)
+    def _upper_bound_updated(self):
+        if self.global_bounds:
+            kfs = self.parent.fit_objects.values()
+        else:
+            kfs = [self.parent.fit_objects[self.dataset]]
+
+        for kf in kfs:
+            lower, upper = kf.bounds
+            kf.bounds = (lower, self.upper_bound)
+
+    def _parent_datasets_updated(self, events):
+        if len(self.parent.fit_objects) > 0:
+            self.param['do_fit1'].constant = False
+
+        options = list(self.parent.fit_objects.keys())
+        self.param['dataset'].objects = options
+        if not self.dataset:
+            self.dataset = options[0]
+
+    async def _fit1_async(self):
+        """Do fitting asynchronously on (remote) cluster"""
+        results = {}
+        for name, kf in self.parent.fit_objects.items():
+            fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
+
+            results[kf.series.state] = fit_result
+
+        self.parent.fit_results['fit1'] = results  #todo refactor 'fit1' to guess
+        self.parent.param.trigger('fit_results')
+
+        # Combine into a Protein object with MultiIndex dataframe as df attribute
+        combined_results = pd.concat(results, axis=1,
+                                     keys=list(self.parent.fit_objects.keys()),
+                                     names=['Sample name', 'quantity'])
+
+        data_source = MultiIndexDataSource(combined_results, x='r_number', y='rate', tags=['mapping', 'rate'],
+                                           renderer='circle', size=10, name='fit1')
+
+        # Trigger plot update
+        callback = partial(self.parent.publish_data, 'fit1', data_source)
+        self.parent.doc.add_next_tick_callback(callback)
+
+        with pn.io.unlocked():
+             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
+             self.pbar1.reset()
+             self.param['do_fit1'].constant = False
+
+    def _fit1(self):
+        results = []
+        for name, kf in self.parent.fit_objects.items():
+            fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
+            fit_result['color'] = DEFAULT_COLORS['fit1']
+            results.append(fit_result)
+
+        self.parent.fit_results['fit1'] = results
+
+        # Combine into a Protein object with MultiIndex dataframe as df attribute
+        combined_results = pd.concat(results, axis=1,
+                                     keys=list(self.parent.fit_objects.keys()),
+                                     names=['Sample name', 'quantity'])
+
+        data_source = MultiIndexDataSource(combined_results, x='r_number', y='rate', tags=['mapping', 'rate'],
+                                           renderer='circle', size=10, name='fit1')
+
+        self.parent.publish_data('fit1', data_source)  #todo refactor to force require setting name on DataSource Ojbect
+        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
+
+        self.param['do_fit1'].constant = False
+        self.pbar1.reset()
+
+    def _action_fit(self):
+        if len(self.parent.fit_objects) == 0:
+            self.parent.logger.debug('No datasets loaded')
+            return
+
+        self.parent.logger.debug('Start initial guess fit')
+        #todo context manager?
+        self.param['do_fit1'].constant = True
+
+        if self.fitting_model == 'Half-life (λ)':
+            results = []
+            for name, kf in self.parent.fit_objects.items():
+                output = kf.weighted_avg_t50()
+                output['color'] = DEFAULT_COLORS['half-life']
+                results.append(output)
+
+            self.parent.fit_results['half-life'] = results
+
+            combined_results = pd.concat(results, axis=1,
+                                         keys=list(self.parent.fit_objects.keys()),
+                                         names=['Sample name', 'quantity'])
+
+            data_source = MultiIndexDataSource(combined_results, x='r_number', y='rate', tags=['mapping', 'rate'],
+                                               renderer='circle', size=10, name='half-life')
+
+            self.parent.publish_data('half-life', data_source)
+
+            self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
+
+            self.param['do_fit1'].constant = False
+        else:
+
+            if self.parent.cluster:
+                self.parent._doc = pn.state.curdoc
+                loop = IOLoop.current()
+                loop.add_callback(self._fit1_async)
+            else:
+                self._fit1()
+
+
+class SingleMappingFileInputControl(MappingFileInputControl):
+    """
+    This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
+    mapped to a linear sequence.
+
+    The column should be tab separated with on the last header line (starts with '#') the names of the columns. Columns
+    should be tab-delimited.
+    """
+
+    def _action_add_dataset(self):
+        super()._action_add_dataset()
+        to_add_keys = set(self.parent.datasets.keys()) - set(self.parent.sources.keys())
+        for key in to_add_keys:
+            records = self.parent.datasets[key].to_records()
+            data_source = DataSource(records, tags=['comparison', 'mapping'], x='r_number',
+                                     renderer='circle', size=10)
+            self.parent.publish_data(key, data_source)
+
+class MatrixMappingFileInputControl(SingleMappingFileInputControl):
+    datapoints = param.ListSelector(doc='Select datapoints to include in the matrix')
+
+    def _action_add_dataset(self):
+        super()._action_add_dataset()
+
+        N = 20
+        img = np.empty((N, N), dtype=np.uint32)
+        view = img.view(dtype=np.uint8).reshape((N, N, 4))
+        for i in range(N):
+            for j in range(N):
+                view[i, j, 0] = int(i / N * 255)
+                view[i, j, 1] = 158
+                view[i, j, 2] = int(j / N * 255)
+                view[i, j, 3] = 255
+
+        values = np.random.random(img.shape)
+
+        img_ds_dict = {'img': [img], 'scores': [values]}
+        data_source = DataSource(img_ds_dict, tags=['image'], name='scores_image', x=0, y=0)
+
+        self.parent.publish_data('scores_image', data_source)
+
+    def make_list(self):
+        widget_list = super().make_list()
+        datapoints_widget = widget_list.pop()
+        widget_list.insert(3, datapoints_widget)
+        return widget_list
+
+    def _add_dataset(self):
+        full_dict = self.protein.to_dict()
+        data_dict = {k: v for k, v in full_dict.items() if k in self.datapoints}
+        data_dict['r_number'] = self.protein.index
+        protein = Protein(data_dict, index='r_number')
+        self.parent.datasets[self.dataset_name] = protein
+
+    @param.depends('input_file', watch=True)
+    def _input_file_updated(self):
+        super()._input_file_updated()
+        if self.input_file:
+            header_fields = self.protein.df.columns
+
+            float_fields = [f for f in header_fields if f.replace('.', '', 1).isdigit()]
+            self.param['datapoints'].objects = float_fields
+            self.datapoints = float_fields
+
+#        self.dataset_name = self.dataset_name or Path(self.widget_dict['input_file'].filename).stem
+
+class MatrixImageControl(ControlPanel):
+    """
+    This controller takes an input loaded matrix and converts it to an (rgba) interpolated rendered image
+
+    """
 
 
 class FDPeptideFileInputControl(PeptideFileInputControl):
@@ -709,168 +956,12 @@ class SingleControl(ControlPanel):
         self.param['dataset_list'].objects = objects
 
 
-class CoverageControl(ControlPanel):
-
-    header = 'Coverage'
-
-    temp_new_data = param.Action(lambda self: self._action_new_data())
-
-
-    def __init__(self, parent, **params):
-        super().__init__(parent, **params)
-
-        self._layout = {
-            'filters.select_index': None,
-            'filters.exposure_slider': None,
-            'self': None
-        }
-
-        self.update_box()
-
-    def _action_new_data(self):
-        df = csv_to_dataframe(r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_apo_peptides.csv')
-
-        print(len(df))
-        reduced_df = df.query('exposure < 50')
-        print(len(reduced_df))
-
-        source = self.sources['dataframe']
-
-        source.add_df(reduced_df, 'peptides', 'ecSecB_reduced')
-
-
 class FDCoverageControl(CoverageControl):
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
         return lst[:-1]
 
 
-class InitialGuessControl(ControlPanel):
-    """
-    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
-    """
-
-    #todo remove lambda symbol although its really really funny
-    header = 'Initial Guesses'
-    fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
-                                   doc='Choose method for determining initial guesses.')
-
-    lower_bound = param.Number(0., doc='Lower bound for association model fitting')
-    upper_bound = param.Number(0., doc='Upper bound for association model fitting')
-    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
-                           constant=True)
-
-    def __init__(self, parent, **params):
-        self.pbar1 = ASyncProgressBar()
-        self.pbar2 = ASyncProgressBar()
-        super(InitialGuessControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._parent_series_updated, ['series'])
-
-    def make_dict(self):
-        return self.generate_widgets(lower_bound=pn.widgets.LiteralInput, upper_bound=pn.widgets.LiteralInput)
-
-    def make_list(self):
-        self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-        parameters = ['fitting_model', 'do_fit1', 'pbar1']
-
-        widget_list = list([self.widget_dict[par] for par in parameters])
-        return widget_list
-
-    @param.depends('fitting_model', watch=True)
-    def _fitting_model_updated(self):
-        if self.fitting_model == 'Half-life (λ)':
-            self.box_pop('lower_bound')
-            self.box_pop('upper_bound')
-        elif self.fitting_model in ['Association', 'Dissociation']:
-            self.box_insert_after('fitting_model', 'upper_bound')
-            self.box_insert_after('fitting_model', 'lower_bound')
-
-    def _parent_series_updated(self, events):
-        if self.parent.series is not None:
-            self.param['do_fit1'].constant = False
-
-            kf = KineticsFitting(self.parent.series)
-            self.lower_bound, self.upper_bound = kf.bounds
-
-    async def _fit1_async(self):
-        """Do fitting asynchronously on (remote) cluster"""
-        kf = KineticsFitting(self.parent.series, cluster=self.parent.cluster, bounds=(self.lower_bound, self.upper_bound))
-        fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-        self.parent.fit_results['fit1'] = fit_result
-
-        output = fit_result.output.to_records('r_number')  # todo remove in between numpy step
-        #todo duplicate code in fit - > method on parent?
-        dic = {name: output[name] for name in output.dtype.names}
-        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding # todo this is obsolete way of doing this
-        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-
-        data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                 renderer='circle', size=10)
-
-        # Trigger plot update
-        callback = partial(self.parent.publish_data, 'fit1', data_source)
-        self.parent.doc.add_next_tick_callback(callback)
-
-        with pn.io.unlocked():
-             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
-             self.pbar1.reset()
-             self.param['do_fit1'].constant = False
-
-    def _fit1(self):
-        kf = KineticsFitting(self.parent.series, bounds=(self.lower_bound, self.upper_bound))
-        fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-        self.parent.fit_results['fit1'] = fit_result
-        output = fit_result.output.to_records('r_number')  # todo remove in between numpy step
-        dic = {name: output[name] for name in output.dtype.names}
-        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
-        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-
-        data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                 renderer='circle', size=10, name='fit1')
-
-        self.parent.publish_data('fit1', data_source)  #todo refactor to force require setting name on DataSource Ojbect
-        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-
-        self.param['do_fit1'].constant = False
-        self.pbar1.reset()
-
-    def _action_fit(self):
-        if self.parent.series is None:
-            self.parent.logger.debug('No dataset loaded')
-            return
-
-        self.parent.logger.debug('Start initial guess fit')
-        #todo context manager?
-        self.param['do_fit1'].constant = True
-
-        if self.fitting_model == 'Half-life (λ)':
-            kf = KineticsFitting(self.parent.series)
-            output = kf.weighted_avg_t50()
-            fit_result = HalfLifeFitResult(output=output)
-            array = output.to_records()
-            dic = {name: array[name] for name in array.dtype.names}
-
-            #dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
-            #todo colors dont work (because DataSource init)
-            dic['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
-
-            data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                     renderer='circle', size=10, name='half-life')
-
-            self.parent.publish_data('half-life', data_source)
-            self.parent.fit_results['half-life'] = fit_result
-
-            self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-
-            self.param['do_fit1'].constant = False
-        else:
-
-            if self.parent.cluster:
-                self.parent._doc = pn.state.curdoc
-                loop = IOLoop.current()
-                loop.add_callback(self._fit1_async)
-            else:
-                self._fit1()
 
 
 class FoldingFitting(InitialGuessControl):
@@ -1024,13 +1115,15 @@ class FitResultControl(ControlPanel):
         # --> because they need to be calcualted only once and then dataobjects are generated per index
         # can be improved probably (by putting all data in data source a priory?
 
-        self.parent.param.watch(self._series_updated, ['series'])
+        self.parent.param.watch(self._series_updated, ['datasets']) #todo refactor
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
     def _series_updated(self, *events):
-        self.param['peptide_index'].bounds = (0, len(self.parent.series.coverage.data) - 1)
-        self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
-        self._update_sources()
+        print('update')
+        #
+        # self.param['peptide_index'].bounds = (0, len(self.parent.series.coverage.data) - 1)
+        # self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
+        # self._update_sources()
 
     @property
     def fit_timepoints(self):
