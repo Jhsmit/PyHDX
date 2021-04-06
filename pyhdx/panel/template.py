@@ -6,6 +6,8 @@ from pyhdx.panel.widgets import HTMLTitle
 import panel as pn
 import string
 import os
+from param.parameterized import default_label_formatter
+
 
 dist_path = '/pyhdx/'
 
