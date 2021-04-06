@@ -231,9 +231,6 @@ class ControlPanel(PanelBase):
 
         """
 
-        layout = {'self': ['widget1', 'widget2'],
-                  'filters.cmapfilter': None,
-                  'transforms.rescaletransform': ['rescale_factor']}
 
         print(self._layout)
 
@@ -301,6 +298,9 @@ class ControlPanel(PanelBase):
 
     def get_widget(self, param_name, widget_type, **kwargs):
         """get a single widget with for parameter param_name with type widget_type"""
+
+
+
         return pn.Param.get_widget(getattr(self.param, param_name), widget_type, **kwargs)[0]
 
     @property

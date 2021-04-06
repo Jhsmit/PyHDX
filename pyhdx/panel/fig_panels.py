@@ -149,7 +149,6 @@ class hvRectangleAppView(View):
         return False
 
 
-
 class CoverageFigure(BokehFigurePanel):
     title = 'Coverage'
     accepted_tags = ['coverage']
