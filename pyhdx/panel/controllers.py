@@ -263,176 +263,214 @@ class PeptideFileInputControl(ControlPanel):
     """
     header = 'Peptide Input'
 
-    add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
-    clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
-    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
-    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
-    d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
-                                label='Deuterium percentage')
-    load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
+    input_files = param.List()
 
-    be_mode = param.Selector(doc='Select method of back exchange correction', label='Norm mode', objects=['Exp', 'Theory'])
+    be_mode = param.Selector(doc='Select method of back exchange correction', label='Back exchange correction method', objects=['FD Sample', 'Flat percentage'])
     fd_state = param.Selector(doc='State used to normalize uptake', label='FD State')
     fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='FD Exposure')
-    be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
-                              label='Back exchange percentage')
-
     exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
     exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
                                        , doc='Selected exposure time to use')
 
+    be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
+                              label='Back exchange percentage')
+
+    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
+    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
+    d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
+                                label='Deuterium percentage')
+    fd_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the FD control sample buffer',
+                                 label='FD Deuterium percentage')
+    temperature = param.Number(293.15, bounds=(0, 373.15), doc='Temperature of the D-labelling reaction',
+                               label='Temperature (K)')
+    pH = param.Number(7.5, doc='pH of the D-labelling reaction, as read from pH meter',
+                      label='pH read')
+    #load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
+
     c_term = param.Integer(0, bounds=(0, None),
                            doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
-                               'and determination of intrinsic rate of exhange for the C-terminal residue')
-    parse_button = param.Action(lambda self: self._action_parse(), label='Parse',
+                               'and determination of intrinsic rate of exchange for the C-terminal residue')
+    n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
+                                  'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
+    sequence = param.String('', doc='Optional FASTA protein sequence')
+    add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
+    dataset_list = param.ListSelector(label='Datasets', doc='Lists available datasets')
 
     def __init__(self, parent, **params):
-        self.file_selectors = [pn.widgets.FileInput(accept='.csv')]
         super(PeptideFileInputControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._datasets_updated, ['fit_objects'])
+
+        #excluded = ['be_percent']
+        widgets = [name for name in self.widgets.keys() if name not in ['be_percent']]
+        self._layout = {'self': widgets}
+        self.update_box()
+
+        self._array = None  # Numpy array with raw input data
 
     def make_dict(self):
-        return self.generate_widgets(be_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.FloatInput,
-                                     d_percentage=pn.widgets.FloatInput)
+        text_area = pn.widgets.TextAreaInput(name='Sequence (optional)', placeholder='Enter sequence in FASTA format', max_length=10000,
+                                             width=300, height=100, height_policy='fixed', width_policy='fixed')
+        return self.generate_widgets(
+            input_files=pn.widgets.FileInput(multiple=True, name='Input files'),
+            temperature=pn.widgets.FloatInput,
+            #be_mode=pn.widgets.RadioButtonGroup,
+            be_percent=pn.widgets.FloatInput,
+            d_percentage=pn.widgets.FloatInput,
+            fd_percentage=pn.widgets.FloatInput,
+            sequence=text_area)
 
     def make_list(self):
-        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'd_percentage', 'load_button',
-                      'be_mode', 'fd_state', 'fd_exposure', 'exp_state',
-                      'exp_exposures', 'c_term', 'parse_button']
-        first_widgets = list([self.widget_dict[par] for par in parameters])
-        return self.file_selectors + first_widgets
+        excluded = ['be_percent']
+        widget_list = [widget for name, widget, in self.widget_dict.items() if name not in excluded]
 
-    def _action_add(self):
-        """Add another FileInput widget/"""
-        widget = pn.widgets.FileInput(accept='.csv')
-        i = len(self.file_selectors)  # position to insert the new file selector into the widget box
-        self.file_selectors.append(widget)
-        self._box.insert(i, widget)
-
-    def _action_clear(self):
-        """Clear all file selectors and set number of file selectors to one."""
-        #todo @tejas: Add test
-        self.parent.logger.debug('Cleared file selectors')
-
-        while self.file_selectors:
-            fs = self.file_selectors.pop()
-            idx = list(self._box).index(fs)
-            self._box.pop(idx)
-        self._action_add()
+        return widget_list
 
     def _action_load(self):
         """Load files from FileInput widgets """
-        data_list = []
-        for file_selector in self.file_selectors:
-            if file_selector.value is not None:
-                s_io = StringIO(file_selector.value.decode('UTF-8'))
-                data = read_dynamx(s_io)
-                data_list.append(data)
 
-        combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
+        combined_files = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
 
-        self.parent.peptides = PeptideMasterTable(combined, d_percentage=self.d_percentage,
+        self.parent.peptides = PeptideMasterTable(combined_files, d_percentage=self.d_percentage,
                                                   drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
 
         states = list(np.unique(self.parent.peptides.data['state']))
         self.param['fd_state'].objects = states
         self.fd_state = states[0]
-        #self.param['zero_state'].objects = ['None'] + states
-        #self.zero_state = 'None'
 
         self.parent.logger.info(
-            f'Loaded {len(data_list)} file{"s" if len(data_list) > 1 else ""} with a total '
+            f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
             f'of {len(self.parent.peptides)} peptides')
 
-    def _action_parse(self):
+    def _action_add_dataset(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
-        if self.be_mode == 'Exp':
-            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
-            self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
-        elif self.be_mode == 'Theory':
-            # todo @tejas: Add test
-            self.parent.peptides.set_backexchange(self.be_percent)
 
-        data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
+        peptides = PeptideMasterTable(self._array, d_percentage=self.d_percentage,
+                                      drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        if self.be_mode == 'FD Sample':
+            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
+            peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
+        elif self.be_mode == 'Flat percentage':
+            # todo @tejas: Add test
+            peptides.set_backexchange(self.be_percent)
+
+        print('sequence', self.sequence)
+        print(self.sequence is None)
+        #
+        # all_states = peptides.groupby_state(c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
+        # series = all_states[]
+
+        data_states = peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
-        series = KineticsSeries(data, c_term=self.c_term)
-        self.parent.series = series
-        self.parent.sample_name = self.exp_state
-        self._publish_scores()
+        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
+        kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
+        self.parent.fit_objects[series.state] = kf
 
+        df = pd.DataFrame(series.full_data)
+        target_source = self.parent.sources['peptides']
+        new_index = pd.MultiIndex.from_product([[series.state], df.columns], names=target_source.df.columns.names)
+        df.columns = new_index
+        target_source.df = target_source.df.append(df)
+
+
+        #self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
+
+        #self._publish_scores(series)
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
         self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
                                 f'Redundancy: {series.coverage.redundancy:.2}')
 
-    def _publish_scores(self):
-        exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(self.parent.series.scores_stack, self.parent.series.timepoints)}
-        data_dict = dict(r_number=self.parent.series.coverage.r_number, **exposure_data_dict)
-
-        data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
-                                 renderer='circle', size=10, name='scores')
-        self.parent.publish_data('scores', data_source)
+    # def _publish_scores(self, series):
+    #     #todo fix in folding?
+    #     exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(series.scores_stack, series.timepoints)}
+    #     data_dict = dict(r_number=series.coverage.r_number, **exposure_data_dict)
+    #
+    #     name = f'scores_{series.state}'
+    #     data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
+    #                              renderer='circle', size=10, name=name)
+    #     self.parent.publish_data(name, data_source)
 
     @param.depends('be_mode', watch=True)
     def _update_be_mode(self):
         # todo @tejas: Add test
-        if self.be_mode == 'Exp':
-            self.box_pop('be_percent')
-            self.box_insert_after('be_mode', 'fd_state')
-            self.box_insert_after('fd_state', 'fd_exposure')
+        if self.be_mode == 'FD Sample':
+            excluded = ['be_percent']
+        elif self.be_mode == 'Flat percentage':
+            excluded = ['fd_state', 'fd_exposure']
 
-        elif self.be_mode == 'Theory':
-            self.box_pop('fd_state')
-            self.box_pop('fd_exposure')
-            self.box_insert_after('be_mode', 'be_percent')
+        widgets = [name for name in self.widgets.keys() if name not in excluded]
+        self._layout = {'self': widgets}
+        self.update_box()
 
-            try:
-                states = np.unique(self.parent.peptides.data['state'])
-                self.param['exp_state'].objects = states
-                self.exp_state = states[0] if not self.exp_state else self.exp_state
-            except (TypeError, AttributeError):
-                pass
+    @param.depends('input_files', watch=True)
+    def _read_files(self):
+        """"""
+        combined_array = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
+        self._array = combined_array
+
+        self._update_fd_state()
+        self._update_fd_exposure()
+        self._update_exp_state()
+        self._update_exp_exposure()
+
+        self.parent.logger.info(
+            f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
+            f'of {len(self._array)} peptides')
+
+    def _update_fd_state(self):
+        states = list(np.unique(self._array['state']))
+        self.param['fd_state'].objects = states
+        self.fd_state = states[0]
 
     @param.depends('fd_state', watch=True)
-    def _update_norm_exposure(self):
-        b = self.parent.peptides.data['state'] == self.fd_state
-        data = self.parent.peptides.data[b]
-        exposures = list(np.unique(data['exposure']))
+    def _update_fd_exposure(self):
+        fd_entries = self._array[self._array['state'] == self.fd_state]
+        exposures = list(np.unique(fd_entries['exposure']))
+
         self.param['fd_exposure'].objects = exposures
         if exposures:
             self.fd_exposure = exposures[0]
 
     @param.depends('fd_state', 'fd_exposure', watch=True)
-    def _update_experiment(self):
-        data = self.parent.peptides.data
-
+    def _update_exp_state(self):
         # Booleans of data entries which are in the selected control
-        control_bools = np.logical_and(data['state'] == self.fd_state, data['exposure'] == self.fd_exposure)
+        control_bools = np.logical_and(self._array['state'] == self.fd_state, self._array['exposure'] == self.fd_exposure)
 
-        control_data = data[control_bools]
-        other_data = data[~control_bools]
+        control_data = self._array[control_bools]
+        other_data = self._array[~control_bools]
 
-        intersection = array_intersection([control_data, other_data], fields=['_start', '_end', 'exposure'])
+        intersection = array_intersection([control_data, other_data], fields=['start', 'end', 'exposure'])
         states = list(np.unique(intersection[1]['state']))
 
-
-        # #TODO THIS needs to be updated to also incorporate the zero (?)
-        # pm_dict = self.parent.peptides.return_by_name(self.fd_state, self.fd_exposure)
-        # states = list(np.unique([v.state for v in pm_dict.values()]))
         self.param['exp_state'].objects = states
         self.exp_state = states[0] if not self.exp_state else self.exp_state
 
     @param.depends('exp_state', watch=True)
-    def _update_experiment_exposure(self):
-        b = self.parent.peptides.data['state'] == self.exp_state
-        exposures = list(np.unique(self.parent.peptides.data['exposure'][b]))
+    def _update_exp_exposure(self):
+        exp_entries = self._array[self._array['state'] == self.exp_state]
+        exposures = list(np.unique(exp_entries['exposure']))
         exposures.sort()
+
         self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
+        #
+        if not self.c_term:
+            self.c_term = int(np.max(exp_entries['end']))
 
-        self.c_term = int(np.max(self.parent.peptides.data['end'][b]))
+    def _datasets_updated(self, events):
+        # Update datasets widget as datasets on parents change
+        objects = list(self.parent.datasets.keys())
+        self.param['dataset_list'].objects = objects
+
+    def _action_remove_datasets(self):
+        for name in self.dataset_list:
+            print(name)
+            self.parent.datasets.pop(name)
+
+        self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
 
 
 class FDPeptideFileInputControl(PeptideFileInputControl):
