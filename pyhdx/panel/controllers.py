@@ -344,7 +344,7 @@ class PeptideFileInputControl(ControlPanel):
         # all_states = peptides.groupby_state(c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
         # series = all_states[]
 
-        data_states = peptides.data[self.parent.peptides.data['state'] == self.exp_state]
+        data_states = peptides.data[peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
         series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
@@ -352,10 +352,12 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.fit_objects[series.state] = kf
 
         df = pd.DataFrame(series.full_data)
-        target_source = self.parent.sources['peptides']
-        new_index = pd.MultiIndex.from_product([[series.state], df.columns], names=target_source.df.columns.names)
-        df.columns = new_index
-        target_source.df = target_source.df.append(df)
+        target_source = self.parent.sources['dataframe']
+        target_source.add_df(df, 'peptides', series.state)
+        #
+        # new_index = pd.MultiIndex.from_product([[series.state], df.columns], names=target_source.df.columns.names)
+        # df.columns = new_index
+        # target_source.df = target_source.df.append(df)
 
 
         #self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
@@ -366,6 +368,8 @@ class PeptideFileInputControl(ControlPanel):
                                 f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
         self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
                                 f'Redundancy: {series.coverage.redundancy:.2}')
+
+        self.input_files = []
 
     # def _publish_scores(self, series):
     #     #todo fix in folding?
@@ -392,51 +396,67 @@ class PeptideFileInputControl(ControlPanel):
     @param.depends('input_files', watch=True)
     def _read_files(self):
         """"""
-        combined_array = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
-        self._array = combined_array
+        if self.input_files:
+            combined_array = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
+            self._array = combined_array
+
+            self.parent.logger.info(
+                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
+                f'of {len(self._array)} peptides')
+
+        else:
+            self._array = None
 
         self._update_fd_state()
         self._update_fd_exposure()
         self._update_exp_state()
         self._update_exp_exposure()
 
-        self.parent.logger.info(
-            f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
-            f'of {len(self._array)} peptides')
-
     def _update_fd_state(self):
-        states = list(np.unique(self._array['state']))
-        self.param['fd_state'].objects = states
-        self.fd_state = states[0]
+        if self._array is not None:
+            states = list(np.unique(self._array['state']))
+            self.param['fd_state'].objects = states
+            self.fd_state = states[0]
+        else:
+            self.param['fd_state'].objects = []
+
 
     @param.depends('fd_state', watch=True)
     def _update_fd_exposure(self):
-        fd_entries = self._array[self._array['state'] == self.fd_state]
-        exposures = list(np.unique(fd_entries['exposure']))
-
+        if self._array is not None:
+            fd_entries = self._array[self._array['state'] == self.fd_state]
+            exposures = list(np.unique(fd_entries['exposure']))
+        else:
+            exposures = []
         self.param['fd_exposure'].objects = exposures
         if exposures:
             self.fd_exposure = exposures[0]
 
     @param.depends('fd_state', 'fd_exposure', watch=True)
     def _update_exp_state(self):
-        # Booleans of data entries which are in the selected control
-        control_bools = np.logical_and(self._array['state'] == self.fd_state, self._array['exposure'] == self.fd_exposure)
+        if self._array is not None:
+            # Booleans of data entries which are in the selected control
+            control_bools = np.logical_and(self._array['state'] == self.fd_state, self._array['exposure'] == self.fd_exposure)
 
-        control_data = self._array[control_bools]
-        other_data = self._array[~control_bools]
+            control_data = self._array[control_bools]
+            other_data = self._array[~control_bools]
 
-        intersection = array_intersection([control_data, other_data], fields=['start', 'end', 'exposure'])
-        states = list(np.unique(intersection[1]['state']))
+            intersection = array_intersection([control_data, other_data], fields=['start', 'end', 'exposure'])
+            states = list(np.unique(intersection[1]['state']))
+        else:
+            states = []
 
         self.param['exp_state'].objects = states
         self.exp_state = states[0] if not self.exp_state else self.exp_state
 
     @param.depends('exp_state', watch=True)
     def _update_exp_exposure(self):
-        exp_entries = self._array[self._array['state'] == self.exp_state]
-        exposures = list(np.unique(exp_entries['exposure']))
-        exposures.sort()
+        if self._array is not None:
+            exp_entries = self._array[self._array['state'] == self.exp_state]
+            exposures = list(np.unique(exp_entries['exposure']))
+            exposures.sort()
+        else:
+            exposures = []
 
         self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
