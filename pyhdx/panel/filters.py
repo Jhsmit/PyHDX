@@ -13,7 +13,10 @@ class WebAppFilter(Filter):
 
     source = param.ClassSelector(Source)
 
+    # maybe instead of making filters co-dependent the second filter should have a DerivedSource
+    # but we'll deal with this later
     filters = param.List()
+
     updated = param.Event()
 
     def __init__(self, **params):
@@ -80,11 +83,15 @@ class UniqueValuesFilter(WebAppWidgetFilter):
 
     def update(self, *events):
         data = self.get_data()
-        data = data.dropna(how='all')  #todo perhaps add this line in get_data method of DataFrameSource
-        options = list(data[self.field].unique())
+        data = data.dropna(how='all') #todo perhaps add this line in get_data method of DataFrameSource
+
+        try:
+            options = list(data[self.field].unique())
+        except KeyError:  # KeyError when no data is loaded yet
+            options = []
 
         self.param['value'].objects = options
-        if not self.value:
+        if not self.value and options:
             self.value = options[0]
 
         self.updated = True
@@ -108,7 +115,7 @@ class SelectFilter(WebAppWidgetFilter):
 
         self.options = options  #does this update the widget?
         self.param['value'].objects = options
-        if not self.value:
+        if not self.value and options:
             self.value = options[0]
 
         self.updated = True
