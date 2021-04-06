@@ -39,13 +39,14 @@ def main_app():
     # ---------------------------------------------------------------------- #
 
     col_index = pd.MultiIndex.from_tuples([], names=('state', 'quantity'))
-    df = pd.DataFrame(columns=col_index)
+    df1 = pd.DataFrame(columns=col_index)
+    df2 = pd.DataFrame(columns=col_index)
 
-    tables = {'peptides': df}
+    tables = {'peptides': df1, 'rates': df2}
     source = DataFrameSource(tables=tables, name='dataframe')
 
     df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
-    source.add_df(df, 'peptides', 'ecSecB_apo')
+    #source.add_df(df, 'peptides', 'ecSecB_apo')
 
     src_list = [source]
     sources = {src.name: src for src in src_list}
@@ -110,7 +111,7 @@ def main_app():
     control_panels = [
         PeptideFileInputControl,
         CoverageControl,
-        # InitialGuessControl,
+        InitialGuessControl,
         # FitControl,
         # FitResultControl,
         # ClassificationControl,
