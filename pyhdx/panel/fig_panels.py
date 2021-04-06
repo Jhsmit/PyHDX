@@ -15,6 +15,7 @@ from lumen.views import hvPlotView, View
 import param
 
 import holoviews as hv
+from lumen.filters import ParamFilter
 
 
 class hvPlotAppView(hvPlotView):
