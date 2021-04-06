@@ -326,22 +326,6 @@ class PeptideFileInputControl(ControlPanel):
 
         return widget_list
 
-    def _action_load(self):
-        """Load files from FileInput widgets """
-
-        combined_files = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
-
-        self.parent.peptides = PeptideMasterTable(combined_files, d_percentage=self.d_percentage,
-                                                  drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
-
-        states = list(np.unique(self.parent.peptides.data['state']))
-        self.param['fd_state'].objects = states
-        self.fd_state = states[0]
-
-        self.parent.logger.info(
-            f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
-            f'of {len(self.parent.peptides)} peptides')
-
     def _action_add_dataset(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
 
