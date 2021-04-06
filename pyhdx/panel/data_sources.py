@@ -12,31 +12,61 @@ from lumen.sources import Source, cached_schema
 
 class DataFrameSource(Source):
 
-    df = param.ClassSelector(pd.DataFrame, doc='In-memory pandas DataFrame')
+    tables = param.Dict({}, doc="Dictionary of tables in this Source")
 
-    multiindex = param.Boolean(False, doc='Whether the dataframe is column-multiindex')
+    updated = param.Event()
 
-    tables = param.List([], doc="List of tables in this Source")
 
-    def __init__(self, **params):
-        super().__init__(**params)
-        if self.df.columns.nlevels == 1:
-            self.tables = [self.name]
-            self.multiindex = False
-        elif self.df.columns.nlevels == 2:
-            self.multiindex = True
-            self.tables = [] # todo populate tables for multiindex
-        else:
-            raise ValueError("Currently column multiindex beyond two levels is not supported")
+    # def __init__(self, **params):
+    #     pass
+        # super().__init__(**params)
+        # if self.df.columns.nlevels == 1:
+        #     self.tables = [self.name]
+        #     self.multiindex = False
+        # elif self.df.columns.nlevels == 2:
+        #     self.multiindex = True
+        #     self.tables = [] # todo populate tables for multiindex
+        # else:
+        #     raise ValueError("Currently column multiindex beyond two levels is not supported")
+
+
+    def add_df(self, df, table, name):
+        """
+        #Todo method for adding a table to multindex source
+
+        Parameters
+        ----------
+        df
+
+        Returns
+        -------
+
+        """
+
+        target_df = self.tables[table]
+        new_index = pd.MultiIndex.from_product([[name], df.columns], names=target_df.columns.names)
+        df.columns = new_index
+
+        new_df = pd.concat([target_df, df], axis=1)
+
+        self.tables[table] = new_df
+
+        #todo check for clashes between higher level and lower level column names
+        # pd.concat([df1, df4.reindex(df1.index)], axis=1)
+
+        self.updated = True
 
     def get(self, table, **query):
-        if self.multiindex:
-            df = self.df[table]
-        else:
-            if table == self.name:
-                df = self.df
+        df = self.tables[table]
+
+        # This means querying a field with the same name as higher-levels columns is not possible
+        while df.columns.nlevels > 1:
+            selected_col = query.pop(df.columns.names[0], False)
+            if selected_col:
+                df = df[selected_col]
+                # df = df.dropna(how='all')  These subsets will have padded NaN rows. Remove?
             else:
-                raise ValueError(f"No table found with name {table}")
+                break
 
         dask = query.pop('__dask', False)
         df = self._filter_dataframe(df, **query)
