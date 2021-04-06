@@ -733,6 +733,39 @@ class SingleControl(ControlPanel):
 
 
 class CoverageControl(ControlPanel):
+
+    header = 'Coverage'
+
+    temp_new_data = param.Action(lambda self: self._action_new_data())
+
+
+    def __init__(self, parent, **params):
+        super().__init__(parent, **params)
+
+        self._layout = {
+            'filters.select_index': None,
+            'filters.exposure_slider': None,
+            'self': None
+        }
+
+        self.update_box()
+
+    def _action_new_data(self):
+        df = csv_to_dataframe(r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_apo_peptides.csv')
+
+        print(len(df))
+        reduced_df = df.query('exposure < 50')
+        print(len(reduced_df))
+
+        source = self.sources['dataframe']
+
+        source.add_df(reduced_df, 'peptides', 'ecSecB_reduced')
+
+
+
+
+
+class DepCoverageControl(ControlPanel):
     """
     This controller allows users to control the peptide coverage figure, by choosing how many peptides to plot vertically,
     which color map to use, and which exposure time to show.
