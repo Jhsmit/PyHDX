@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 import logging
 from lumen.views import hvPlotView, View
 import param
+import pandas as pd
 
 import holoviews as hv
 from lumen.filters import ParamFilter
@@ -102,7 +103,15 @@ class hvRectangleAppView(View):
         if self.streaming:
             from holoviews.streams import Pipe
             self._stream = Pipe(data=df)
-        return dict(object=self.get_plot(df), sizing_mode='stretch_both') # todo update sizing mode
+        return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
+
+    def get_data(self):
+        try:
+            return super().get_data()
+        except (KeyError, ValueError) as e:
+            print(f'Empty data in {self.__class__}: {e}')
+            # These plots should have a _empty_df property or something along those lines
+            return pd.DataFrame([[0]*5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
 
     def update(self, *events, invalidate_cache=True):
         """
