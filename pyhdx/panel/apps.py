@@ -98,7 +98,7 @@ def main_app():
     #                        table='torch_fit', transforms=[rescale_transform, cmap_transform], streaming=True,
     #                        responsive=True)
 
-    coverage = hvRectangleAppView(source=source, name='rect_plot', table='peptides', opts=cmap_opts.opts,
+    coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
                                   streaming=True,
                                   transforms=[peptides_transform],
                                   filters=[multiindex_select_filter, slider_exposure_filter])
@@ -131,13 +131,13 @@ def main_app():
                            cluster=cluster)
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme,
-                        title=VERSION_STRING_SHORT, main_controller=ctrl)
+                        title=VERSION_STRING_SHORT)
 
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
 
     elvis.compose(ctrl, elvis.column(
         #elvis.view(ctrl.views['hvplot']),
-        elvis.view(ctrl.views['rect_plot'])
+        elvis.view(ctrl.views['coverage'])
     )
 
                   )
