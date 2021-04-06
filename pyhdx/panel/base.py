@@ -1,5 +1,6 @@
 import param
 import panel as pn
+from lumen import View
 from bokeh.plotting import figure
 from functools import partial
 from pathlib import Path
@@ -174,14 +175,39 @@ class ControlPanel(PanelBase):
 
     def __init__(self, parent, **params):
         self.parent = parent
+        self._layout = None  # List with dictionary layout
+
         super(ControlPanel, self).__init__(**params)
 
-        self.widget_dict = self.make_dict()
-        self.widget_list = self.make_list()  # this attr isnt really used except for making the box
-        self._box = self.make_box()
+        self.widgets = self.make_dict()  # atm on some objects this is a list, others dict
+        self._box = self.make_box()  # _panel equivalent
+
+
+    @property
+    def sources(self):
+        return self.parent.sources
+
+    @property
+    def transforms(self):
+        return self.parent.sources
+
+    @property
+    def filters(self):
+        return self.parent.filters
+
+    @property
+    def opts(self):
+        return self.parent.opts
+
+    @property
+    def views(self):
+        return self.parent.views
 
     def make_box(self):
         return pn.Column(*self.widget_list, name=self.header)
+
+    def update_box(self):
+        self._box[:] = self.widget_list
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
@@ -190,9 +216,56 @@ class ControlPanel(PanelBase):
         widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
 
         return {k: v for k, v in zip(names[1:], widgets)}
-        #
-        # return {k: v for k, v in zip(list(self.param)[1:],
-        #                              pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs))}
+
+    @property
+    def widget_list(self):
+        """
+
+        Example _layout definitions
+
+
+
+
+        Returns
+        -------
+
+        """
+
+        layout = {'self': ['widget1', 'widget2'],
+                  'filters.cmapfilter': None,
+                  'transforms.rescaletransform': ['rescale_factor']}
+
+        print(self._layout)
+
+        if self._layout is None:
+            return list(self.widgets.values())
+        else:
+            widget_list = []
+            for widget_source, contents in self._layout.items():
+                if widget_source == 'self':
+                    object = self
+                else:
+                    _type, name = widget_source.split('.')
+                    object = getattr(self, _type)[name]
+
+                if isinstance(contents, list):
+                    for item in contents:
+                        widget_list.append(object.widgets[item])
+
+                elif contents is None:
+                    if hasattr(object, 'widgets'):
+                        for item in object.widgets.values():
+                            widget_list.append(item)
+                    else:
+                        panel = object.panel
+                        if isinstance(panel, pn.layout.ListLike):
+                            for item in panel:
+                                widget_list.append(item)
+                        else:
+                            widget_list.append(panel)
+
+
+        return widget_list
 
     def make_list(self):
         """override this method to modify mapping of dict to list"""
