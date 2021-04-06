@@ -452,12 +452,10 @@ class InitialGuessControl(ControlPanel):
         super(InitialGuessControl, self).__init__(parent, **params)
         self.parent.param.watch(self._parent_datasets_updated, ['fit_objects'])  #todo refactor
 
-        excluded = ['lower_bound', 'upper_bound', 'global_bounds']
+        excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         widgets = [name for name in self.widgets.keys() if name not in excluded]
         self._layout = {'self': widgets}
         self.update_box()
-
-        print(widgets)
 
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
@@ -533,27 +531,34 @@ class InitialGuessControl(ControlPanel):
         if not self.dataset:
             self.dataset = options[0]
 
-    async def _fit1_async(self):
+    @staticmethod
+    def fit_result_dict_to_df(results):
+
+        combined_results = pd.concat(results.values(), axis=1,
+                                     keys=list(results.keys()),
+                                     names=['state', 'quantity'])
+
+        return combined_results
+
+    async def _fit1_async(self, output_name):
         """Do fitting asynchronously on (remote) cluster"""
         results = {}
         for name, kf in self.parent.fit_objects.items():
             fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-
             results[kf.series.state] = fit_result
 
-        self.parent.fit_results['fit1'] = results  #todo refactor 'fit1' to guess
-        self.parent.param.trigger('fit_results')
+        self.parent.fit_results['fit_1'] = results  #todo refactor 'fit1' to guess
+#       self.parent.param.trigger('fit_results')
 
-        # Combine into a Protein object with MultiIndex dataframe as df attribute
-        combined_results = pd.concat(results, axis=1,
-                                     keys=list(self.parent.fit_objects.keys()),
-                                     names=['Sample name', 'quantity'])
+        dfs = [result.output.df for result in results.values()]  # todo get r_number as column? or as index?
+        combined_results = pd.concat(dfs, axis=1,
+                                     keys=list(results.keys()),
+                                     names=['state', 'quantity'])
 
-        data_source = MultiIndexDataSource(combined_results, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                           renderer='circle', size=10, name='fit1')
+        def add_df(source, df, table):
+            source.add_df(df, table)
 
-        # Trigger plot update
-        callback = partial(self.parent.publish_data, 'fit1', data_source)
+        callback = partial(self.sources['dataframe'], add_df, combined_results, 'rates')
         self.parent.doc.add_next_tick_callback(callback)
 
         with pn.io.unlocked():
@@ -562,24 +567,19 @@ class InitialGuessControl(ControlPanel):
              self.param['do_fit1'].constant = False
 
     def _fit1(self):
-        results = []
+        results = {}
         for name, kf in self.parent.fit_objects.items():
             fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-            fit_result['color'] = DEFAULT_COLORS['fit1']
-            results.append(fit_result)
+            results[kf.series.state] = fit_result
 
         self.parent.fit_results['fit1'] = results
+        self.parent.param.trigger('fit_results')
 
-        # Combine into a Protein object with MultiIndex dataframe as df attribute
-        combined_results = pd.concat(results, axis=1,
-                                     keys=list(self.parent.fit_objects.keys()),
-                                     names=['Sample name', 'quantity'])
-
-        data_source = MultiIndexDataSource(combined_results, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                           renderer='circle', size=10, name='fit1')
-
-        self.parent.publish_data('fit1', data_source)  #todo refactor to force require setting name on DataSource Ojbect
-        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
+        dfs = [result.output for result in results.values()]
+        combined_results = pd.concat(dfs, axis=1,
+                                     keys=list(results.keys()),
+                                     names=['state', 'quantity'])
+        self.sources['dataframe'].add_df(combined_results, 'rates')
 
         self.param['do_fit1'].constant = False
         self.pbar1.reset()
@@ -594,25 +594,21 @@ class InitialGuessControl(ControlPanel):
         self.param['do_fit1'].constant = True
 
         if self.fitting_model == 'Half-life (λ)':
-            results = []
+            results = {}
             for name, kf in self.parent.fit_objects.items():
-                output = kf.weighted_avg_t50()
-                output['color'] = DEFAULT_COLORS['half-life']
-                results.append(output)
+                fit_result = kf.weighted_avg_t50()
+                results[name] = fit_result
 
             self.parent.fit_results['half-life'] = results
-
-            combined_results = pd.concat(results, axis=1,
-                                         keys=list(self.parent.fit_objects.keys()),
-                                         names=['Sample name', 'quantity'])
-
-            data_source = MultiIndexDataSource(combined_results, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                               renderer='circle', size=10, name='half-life')
-
-            self.parent.publish_data('half-life', data_source)
-
             self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
 
+            dfs = [result.output for result in results.values()]
+            combined_results = pd.concat(dfs, axis=1,
+                                         keys=list(results.keys()),
+                                         names=['state', 'quantity'])
+
+            # todo this is one level to shallow and will go wrong when users do first half life fit then fit1
+            self.sources['dataframe'].add_df(combined_results, 'rates')
             self.param['do_fit1'].constant = False
         else:
 
@@ -641,6 +637,7 @@ class SingleMappingFileInputControl(MappingFileInputControl):
             data_source = DataSource(records, tags=['comparison', 'mapping'], x='r_number',
                                      renderer='circle', size=10)
             self.parent.publish_data(key, data_source)
+
 
 class MatrixMappingFileInputControl(SingleMappingFileInputControl):
     datapoints = param.ListSelector(doc='Select datapoints to include in the matrix')
