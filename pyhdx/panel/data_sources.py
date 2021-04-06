@@ -83,13 +83,14 @@ class DataFrameSource(Source):
             schemas[name] = get_dataframe_schema(df)['items']['properties']
         return schemas if table is None else schemas[table]
 
-    def get_unique(self, table=None, field=None):
+    def get_unique(self, table=None, field=None, **query):
         """Get unique values for specified tables and fields"""
+        print('deprecation candidate')
         unique_values = {}
         for name in self.tables:
             if table is not None and name != table:
                 continue
-            df = self.get(name)
+            df = self.get(name, **query)
             if field is not None:
                 unique_values[name] = df[field].unique()
             else:
