@@ -29,7 +29,6 @@ class DataFrameSource(Source):
         # else:
         #     raise ValueError("Currently column multiindex beyond two levels is not supported")
 
-
     def add_df(self, df, table, name):
         """
         #Todo method for adding a table to multindex source
@@ -110,47 +109,31 @@ class DataSource(param.Parameterized):
         self.render_kwargs = {k: params.pop(k) for k in list(params.keys()) if k not in self.param}
         #todo currently this override colors in dic
         super(DataSource, self).__init__(**params)
-        dic = self.get_dic(input_data)
-        default_color = 'color' if 'color' in dic else self.default_color
+        self.df = self.format_data(input_data)
+        default_color = 'color' if 'color' in self.df.columns else self.default_color  #df columns does not work with multiindex dfs
         self.render_kwargs['color'] = self.render_kwargs.get('color', default_color)
 
-        self.source = ColumnDataSource(dic, name=self.name)
+        self.source = ColumnDataSource(self.df, name=self.name)
 
     def __getitem__(self, item):
         return self.source.data.__getitem__(item)
 
-    @property  #cached property?
-    def df(self):
-        df = pd.DataFrame(self.source.data)
-        return df
 
     @property
     def export_df(self):
         df = pd.DataFrame({k: v for k, v in self.source.data.items() if not k.startswith('__')})
         return df
 
-    def get_dic(self, input_data):
+    def format_data(self, input_data):
         #todo allow dataframes
         if isinstance(input_data, np.ndarray):
-            dic = {name: input_data[name] for name in input_data.dtype.names}
-            #self.array = input_data  #
+            return pd.DataFrame(input_data)
         elif isinstance(input_data, dict):
-            if 'image' in self.tags:   # Images requires lists of arrays rather than arrays
-                dic = {k: v for k, v in input_data.items()}
-            else:
-                dic = {k: np.array(v) for k, v in input_data.items()}
+            return pd.DataFrame(input_data)
         elif isinstance(input_data, Protein):
-            dic = {k: np.array(v) for k, v in input_data.to_dict('list').items()}
-            dic['r_number'] = np.array(input_data.index)
+            return input_data.df
         else:
             raise TypeError("Invalid input data type")
-
-        #todo this does not apply to all data sets? (it does not, for example images)
-        if 'color' not in dic.keys() and 'image' not in self.tags:
-            column = next(iter(dic.values()))
-            color = np.full_like(column, fill_value=self.default_color, dtype='<U7')
-            dic['color'] = color
-        return dic
 
     def to_numpy(self):
         raise NotImplementedError('Converting to numpy rec array not implemented')
@@ -214,3 +197,7 @@ class DataSource(param.Parameterized):
         return False
 
     #def _resolve_tag(self, tag):
+
+
+class MultiIndexDataSource(DataSource):
+    pass
