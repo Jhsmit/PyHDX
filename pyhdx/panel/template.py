@@ -138,7 +138,8 @@ class GoldenElvis(object):
         # It seems that these unique names cannot start with a number or they cannot be referenced directly
         # Therefore, currently tmpl.main.append cannot be used as this generates
         panel_ID = 'ID' + str(id(fig_panel))
-        title = title or getattr(fig_panel, 'title', None)
+        title = default_label_formatter(title or getattr(fig_panel, 'name', None))
+
 
         fig_panel.update() # intialize
         item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
