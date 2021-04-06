@@ -338,48 +338,26 @@ class PeptideFileInputControl(ControlPanel):
             # todo @tejas: Add test
             peptides.set_backexchange(self.be_percent)
 
-        print('sequence', self.sequence)
-        print(self.sequence is None)
-        #
-        # all_states = peptides.groupby_state(c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
-        # series = all_states[]
-
         data_states = peptides.data[peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
         series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
         kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
         self.parent.fit_objects[series.state] = kf
+        self.parent.param.trigger('fit_objects')  # Trigger update
 
         df = pd.DataFrame(series.full_data)
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'peptides', series.state)
-        #
-        # new_index = pd.MultiIndex.from_product([[series.state], df.columns], names=target_source.df.columns.names)
-        # df.columns = new_index
-        # target_source.df = target_source.df.append(df)
-
-
-        #self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
-
-        #self._publish_scores(series)
 
         self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
         self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
                                 f'Redundancy: {series.coverage.redundancy:.2}')
 
-        self.input_files = []
+        #self.input_files = []
 
-    # def _publish_scores(self, series):
-    #     #todo fix in folding?
-    #     exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(series.scores_stack, series.timepoints)}
-    #     data_dict = dict(r_number=series.coverage.r_number, **exposure_data_dict)
-    #
-    #     name = f'scores_{series.state}'
-    #     data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
-    #                              renderer='circle', size=10, name=name)
-    #     self.parent.publish_data(name, data_source)
+
 
     @param.depends('be_mode', watch=True)
     def _update_be_mode(self):
