@@ -146,9 +146,9 @@ class PyHDXController(MainController):
         if len(self.fit_objects) == 0:
             self.sample_name = ''
         elif len(self.fit_objects) == 1:
-            self.fit_objects = str(next(iter(self.fit_objects.values())))
-        elif len(self.datasets) < 5:
-            self.fit_objects = ', '.join(self.fit_objects.keys())
+            self.sample_name = str(next(iter(self.fit_objects.keys())))
+        elif len(self.fit_objects) < 5:
+            self.sample_name = ', '.join(self.fit_objects.keys())
 
     @param.depends('sample_name', watch=True)
     def _update_name(self):
