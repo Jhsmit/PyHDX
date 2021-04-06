@@ -45,8 +45,10 @@ class MainController(param.Parameterized):
     sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
     transforms = param.Dict({}, doc='Dictionary of transforms')
     filters = param.Dict({}, doc="Dictionary of filters")
+    opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
+    views = param.Dict({}, doc="Dictionary of views")
 
-    def __init__(self, control_panels, figure_panels, cluster=None, **params):
+    def __init__(self, control_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
         self.cluster = cluster
         self._doc = pn.state.curdoc
@@ -56,10 +58,6 @@ class MainController(param.Parameterized):
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
         #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
-        self.figure_panels = {ctrl.name: ctrl for ctrl in figure_panels} #todo as param?
-
-        #initialize figures
-
         self.template = None   # Panel template
 
         for filt in self.filters.values():
@@ -81,40 +79,37 @@ class MainController(param.Parameterized):
         self._update_views(invalidate_cache=invalidate_cache)
 
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
-        for view in self.views:
+        for view in self.views.values():
             view.update(invalidate_cache=invalidate_cache)
 
-    @property
-    def views(self):
-        return self.figure_panels.values()
 
     @property
     def doc(self):
         """ :class:`~bokeh.document.document.Document`: Bokeh document for the application"""
         return self._doc or pn.state.curdoc
 
-    def publish_data(self, name, data_source_obj):
-        """
-        Publish dataset to be available for client figure to plot
-
-        Parameters
-        ----------
-        name : :obj:`str`
-            Name of the dataset
-        data_source_obj : :class:`~pyhdx.panel.data_sources.DataSource`
-            Data source object
-        """
-
-        try:  # update existing source
-            src = self.sources[name]
-            #todo next callback??
-
-            print('source alreayd there, which should always be the case??')
-            #src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds? (yes)
-        except KeyError:
-            self.sources[name] = data_source_obj
-
-        self.param.trigger('sources')
+    # def publish_data(self, name, data_source_obj):
+    #     """
+    #     Publish dataset to be available for client figure to plot
+    #
+    #     Parameters
+    #     ----------
+    #     name : :obj:`str`
+    #         Name of the dataset
+    #     data_source_obj : :class:`~pyhdx.panel.data_sources.DataSource`
+    #         Data source object
+    #     """
+    #
+    #     try:  # update existing source
+    #         src = self.sources[name]
+    #         #todo next callback??
+    #
+    #         print('source alreayd there, which should always be the case??')
+    #         #src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds? (yes)
+    #     except KeyError:
+    #         self.sources[name] = data_source_obj
+    #
+    #     self.param.trigger('sources')
 
     def __panel__(self):
         # This does something but not as expected
