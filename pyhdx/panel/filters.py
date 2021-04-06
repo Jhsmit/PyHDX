@@ -8,7 +8,7 @@ import panel as pn
 
 class WebAppFilter(Filter):
     """
-    
+
     """
 
     source = param.ClassSelector(Source)
@@ -37,6 +37,7 @@ class WebAppFilter(Filter):
         data = self.source.get(self.table, **query)
         return data
 
+    @param.depends('value', watch=True)
     def update(self, *events):
         """gets called when the source event triggers"""
         self.updated = True
@@ -58,12 +59,6 @@ class WebAppWidgetFilter(WebAppFilter):
         name = default_label_formatter(self.field)
         self.widget = self._widget.from_param(self.param.value, name=name)
         self.update()  # populate options
-
-    @param.depends('value', watch=True)
-    def _print(self):
-        # is there another way of linking these?
-        # parameter js_link?
-        self.updated = True
 
     @property
     def query(self):
