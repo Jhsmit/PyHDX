@@ -904,7 +904,12 @@ class KineticsFitting(object):
         output['r_number'] = self.series.coverage.r_number
         output['rate'] = np.log(2) / interpolated
 
-        return Protein(output, index='r_number')
+        protein = Protein(output, index='r_number')
+        t50FitResult = namedtuple('t50FitResult', ['output'])
+
+        result = t50FitResult(output=protein)
+
+        return result
 
     def weighted_avg_linearize(self):
         rates = []
