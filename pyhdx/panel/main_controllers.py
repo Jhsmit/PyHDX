@@ -69,7 +69,6 @@ class MainController(param.Parameterized):
 
         self._update_views()
 
-
     # from lumen.target.Target
     def _rerender(self, *events, invalidate_cache=False):
         print('rerender')
@@ -79,34 +78,10 @@ class MainController(param.Parameterized):
         for view in self.views.values():
             view.update(invalidate_cache=invalidate_cache)
 
-
     @property
     def doc(self):
         """ :class:`~bokeh.document.document.Document`: Bokeh document for the application"""
         return self._doc or pn.state.curdoc
-
-    # def publish_data(self, name, data_source_obj):
-    #     """
-    #     Publish dataset to be available for client figure to plot
-    #
-    #     Parameters
-    #     ----------
-    #     name : :obj:`str`
-    #         Name of the dataset
-    #     data_source_obj : :class:`~pyhdx.panel.data_sources.DataSource`
-    #         Data source object
-    #     """
-    #
-    #     try:  # update existing source
-    #         src = self.sources[name]
-    #         #todo next callback??
-    #
-    #         print('source alreayd there, which should always be the case??')
-    #         #src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds? (yes)
-    #     except KeyError:
-    #         self.sources[name] = data_source_obj
-    #
-    #     self.param.trigger('sources')
 
     def __panel__(self):
         # This does something but not as expected
@@ -132,9 +107,9 @@ class PyHDXController(MainController):
     Main controller for PyHDX web application.
 
     """
-    fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
-    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides', precedence=-1)
+
     fit_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
+    fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)  # nested dictionary: <fit name>: {state1: state2:, ...
 
     sample_name = param.String(doc='Name describing the selected protein state')
 
