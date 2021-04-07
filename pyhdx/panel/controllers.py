@@ -602,13 +602,15 @@ class InitialGuessControl(ControlPanel):
             self.parent.fit_results['half-life'] = results
             self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
 
-            dfs = [result.output for result in results.values()]
+            dfs = [result.output.df for result in results.values()]
+            # Resulting df has Int64Index as index with name 'r_number'
             combined_results = pd.concat(dfs, axis=1,
                                          keys=list(results.keys()),
                                          names=['state', 'quantity'])
 
-            # todo this is one level to shallow and will go wrong when users do first half life fit then fit1
-            self.sources['dataframe'].add_df(combined_results, 'rates')
+            self.sources['dataframe'].tables['half-life'] = combined_results
+            self.sources['dataframe'].updated = True
+
             self.param['do_fit1'].constant = False
         else:
 
