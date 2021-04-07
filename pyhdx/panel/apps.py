@@ -40,17 +40,21 @@ def main_app():
     # ---------------------------------------------------------------------- #
 
     col_index = pd.MultiIndex.from_tuples([], names=('state', 'quantity'))
-    df1 = pd.DataFrame(columns=col_index)
-    df2 = pd.DataFrame(columns=col_index)
+    df_peptides = pd.DataFrame(columns=col_index)
 
-    tables = {'peptides': df1, 'rates': df2}
+    col_index = pd.MultiIndex.from_tuples([], names=('fit ID', 'state', 'quantity'))
+    row_index = pd.RangeIndex(0, 1, name='r_number')
+    df_rates = pd.DataFrame(columns=col_index, index=row_index)
+    # todo make sure that proper-shaped df is used to initiate stream (and generalize for rectangles plot)
+
+
+    tables = {'peptides': df_peptides, 'rates': df_rates}
     source = DataFrameSource(tables=tables, name='dataframe')
 
     df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
     #source.add_df(df, 'peptides', 'ecSecB_apo')
 
     src_list = [source]
-    sources = {src.name: src for src in src_list}
 
     # ---------------------------------------------------------------------- #
     #                                TRANSFORMS
