@@ -372,7 +372,8 @@ class PeptideFileInputControl(ControlPanel):
             states = []
 
         self.param['exp_state'].objects = states
-        self.exp_state = states[0] if not self.exp_state else self.exp_state
+        if states:
+            self.exp_state = states[0] if not self.exp_state else self.exp_state
 
     @param.depends('exp_state', watch=True)
     def _update_exp_exposure(self):
@@ -386,7 +387,7 @@ class PeptideFileInputControl(ControlPanel):
         self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
         #
-        if not self.c_term:
+        if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries['end']))
 
     def _datasets_updated(self, events):
