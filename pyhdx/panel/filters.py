@@ -48,9 +48,7 @@ class WebAppFilter(Filter):
 
 class WebAppWidgetFilter(WebAppFilter):
 
-    #options = param.List(default=[], doc="""Unique values in specified field to filter""")
-
-    empty_select = param.Boolean(default=True)
+    empty_select = param.Boolean(default=True)  # currently unused param
 
     value = param.Selector()
 
