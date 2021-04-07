@@ -43,6 +43,7 @@ class DataFrameSource(Source):
         #todo atm only nlevels = 2 target supported, generalize
 
         target_df = self.tables[table]
+        df = df.copy()
         if target_df.columns.nlevels != df.columns.nlevels:
             if name is None:
                 raise ValueError('When the added DataFrame is not multiindex a name needs to be given')
