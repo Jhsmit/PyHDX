@@ -107,9 +107,9 @@ class MultiIndexSelectFilter(WebAppWidgetFilter):
 
     Can be chained together to select through multiple levels of dataframes
 
-    filter1 = MultiIndexSelectFilter(source=source, table='my_table')
-    filter2 = MultiIndexSelectFilter(source=source, table='my_table', filters=[filter1])
-    filter3 = MultiIndexSelectFilter(source=source, table='my_table', filters=[filter1, filter2])
+    filter1 = MultiIndexSelectFilter(source=source, table='my_table', field='name_top_level_indices')
+    filter2 = MultiIndexSelectFilter(source=source, table='my_table', field='name_second_level_indices' filters=[filter1])
+    filter3 = MultiIndexSelectFilter(source=source, table='my_table', field='name_third_level_indices', filters=[filter1, filter2])
 
     and SomeView(... filters=[filter1, filter2, filter3]
 
