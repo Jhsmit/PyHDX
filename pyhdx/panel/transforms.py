@@ -49,6 +49,51 @@ class RescaleTransform(Transform):
         return table
 
 
+class ResetIndexTransform(Transform):
+
+    level = param.ClassSelector(class_=(int, list, str), doc="""
+        Only remove the given levels from the index. Removes all levels by default.""")
+
+    drop = param.Boolean(default=False, doc="""
+        Do not try to insert index into dataframe columns. This resets the index to the default integer index.""")
+
+    col_level = param.ClassSelector(default=0, class_=(int, str), doc="""
+        If the columns have multiple levels, determines which level the labels are inserted into. By default it is 
+        inserted into the first level.""")
+
+    col_fill = param.Parameter(default='', doc="""If the columns have multiple levels, determines how the other 
+        levels are named. If None then the index name is repeated.""")
+
+    transform_type = 'reset_index'
+
+    def apply(self, table):
+        return table.reset_index(level=self.level, drop=self.drop, col_level=self.col_level, col_fill=self.col_fill)
+
+
+class SetIndexTransform(Transform):
+
+    keys = param.Parameter(doc="""
+        This parameter can be either a single column key, a single array of the same length as the calling DataFrame, 
+        or a list containing an arbitrary combination of column keys and arrays. Here, “array” encompasses Series, 
+        Index, np.ndarray, and instances of Iterator.""") ## label or array-like or list of labels/arrays
+
+    drop = param.Boolean(default=True, doc="""
+        Delete columns to be used as the new index.""")
+
+    append = param.Boolean(default=False, doc="""
+        Whether to append column to an existing index""")
+
+    verify_integrity = param.Boolean(default=False, doc="""
+        Check the new index for duplicates. Otherwise defer the check until necessary. Setting to False will improve 
+        the performance of this method.""")
+
+    transform_type = 'set_index'
+
+    def apply(self, table):
+        return table.set_index(self.keys, drop=self.drop, append=self.append, inplace=self.inplace,
+                               verify_integrity=self.verify_integrity)
+
+
 class ApplyCmapTransform(Transform, WebAppTransform):
     """
     This transform takes data from a specified field, applies a norm and color map, and adds the resulting colors
