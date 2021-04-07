@@ -71,9 +71,15 @@ class WebAppWidgetFilter(WebAppFilter):
 
 
 class UniqueValuesFilter(WebAppWidgetFilter):
+    """
+    Selects a column from the data specified by 'fierld' and returns a select with options the unique values in this
+    column
+
+    """
 
     filter_type = 'unique_values'
     #_widget = pn.widgets.DiscreteSlider  #todo change back to DiscreteSlider, deal with initial value
+    # see perhaps: https://github.com/holoviz/panel/pull/1837 ?
     _widget = pn.widgets.Select
 
     def __init__(self, **params):
@@ -95,7 +101,22 @@ class UniqueValuesFilter(WebAppWidgetFilter):
         self.updated = True
 
 
-class SelectFilter(WebAppWidgetFilter):
+class MultiIndexSelectFilter(WebAppWidgetFilter):
+    """
+    Select sub-dataframes from column-multiindex dataframes by their top-level index
+
+    Can be chained together to select through multiple levels of dataframes
+
+    filter1 = MultiIndexSelectFilter(source=source, table='my_table')
+    filter2 = MultiIndexSelectFilter(source=source, table='my_table', filters=[filter1])
+    filter3 = MultiIndexSelectFilter(source=source, table='my_table', filters=[filter1, filter2])
+
+    and SomeView(... filters=[filter1, filter2, filter3]
+
+    #todo Make stacked filter into a single class
+
+
+    """
     #todo subclass with uniquevaluesfilter
     # only create update param connection with source
     # needs some kind of method that returns the df its supposed to filter on (resolving stacked filters)
