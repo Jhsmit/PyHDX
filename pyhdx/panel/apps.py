@@ -109,6 +109,8 @@ def main_app():
                                   transforms=[peptides_transform],
                                   filters=[multiindex_select_filter, slider_exposure_filter])
 
+    view_list = [coverage]
+
     multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_rates', table='rates',
                                                        source=source)
 
@@ -124,7 +126,8 @@ def main_app():
                           filters=[multiindex_select_rates_1, multiindex_select_rates_2]
                            )
 
-    view_list = [coverage, rates]
+
+    #view_list.append(rates)
 
     sources = {src.name: src for src in src_list}
     transforms = {trs.name: trs for trs in trs_list}
@@ -165,7 +168,7 @@ def main_app():
     elvis.compose(ctrl, elvis.column(
         #elvis.view(ctrl.views['hvplot']),
         elvis.view(ctrl.views['coverage']),
-        elvis.view(ctrl.views['rates']),
+       # elvis.view(ctrl.views['rates']),
 
     )
 
