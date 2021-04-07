@@ -580,7 +580,8 @@ class InitialGuessControl(ControlPanel):
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(results.keys()),
                                      names=['state', 'quantity'])
-        self.sources['dataframe'].add_df(combined_results, 'rates')
+
+
 
         self.param['do_fit1'].constant = False
         self.pbar1.reset()
