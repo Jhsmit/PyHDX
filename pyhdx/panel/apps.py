@@ -68,23 +68,23 @@ def main_app():
 
     peptides_transform = PeptideLayoutTransform(value='scores')
 
-    trs_list = [peptides_transform]
-    transforms = {trs.name: trs for trs in trs_list}
+    reset_index_transform = ResetIndexTransform()
+
+    trs_list = [peptides_transform, reset_index_transform]
 
     # ---------------------------------------------------------------------- #
     #                                FILTERS
     # ---------------------------------------------------------------------- #
 
     #unique_vals = list(np.sort(peptides_source.get_unique(table='peptides', field='exposure')))
-    multiindex_select_filter = SelectFilter(field='state', name='select_index', table='peptides',
-                                            source=source)
+    multiindex_select_filter = MultiIndexSelectFilter(field='state', name='select_index', table='peptides',
+                                                      source=source)
 
-    # unique_vals = list(np.sort(source.get_unique(table='peptides', field='exposure', state='ecSecB_apo')))
+     # unique_vals = list(np.sort(source.get_unique(table='peptides', field='exposure', state='ecSecB_apo')))
     slider_exposure_filter = UniqueValuesFilter(field='exposure', name='exposure_slider',
                                                 table='peptides', filters=[multiindex_select_filter], source=source)
 
     filter_list = [multiindex_select_filter, slider_exposure_filter]
-    filters = {filt.name: filt for filt in filter_list}
 
     # ---------------------------------------------------------------------- #
     #                                OPTS
