@@ -13,3 +13,5 @@ torch
 param
 pandas
 hdxrate>=0.2.0
+lumen
+holoviews
