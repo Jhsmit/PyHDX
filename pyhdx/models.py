@@ -50,10 +50,14 @@ class Protein(object):
             self.df.set_index(index, inplace=True)
         elif isinstance(data, pd.DataFrame):
             self.df = data.copy()
-            if not isinstance(self.df.index, pd.Int64Index):
-                raise ValueError(f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be {pd.Int64Index}")
+            if not self.df.index.is_integer():
+                raise ValueError(f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be integer index")
 
-        self.df.sort_index(inplace=True)
+        if not self.df.index.is_unique:
+            raise ValueError("Protein dataframe indices must be unique")
+
+        new_index = pd.RangeIndex(start=self.df.index.min(), stop=self.df.index.max() + 1, name='r_number')
+        self.df = self.df.reindex(new_index)
 
     def __str__(self):
         s = self.df.__str__()
