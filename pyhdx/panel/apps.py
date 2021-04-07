@@ -109,8 +109,29 @@ def main_app():
                                   transforms=[peptides_transform],
                                   filters=[multiindex_select_filter, slider_exposure_filter])
 
-    view_list = [coverage]
+    multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_rates', table='rates',
+                                                       source=source)
+
+    multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates', table='rates',
+                                                       source=source, filters=[multiindex_select_rates_1])
+
+    filter_list += [multiindex_select_rates_1, multiindex_select_rates_2]
+
+    # perhaps consider derivedsource for the views
+    rates = hvPlotAppView(source=source, name='rates', x='r_number', y='rate', kind='scatter', c='color',
+                           table='rates', streaming=True, responsive=True,
+                          transforms=[reset_index_transform],
+                          filters=[multiindex_select_rates_1, multiindex_select_rates_2]
+                           )
+
+    view_list = [coverage, rates]
+
+    sources = {src.name: src for src in src_list}
+    transforms = {trs.name: trs for trs in trs_list}
+    filters = {filt.name: filt for filt in filter_list}
     views = {view.name: view for view in view_list}
+
+
 
 
     control_panels = [
@@ -143,7 +164,9 @@ def main_app():
 
     elvis.compose(ctrl, elvis.column(
         #elvis.view(ctrl.views['hvplot']),
-        elvis.view(ctrl.views['coverage'])
+        elvis.view(ctrl.views['coverage']),
+        elvis.view(ctrl.views['rates']),
+
     )
 
                   )
