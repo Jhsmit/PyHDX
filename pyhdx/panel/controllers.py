@@ -448,7 +448,7 @@ class InitialGuessControl(ControlPanel):
                            constant=True)
 
     def __init__(self, parent, **params):
-        self.pbar1 = ASyncProgressBar()
+        self.pbar1 = ASyncProgressBar()  #tqdm? https://github.com/holoviz/panel/pull/2079
         self.pbar2 = ASyncProgressBar()
         super(InitialGuessControl, self).__init__(parent, **params)
         self.parent.param.watch(self._parent_datasets_updated, ['fit_objects'])  #todo refactor
