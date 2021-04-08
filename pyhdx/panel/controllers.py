@@ -280,7 +280,12 @@ class PeptideFileInputControl(ControlPanel):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
 
         if self._array is None:
+            self.parent.logger.info("No data loaded")
             return
+        elif self.dataset_name in self.dataset_list:
+            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+            return
+
 
         peptides = PeptideMasterTable(self._array, d_percentage=self.d_percentage,
                                       drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
