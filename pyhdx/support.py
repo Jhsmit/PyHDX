@@ -253,6 +253,10 @@ def try_wrap(start, end, wrap, margin=4):
     """
     assert len(start) == len(end), "Unequal length of 'start' and 'end' vectors"
 
+    offset = np.min(start)
+    start = np.array(start) - offset
+    end = np.array(end) - offset
+
     x = np.zeros((wrap, len(start) + margin))
     wrap_gen = itertools.cycle(range(wrap))
     for i, s, e in zip(wrap_gen, start, end):
@@ -281,9 +285,10 @@ def autowrap(start, end, margin=4, step=5):
     assert len(start) == len(end), "Unequal length of 'start' and 'end' vectors"
 
     wrap = step
-    while not try_wrap(start, end, wrap, margin=margin):
+    while True:
+        wraps = try_wrap(start, end, wrap, margin=margin)
         wrap += step
-        if wrap > len(start):
+        if wraps or wrap > len(start):
             break
     return wrap
 
