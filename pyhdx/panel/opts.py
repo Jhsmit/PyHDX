@@ -29,7 +29,7 @@ class Opts(param.Parameterized):
 
 class CmapOpts(Opts):
 
-    cmap = param.ObjectSelector(default='viridis', objects=['viridis', 'plasma', 'magma'], label='Color map')
+    cmap = param.ObjectSelector(default='jet', objects=['viridis', 'plasma', 'magma', 'jet'], label='Color map')
 
 
 if __name__ == '__main__':
