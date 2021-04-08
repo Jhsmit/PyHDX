@@ -243,6 +243,7 @@ class PeptideFileInputControl(ControlPanel):
     n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
                                   'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
     sequence = param.String('', doc='Optional FASTA protein sequence')
+    dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
     dataset_list = param.ListSelector(label='Datasets', doc='Lists available datasets')
@@ -295,14 +296,14 @@ class PeptideFileInputControl(ControlPanel):
 
         series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
         kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
-        self.parent.fit_objects[series.state] = kf
+        self.parent.fit_objects[self.dataset_name] = kf
         self.parent.param.trigger('fit_objects')  # Trigger update
 
         df = pd.DataFrame(series.full_data)
         target_source = self.parent.sources['dataframe']
-        target_source.add_df(df, 'peptides', series.state)
+        target_source.add_df(df, 'peptides', self.dataset_name)
 
-        self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
+        self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
         self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
                                 f'Redundancy: {series.coverage.redundancy:.2}')
@@ -386,7 +387,10 @@ class PeptideFileInputControl(ControlPanel):
 
         self.param['exp_exposures'].objects = exposures
         self.exp_exposures = exposures
-        #
+
+        if not self.dataset_name or self.dataset_name in self.param['exp_state'].objects:
+            self.dataset_name = self.exp_state
+
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries['end']))
 
