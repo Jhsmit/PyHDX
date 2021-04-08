@@ -366,7 +366,7 @@ class PeptideFileInputControl(ControlPanel):
             control_data = self._array[control_bools]
             other_data = self._array[~control_bools]
 
-            intersection = array_intersection([control_data, other_data], fields=['start', 'end', 'exposure'])
+            intersection = array_intersection([control_data, other_data], fields=['start', 'end'])  # sequence?
             states = list(np.unique(intersection[1]['state']))
         else:
             states = []
