@@ -47,8 +47,12 @@ def main_app():
     df_rates = pd.DataFrame(columns=col_index, index=row_index)
     # todo make sure that proper-shaped df is used to initiate stream (and generalize for rectangles plot)
 
+    col_index = pd.MultiIndex.from_tuples([], names=('fit ID', 'state', 'quantity'))
+    row_index = pd.RangeIndex(0, 1, name='r_number')
+    df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
 
-    tables = {'peptides': df_peptides, 'rates': df_rates}
+
+    tables = {'peptides': df_peptides, 'rates': df_rates, 'global_fit': df_global_fit}
     source = DataFrameSource(tables=tables, name='dataframe')
 
     df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
