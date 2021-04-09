@@ -1532,7 +1532,7 @@ class ProteinViewControl(ControlPanel):
     accepted_tags = ['mapping']
 
     target_dataset = param.Selector(doc='Name of the dataset to apply coloring from')
-    input_option = param.Selector(default='RCSB PDB', objects=['RCSB PDB'],
+    input_option = param.Selector(default='RCSB PDB', objects=['RCSB PDB', 'Upload File'],
                                   doc='Choose wheter to upload .pdb file or directly download from RCSB PDB.')
     rcsb_id = param.String(doc='RCSB PDB identifier of protein entry to download and visualize.')
     #load_structure = param.Action(lambda self: self._load_structure())
