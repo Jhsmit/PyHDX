@@ -90,7 +90,8 @@ def main_app():
     #                                OPTS
     # ---------------------------------------------------------------------- #
 
-    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 100), 'framewise': True}
+    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 100), 'framewise': True,
+                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0}
     cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
 
     opts_list = [cmap_opts]
@@ -100,34 +101,52 @@ def main_app():
     #                                VIEWS
     # ---------------------------------------------------------------------- #
 
-    # deltaG = hvPlotAppView(source=fit_source, x='r_number', y='deltaG', kind='scatter', name='hvplot', c='color',
-    #                        table='torch_fit', transforms=[rescale_transform, cmap_transform], streaming=True,
-    #                        responsive=True) #issue 154: deltaG units
+    view_list = []
+
+    rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
+
+    cmap = mpl.cm.get_cmap('viridis')
+    norm = mpl.colors.Normalize(vmin=0, vmax=20)
+    cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
+
+    trs_list.append(rescale_transform)
+    trs_list.append(cmap_transform)
+
+    deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
+                           table='global_fit', transforms=[rescale_transform, cmap_transform], streaming=True,
+                           responsive=True) #issue 154: deltaG units
+
+
+    #view_list.append(deltaG)
 
     coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
                                   streaming=True,
                                   transforms=[peptides_transform],
                                   filters=[multiindex_select_filter, slider_exposure_filter])
+    view_list.append(coverage)
 
-    view_list = [coverage]
 
-    multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_rates', table='rates',
+
+    multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_rates_lv1', table='rates',
                                                        source=source)
 
-    multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates', table='rates',
+    multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates_lv2', table='rates',
                                                        source=source, filters=[multiindex_select_rates_1])
 
     filter_list += [multiindex_select_rates_1, multiindex_select_rates_2]
 
     # perhaps consider derivedsource for the views
-    rates = hvPlotAppView(source=source, name='rates', x='r_number', y='rate', kind='scatter', c='color',
-                           table='rates', streaming=True, responsive=True,
+
+
+    opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)"}
+    rates = hvPlotAppView(source=source, name='rates', x='r_number', y='rate', kind='scatter', # c='color'
+                           table='rates', streaming=True, responsive=True, opts=opts,
                           transforms=[reset_index_transform],
                           filters=[multiindex_select_rates_1, multiindex_select_rates_2]
                            )
 
 
-    #view_list.append(rates)
+    view_list.append(rates)
 
     sources = {src.name: src for src in src_list}
     transforms = {trs.name: trs for trs in trs_list}
