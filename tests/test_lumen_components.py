@@ -2,6 +2,7 @@ from pathlib import Path
 from pyhdx.fileIO import read_dynamx
 from pyhdx.models import PeptideMasterTable
 import pandas as pd
+import numpy as np
 
 
 from pyhdx.panel.data_sources import DataFrameSource
