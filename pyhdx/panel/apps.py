@@ -102,7 +102,7 @@ def main_app():
 
     # deltaG = hvPlotAppView(source=fit_source, x='r_number', y='deltaG', kind='scatter', name='hvplot', c='color',
     #                        table='torch_fit', transforms=[rescale_transform, cmap_transform], streaming=True,
-    #                        responsive=True)
+    #                        responsive=True) #issue 154: deltaG units
 
     coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
                                   streaming=True,
