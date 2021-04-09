@@ -25,6 +25,8 @@ st2 = states['SecB WT apo']
 df1 = pd.DataFrame(st1.full_data)
 df2 = pd.DataFrame(st2.full_data)
 
+rates_df = pd.read_csv(data_dir / 'ecSecB_rates.txt', index_col=0, header=[0, 1])
+
 
 class TestLumenSources(object):
     @classmethod
@@ -32,6 +34,50 @@ class TestLumenSources(object):
         cls.df1 = df1
         cls.df2 = df2
 
+    def test_adding_dataframes(self):
+        col_index = pd.MultiIndex.from_tuples([], names=('fit ID', 'state', 'quantity'))
+        row_index = pd.RangeIndex(0, 1, name='r_number')
+        df_rates = pd.DataFrame(columns=col_index, index=row_index)
+
+        tables = {'rates': df_rates}  # rates is nlevels == 3 dataframe
+        source = DataFrameSource(tables=tables, name='dataframe')
+
+
+        source.add_df(rates_df, 'rates', 'rates_fit')
+        output_df = source.get('rates')
+
+        assert output_df.size == 294
+        level_1 = output_df.columns.levels[1]
+        assert level_1.name == 'state'
+        assert 'SecB WT apo' in level_1
+        assert 'SecB his dimer apo' in level_1
+
+
+        # Add nlvels == 1 dataframe
+        df = pd.DataFrame({'rate': np.random.rand(100)})
+        df.columns.nlevels
+
+        names = ['top_index', 'secb monomer']
+        source.add_df(df, 'rates', names)
+        output_df = source.get('rates')
+
+        assert output_df.size == 468
+
+        level_1 = output_df.columns.levels[1]
+        assert level_1.name == 'state'
+        assert 'secb monomer' in level_1
+
+        level_0 = output_df.columns.levels[0]
+        assert level_0.name == 'fit ID'
+        assert 'top_index' in level_0
+
+
+
+        #
+        #
+        # level
+        #
+        # print(self.df1.n)
 
 class TestLumenFilters(object):
 

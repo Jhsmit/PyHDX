@@ -27,7 +27,7 @@ class DataFrameSource(Source):
         # else:
         #     raise ValueError("Currently column multiindex beyond two levels is not supported")
 
-    def add_df(self, df, table, name=None):
+    def add_df(self, df, table, names=None):
         """
         #Todo method for adding a table to multindex source
 
@@ -40,22 +40,24 @@ class DataFrameSource(Source):
 
         """
 
-        #todo atm only nlevels = 2 target supported, generalize
-
         target_df = self.tables[table]
         df = df.copy()
         if target_df.columns.nlevels != df.columns.nlevels:
-            if name is None:
-                raise ValueError('When the added DataFrame is not multiindex a name needs to be given')
-            new_index = pd.MultiIndex.from_product([[name], df.columns], names=target_df.columns.names)
+            if isinstance(names, str):
+                names = [names]
+            if len(names) != target_df.columns.nlevels - df.columns.nlevels:
+                raise ValueError(f"Insufficient names provided to match target dataframe multindex level {df.columns.nlevels}")
+
+            own_names = [list(df.columns)] if df.columns.nlevels == 1 else list(df.columns.levels)
+            prod = [[name] for name in names] + own_names
+
+            new_index = pd.MultiIndex.from_product(prod, names=target_df.columns.names)
             df.columns = new_index
 
         new_df = pd.concat([target_df, df], axis=1)
 
         self.tables[table] = new_df
-
-        #todo check for clashes between higher level and lower level column names
-        # pd.concat([df1, df4.reindex(df1.index)], axis=1)
+        #todo check for row indices
 
         self.updated = True
 
