@@ -193,7 +193,6 @@ class TestFileInputControl(ControlPanel):
         }
 
         self.update_box()
-        print('layout in init', self._layout)
 
     def make_dict(self):
         return self.generate_widgets(input_file=pn.widgets.FileInput(accept='.csv,.txt'))
@@ -249,14 +248,20 @@ class PeptideFileInputControl(ControlPanel):
     dataset_list = param.ListSelector(label='Datasets', doc='Lists available datasets')
 
     def __init__(self, parent, **params):
+
+
         super(PeptideFileInputControl, self).__init__(parent, **params)
         self.parent.param.watch(self._datasets_updated, ['fit_objects'])
 
-        widgets = [name for name in self.widgets.keys() if name not in ['be_percent']]
-        self._layout = {'self': widgets}
+        excluded = ['be_percent']
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
         self._array = None  # Numpy array with raw input data
+
+    @property
+    def _layout(self):
+        return {'self': self.own_widget_names}
 
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(name='Sequence (optional)', placeholder='Enter sequence in FASTA format', max_length=10000,
@@ -320,8 +325,8 @@ class PeptideFileInputControl(ControlPanel):
         elif self.be_mode == 'Flat percentage':
             excluded = ['fd_state', 'fd_exposure']
 
-        widgets = [name for name in self.widgets.keys() if name not in excluded]
-        self._layout = {'self': widgets}
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        #self._layout = {'self': widgets}
         self.update_box()
 
     @param.depends('input_files', watch=True)
@@ -405,7 +410,6 @@ class PeptideFileInputControl(ControlPanel):
 
     def _action_remove_datasets(self):
         for name in self.dataset_list:
-            print(name)
             self.parent.datasets.pop(name)
 
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param

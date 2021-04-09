@@ -175,13 +175,16 @@ class ControlPanel(PanelBase):
 
     def __init__(self, parent, **params):
         self.parent = parent
-        self._layout = None  # List with dictionary layout
+        #self._layout = None  # List with dictionary layout
 
         super(ControlPanel, self).__init__(**params)
 
         self.widgets = self.make_dict()  # atm on some objects this is a list, others dict
         self._box = self.make_box()  # _panel equivalent
 
+    @property
+    def _layout(self):
+        return None
 
     @property
     def sources(self):
@@ -231,8 +234,10 @@ class ControlPanel(PanelBase):
 
         """
 
-
-        print(self._layout)
+        try:
+            self._layout
+        except AttributeError:
+            return list(self.widgets.values())
 
         if self._layout is None:
             return list(self.widgets.values())
