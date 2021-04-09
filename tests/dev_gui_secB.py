@@ -35,6 +35,9 @@ file_input.exp_state = 'SecB his dimer apo'
 file_input._action_add_dataset()
 
 
+initial_guess = ctrl.control_panels['InitialGuessControl']
+initial_guess._action_fit()
+
 
 
 
