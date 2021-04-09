@@ -419,20 +419,22 @@ class CoverageControl(ControlPanel):
     def __init__(self, parent, **params):
         super().__init__(parent, **params)
 
-        self._layout = {
+
+
+        self.update_box()
+
+    @property
+    def _layout(self):
+        return  {
             'filters.select_index': None,
             'filters.exposure_slider': None,
             'self': None
         }
 
-        self.update_box()
-
     def _action_new_data(self):
         df = csv_to_dataframe(r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_apo_peptides.csv')
 
-        print(len(df))
         reduced_df = df.query('exposure < 50')
-        print(len(reduced_df))
 
         source = self.sources['dataframe']
 
@@ -462,9 +464,19 @@ class InitialGuessControl(ControlPanel):
         self.parent.param.watch(self._parent_datasets_updated, ['fit_objects'])  #todo refactor
 
         excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
-        widgets = [name for name in self.widgets.keys() if name not in excluded]
-        self._layout = {'self': widgets}
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        # self._layout = {'self': widgets,
+        #                 'filters.select_index_rates_lv1': None,
+        #                 'filters.select_index_rates_lv2': None,
+        #                 }
         self.update_box()
+
+    @property
+    def _layout(self):
+        return {'self': self.own_widget_names,
+                'filters.select_index_rates_lv1': None,
+                'filters.select_index_rates_lv2': None,
+                        }
 
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
@@ -487,8 +499,7 @@ class InitialGuessControl(ControlPanel):
         elif self.fitting_model in ['Association', 'Dissociation']:
             excluded = []
 
-        widgets = [name for name in self.widgets.keys() if name not in excluded]
-        print('widgets in updated', widgets)
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self._layout = {'self': widgets}
 
         self.update_box()
@@ -588,8 +599,6 @@ class InitialGuessControl(ControlPanel):
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(results.keys()),
                                      names=['state', 'quantity'])
-
-
 
         self.param['do_fit1'].constant = False
         self.pbar1.reset()
