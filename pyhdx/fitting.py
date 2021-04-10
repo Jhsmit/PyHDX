@@ -631,6 +631,8 @@ class KineticsFitting(object):
     def __init__(self, series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
         self.series = series
         self.bounds = bounds or self._get_bounds()
+
+        #todo temperature, pH, c_term from series?
         self.temperature = temperature
         self.pH = pH
         self.c_term = c_term
