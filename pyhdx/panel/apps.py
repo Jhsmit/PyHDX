@@ -152,7 +152,7 @@ def main_app():
     filter_list += [multiindex_select_rates_1, multiindex_select_rates_2]
     # perhaps consider derivedsource for the views
 
-    opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)"}
+    opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)", **global_opts}
     rates = hvPlotAppView(source=source, name='rates', x='r_number', y='rate', kind='scatter', # c='color'
                            table='rates', streaming=True, responsive=True, opts=opts,
                           transforms=[reset_index_transform],
