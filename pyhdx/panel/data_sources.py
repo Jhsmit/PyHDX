@@ -15,6 +15,8 @@ class DataFrameSource(Source):
     tables = param.Dict({}, doc="Dictionary of tables in this Source")
 
     updated = param.Event()
+
+    dropna = param.Boolean(True, doc='Remove rows of all NaN when adding / selecting / removing  dataframes')
     # def __init__(self, **params):
     #     pass
         # super().__init__(**params)
@@ -26,6 +28,11 @@ class DataFrameSource(Source):
         #     self.tables = [] # todo populate tables for multiindex
         # else:
         #     raise ValueError("Currently column multiindex beyond two levels is not supported")
+
+    def remove_df(self, table, name, level):
+        raise NotImplementedError('Removing datafarmes not implemented')
+
+        self.updated = True
 
     def add_df(self, df, table, names=None):
         """
@@ -39,6 +46,8 @@ class DataFrameSource(Source):
         -------
 
         """
+
+        # todo check if df already present, update?
 
         target_df = self.tables[table]
         df = df.copy()
@@ -55,6 +64,8 @@ class DataFrameSource(Source):
             df.columns = new_index
 
         new_df = pd.concat([target_df, df], axis=1)
+        if self.dropna:
+            new_df = new_df.dropna(how='all')
 
         self.tables[table] = new_df
         #todo check for row indices
@@ -69,7 +80,8 @@ class DataFrameSource(Source):
             selected_col = query.pop(df.columns.names[0], False)
             if selected_col:
                 df = df[selected_col]
-                # df = df.dropna(how='all')  These subsets will have padded NaN rows. Remove?
+                if self.dropna:
+                    df = df.dropna(how='all')  # These subsets will have padded NaN rows. Remove?
             else:
                 break
 
