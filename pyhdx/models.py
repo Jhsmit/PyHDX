@@ -677,6 +677,13 @@ class KineticsSeries(object):
         self.coverage = Coverage(selected[0], **cov_kwargs)
 
     @property
+    def name(self):
+        try:
+            return self.metadata['name']
+        except KeyError:
+            return None
+
+    @property
     def temperature(self):
         try:
             return self.metadata['temperature']

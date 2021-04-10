@@ -56,6 +56,7 @@ def estimate_errors(kf, deltaG):
     #todo return pd series?
     return Protein({'covariance': covariance, 'r_number': r_number}, index='r_number')
 
+
 class TorchFitResult(object):
     def __init__(self, fit_object, model, **metadata):
         self.fit_object = fit_object
@@ -145,7 +146,7 @@ class TorchBatchFitResult(TorchFitResult):
 
         quantities = ['_deltaG', 'deltaG', 'covariance', 'pfact']
 
-        names = [kf.series.metadata['name'] if 'name' in kf.series.metadata else kf.series.state for kf in self.fit_object.states]
+        names = [kf.series.name or kf.series.state for kf in self.fit_object.states]
 
         iterables = [names, quantities]
         col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
