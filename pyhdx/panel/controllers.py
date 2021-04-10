@@ -777,24 +777,14 @@ class FitControl(ControlPanel):
         if self.batch_fit:
             fit_object = self.get_batch_fit_object()
             result = fit_object.global_fit(**self.fit_kwargs)
+            names = [fit_name]
         else:
             name = next(iter(self.parent.fit_objects.keys()))  # First key in dictionary
             fit_object = self.parent.fit_objects[name]
             guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess][name]
 
             result  = fit_object.global_fit(guess_df, **self.fit_kwargs)
-
-
-        print(result.output)
-        self.parent.fit_results[fit_name] = result
-
-
-        #
-        # kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
-        # initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
-        # result = kf.global_fit(initial_result, r1=self.regularizer, lr=self.learning_rate,
-        #                        momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
-        #                        patience=self.stop_patience, stop_loss=self.stop_loss)
+            names = [fit_name, name]
 
         self.parent.logger.info('Finished PyTorch fit')
         loss = result.metadata['mse_loss']
@@ -802,13 +792,12 @@ class FitControl(ControlPanel):
         self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
                                 f"({result.regularization_percentage:.1f}%)")
 
+        self.parent.fit_results[fit_name] = result
+        self.parent.sources['dataframe'].add_df(result.output.df, 'global_fit', names=names)
+        df = self.parent.sources['dataframe'].get('global_fit')
+        print('output df')
+        print(df)
         self.parent.param.trigger('fit_results')
-
-        # data_source = self.result_to_data_source(result.output)
-        # output_name = 'global_fit'
-        # self.parent.fit_results['fr_' + output_name] = result
-        # self.parent.publish_data(output_name, data_source)
-
         self.widgets['do_fit'].loading = False
 
     def _action_fit(self):
