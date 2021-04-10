@@ -685,13 +685,13 @@ class FitControl(ControlPanel):
         super(FitControl, self).__init__(parent, **params)
 
         source = self.parent.sources['dataframe']
-        source.param.watch(self._source_updated)
+        source.param.watch(self._source_updated, ['updated'])
 
-        self.parent.param.watch(self._parent_fit_results_updated, ['fit_results'])
 
-    def _parent_fit_results_updated(self, *events):
-        possible_initial_guesses = ['half-life', 'fit1']
-        objects = [name for name in possible_initial_guesses if name in self.parent.fit_results.keys()]
+    def _source_updated(self, *events):
+        table = self.parent.sources['dataframe'].get('rates')
+
+        objects = list(table.columns.levels[0])
         if objects:
             self.param['do_fit'].constant = False
 
