@@ -571,18 +571,17 @@ class InitialGuessControl(ControlPanel):
             fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
             results[kf.series.state] = fit_result
 
-        self.parent.fit_results['fit_1'] = results  #todo refactor 'fit1' to guess
-#       self.parent.param.trigger('fit_results')
+        self.parent.fit_results['fit_1'] = results  #todo refactor 'fit1' to guess?
 
-        dfs = [result.output.df for result in results.values()]  # todo get r_number as column? or as index?
+        dfs = [result.output.df for result in results.values()]
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(results.keys()),
                                      names=['state', 'quantity'])
 
-        def add_df(source, df, table):
-            source.add_df(df, table)
+        # def add_df(source, df, table, name):
+        #     source.add_df(df, table)
 
-        callback = partial(self.sources['dataframe'], add_df, combined_results, 'rates')
+        callback = partial(self.sources['dataframe'].add_df, combined_results, 'rates', 'fit1')
         self.parent.doc.add_next_tick_callback(callback)
 
         with pn.io.unlocked():
@@ -603,6 +602,8 @@ class InitialGuessControl(ControlPanel):
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(results.keys()),
                                      names=['state', 'quantity'])
+
+        self.sources['dataframe'].add_df(combined_results, 'rates', 'fit1')  # todo names?
 
         self.param['do_fit1'].constant = False
         self.pbar1.reset()
@@ -630,6 +631,8 @@ class InitialGuessControl(ControlPanel):
             combined_results = pd.concat(dfs, axis=1,
                                          keys=list(results.keys()),
                                          names=['state', 'quantity'])
+
+            self.sources['dataframe'].add_df(combined_results, 'rates', 'half-life')  #todo names?
 
             self.sources['dataframe'].tables['half-life'] = combined_results
             self.sources['dataframe'].updated = True
