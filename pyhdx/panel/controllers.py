@@ -1113,8 +1113,6 @@ class FDCoverageControl(CoverageControl):
         return lst[:-1]
 
 
-
-
 class FoldingFitting(InitialGuessControl):
     fitting_model = param.Selector(default='Dissociation', objects=['Dissociation'],
                                    doc='Choose method for determining initial guesses.')
@@ -1495,7 +1493,6 @@ class ColoringControl(ClassificationControl):
         if colors_hex is None:  # this is the colors not between 0 and 1 bug / error
             return
 
-        print(colors_hex)
         colors_hex[colors_hex == 'nan'] = '#8c8c8c'
         colors_rgba = np.array([hex_to_rgba(h) for h in colors_hex])
 
@@ -1509,7 +1506,6 @@ class ColoringControl(ClassificationControl):
         img_source.render_kwargs['dh'] = timepoints.max()
         img_source.source.data.update(img=[img], scores=[array])
 
-        print('howdoe')
 
         #self.parent.sources[self.target].source.data['color'] = colors
 
