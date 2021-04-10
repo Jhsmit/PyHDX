@@ -121,7 +121,7 @@ def main_app():
                            responsive=True) #issue 154: deltaG units
 
 
-    #view_list.append(deltaG)
+    view_list.append(deltaG)
 
     coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
                                   streaming=True,
@@ -138,9 +138,7 @@ def main_app():
                                                        source=source, filters=[multiindex_select_rates_1])
 
     filter_list += [multiindex_select_rates_1, multiindex_select_rates_2]
-
     # perhaps consider derivedsource for the views
-
 
     opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)"}
     rates = hvPlotAppView(source=source, name='rates', x='r_number', y='rate', kind='scatter', # c='color'
@@ -164,7 +162,7 @@ def main_app():
         PeptideFileInputControl,
         CoverageControl,
         InitialGuessControl,
-        # FitControl,
+        FitControl,
         # FitResultControl,
         # ClassificationControl,
         # #FileExportControl,
@@ -172,8 +170,8 @@ def main_app():
         # OptionsControl
     ]
 
-    # if DEBUG:
-    #     control_panels.append(DeveloperControl)
+    if DEBUG:
+        control_panels.append(DeveloperControl)
 
     ctrl = PyHDXController(control_panels,
                            sources=sources,
@@ -189,12 +187,12 @@ def main_app():
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
 
     elvis.compose(ctrl, elvis.column(
-        #elvis.view(ctrl.views['hvplot']),
         elvis.view(ctrl.views['coverage']),
-       # elvis.view(ctrl.views['rates']),
-
-    )
-
+        elvis.stack(
+            elvis.view(ctrl.views['rates']),
+            elvis.view(ctrl.views['gibbs']),
+        )
+        )
                   )
 
     return ctrl
