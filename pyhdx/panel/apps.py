@@ -116,8 +116,16 @@ def main_app():
     trs_list.append(rescale_transform)
     trs_list.append(cmap_transform)
 
+    multiindex_select_global_fit_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_global_fit_lv1', table='global_fit',
+                                                       source=source)
+    multiindex_select_global_fit_2 = MultiIndexSelectFilter(field='state', name='select_index_global_fit_lv2', table='global_fit',
+                                                       source=source, filters=[multiindex_select_global_fit_1])
+
+    filter_list += [multiindex_select_global_fit_1, multiindex_select_global_fit_2]
+
     deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
                            table='global_fit', transforms=[rescale_transform, cmap_transform], streaming=True,
+                           filters = [multiindex_select_global_fit_1, multiindex_select_global_fit_2],
                            responsive=True) #issue 154: deltaG units
 
 
