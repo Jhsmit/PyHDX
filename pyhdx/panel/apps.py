@@ -33,6 +33,9 @@ cluster = '127.0.0.1:52123'
 current_dir = Path(__file__).parent
 data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 
+global_opts = {'show_grid': True}
+
+
 def main_app():
 
     # ---------------------------------------------------------------------- #
@@ -95,7 +98,7 @@ def main_app():
     # ---------------------------------------------------------------------- #
 
     additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 100), 'framewise': True,
-                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0}
+                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, **global_opts}
     cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
 
     opts_list = [cmap_opts]
@@ -123,10 +126,11 @@ def main_app():
 
     filter_list += [multiindex_select_global_fit_1, multiindex_select_global_fit_2]
 
+    opts = {'xlabel': 'Residue Number', 'ylabel': 'ΔG (kJ mol⁻¹)', **global_opts}
     deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
                            table='global_fit', transforms=[rescale_transform, cmap_transform], streaming=True,
                            filters = [multiindex_select_global_fit_1, multiindex_select_global_fit_2],
-                           responsive=True) #issue 154: deltaG units
+                           responsive=True, opts=opts) #issue 154: deltaG units
 
 
     view_list.append(deltaG)
@@ -162,6 +166,7 @@ def main_app():
     transforms = {trs.name: trs for trs in trs_list}
     filters = {filt.name: filt for filt in filter_list}
     views = {view.name: view for view in view_list}
+    opts = {opt.name: opt for opt in opts_list}
 
 
 
