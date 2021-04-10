@@ -21,11 +21,37 @@ from lumen.filters import ParamFilter
 
 class hvPlotAppView(hvPlotView):
 
-    def get_panel(self):
+    # def get_panel(self):
+    #     try:
+    #         return super().get_panel()
+    #     except ValueError:
+    #         return pn.pane.HoloViews()
+
+    def get_data(self):
+
         try:
-            return super().get_panel()
-        except ValueError:
-            return pn.pane.HoloViews()
+            data = super().get_data()
+        except (KeyError, ValueError) as e:
+            print(f'Empty data in {self.__class__}: {e}')
+            return self.empty_df
+
+        data = super().get_data()
+        print('data in get_data', data)
+
+        if data.size > 2:
+
+            return data
+        else:
+            print(f'got data but too small in  {self.__class__}, ')
+            print(data)
+            return self.empty_df
+
+    @property
+    def empty_df(self):
+        dic = {self.x: [], self.y: []}
+        if 'c' in self.kwargs:
+            dic[self.kwargs['c']] = []
+        return pd.DataFrame(dic)
 
 
 class hvRectangleAppView(View):
@@ -106,12 +132,14 @@ class hvRectangleAppView(View):
         return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
 
     def get_data(self):
+        #todo uniformify this method for all views
         try:
             return super().get_data()
         except (KeyError, ValueError) as e:
             print(f'Empty data in {self.__class__}: {e}')
-            # These plots should have a _empty_df property or something along those lines
-            return pd.DataFrame([[0]*5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
+            return self.empty_df
+
+
 
     def update(self, *events, invalidate_cache=True):
         """
@@ -147,6 +175,11 @@ class hvRectangleAppView(View):
             return upd
         self._stream.send(self.get_data())
         return False
+
+
+    @property
+    def empty_df(self):
+        return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
 
 
 class CoverageFigure(BokehFigurePanel):
