@@ -303,7 +303,7 @@ class PeptideFileInputControl(ControlPanel):
         data_states = peptides.data[peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
-        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence)
+        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence, name=self.dataset_name)
         kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
         self.parent.fit_objects[self.dataset_name] = kf
         self.parent.param.trigger('fit_objects')  # Trigger update
