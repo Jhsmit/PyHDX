@@ -671,10 +671,10 @@ class FitControl(ControlPanel):
                              doc='Use Nesterov type of momentum for SGD')
     epochs = param.Number(100000, bounds=(1, None),
                           doc='Maximum number of epochs (iterations.')
-    r1 = param.Number(0.5, bounds=(0, None),
+    r1 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (peptide axis)',
                       doc='Value of the regularizer along residue axis.')
 
-    r2 = param.Number(0.5, bounds=(0, None),
+    r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (sample axis)',
                       doc='Value of the regularizer along sample axis.')
 
     do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
