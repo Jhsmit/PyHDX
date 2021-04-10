@@ -73,13 +73,6 @@ class TestLumenSources(object):
         assert 'top_index' in level_0
 
 
-
-        #
-        #
-        # level
-        #
-        # print(self.df1.n)
-
 class TestLumenFilters(object):
 
     @classmethod
