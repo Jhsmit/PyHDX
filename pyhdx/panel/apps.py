@@ -176,6 +176,7 @@ def main_app():
         CoverageControl,
         InitialGuessControl,
         FitControl,
+        GraphControl
         # FitResultControl,
         # ClassificationControl,
         # #FileExportControl,

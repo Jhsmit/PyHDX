@@ -812,6 +812,21 @@ class FitControl(ControlPanel):
             self._do_fitting()
 
 
+class GraphControl(ControlPanel):
+    header = 'Graphs'
+
+    @property
+    def _layout(self):
+        return {
+            'filters.select_index': None,
+            'filters.exposure_slider': None,
+            'filters.select_index_rates_lv1': None,
+            'filters.select_index_rates_lv2': None,
+            'filters.select_index_global_fit_lv1': None,
+            'filters.select_index_global_fit_lv2': None,
+            'opts.cmap': None
+        }
+
 class SingleMappingFileInputControl(MappingFileInputControl):
     """
     This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
