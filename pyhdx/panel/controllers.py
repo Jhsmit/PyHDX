@@ -2,7 +2,7 @@ from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_inte
 from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.data_sources import DataSource, MultiIndexDataSource, DataFrameSource
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from pyhdx.fitting import KineticsFitting
+from pyhdx.fitting import KineticsFitting, BatchFitting
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba
 from pyhdx import VERSION_STRING
@@ -675,18 +675,19 @@ class FitControl(ControlPanel):
                       doc='Value of the regularizer along residue axis.')
 
     r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (sample axis)',
-                      doc='Value of the regularizer along sample axis.')
+                      doc='Value of the regularizer along sample axis.', constant=True)
 
     do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
                           doc='Start global fitting')
 
     def __init__(self, parent, **params):
-        self.pbar1 = ASyncProgressBar()
+        self.pbar1 = ASyncProgressBar() #tqdm?
         super(FitControl, self).__init__(parent, **params)
 
         source = self.parent.sources['dataframe']
         source.param.watch(self._source_updated, ['updated'])
 
+        #self.parent.param.watch(self._fit_objects_updated, ['fit_objects'])
 
     def _source_updated(self, *events):
         table = self.parent.sources['dataframe'].get('rates')
@@ -694,6 +695,9 @@ class FitControl(ControlPanel):
         objects = list(table.columns.levels[0])
         if objects:
             self.param['do_fit'].constant = False
+        num_samples = len(table.columns.levels[1])
+        if num_samples > 1:
+            self.param['r2'].constant = False
 
         self.param['initial_guess'].objects = objects
         if not self.initial_guess and objects:
@@ -712,6 +716,17 @@ class FitControl(ControlPanel):
                                  renderer='circle', size=10)
 
         return data_source
+
+
+    def get_batch_fit_object(self):
+        guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess]
+
+        fit_objects = self.parent.fit_objects # Dict with name: KineticsFitting object
+
+        guesses = [guess_df[name] for name in fit_objects.keys()]
+        bf = BatchFitting(list(fit_objects.values()), guesses=guesses)
+
+        return bf
 
     async def _do_fitting_async(self):
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
@@ -738,14 +753,48 @@ class FitControl(ControlPanel):
         self.parent.fit_results['fr_' + output_name] = result
         with pn.io.unlocked():
              self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
-             self.widget_dict['do_fit'].loading = False
+             self.widgets['do_fit'].loading = False
+
+    @property
+    def batch_fit(self):
+        """:obj:`bool`: True when fitting in batch (multiple samples)"""
+
+        return len(self.parent.fit_objects) > 1
+
+    @property
+    def fit_kwargs(self):
+        fit_kwargs = dict(r1=self.r1, lr=self.learning_rate,momentum=self.momentum, nesterov=self.nesterov,
+                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss)
+        if self.batch_fit:
+            fit_kwargs['r2'] = self.r2
+
+        return fit_kwargs
 
     def _do_fitting(self):
-        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
-        initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
-        result = kf.global_fit(initial_result, r1=self.regularizer, lr=self.learning_rate,
-                               momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
-                               patience=self.stop_patience, stop_loss=self.stop_loss)
+
+        fit_name = 'global_fit_1'
+
+        if self.batch_fit:
+            fit_object = self.get_batch_fit_object()
+            result = fit_object.global_fit(**self.fit_kwargs)
+        else:
+            name = next(iter(self.parent.fit_objects.keys()))  # First key in dictionary
+            fit_object = self.parent.fit_objects[name]
+            guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess][name]
+
+            result  = fit_object.global_fit(guess_df, **self.fit_kwargs)
+
+
+        print(result.output)
+        self.parent.fit_results[fit_name] = result
+
+
+        #
+        # kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
+        # initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
+        # result = kf.global_fit(initial_result, r1=self.regularizer, lr=self.learning_rate,
+        #                        momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
+        #                        patience=self.stop_patience, stop_loss=self.stop_loss)
 
         self.parent.logger.info('Finished PyTorch fit')
         loss = result.metadata['mse_loss']
@@ -755,15 +804,15 @@ class FitControl(ControlPanel):
 
         self.parent.param.trigger('fit_results')
 
-        data_source = self.result_to_data_source(result.output)
-        output_name = 'global_fit'
-        self.parent.fit_results['fr_' + output_name] = result
-        self.parent.publish_data(output_name, data_source)
+        # data_source = self.result_to_data_source(result.output)
+        # output_name = 'global_fit'
+        # self.parent.fit_results['fr_' + output_name] = result
+        # self.parent.publish_data(output_name, data_source)
 
-        self.widget_dict['do_fit'].loading = False
+        self.widgets['do_fit'].loading = False
 
     def _action_fit(self):
-        self.widget_dict['do_fit'].loading = True
+        self.widgets['do_fit'].loading = True
         self.parent.logger.debug('Start PyTorch fit')
 
         if self.parent.cluster:
