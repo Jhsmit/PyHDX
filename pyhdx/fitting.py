@@ -750,7 +750,7 @@ class KineticsFitting(object):
         return fit_result
 
     def guess_deltaG(self, guess_rates):
-        #todo make public
+        #todo do some checks on the index of supplied guess_rates
         protein = self.series.coverage.protein
         p_guess = (protein['k_int'] / guess_rates['rate']) - 1
         p_guess.clip(0., None, inplace=True)  # Some initial guesses will have negative PF values
