@@ -144,7 +144,10 @@ class TorchBatchFitResult(TorchFitResult):
         #todo directly create dataframe
 
         quantities = ['_deltaG', 'deltaG', 'covariance', 'pfact']
-        iterables = [[kf.series.state for kf in self.fit_object.states], quantities]
+
+        names = [kf.series.metadata['name'] if 'name' in kf.series.metadata else kf.series.state for kf in self.fit_object.states]
+
+        iterables = [names, quantities]
         col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
         output_data = np.zeros((self.fit_object.Nr, self.fit_object.Ns * len(quantities)))
 
