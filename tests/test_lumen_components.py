@@ -36,6 +36,7 @@ class TestLumenSources(object):
         cls.df2 = df2
 
     def test_adding_dataframes(self):
+        #todo add test with non-alphabetical ordered columns (_deltaG, deltaG, covariance)
         col_index = pd.MultiIndex.from_tuples([], names=('fit ID', 'state', 'quantity'))
         row_index = pd.RangeIndex(0, 1, name='r_number')
         df_rates = pd.DataFrame(columns=col_index, index=row_index)
