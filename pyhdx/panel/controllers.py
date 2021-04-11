@@ -813,17 +813,30 @@ class FitControl(ControlPanel):
 class GraphControl(ControlPanel):
     header = 'Graphs'
 
+    coverage = param.String('Coverage')
+    rates = param.String('Rates')
+    gibbs = param.String('Gibbs')
+
+    def make_dict(self):
+        return self.generate_widgets(coverage=pn.widgets.StaticText,
+                                     rates=pn.widgets.StaticText,
+                                     gibbs=pn.widgets.StaticText)
+
     @property
     def _layout(self):
         return {
+            'self': ['coverage'],
             'filters.select_index': None,
             'filters.exposure_slider': None,
+            'self': ['rates'],
             'filters.select_index_rates_lv1': None,
             'filters.select_index_rates_lv2': None,
+            'self': ['gibbs'],
             'filters.select_index_global_fit_lv1': None,
             'filters.select_index_global_fit_lv2': None,
             'opts.cmap': None
         }
+
 
 class SingleMappingFileInputControl(MappingFileInputControl):
     """
