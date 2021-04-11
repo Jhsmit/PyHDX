@@ -57,10 +57,12 @@ class DataFrameSource(Source):
             if len(names) != target_df.columns.nlevels - df.columns.nlevels:
                 raise ValueError(f"Insufficient names provided to match target dataframe multindex level {df.columns.nlevels}")
 
-            own_names = [list(df.columns)] if df.columns.nlevels == 1 else list(df.columns.levels)
-            prod = [[name] for name in names] + own_names
-
-            new_index = pd.MultiIndex.from_product(prod, names=target_df.columns.names)
+            if df.columns.nlevels == 1:
+                cols = ((column,) for column in df.columns)
+            else:
+                cols = df.columns
+            tuples = tuple((*names, *tup) for tup in cols)
+            new_index = pd.MultiIndex.from_tuples(tuples, names=target_df.columns.names)
             df.columns = new_index
 
         new_df = pd.concat([target_df, df], axis=1)
