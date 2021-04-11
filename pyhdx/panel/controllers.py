@@ -794,9 +794,7 @@ class FitControl(ControlPanel):
 
         self.parent.fit_results[fit_name] = result
         self.parent.sources['dataframe'].add_df(result.output.df, 'global_fit', names=names)
-        df = self.parent.sources['dataframe'].get('global_fit')
-        print('output df')
-        print(df)
+
         self.parent.param.trigger('fit_results')
         self.widgets['do_fit'].loading = False
 
