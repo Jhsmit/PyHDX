@@ -25,21 +25,27 @@ files = [p.read_bytes() for p in fpaths]
 file_input = ctrl.control_panels['PeptideFileInputControl']
 
 file_input.input_files = files
-
 file_input.fd_state = 'Full deuteration control'
 file_input.fd_exposure = 0.167
 
 file_input.exp_state = 'SecB WT apo'
-file_input._action_add_dataset()
-file_input.exp_state = 'SecB his dimer apo'
+file_input.dataset_name = 'testname_123'
 file_input._action_add_dataset()
 
+file_input.exp_state = 'SecB his dimer apo'
+file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
+file_input._action_add_dataset()
 
 initial_guess = ctrl.control_panels['InitialGuessControl']
 initial_guess._action_fit()
 
+fit_control = ctrl.control_panels['FitControl']
+fit_control.epochs = 10
+
+fit_control._do_fitting()
 
 
+#TODO: INITIAL GUESS FOR BATCH FIT IS WRONG!õneoneon
 
 #
 #
