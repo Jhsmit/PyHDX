@@ -1,6 +1,9 @@
 import os
 import configparser
 
+default_ip = '127.0.0.1'
+default_port = '52123'
+
 class ConfigurationSettings(object):
     def load_config(self):
         self.config = configparser.ConfigParser()
@@ -11,9 +14,13 @@ class ConfigurationSettings(object):
         self.load_config()
 
     def load_cluster(self):
+        if not self.config.has_section('cluster'):
+            self.update_cluster(default_ip, default_port)
         return str(self.config.get('cluster','ip'))+":"+str(self.config.get('cluster','port'))
 
     def update_cluster(self, ip, port):
+        if not self.config.has_section('cluster'):
+            self.config.add_section('cluster')
         self.config.set('cluster', 'ip', ip)
         self.config.set('cluster', 'port', port)
         self.update_config()

@@ -8,10 +8,7 @@ from pyhdx.panel.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING_SHORT
 
-
 DEBUG = True
-
-cluster = ConfigurationSettings().load_cluster()
 
 def main_app():
     control_panels = [
@@ -41,7 +38,7 @@ def main_app():
     ]
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-    ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
+    ctrl = PyHDXController(control_panels, figure_panels, cluster=fetch_cluster())
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
     elvis.compose(ctrl,
                   elvis.column(
@@ -83,7 +80,7 @@ def single_app():
     ]
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-    ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
+    ctrl = ComparisonController(control_panels, figure_panels, cluster=fetch_cluster())
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
     elvis.compose(ctrl,
                   elvis.column(
@@ -125,7 +122,7 @@ def diff_app():
     ]
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-    ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
+    ctrl = ComparisonController(control_panels, figure_panels, cluster=fetch_cluster())
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
     elvis.compose(ctrl,
                   elvis.column(
@@ -170,7 +167,7 @@ def folding_app():
     ]
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-    ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
+    ctrl = PyHDXController(control_panels, figure_panels, cluster=fetch_cluster())
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
     elvis.compose(ctrl,
                   elvis.column(
@@ -209,7 +206,7 @@ def full_deuteration_app():
     ]
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-    ctrl = PyHDXController(control_panels, figure_panels, cluster=cluster)
+    ctrl = PyHDXController(control_panels, figure_panels, cluster=fetch_cluster())
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
     elvis.compose(ctrl,
                   elvis.column(
@@ -237,7 +234,7 @@ def color_matrix_app():
     ]
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme, title=VERSION_STRING_SHORT)
-    ctrl = ComparisonController(control_panels, figure_panels, cluster=cluster)
+    ctrl = ComparisonController(control_panels, figure_panels, cluster=fetch_cluster())
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
     elvis.compose(ctrl,
                   elvis.column(
@@ -254,6 +251,9 @@ def color_matrix_app():
 
     return ctrl
 
+
+def fetch_cluster():
+    return ConfigurationSettings().load_cluster()
 
 if __name__ == '__main__':
     ctrl = folding_app()
