@@ -18,8 +18,16 @@ setup_requirements = ['pytest-runner', ]
 test_requirements = ['pytest', ]
 
 #setup_requires=['pbr>1.9', 'setuptools>17.1'],
-setup(pbr=True)
+setup(pbr=True,
+name="pyhdx",
+packages=["pyhdx"],
+entry_points={
+         "console_scripts": [
+             "pyhdx = cli:main",
 
+         ],
+     }
+)
 # setup(
 #     author="Jochem Smit",
 #     author_email='jhsmit@gmail.com',
