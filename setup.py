@@ -23,7 +23,7 @@ name="pyhdx",
 packages=["pyhdx"],
 entry_points={
          "console_scripts": [
-             "pyhdx = cli:main",
+             "pyhdx = pyhdx.cli:main",
 
          ],
      }
