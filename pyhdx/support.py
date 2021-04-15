@@ -298,6 +298,7 @@ def rgb_to_hex(rgb_a):
         try:
             rgba_array = np.array([[b, g, r, 0] for r, g, b, a in rgb_a], dtype=np.uint8)
         except ValueError:
+            # todo this only works with lists of list and gives to wrong result? tests needed
             rgba_array = np.array([[b, g, r, 0] for r, g, b in rgb_a], dtype=np.uint8)
 
     elif isinstance(rgb_a, np.ndarray):
