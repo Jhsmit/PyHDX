@@ -68,7 +68,7 @@ def align_dataframes(dataframes, alignment):
         r_number[align_array == '-'] = np.nan
         index = pd.Index(r_number, name='r_number')
 
-        result = df.reindex(index, fill_value=pd.NA).reset_index().astype({'r_number': 'Int32'})
+        result = df.reindex(index).reset_index().astype({'r_number': 'Int32'})
         dfs.append(result)
 
     keys = alignment.keys() if isinstance(alignment, dict) else None
