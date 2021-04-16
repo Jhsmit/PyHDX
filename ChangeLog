@@ -1,0 +1,948 @@
+CHANGES
+=======
+
+* moving cli to pyhdx
+* removed unused file, fixes #192
+* added docstrings
+* using pathlib in configurations.py
+* some error handling
+* console script for running pyhdx
+* Added functions for aligning pandas dataframes
+* revert protein input removal of pdf file
+* template as attribute on controller, title updates with sample chosen
+* remove timing test benchmark
+* fixed setting values by otsu thding by disabling bounds
+* py36 fix asyncio
+* refactor 'cov' to 'coverage', fixes #172
+* seek StringIO object to 0 in try/except, fixes test
+* disable pdb upload
+* async global fit from web app
+* Added global pytorch fit async via Dask
+* removed deprecated getitem
+* reload txt or csv files into diff / single
+* batch processing updated to be compatible with csv files
+* fixed fitting test
+* looks like another walrus snuck into the code
+* fix covariance (needs check)
+* removed walrus
+* fixed test to work with csv files
+* switch to csv files
+* removed pickles
+* generalized protein dataframe behaviour
+* return output as protein object
+* add secb batch fit template
+* allow protein objects from dataframes
+* covariances for batch fitting
+* guess delta G public
+* base class for torch fit result
+* fixed #176
+* updated sidebar to accordion of columns, fixes #152
+* kwarg order
+* make widgets dict and list public
+* bump panel requirement
+* fitting button now shows loading status instead of disabled
+* updated fitting default values
+* update dev install instructions
+* add coverage and redundancy information
+* tests for fileIO
+* restore template
+* refactor regularizer\_func to regularizer
+* batch fit with run\_optimizer function
+* refactor regularizer to r1
+* @tejas: docstrings required here
+* moved pytorch fitting loop to separate function
+* add covariance check to fitting test
+* added basic time benchmarks
+* skip coverage on deprecated functions
+* added deprecation warnings in plotting
+* Update pytest.yml
+* Update pytest.yml
+* fitting test tolerances
+* fixed fitting test
+* secb batch fit tests
+* add dimer data
+* add BatchFitting to init
+* some tests for fileIO
+* add comments for tests
+* add deprecation warning
+* Update codecov.yml
+* Update codecov.yml
+* fixed test
+* add data dimensions properties
+* refactor global fit troch to global fit
+* re-add test models
+* numpy nans in colors
+* added the option to specify protein sequence
+* refactor to test\_models
+* Update support.py
+* Update fitting.py
+* losses as tensors
+* Update index.rst
+* merging dosctring fixes
+* fixed pml coloring test
+* Testing RTD building with missing file entry
+* make loss lists with tensors only, after fit completion convert to numpy
+* also replace numpy nan values with no coverage color
+* pytest trigger on PR
+* fixed reassign regularizer values
+* aligned global fit now takes alignment array as argument
+* added indexed aligned global fit (experimental)
+* fixed bug in determining interval for BatchFit
+* comment on determining version
+* docstring
+* tests
+* added batch fit output to pandas dataframe
+* fixed seed, fixes #164
+* added exchanges and temperature properties
+* move determine dimensions to init
+* docstrings
+* Added fileIO tests
+* fill nan values in initial guess delta G
+* batchfit result
+* initial torch batchfit result
+* safe r number as attribute
+* comment
+* added Batchfitting initial implementation
+* refactored KineticsFitting \`k\_series\` to \`series\`
+* template safe load yaml
+* whitespaces
+* todo comments
+* add ipython req for readthedocs
+* add example to docs
+* added cbar option for plotting peptides
+* github action only codecov when ubuntu and py38
+* Update README.rst
+* add codecov to test github action
+* another attempt to commit copy input dict before modifying in function
+* update docstring for c\_term GUI parameter
+* update coloring function in GUI controller
+* removed unused import
+* updated plotting peptides and cleaned out old functions
+* copy before modifying dict
+* added to gui tests
+* rgb conversion to hex
+* added test for support functions (WIP)
+* fixes #168
+* Update README.rst
+* docs tweaks
+* small fixes docs
+* capital GUI
+* updated docs with explanation on how to use the web app
+* add installation instructions and run\_main function
+* added SecB fitting test
+* added covariance in expected headers in GUI test
+* added load folding to batch processing scripts
+* updated fitting yaml file
+* half-baked docstring
+* add todo comment
+* added function to KineticsFitting to set k\_int
+* added asserts to check if the number of peptides on controls is not zero
+* added templates and example batch loading
+* fixed bug pytorch fit from web app
+* added todo comment on y column in initial guess fit result
+* fixed bug in exporting .pml
+* batch yaml file added
+* docstring
+* refactored fitting to allow other optimizers
+* batch processing
+* refactored torch in fitting and optimizer kw for fitting\_torch
+* removed deprecated code
+* matrix coloring sort of works
+* toward adding matrix coloring app
+* fixed bug np.genfromtxt removing punctuation in header names
+* add scores output and matrix coloring test app
+* add scores to main app
+* added upper / lower bound for covariance directly to CDS
+* whitelines removed
+* error bar plot
+* refactor to covariance, abs value, pandas join
+* added todo reminder
+* added sequence info to output files
+* added error estimation from covariances
+* Update README.rst
+* Update and rename test.yml to pytest.yml
+* github action pypi names
+
+v0.3.0
+------
+
+* capitalized PyHDX name
+* split pypi deploy in test and main
+
+v0.3.0.rc2
+----------
+
+* removed unused import
+* add PyPi main server publish job
+* removed unused files
+* editable mode for pyhdx install
+* added wheel to test action
+* syntax error in distribute yml
+* define \_\_version\_\_ by pbr
+* importlib metadata conditional for py<3.8
+* updated distribution and metadata
+* try git fetch to obtain version info
+* remove comments from setup.cfg
+* bugfix in updating color when changing quantity
+* changed control names for folding
+* importlib for versions
+* back to ubuntu and version from setup.py
+* switch to windows
+* more attempts to get version
+* check git tags
+* add pbr to build run
+* Create LICENSE
+* and another comma
+* commas in pypi classifier
+* pypi classifiers
+* yaml syntax
+* add wheel for publish pypi
+* update guess data
+* setup cfg update and pypi test action
+* Update README.rst
+* Delete .travis.yml
+* updated tests
+* added support for viewing and downloading wt average scores
+* set peptide index for fit result control to integer
+* fix in control mode for folding data
+* Update conf.py
+* Update README.rst
+* update docs
+* set nbsphinx to not execute notebooks
+* add install pyhdx in workflow
+* added sphinx requirement and version
+* added testing GitHub action workflow
+* sphinx version in conf file
+* added docs requirements
+* updated requirements to inclusive hdxrate version 0.2.0
+* updated requirements
+* updated intersection between KineticSeries
+* NGLViewer docstring
+* added function to take intersection of KineticSeries based on peptide coverage
+* fixed nan propagating to private deltaG column
+* determination of intersections from unmodified start and end entries
+* fix instructions running pyhdx GUI
+* todo comment
+* add placeholder covert to numpy in data sources
+* Updated installation instructions
+* changed pytoch model call signature
+* include d percent in FD app
+* name is main if statement in serve
+* Update README.rst
+* this better not be the reason
+* removed circular import caused by unused function
+
+v0.3.0.rc1
+----------
+
+* fixed #150
+* fixed tests
+* removed expfact references
+* travis install before test
+* delete expfact author file
+* wrong package name for pytorch
+* removed expfact requirement
+* added file export tests
+* fixed #148
+* updated color to pymol function, towards #148
+* update secb example fit
+* use c\_term from series
+* update refactor norm mode
+* added name to coverage datasource and added test
+* pep8
+* update travis config
+* FD control app
+* refactor be mode
+* refactored norm\_state/exposure to fd state/exposure
+* check protein exchange rate is zero
+* removed make uniform call
+* added ecSecB k\_int test
+* updated KineticSeries c\_term getter/setters
+* allow parsing of kwargs to KintecsSeries init from groupby\_state
+* update k\_int calculation to be done by hdxrate
+* update protein to dict method with different default kwargs
+* updated test to include k\_int testing
+* pep8
+* added comment on intersections
+* added copy method for protein object
+* corrected values of Z matrix such that they are now adding up to 1
+* added nan to fit result where there is no exchange / coverage
+* turned off debugging
+* update requirements
+* updates to default widgets
+* updates for panel 0.10.0
+* updated tests
+* cast c\_term value to int
+* panel requirement
+* removed old watcher
+* updated c\_term handling
+* testing, updates to trigger of coloring
+* add check for target in classification
+* added names to datasources
+* fixed drawing spans and classification
+* fix bug, converted columns to numpy arrays
+* testing / debugging
+* testing / debugging
+* updated test files
+* refactor and added deltaG figure
+* added pytorch fit results for simulated data
+* updates to single app and redrawing figures - added \_render\_kwargs and \_redraw\_kwargs - added selecting quantity on classification controller
+* scalar fields property
+* updated default colors
+* default fields for classification controller
+* added getitem and scalar\_fields to DataSource
+* added quantity selector to classification controller
+* updated default colors
+* pytorch fitting
+* added calling fitting result
+* convert Protein object to dict
+* updates to tests
+* plotting of pytorch fitting
+* switched GUI to pytorch fitting
+* added index property to Protein class
+* removed deltaG module (redundant)
+* removed pytorch lightning fitting
+* added pytorch fitting
+* updated docs
+* removed deprecated interval generator for global fit
+* added folding app to serve
+* re-added scores stakes was deleted by accident
+* added folding app
+* fixed bug in bounds on peptide index for fitresultcontrol
+* allow disabling widgets by setting precedence to negative values
+* removed deprecated functions
+* updated tests for GUI
+* removed make uniform call
+* part 2 of bugfix
+* fixed bug in exchanging yes/no column
+* fixed bug with NaNs in initial guess wt average result
+* removed splitting of KineticSeries and made them always uniform
+* updated getting interval slice to return a pandas series
+* fixed bug in debug mode
+* fixed fitting to deal with protein/array/dic conversion
+* added bounds in GUI and added result to records conversion
+* fixed #142
+* fixed #139
+* fixed #138
+* add script to reload GUI diff app
+* switched to using Protein object to calculate differences in GUI
+* add script for reloading single app
+* add comment
+* added offset field to single/diff apps
+* fixed reload GUI SecB data
+* removed whitelines
+* removed TF coverage and fixed tests
+* moved export functions to fileIO, fixed fitting tests
+* removed X red matrices
+* removed second fit
+* added pandas requirement
+* import version string
+* added protein model and tests
+* updated fitting
+* removed zero controls from switch control mode, fixes #137
+* removed second fit
+* added pandas requirement
+* import version string
+* added protein model and tests
+* add dask folder to .gitignore
+* re enabled linked x ranges
+* removed print
+* removed debugging log
+* added tests for difference app
+* fixed #133
+* fixed #134
+* docstring
+* fixed #135
+* Update README.rst
+* Added check for parent doc state
+* Updated bounds for initial guesses
+* added newline
+* added newline
+* disabled linking x range as it causes many bugs
+* temporary fix for setting \_doc (should add setter for property)
+* swapped diff/single such they have now the correct names
+* fixed bug in loading apps
+* Update README.rst
+* Temporary workaround for #111
+* partially addresses #121
+
+v0.2.1
+------
+
+* updating figure through next\_tick\_callback, fixes #117
+* debugging
+* debugging
+* added doc property to \`MainController\`, see also #123
+* removed unused import
+* updated reload SecB data in GUI
+* added a comment
+* fixes #114
+* removed download JS files
+* Update README.rst
+* added docs in pdf
+* Update README.rst
+* Update README.rst
+* Update README.rst
+* Update README.rst
+* fix utils import to reload GUI
+* added GUI screenshot
+* Update README.rst
+* requirements and readthedocs
+* removed zero control option
+* fixed test\_gui test
+* Added labelling solution deuteration percentage
+* Delete installation.txt
+* docstring updates
+* refactored controller API and moved all apps to apps.py
+* removed old code and updated to documentation
+* removed data attribute, fixes #108
+* example and small tweaks
+* Update README.rst
+* refactored global\_fit\_new -> global\_fit
+* updates to docs
+* another update to serving apps
+* update serving apps to return instance per user
+* apps per file
+* serve
+* added single app and serve to serve all 3 apps
+* patch to update linking graphs in the right place
+
+v0.2.0
+------
+
+* Docstrings and formatting
+* added app for coloring based on a single array
+* added individual value plots to differences app
+* redraw figures, log/linear, setup\_hooks method
+* removed whiteline
+* updated jquery javascript to https
+* update graphs in next tick callback
+* fix / hack to be able to select dataset in proteinview
+* removed cluster set to None
+* fixed numpy bug
+* removed one remove comparison method
+* fixed bug aligning sequences
+* fixed bug in newer numpy versions
+* small cosmetics
+* fixed initial guess fitting
+* updatese to binary comparison figure
+* updated ClassificationControl with numericinput widgets
+* added pfact to reload secB
+* fixed bug in reloading files with color fields (comment tag)
+* cosmetic changes
+* working prototype of differences app, big API changes in GUI
+* initial implementation of diff app
+* refactor fileInput
+* refactor logfigure to loggingfigure
+* param formatter
+* removed comments
+* see #111
+* removed comments
+* updates to test files
+* fixes #89
+* added secB example output data
+* bugfixes and removed old code
+* param documentation
+* updates to GUI tests, refactoring and docstrings
+* docs + refactor GUI controller
+* base class for main controller
+* added loading structures from file in GUI
+* cleaned up code, removed prints, add some logging
+* small cosmetic changes
+* add default std out to logger
+* updates to logging
+* added log panel, towards #13
+* removed comments added docstrings
+* updated how no coverage is passed to HTML, almost works except for n term
+* start with data source class
+* some docstrings
+* removed comment
+* tweaks to html template
+* reversed color order continous
+* default no loading of structure
+* reload protein from rcsb
+* reload protein from rcsb
+* split FigurePanel into BokehFigurePanel
+* added js files to figure panels
+* updated layout
+* cosmetic changes
+* reload GUI secB updates
+* modified read\_to\_np to be able to deal with two comments lines
+* added NGL protein viewer
+* removed cluster from loading GUI function
+* fixed #101
+* added script to load secB data into GUI
+* fixed #103 and #102
+* removed some comments
+* updated functions to reload GUI
+* updated name of accepted sources for FitResults, fixes #103
+* moved defining of panel layout to panel.main
+* removed comments
+* refactored definition of control panels and figure panels
+* elvis golden template can now recreate working GUI
+* rough outline of GoldenElvis layout template
+* merged master into panel\_template branch
+* generate .csv from generated data
+* updated tab titles in html layout
+* disabled development control panel
+* updated default colors
+* method to call fit function from numpy
+* updates to figure layouts and added tqmd progress bar in output pdf
+* removed old examples
+* Update README.rst
+* Update README.rst
+* added img for readme
+* Update README.rst
+* updated docs and installation instructions, removed expfact files
+* removed old test data
+* updated test to only use secB data
+* updated requirements
+* added feature to continously color values based by linearsegmentedcolormap
+* optional adding date / title to pdf output
+* updated template
+* todo comment
+* docstring
+* linking x range true by default
+* completed fitting quality figure, needs minor tweaks
+* towards reimplementation of fitting quality window
+* added kwarg to control making KineticSeries uniform, series are uniform by default
+* delete file
+* removed corrected from simulated src data file, updated test
+* added function to (partially) reload previous results into the GUI
+* allow nan entries in scale function
+* updates to initial guesses data flow
+* updated fitting test
+* remove no coverage / prolines from fit output, fixes #89
+* disallow changing remove prolines cb
+* add temporary function to calculate initial guesses
+* fixed coverage tooltip not updating with index
+* whitespace
+* exclude coverage source from classification
+* fixes #91
+* removed setting range of coverage graph
+* fixed bug where linking x ranges didnt work due to setting new Range1D object
+* pep8ification
+
+v0.1.3
+------
+
+* updated gui testing
+* removed referenes to fit2
+* removed redundant code, and RateFigureOld and CoverageFigureOld
+* updated default settings for PF fitting (and removed some code)
+* fixed linking figures functionality
+* added color bar to coverage controller
+* minor cosmetic changes
+* updated min border left to align graphs
+* removed some old code
+* missing import
+* missing import
+* refactored the coverage controller / figure
+* added tests
+* added (preliminary) test for GUI
+* link windows x range
+* added script for local cluster
+* updated prints
+* updated guess print statement
+* refactoring
+* added minborder left parameter to align plots
+* refactoring
+* fixed some tests
+* commented out old test
+* refactor pyhdx to models
+* updated imports
+* added script to run local cluster
+* clipping initial guesses to avoid NaN values
+* added wt average linearlize initial guess
+* removed some redundant code, updated hovertools, fixes #73
+* trigger thresholding if values are set, fixes #88
+* cleaning
+* updated (depracated) fit2
+* updated remove renderers function
+* default colors in hexadecimal
+* added publish data function, fixes #71
+* fixes #87 again
+* removed empty result default value, fixes #87
+* moved thresholding trigger, fixes #86
+* added nglview widget (but doesnt work)
+* attempt at combining templates
+* missing import
+* added names to figure panels
+* setup panel goldenlayout template and theme
+* whitespaces
+* dev
+* not sure what this is
+* removed whitelines
+* removed explicit sympy requirement
+* added uptake\_corrected to backexchange correction
+* new default l1 value
+* moving some lines around
+
+v0.1.1
+------
+
+* updated dev gui scripts and new template
+* added half-life fit and new TF fit to GUI
+* added nanmeansquared error loss function
+* added weighted average t50 / half-life function
+* comment
+* forgot about the %@^#&$ 100% norm again!
+* kint array function
+* updated tf fitting
+* added file with sequence / r number for generated data
+* docstrings
+* added new fitting which propagate across gaps
+* updated intervals to inclusive, exclusive; fixes #76
+* update fitting to new k\_int API
+* added function to get section intervals
+* kint of no coverage sections 0
+* k\_int part of kineticsfitting
+* cleanup
+* added method to get the intersection of a list of KineticSeries
+* added a deprecation comment
+* default value l1 to 2000
+* added tags option to git describe
+
+v0.1.0
+------
+
+* updated test data
+* fixes to rates only fitting
+* switched to mean on regularization
+* removed unused imports
+* added pyhdx version tot title
+* switched pfact fitting to keras functional api
+* updated tests, added pfact fitting test
+* added template for reloading generated data
+* removed redundant compile
+* removed unused line
+* try except for if git is not found
+* TF fitting by default now combines gap 0 sections
+* updated versioning, manually supplying git dir
+* set nglview panel to None
+* removed version from controller
+* introduced 1+ term in rate equation
+* updated how version info gets exported
+* added gap size kwarg to split to allow for not splitting depending on gap size
+* added git sha to exports
+* added version and git sha to exports
+
+v0.0.1
+------
+
+* added pbr versioning
+* intallation now for real
+* added txt file with hints how you could maybe install it
+* cosmetic changes
+* updating data when the data is an updated rather than new, fixes #68
+* input fields as literalinputtyped
+* refactor arg to src\_dict
+* add hover back in, fixes #69
+* uncomment unused numericinput
+* cleaned up fitting GUI for fit1/fit2
+* log axes bug fix
+* updated async fit 1
+* updated fileexport with callbacks
+* update to pfact figure
+* added deltaG and new base class for pfact/rates figure, supporting thds
+* correction to fitting of simulated data
+* otsu thresholding on pfact
+* refactored figure panel to new base class
+* early stopping from GUI and callbacks kwarg in fit
+* reran fitting, new test data
+* fit result files for simulated data
+* new base class for figure panels and TF pfact fitting initial working
+* added states and exposures properties to peptidemasterlist
+* drop first and ignore prolines as its needed for TF fitting
+* added new tests and tf fitting of simulated data
+* pep8ification
+* import tf only when fitting
+* sequence for proteins with negative r number indexes
+* k\_int to array
+* added calculate k\_int function and tests
+* fixed bug where wrong sequence was assigned in generated data
+* refactored expfact module
+* starting with adding tf fit to GUI
+* fixed bug where too many axis would be squeezed
+* added loss the fit result and global fit function
+* added files from skinner et al expfact paper
+* output now calls results objects to get fitted curves on peptides
+* added tensorflow fitting results
+* refactored times to timepoints in KineticSeries
+* add check for start and end entries in data
+* typo
+* refactor global to blocks fitting, updated fit results files
+* refactored fitting and added new global (TF) fitting
+* update to simulate and adding function for scaling data
+* cleanup and docs
+* cleanup and docs
+*  updated test
+*  updated requirements
+* passed kwargs to serve
+* removed add widget import
+* removed get widget function
+* added test for dissociation fitting
+* added checks to see if fields are already present before adding them
+* removed old comments
+* added bvuttons for exporting data and setting zero control
+* fixed bug in fitting
+* added dissociation model to fitting
+* removed old fitting
+* whitespaces in test data
+* removed old example
+* whitespaces differences
+* removed old example
+* temp gen data file
+* pep8ification
+* added cluster to (temporary) main.py
+* pep8ification
+* updatede docs figure dimensions
+* updated fitting example
+* multi otsu convenience functio in support
+* updated coloring function to make the full r array
+* updated servable to include panel extension
+* added warning about prolines #fucktheprolines
+* updated fitting docs
+* fitting in the background now fully works, fixes #39
+* added viewing blocks, fixes #36
+* proper stripping of header when reading files
+* updated examples
+* updated test
+* removed hardcoded bounds
+* refactored fitting to use rate rather than lifetime
+* updated fitting bounds and test on simulated data
+* added examples to docs
+* overfitting figure
+* docs tweaks
+* added bounds check to progress bar
+* refactor
+* changed loading js and css files
+* reset progress bar
+* added main.py to run GUI from
+* refactored blocks functions
+* updated test to refactor
+* added bounds to models
+* docs
+* async fitting, update bokeh graphs
+* async fitting from gui, only updating bokeh needs fixing
+* added report and output classes, towards #47
+* fixed #46
+* refactor example
+* fixed bug of old kwargs hanging around
+* refactoring and docstrings
+* the default dicts shoulnd be the same instance, fixes #10
+* added function for making color arrays from rates and thresholds
+* added dev panel that allows uploading rate files, towards #10
+* removed some comments
+* check nan of parameters instead of rate for DE fitting
+* added back exchange control and removed some old kwarg passing
+* cleaned up making of control panels
+* update tests
+* prot\_len is now equal to r\_number length
+* fixed bug in determining number of exchangable residues
+* keep original sequence
+* halfway progress to moving proline/drop first back to peptidecsvfile object
+* fixed bug where series werent made uniform
+* added fit inspection controller and figure, fixes #22
+* added function where to do theoretical normalization
+* added GUI elements for using theoretical normalization
+* added proline checkbox, fixes #34
+* ignoring prolines works for fit1/fit2
+* refactored series and peptidemeasurements inits to handle prolines
+* added simulated data tests for coverage
+* started changing to include ingoring prolines
+* update to cmap
+* added normalization method button
+* some cleaning in fitting
+* example with synthetic data
+* function should be deprecated
+* missing import
+* added function to monomerize pdb file
+* add stringio support
+* fsolve in log space so it always finds to half life root
+* allow stringIO objects
+* updated test and read\_dynamx function now reads header for names
+* added function to covert to pymol script to color a structure
+* comment
+* changed mathching control peptides to start, end instead of sequence
+* rate is now calculated as half life
+* read dynamic can now read multiple files and combine them
+* added module for simulating data
+* fixes #23
+* formatting
+* fixed bug in formatting all zero columns
+* functions for getting p or d values out from the results
+* allow calling results and models to get the uptake per residue at timepoint t back
+* added original block function
+* fixed titles
+* fixed bug in loading single fitting results
+* updated example
+* fixed #14
+* fixed #18
+* towards #9, works except for known panel bug
+* added requirements
+* fixed #15, added initial protein viewer
+* fixed #17, towards #15, updating values/colors doesnt work
+* now making rate figure in init and updating rate and colors with update functions
+* added hover to coverage panel, fixes #4
+* added hover tool to rate graph, fixes #16
+* fixed #6
+* added automatically determining wrap value for coverage plot
+* update fitting in gui, fixes #11
+* updated imports
+* removed old panels
+* window names
+* more deprecationwarnings
+* added labels, fixes #7
+* removed temporary fields
+* now using the section \`\`scores\_peptides\`\` property
+* some cleaning
+* oh this part is also need for prev commit
+* adding fits in panel GUI more or less working again
+* fixed and updating fiting test
+* increased default number of significant figures on saving files
+* moved scores properties to series object
+* fix bug where fitting didnt use the correct data
+* added some deprecationwarnings for good measure
+* swtiched wt averaging fitting to non normalized input (as it should be)
+* added KineticsFitting to init
+* pep8
+* comment
+* fixed bug in updating coverage panel range
+* nanmax in formatting output
+* updated fitting test to work again
+* comment
+* updated docstring
+* stuff
+* updated fitting to both use KineticsFitResult
+* auto set aa per subplot to fit whole protein on load
+* fixed bug rendering wrong lines bokeh graph
+* remove crap
+* added numpy array formatter and file export button
+* added coloring and WIP spans (thd lines)
+* added check if scores are already present to allow switching controls
+* coverage graph now updates upon changeing fields
+* refactor controls and add zero
+* added clasificiation GUI controller panel
+* refactor GUI structure to seperate figures
+* refactored the whole shabang (partly)
+* renaming in template
+* classification panel
+* added fitting options
+* rename panels
+* added initial grid and removed workers kwargs from diffev
+* updated example
+* removed crap
+* deprecated old classes
+* fitting rate panel added
+* plotting coverage more or less done
+* added bokeh coverage plot
+* fileIO part working
+* initial iteration of golden layout working
+* removed old code
+* refactor models
+* added new LSQModel and lsq\_fit\_blocks function which can do all variations of fitting
+* non coverage is represented as X in sequence instead of P
+* added \_\_len\_\_
+* added option to label peptides
+* fitting per custom or fixed blocks implemented
+* added all sorts of new nonsensical fitting
+* added the possibility of coloring to coverage map
+* docstring update
+* added length
+* fixed bug where overlap by one peptide wasnt split correctly
+* added block coverage attribute
+* added fine fitting method
+* updates to global fitting test scripts
+* added leastsquaresfitting model object
+* moved applying controls to initial object and added scores to data array
+* changed order into sth more consistent
+* added scores per peptide 2d array property
+* fixed bug that resulted in wrong X\_red
+* added beginning of global (fine / lsq) fitting model
+* peptidecsvfile now takes data array not file path
+* add iteration and slicing to kineticsresult object
+* added tqdm
+* read dynamic to fileIO
+* add read dynamix to \_\_init\_\_
+* starting adding more examples
+* kinetic series now also has a coverage attribute
+* fitting now properly deals with NaN blocks
+* added temporary dev files
+* updated make\_uniform so that scores are kept
+* added more test data
+* updated tests
+* added getitem and bug in scores averages which should be calculated from the normalized matrix
+* added function to make datasets uniform
+* added function to split kineticsseries into independent parts
+* updated empty result and return value
+* added model names, update class name
+* updated fitting test
+* added todo
+* updated to new api
+* added fitting models which create dummy parameter names
+* minor docstrings
+* comment
+* cosmetcis
+* added some fitting
+* moved properties to Coverage object, made PeptideMeasurement a subclass of coverage
+* added function to return data grouped by states while also applying controls
+* cosmetics
+* type in docstring
+* added coverage object
+* typo in docstring
+* added tests for kineticseries
+* added start implementation of coverage class
+* added set\_control function
+* Added groupby\_state function and KineticSeries
+* added kineticseries to init
+* added docstrings to fitting, removed expfact files
+
+v0.0.1a1
+--------
+
+* docstrings and cleanup, removal of redundant code
+* fixed bug when theres only 1 axes
+* fix bug when moving to the next line
+* added coverage map functin
+* added download button for hdxviewer + otsu and hmm GUI elements
+* moved creation of kinetics figure to plot, fixed color range bug
+* fixed color mapping for kinetics data
+* mpl figure in hdxkinetics
+* added script to run kinetics part and matplotlib MWE in notebook
+* added matplotlib plot of kinetics (doesnt update)
+* added HDX fitting dashboards
+* docstrings
+* towards kinetics fitting panel
+* added panel class
+* panel updates
+* properties reminder
+* changes to expfact to run from config
+* no changes
+* added readme pointing to skinner repo
+* added .idea folder to gitignore
+* added pyhdx test
+* removed idea folder
+* updated dtypes in csv file
+* added function to directly generate config dictionary
+* added sequence property
+* added writing to expfact file format
+* remove first peptide
+* added pyvix panel to bokeh serve
+* squared weighting
+* fixed bug in files without gaps
+* added notebook example
+* removed a print
+* added fitting
+* identified gaps
+* return by name now checks sequence identity between control and data
+* added reading by name
+* changes changed
+* some changes, forgot what exactly. peace
+* added tikonov regularization and plotting
+* initial commit
+* Delete .gitignore
+* Delete README.md
+* cookiecutter commit
+* Create README.md
+* Initial commit
