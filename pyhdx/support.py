@@ -7,6 +7,7 @@ from skimage.filters import threshold_multiotsu
 import pandas as pd
 from itertools import count, groupby
 import warnings
+from pathlib import Path
 
 
 def get_reduced_blocks(coverage, max_combine=2, max_join=5):
@@ -297,6 +298,7 @@ def rgb_to_hex(rgb_a):
         try:
             rgba_array = np.array([[b, g, r, 0] for r, g, b, a in rgb_a], dtype=np.uint8)
         except ValueError:
+            # todo this only works with lists of list and gives to wrong result? tests needed
             rgba_array = np.array([[b, g, r, 0] for r, g, b in rgb_a], dtype=np.uint8)
 
     elif isinstance(rgb_a, np.ndarray):
@@ -446,3 +448,9 @@ def gen_subclasses(cls):
     for sub_cls in cls.__subclasses__():
         yield sub_cls
         yield from gen_subclasses(sub_cls)
+
+
+def pprint_df_to_file(df, file_path):
+    pth = Path(file_path)
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):  # more options can be specified also
+        pth.write_text(df.__str__())
