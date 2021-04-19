@@ -1,6 +1,7 @@
 from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_intersection
 from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSource
+from pyhdx.panel.transforms import ApplyCmapTransform
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting, BatchFitting
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
@@ -504,7 +505,6 @@ class InitialGuessControl(ControlPanel):
             excluded = []
 
         self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
-        self._layout = {'self': widgets}
 
         self.update_box()
 
@@ -646,6 +646,312 @@ class InitialGuessControl(ControlPanel):
                 loop.add_callback(self._fit1_async)
             else:
                 self._fit1()
+
+
+class ClassificationControl(ControlPanel):
+    """
+    This controller allows users classify 'mapping' datasets and assign them colors.
+
+    Coloring can be either in discrete categories or as a continuous custom color map.
+    """
+
+    header = 'Classification'
+    # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
+
+    # todo unify name for target field (target_data set)
+    # When coupling param with the same name together there should be an option to exclude this behaviour
+    table = param.Selector(label='Target table')
+    quantity = param.Selector(label='Quantity')
+
+    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous', 'Color map'],
+                          doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
+    num_colors = param.Integer(3, bounds=(1, 10), label='Number of colours',
+                              doc='Number of classification colors.')
+    otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
+                            doc="Automatically perform thresholding based on Otsu's method.")
+    linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
+                              doc='Automatically perform thresholding by creating equally spaced sections.')
+    log_space = param.Boolean(True,
+                              doc='Boolean to set whether to apply colors in log space or not.')
+
+    #show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
+    values = param.List(precedence=-1)
+    colors = param.List(precedence=-1)
+
+    def __init__(self, parent, **param):
+        self._values_widgets = []
+        self._colors_widgets = []
+
+        super(ClassificationControl, self).__init__(parent, **param)
+
+        self._update_num_colors()
+        self._update_num_values()
+        #
+        # self.param.trigger('values')
+        # self.param.trigger('colors')
+        #
+        # for view in self.views.values():
+        #     if any(isinstance(trs, ApplyCmapTransform) for trs in view.transforms):
+        #         view
+
+        options = [view.table for view in self.views.values() if any(isinstance(trs, ApplyCmapTransform) for trs in view.transforms)]
+        print('options', options)
+
+        self.excluded = []  # excluded widgets based on choise of `mode`
+        self.param['table'].objects = options
+
+        self.update_box()
+
+        #self.parent.param.watch(self._parent_sources_updated, ['sources'])
+
+    @property
+    def values_widgets(self):
+        """returns dict view of _values_widgets"""
+        return {f'value_{i}': widget for i, widget in enumerate(self._values_widgets)}
+
+    @property
+    def colors_widgets(self):
+        """returns dict view of _colors_widgets"""
+        return {f'color_{i}': widget for i, widget in enumerate(self._colors_widgets)}
+
+    @property
+    def own_widget_names(self):
+        """returns a list of names of widgets in self.widgets to be laid out in controller card"""
+
+        initial_widgets = [name for name in self.widgets.keys() if name not in self.excluded]
+
+        return initial_widgets + list(self.values_widgets.keys()) + list(self.colors_widgets.keys())
+
+    @property
+    def _layout(self):
+        return {'self': self.own_widget_names,
+                }
+
+    def make_dict(self):
+        param_widgets = self.generate_widgets(num_colors=pn.widgets.IntInput)
+        return {**param_widgets, **self.values_widgets, **self.colors_widgets}
+
+    @param.depends('mode', watch=True)
+    def _mode_updated(self):
+        if self.mode == 'Discrete':
+            self.excluded = []
+        elif self.mode == 'Continuous':
+            self.excluded = ['otsu_thd']
+        elif self.mode == 'Color map':
+            self.excluded = ['otsu_thd', 'num_colors']
+            self.num_colors = 2
+
+
+        #todo adjust add/ remove color widgets methods
+        #self.param.trigger('num_colors')
+        self.update_box()
+
+    @param.depends('num_colors', watch=True)
+    def _update_num_colors(self):
+        while len(self._colors_widgets) != self.num_colors:
+            if len(self._colors_widgets) > self.num_colors:
+                self._remove_color()
+            elif len(self._colors_widgets) < self.num_colors:
+                self._add_color()
+        self.param.trigger('colors')
+
+    @param.depends('num_colors', watch=True)
+    def _update_num_values(self):
+        diff = 1 if self.mode == 'Discrete' else 0
+        while len(self._values_widgets) != self.num_colors - diff:
+            if len(self._values_widgets) > self.num_colors - diff:
+                self._remove_value()
+            elif len(self._values_widgets) < self.num_colors - diff:
+                self._add_value()
+
+        self._update_bounds()
+        self.param.trigger('values')
+        self.update_box()
+
+    def _add_value(self):
+        # value widgets are ordered in decreasing order, ergo next value widget
+        # starts with default value of previous value -1
+        try:
+            first_value = self._values_widgets[-1].value
+        except IndexError:
+            first_value = 0
+
+        default = float(first_value - 1)
+        self.values.append(default)
+
+        name = 'Threshold {}'.format(len(self._values_widgets) + 1)
+        widget = pn.widgets.FloatInput(name=name, value=default)
+        self._values_widgets.append(widget)
+        widget.param.watch(self._value_event, ['value'])
+
+    def _remove_value(self):
+        widget = self._values_widgets.pop()
+        self.values.pop()
+
+        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+        del widget
+
+    def _add_color(self):
+        try:
+            default = DEFAULT_CLASS_COLORS[len(self._colors_widgets)]
+        except IndexError:
+            default = "#"+''.join(np.random.choice(list('0123456789abcdef'), 6))
+
+        self.colors.append(default)
+        widget = pn.widgets.ColorPicker(value=default)
+        self._colors_widgets.append(widget)
+
+        widget.param.watch(self._color_event, ['value'])
+
+    def _remove_color(self):
+        widget = self._colors_widgets.pop()
+        self.colors.pop()
+        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+        del widget
+
+    def _color_event(self, *events):
+        for event in events:
+            idx = list(self._colors_widgets).index(event.obj)
+            self.colors[idx] = event.new
+
+        #todo param trigger colors????
+
+    def _value_event(self, *events):
+        """triggers when a single value gets changed"""
+        for event in events:
+            idx = list(self._values_widgets).index(event.obj)
+            self.values[idx] = event.new
+
+        self._update_bounds()
+        self.param.trigger('values')
+
+    def _update_bounds(self):
+        for i, widget in enumerate(self._values_widgets):
+            if i > 0:
+                prev_value = float(self._values_widgets[i - 1].value)
+                widget.end = np.nextafter(prev_value, prev_value - 1)
+            else:
+                widget.end = None
+
+            if i < len(self._values_widgets) - 1:
+                next_value = float(self._values_widgets[i + 1].value)
+                widget.start = np.nextafter(next_value, next_value + 1)
+            else:
+                widget.start = None
+    #
+
+    # def _parent_sources_updated(self, *events):
+    #
+    #     data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
+    #     self.param['target'].objects = list(data_sources)
+    #
+    #     # Set target if its not set already
+    #     if not self.target and data_sources:
+    #         self.target = data_sources[-1]
+    #
+    #     if self.values:
+    #         self._get_colors()
+    #
+    # @param.depends('target', watch=True)
+    # def _target_updated(self):
+    #     data_source = self.parent.sources[self.target]
+    #     self.param['quantity'].objects = [f for f in data_source.scalar_fields if not f.startswith('_')]
+    #     default_priority = ['deltaG', 'comparison']  # Select these fields by default if they are present
+    #     if not self.quantity and data_source.scalar_fields:
+    #         for field in default_priority:
+    #             if field in data_source.scalar_fields:
+    #                 self.quantity = field
+    #                 break
+    #             self.quantity = data_source.scalar_fields[0]
+    #
+    # @property
+    # def target_array(self):
+    #     """returns the array to calculate colors from, NaN entries are removed"""
+    #
+    #     try:
+    #         y_vals = self.parent.sources[self.target][self.quantity]
+    #         return y_vals[~np.isnan(y_vals)]
+    #     except KeyError:
+    #         return None
+    #
+    # def _action_otsu(self):
+    #     if self.num_colors > 1 and self.target_array is not None:
+    #         func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
+    #         thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
+    #         for thd, widget in zip(thds[::-1], self.values_widgets):  # Values from high to low
+    #             widget.start = None
+    #             widget.end = None
+    #             widget.value = np.exp(thd) if self.log_space else thd
+    #     self._update_bounds()
+    #     self._get_colors()
+    #
+    # def _action_linear(self):
+    #     i = 1 if self.mode == 'Discrete' else 0
+    #     if self.log_space:
+    #         thds = np.logspace(np.log(np.min(self.target_array)), np.log(np.max(self.target_array)),
+    #                            num=self.num_colors + i, endpoint=True, base=np.e)
+    #     else:
+    #         thds = np.linspace(np.min(self.target_array), np.max(self.target_array), num=self.num_colors + i, endpoint=True)
+    #     for thd, widget in zip(thds[i:self.num_colors][::-1], self.values_widgets):
+    #         # Remove bounds, set values, update bounds
+    #         widget.start = None
+    #         widget.end = None
+    #         widget.value = thd
+    #     self._update_bounds()
+    #
+
+    # def _calc_colors(self, y_vals):
+    #     if self.num_colors == 1:
+    #         colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
+    #         colors[np.isnan(y_vals)] = np.nan
+    #     elif self.mode == 'Discrete':
+    #         full_thds = [-np.inf] + self.values[::-1] + [np.inf]
+    #         colors = np.full(len(y_vals), fill_value=np.nan, dtype='U7')
+    #         for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
+    #             b = (y_vals > lower) & (y_vals <= upper)
+    #             colors[b] = color
+    #     elif self.mode == 'Continuous':
+    #         func = np.log if self.log_space else lambda x: x
+    #         vals_space = (func(self.values))  # values in log space depending on setting
+    #         norm = plt.Normalize(vals_space[-1], vals_space[0], clip=True)
+    #         nodes = norm(vals_space[::-1])
+    #         cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
+    #
+    #         try:
+    #             colors_rgba = cmap(norm(func(y_vals)), bytes=True, alpha=0)
+    #             colors = rgb_to_hex(colors_rgba)
+    #
+    #             colors[np.isnan(y_vals)] = np.nan
+    #
+    #         except ValueError as err:
+    #             self.parent.logger.warning(err)
+    #             return
+    #
+    #     return colors
+    #
+    # @param.depends('values', 'colors', 'target', 'quantity', watch=True)
+    # def _get_colors(self):
+    #     # todo or?
+    #     if np.all(self.values == 0):
+    #         return
+    #     elif np.any(np.diff(self.values) > 0):  # Skip applying colors when not strictly monotonic descending
+    #         return
+    #     elif not self.target:
+    #         return
+    #
+    #     y_vals = self.parent.sources[self.target][self.quantity]  # full array including nan entries
+    #     colors = self._calc_colors(y_vals)
+    #
+    #     if colors is not None:
+    #         self.parent.sources[self.target].source.data['color'] = colors  # this triggers an update of the graph
+    #
+
+    #
+    #
+    #     #todo callback?
+    #     self.param.trigger('colors')
+
+
 
 
 class FitControl(ControlPanel):
