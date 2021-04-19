@@ -1,7 +1,7 @@
 from pyhdx.panel.main_controllers import PyHDXController
 from pyhdx.panel.controllers import CSVFileInputControl
 from pyhdx.panel.base import BokehFigurePanel, STATIC_DIR
-from pyhdx.panel.fig_panels import hvPlotAppView
+from pyhdx.panel.views import hvPlotAppView
 from pyhdx.panel.template import GoldenElvis, ExtendedGoldenTemplate
 from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from pyhdx.panel.log import get_default_handler
