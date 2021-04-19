@@ -7,7 +7,7 @@ from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultThem
 from pyhdx.panel.log import get_default_handler
 from pyhdx import VERSION_STRING_SHORT
 from pyhdx.fileIO import csv_to_dataframe
-from pyhdx.panel.data_sources import DataFrameSource
+from pyhdx.panel.sources import DataFrameSource
 from pyhdx.panel.transforms import RescaleTransform, ApplyCmapTransform
 
 import sys

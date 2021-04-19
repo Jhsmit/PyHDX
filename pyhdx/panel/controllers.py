@@ -1,6 +1,6 @@
 from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_intersection
 from pyhdx.panel.widgets import NumericInput
-from pyhdx.panel.data_sources import DataSource, MultiIndexDataSource, DataFrameSource
+from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSource
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting, BatchFitting
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe

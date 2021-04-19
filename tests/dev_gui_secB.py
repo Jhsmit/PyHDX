@@ -9,7 +9,7 @@ import pickle
 from pyhdx.panel.apps import main_app
 from pyhdx.panel.utils import reload_previous
 from pyhdx.panel.base import DEFAULT_COLORS, STATIC_DIR
-from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.sources import DataSource
 import panel as pn
 import numpy as np
 from pathlib import Path

@@ -9,7 +9,7 @@ import os
 from pyhdx.panel.apps import _diff_app
 from pyhdx.panel.utils import reload_previous
 from pyhdx.panel.base import DEFAULT_COLORS
-from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.sources import DataSource
 import panel as pn
 import numpy as np
 from pathlib import Path

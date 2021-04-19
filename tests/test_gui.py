@@ -1,7 +1,7 @@
 from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries, KineticsFitting
 from pyhdx.fileIO import csv_to_protein, txt_to_np
 from pyhdx.panel.apps import main_app#, diff_app
-from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.sources import DataSource
 from pathlib import Path
 
 import numpy as np

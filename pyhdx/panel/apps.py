@@ -10,7 +10,7 @@ from pyhdx.panel.base import BokehFigurePanel, STATIC_DIR
 
 
 from pyhdx.fileIO import csv_to_dataframe
-from pyhdx.panel.data_sources import DataFrameSource
+from pyhdx.panel.sources import DataFrameSource
 from pyhdx.panel.transforms import RescaleTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
 from pyhdx.panel.opts import CmapOpts
 from pyhdx.panel.filters import UniqueValuesFilter, MultiIndexSelectFilter
