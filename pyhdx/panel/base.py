@@ -192,7 +192,7 @@ class ControlPanel(PanelBase):
 
     @property
     def transforms(self):
-        return self.parent.sources
+        return self.parent.transforms
 
     @property
     def filters(self):
