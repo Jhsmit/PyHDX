@@ -110,7 +110,7 @@ def main_app():
 
     cmap = mpl.cm.get_cmap('viridis')
     norm = mpl.colors.Normalize(vmin=0, vmax=20)
-    cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
+    cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG', name='cmap_transform')
 
     trs_list.append(rescale_transform)
     trs_list.append(cmap_transform)
@@ -164,17 +164,14 @@ def main_app():
     views = {view.name: view for view in view_list}
     opts = {opt.name: opt for opt in opts_list}
 
-
-
-
     control_panels = [
         PeptideFileInputControl,
         CoverageControl,
         InitialGuessControl,
         FitControl,
-        GraphControl
+        ClassificationControl,
+        GraphControl,
         # FitResultControl,
-        # ClassificationControl,
         # #FileExportControl,
         # ProteinViewControl,
         # OptionsControl
