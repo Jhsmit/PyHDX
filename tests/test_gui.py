@@ -7,7 +7,7 @@ from pathlib import Path
 import numpy as np
 
 directory = Path(__file__).parent
-
+from pyhdx.support import rgb_to_hex
 
 TEST_PML = """set_color color_#0a0ac2, [10,10,194]
 set_color color_#8c8c8c, [140,140,140]
@@ -34,7 +34,7 @@ class TestMainGUISecB(object):
         # cls.ds_fit = DataSource(cls.prot_fit_result, name='global_fit', x='r_number', tags=['mapping', 'pfact', 'deltaG'],
         #                         renderer='circle', size=10)
 
-    def test_load_files(self):
+    def test_load_single_file(self):
         with open(self.fpath, 'rb') as f:
             binary = f.read()
 
@@ -61,11 +61,77 @@ class TestMainGUISecB(object):
         assert series.Nr == 146
         assert np.nanmean(series.scores_stack) == 54.05487325857497
 
-    def test_coverage(self):
+    def test_batch_mode(self):
+
+        fpath_1 = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath_2 = directory / 'test_data' / 'ecSecB_dimer.csv'
+
+        fpaths = [fpath_1, fpath_2]
+        files = [p.read_bytes() for p in fpaths]
+
         ctrl = main_app()
-        pass
-        # todo Add tests
-        # ctrl.series = self.series
+        file_input = ctrl.control_panels['PeptideFileInputControl']
+
+        file_input.input_files = files
+        file_input.fd_state = 'Full deuteration control'
+        file_input.fd_exposure = 0.167
+
+        file_input.exp_state = 'SecB WT apo'
+        file_input.dataset_name = 'testname_123'
+        file_input._action_add_dataset()
+
+        #assert ....
+
+        file_input.exp_state = 'SecB his dimer apo'
+        file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
+        file_input._action_add_dataset()
+
+        initial_guess = ctrl.control_panels['InitialGuessControl']
+        initial_guess._action_fit()
+
+        #assert ....
+
+
+        fit_control = ctrl.control_panels['FitControl']
+        fit_control.epochs = 10
+
+        fit_control._do_fitting()
+        #assert ....
+
+        table = ctrl.sources['dataframe'].get('global_fit')
+
+        # Test classification
+        # todo test log space
+        # todo probably values should be fixed otherwise tests are co-dependent
+        values = table['global_fit_1']['testname_123']['deltaG']
+        classification = ctrl.control_panels['ClassificationControl']
+        classification._action_otsu()
+
+        cmap, norm = classification.get_cmap_and_norm()
+        colors = cmap(norm(values), bytes=True)
+
+        assert colors.sum() == 68474
+        assert colors.std() == 109.39692637364178
+
+        classification.mode = 'Continuous'
+        classification._action_linear()
+
+        cmap, norm = classification.get_cmap_and_norm()
+        colors = cmap(norm(values), bytes=True)
+
+        assert colors.sum() == 57578
+        assert colors.std() == 97.25745214650469
+
+        value_widget = classification.widgets['value_2']
+        value_widget.value = 10e3
+
+        cmap, norm = classification.get_cmap_and_norm()
+        colors = cmap(norm(values), bytes=True)
+
+        assert colors.sum() == 57578
+        assert colors.std() == 97.25745214650469
+
+
         #
         # cov_figure = ctrl.figure_panels['CoverageFigure']
         # renderer = cov_figure.figure.renderers[0]
