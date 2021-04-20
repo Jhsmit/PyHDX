@@ -15,13 +15,10 @@ from pyhdx.panel.transforms import RescaleTransform, ApplyCmapTransform, Peptide
 from pyhdx.panel.opts import CmapOpts
 from pyhdx.panel.filters import UniqueValuesFilter, MultiIndexSelectFilter
 
-
 import panel as pn
 from panel import pane
 from lumen.views import PerspectiveView, hvPlotView
 from lumen.filters import WidgetFilter, ParamFilter
-
-
 
 from pathlib import Path
 import pandas as pd
@@ -127,7 +124,7 @@ def main_app():
 
     opts = {'xlabel': 'Residue Number', 'ylabel': 'ΔG (kJ mol⁻¹)', **global_opts}
     deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
-                           table='global_fit', transforms=[rescale_transform, cmap_transform], streaming=True,
+                           table='global_fit', transforms=[cmap_transform, rescale_transform], streaming=True,
                            filters = [multiindex_select_global_fit_1, multiindex_select_global_fit_2],
                            responsive=True, opts=opts) #issue 154: deltaG units
 
