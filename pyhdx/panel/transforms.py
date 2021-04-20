@@ -125,7 +125,7 @@ class ApplyCmapTransform(Transform, WebAppTransform):
 
         return table
 
-    @param.depends('cmap', 'fields', watch=True)
+    @param.depends('cmap', 'fields', 'norm', watch=True)
     def _updated(self):
         print('cmap transform updated trigger')
         self.updated = True
