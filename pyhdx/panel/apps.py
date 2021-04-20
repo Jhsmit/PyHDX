@@ -102,7 +102,6 @@ def main_app():
     cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
 
     opts_list = [cmap_opts]
-    opts = {opts.name: opts for opts in opts_list}
 
     # ---------------------------------------------------------------------- #
     #                                VIEWS
