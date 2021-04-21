@@ -5,7 +5,7 @@ from pyhdx.panel.transforms import ApplyCmapTransform
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting, BatchFitting
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
-from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba
+from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba, series_to_pymol
 from pyhdx import VERSION_STRING
 from scipy import constants
 import param
@@ -15,7 +15,7 @@ from numpy.lib.recfunctions import append_fields
 from pathlib import Path
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays
-from io import StringIO
+from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
 from functools import partial
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
@@ -27,6 +27,7 @@ import matplotlib.pyplot as plt
 import itertools
 import pandas as pd
 import colorcet
+import zipfile
 
 from .widgets import ColoredStaticText, ASyncProgressBar
 
