@@ -394,7 +394,41 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     pd_series = pd_series.replace('nan', no_coverage)  # No coverage at nan entries
     pd_series = pd_series.replace(np.nan, no_coverage)  # Numpy NaNs
 
-    grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
+    # grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
+    #
+    # s_out = ''
+    # for c, pd_series in grp:
+    #     r, g, b = hex_to_rgb(c)
+    #     s_out += f'set_color color_{c}, [{r},{g},{b}]\n'
+    #
+    # # https://stackoverflow.com/questions/30993182/how-to-get-the-index-range-of-a-list-that-the-values-satisfy-some-criterion-in-p
+    # for c, pd_series in grp:
+    #     result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+    #     residues = [f'resi {g[0]}-{g[-1]}' for g in result]
+    #
+    #     s_out += f'color color_{c}, ' + ' + '.join(residues) + '\n'
+
+    return series_to_pymol(pd_series)
+
+
+def series_to_pymol(pd_series):
+    """
+    Coverts a pandas series to pymol script to color proteins structures in pymol
+    Series must have hexadecimal color values and residue number as index
+
+    Parameters
+    ----------
+    pd_series : pandas series
+
+    Returns
+    -------
+
+    s_out: :obj:`string`
+
+    """
+
+    # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
+    grp = pd_series.groupby(pd_series)
 
     s_out = ''
     for c, pd_series in grp:

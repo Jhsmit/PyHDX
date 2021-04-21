@@ -800,8 +800,6 @@ class ClassificationControl(ControlPanel):
 
         return selected_df
 
-        return selected_df
-
     def get_values(self):
         """return numpy array with only the values from selected dataframe, nan omitted"""
 
@@ -866,6 +864,13 @@ class ClassificationControl(ControlPanel):
         output = colors_hex.reshape(array.shape[:-1])
 
         output_df = pd.DataFrame(output, index=selected_df.index, columns=selected_df.columns)
+        if output_df.index.name == 'r_number':  # The selected dataset is a protein mappable
+            c_term = max([kf.series.coverage.protein.c_term for kf in self.parent.fit_objects.values()])
+            n_term = min([kf.series.coverage.protein.n_term for kf in self.parent.fit_objects.values()])
+
+            new_index = pd.RangeIndex(start=n_term, stop=c_term, name='r_number')
+            output_df = output_df.reindex(index=new_index, fill_value=self.no_coverage.upper())
+
         source.tables[self.color_set_name] = output_df
         source.updated = True
 
@@ -1321,18 +1326,20 @@ class FileExportControl(ControlPanel):
 
     @pn.depends('table')
     def pml_export_callback(self):
-        if self.target:
-            io = StringIO()
-            io.write('# ' + VERSION_STRING + ' \n')
-            script = self._make_pml(self.target)
-            try:
-                io.write(script)
-                io.seek(0)
-                return io
-            except TypeError:
-                return None
-        else:
-            return None
+
+        if self.table:
+            #todo check if table is valid for pml conversion
+
+            bio = BytesIO()
+            with zipfile.ZipFile(bio, 'w') as pml_zip:
+                for col_name in self.df.columns:
+                    name = col_name if isinstance(col_name, str) else '_'.join(col_name)
+                    colors = self.df[col_name]
+                    pml_script = series_to_pymol(colors)  # todo refactor pd_series_to_pymol?
+                    pml_zip.writestr(name + '.pml', pml_script)
+
+            bio.seek(0)
+            return bio
 
     @pn.depends('table')  # param.depends?
     def table_export_callback(self):
