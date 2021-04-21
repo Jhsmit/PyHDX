@@ -777,12 +777,20 @@ class ClassificationControl(ControlPanel):
         return df
 
     def get_selected_data(self):
-        df = self.get_data().sort_index(axis=1)
+        df = self.get_data()
         selected_fields = [widget.value for name, widget in self.widgets.items() if name.startswith('select')]
-        slice_items = tuple(slice(field) if field != '*' else slice(None) for field in selected_fields)
 
-        idx = pd.IndexSlice
-        selected_df = df.loc[:, idx[slice_items]]
+        bools_list = [df.columns.get_level_values(i) == value for i, value in enumerate(selected_fields) if
+                      value != '*']
+        if len(bools_list) == 0:
+            bools = np.ones(len(df.columns)).astype(bool)
+        elif len(bools_list) == 1:
+            bools = np.array(bools_list).flatten()
+        else:
+            bools = np.logical_and(*bools_list)
+        selected_df = df.iloc[:, bools]
+
+        return selected_df
 
         return selected_df
 
