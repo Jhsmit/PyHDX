@@ -14,6 +14,11 @@ import panel as pn
 import numpy as np
 from pathlib import Path
 
+#temporary imports
+from pyhdx.support import rgb_to_hex
+import matplotlib.pyplot as plt
+
+
 ctrl = main_app()
 directory = Path(__file__).parent
 fpath_1 = directory / 'test_data' / 'ecSecB_apo.csv'
@@ -44,43 +49,22 @@ fit_control.epochs = 10
 
 fit_control._do_fitting()
 
+classification = ctrl.control_panels['ClassificationControl']
+classification.widgets['select_1'].value = '*'
+classification.widgets['select_2'].value = 'deltaG'
 
-#TODO: INITIAL GUESS FOR BATCH FIT IS WRONG!õneoneon
+classification.mode = 'Continuous'
+classification._action_linear()
+classification.color_set_name = 'colorset test'
+classification._action_add_colorset()
 
-#
-#
-#
-#
-#
-# dic = {}
-# dic['file_paths'] = [fpath_1, fpath_2]
-# dic['norm_mode'] = 'Exp'
-# dic['fd_state'] = 'Full deuteration control'
-# dic['fd_exposure'] = 0.167
-# dic['exp_state'] = 'SecB WT apo'
-#
-# # src_file = directory / 'test_data' / 'ecSecB_torch_fit.txt'
-# # df = csv_to_dataframe(src_file)
-# # data_dict = df.to_dict(orient='series')
-# #
-# #
-# # data_dict['color'] = np.full_like(data_dict['r_number'], fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-# # data_source = DataSource(data_dict, x='r_number', tags=['mapping', 'pfact', 'deltaG'],
-# #                          renderer='circle', size=10, name='global_fit')
-# #
-# # dic['sources'] = {}
-# # #dic['sources']['global_fit'] = data_source  #todo: on_load!
-# #
-# # dic['rcsb_id'] = '1qyn'
-# #
-# # cluster = None
-# ctrl = reload_previous(dic, ctrl)
-# # ctrl.cluster = None
-# #
-# #
-# #ctrl.control_panels['FitControl'].epochs = 10
-# #ctrl.cluster = '127.0.0.1:61461'
-#
+
+file_export = ctrl.control_panels['FileExportControl']
+sio = file_export.table_export_callback()
+
+
+
 #
 if __name__ == '__main__':
-    pn.serve(ctrl.template, show=False, static_dirs={'pyhdx': STATIC_DIR})
+    pn.serve(ctrl.template, show=True
+             , static_dirs={'pyhdx': STATIC_DIR})
