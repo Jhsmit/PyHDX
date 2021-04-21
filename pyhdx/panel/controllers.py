@@ -751,14 +751,18 @@ class ClassificationControl(ControlPanel):
     def _table_updated(self):
         print('table updated triggered')
         df = self.get_data()
+
+        #todo also get schema and check if this table is compatible (ie has numbers, not colors only)
         if df.empty:
             return
         names = df.columns.names
 
         # Remove old widgets (list comprehension)
-        for key in self.widgets.keys():
-            if key.startswith('select'):
-                widget = self.widgets.pop(key)
+        old_widget_names = [key for key in self.widgets.keys() if key.startswith('select')]
+        [self.widgets.pop(key) for key in old_widget_names]
+        # for key in self.widgets.keys():
+        #     if key.startswith('select'):
+        #         widget = self.widgets.pop(key)
                # [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
 
 #        widgets = []
