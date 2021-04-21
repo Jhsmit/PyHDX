@@ -172,7 +172,7 @@ def main_app():
         ClassificationControl,
         GraphControl,
         # FitResultControl,
-        # #FileExportControl,
+        FileExportControl,
         # ProteinViewControl,
         # OptionsControl
     ]

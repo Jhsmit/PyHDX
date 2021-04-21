@@ -1192,6 +1192,124 @@ class GraphControl(ControlPanel):
         ]
 
 
+class FileExportControl(ControlPanel):
+    # todo check if docstring is true
+    """
+    This controller allows users to export and download datasets.
+
+    All datasets can be exported as .txt tables.
+    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
+    based on their 'color' column.
+
+    """
+
+    header = "File Export"
+    table = param.Selector(label='Target dataset', doc='Name of the dataset to export')
+    #todo add color param an dlink with protein viewer color
+
+    def __init__(self, parent, **param):
+        super(FileExportControl, self).__init__(parent, **param)
+
+        objects = list(self.sources['dataframe'].tables.keys())
+        self.param['table'].objects = objects
+        self.table = objects[0]
+        self.sources['dataframe'].param.watch(self._source_updated, 'updated')
+
+    def make_dict(self):
+        widgets = self.generate_widgets()
+        widgets['export_tables'] = pn.widgets.FileDownload(
+            label='Download table',
+            callback=self.table_export_callback,
+            filename='table.txt')
+        widgets['export_pml'] = pn.widgets.FileDownload(label='Download pml scripts',
+                                                        callback=self.pml_export_callback,
+                                                        )
+
+        return widgets
+
+    @property
+    def _layout(self):
+        return [
+            ('self', None)
+        ]
+
+    def _source_updated(self, *events):
+        self.param['table'].objects = list(self.sources['dataframe'].tables.keys())
+        self._table_updated()
+
+    @param.depends('table', watch=True)
+    def _table_updated(self):
+        self.df = self.sources['dataframe'].get(self.table)
+
+        self.widgets['export_tables'].filename = self.table + '.txt'
+
+        if self.df.index.name == 'r_number':
+            self.widgets['export_pml'].disabled = False
+            self.widgets['export_pml'].filename = self.table + '_pml_scripts.zip'
+        else:
+            self.widgets['export_pml'].disabled = True
+
+    def _make_pml(self, target):
+        assert 'r_number' in self.export_dict.keys(), "Target export data must have 'r_number' column"
+
+        try:
+            #todo add no coverage field and link to the other no coverage field
+            no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
+        except KeyError:
+            no_coverage = '#8c8c8c'
+            self.parent.logger.warning('No coverage color found, using default grey')
+
+        try:
+            c_term = self.parent.series.c_term
+        except AttributeError:
+            c_term = None
+
+        try:
+            script = colors_to_pymol(self.export_dict['r_number'], self.export_dict['color'],
+                                     c_term=c_term, no_coverage=no_coverage)
+            return script
+        except KeyError:
+            return None
+
+    # @pn.depends('target', watch=True)
+    # def _update_filename(self):
+    #     #todo subclass and split
+    #     self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
+    #     if 'mapping' in self.export_data_source.tags:
+    #         self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
+    #         # self.pml_script_download.disabled = False
+    #     else:
+    #         self.pml_script_download.filename = 'Not Available'
+    #         # self.pml_script_download.disabled = True # Enable/disable currently bugged:
+
+    @pn.depends('table')
+    def pml_export_callback(self):
+        if self.target:
+            io = StringIO()
+            io.write('# ' + VERSION_STRING + ' \n')
+            script = self._make_pml(self.target)
+            try:
+                io.write(script)
+                io.seek(0)
+                return io
+            except TypeError:
+                return None
+        else:
+            return None
+
+    @pn.depends('table')  # param.depends?
+    def table_export_callback(self):
+        io = StringIO()
+        io.write('# ' + VERSION_STRING + ' \n')
+
+        if self.table:
+            self.df.to_csv(io)
+            io.seek(0)
+            return io
+        else:
+            return None
+
+
 class SingleMappingFileInputControl(MappingFileInputControl):
     """
     This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
@@ -1673,113 +1791,6 @@ class ColoringControl(ClassificationControl):
         #self.parent.sources[self.target].source.data['color'] = colors
 
 
-class FileExportControl(ControlPanel):
-    # todo check if docstring is true
-    """
-    This controller allows users to export and download datasets.
-
-    All datasets can be exported as .txt tables.
-    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
-    based on their 'color' column.
-
-    """
-
-    header = "File Export"
-    target = param.Selector(label='Target dataset', doc='Name of the dataset to export')
-    #todo add color param an dlink with protein viewer color
-
-    def __init__(self, parent, **param):
-        self.export_linear_download = pn.widgets.FileDownload(filename='<no data>', callback=self.linear_export_callback)
-        self.pml_script_download = pn.widgets.FileDownload(filename='<no data>', callback=self.pml_export_callback)
-        super(FileExportControl, self).__init__(parent, **param)
-
-        self.parent.param.watch(self._sources_updated, ['sources'])
-        try:  # todo write function that does the try/excepting + warnings (or also mixins?)
-            self.parent.param.watch(self._series_updated, ['series'])
-        except ValueError:
-            pass
-
-    def make_list(self):
-        self.widget_dict.update(export_linear_download=self.export_linear_download, pml_script_download=self.pml_script_download)
-        return super(FileExportControl, self).make_list()
-
-    def _sources_updated(self, *events):
-        objects = list(self.parent.sources.keys())
-        self.param['target'].objects = objects
-
-        if not self.target and objects:
-            self.target = objects[0]
-
-    def _series_updated(self, *events):
-        self.c_term = int(self.parent.series.coverage.protein.c_term)
-
-    def _make_pml(self, target):
-        assert 'r_number' in self.export_dict.keys(), "Target export data must have 'r_number' column"
-
-        try:
-            #todo add no coverage field and link to the other no coverage field
-            no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
-        except KeyError:
-            no_coverage = '#8c8c8c'
-            self.parent.logger.warning('No coverage color found, using default grey')
-
-        try:
-            c_term = self.parent.series.c_term
-        except AttributeError:
-            c_term = None
-
-        try:
-            script = colors_to_pymol(self.export_dict['r_number'], self.export_dict['color'],
-                                     c_term=c_term, no_coverage=no_coverage)
-            return script
-        except KeyError:
-            return None
-
-    @property
-    def export_dict(self):
-        return {k: v for k, v in self.export_data_source.source.data.items() if not k.startswith('__')}
-
-    @property
-    def export_data_source(self):
-        return self.parent.sources[self.target]
-
-    @pn.depends('target', watch=True)
-    def _update_filename(self):
-        #todo subclass and split
-        self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
-        if 'mapping' in self.export_data_source.tags:
-            self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
-            # self.pml_script_download.disabled = False
-        else:
-            self.pml_script_download.filename = 'Not Available'
-            # self.pml_script_download.disabled = True # Enable/disable currently bugged:
-
-    @pn.depends('target')
-    def pml_export_callback(self):
-        if self.target:
-            io = StringIO()
-            io.write('# ' + VERSION_STRING + ' \n')
-            script = self._make_pml(self.target)
-            try:
-                io.write(script)
-                io.seek(0)
-                return io
-            except TypeError:
-                return None
-        else:
-            return None
-
-    @pn.depends('target')  # param.depends?
-    def linear_export_callback(self):
-        io = StringIO()
-        io.write('# ' + VERSION_STRING + ' \n')
-
-        if self.target:
-            self.export_data_source.export_df.to_csv(io, index=False)
-            io.seek(0)
-            return io
-        else:
-            return None
 
 
 class DifferenceFileExportControl(FileExportControl):
