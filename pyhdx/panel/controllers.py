@@ -840,6 +840,37 @@ class ClassificationControl(ControlPanel):
             widget.value = thd
         self._update_bounds()
 
+    def _action_add_colorset(self):
+        if not self.color_set_name:
+            self.parent.logger.info('No name given tot the colorset')
+            return
+
+        source = self.sources['dataframe']
+        if self.color_set_name in source.tables.keys():
+            self.parent.logger.info(f'Colorset with name {self.color_set_name} already present')
+            return
+
+        selected_df = self.get_selected_data()
+        cmap, norm = self.get_cmap_and_norm()
+
+        array = cmap(norm(selected_df), bytes=True)
+        colors_hex = rgb_to_hex(array.reshape(-1, 4))
+        output = colors_hex.reshape(array.shape[:-1])
+
+        output_df = pd.DataFrame(output, index=selected_df.index, columns=selected_df.columns)
+        source.tables[self.color_set_name] = output_df
+        source.updated = True
+
+    @param.depends('color_map', 'values', 'colors', watch=True)
+    def _action_apply(self):
+        cmap, norm = self.get_cmap_and_norm()
+
+        if cmap and norm:
+            #this needs to be updated to more generalized
+            transform = self.transforms['cmap_transform']
+            transform.cmap = cmap
+            transform.norm = norm
+
     def get_cmap_and_norm(self):
         norm_klass = mpl.colors.Normalize if not self.log_space else mpl.colors.LogNorm
         if len(self.values) < 2:
