@@ -26,6 +26,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
 import pandas as pd
+import colorcet
 
 from .widgets import ColoredStaticText, ASyncProgressBar
 
@@ -661,18 +662,23 @@ class ClassificationControl(ControlPanel):
     # todo unify name for target field (target_data set)
     # When coupling param with the same name together there should be an option to exclude this behaviour
     table = param.Selector(label='Target table')
-    quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
+    # fit_ID = param.Selector()  # generalize selecting widgets based on selected table
+    # quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
 
     mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous', 'Color map'],
                           doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
     num_colors = param.Integer(3, bounds=(1, 10), label='Number of colours',
                               doc='Number of classification colors.')
+    library = param.Selector(default='matplotlib', objects=['matplotlib', 'colorcet'])
+    color_map = param.Selector()
     otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
                             doc="Automatically perform thresholding based on Otsu's method.")
     linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
                               doc='Automatically perform thresholding by creating equally spaced sections.')
-    log_space = param.Boolean(True,
+    log_space = param.Boolean(False,
                               doc='Boolean to set whether to apply colors in log space or not.')
+    apply = param.Action(lambda self: self._action_apply())
+    no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage')
 
     #show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
     values = param.List(default=[], precedence=-1)
@@ -681,59 +687,196 @@ class ClassificationControl(ControlPanel):
     def __init__(self, parent, **param):
         super(ClassificationControl, self).__init__(parent, **param)
 
+        # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
+        cc_cmaps = sorted(colorcet.cm.keys())
+        mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
+        self.cmaps = {'matplotlib': mpl_cmaps, 'colorcet': cc_cmaps}
+        self.param['color_map'].objects = mpl_cmaps
+
         self._update_num_colors()
         self._update_num_values()
-
-        options = [view.table for view in self.views.values() if any(isinstance(trs, ApplyCmapTransform) for trs in view.transforms)]
-
         self.excluded = []  # excluded widgets based on choice of `mode`
+
+        views = [view for view in self.views.values() if any(isinstance(trs, ApplyCmapTransform) for trs in view.transforms)]
+        options = [view.table for view in views]
+
+        for view in views:
+            view.source.param.watch(self._sources_updated, 'updated')
+
         self.param['table'].objects = options
+        if not self.table and options:
+            self.table = options[0]
 
-        self.update_box()
-
-    @param.depends('table', watch=True)
-    def _table_updated(self):
-        data = self.table
-
-    @property
-    def table(self):
-        source = self.sources['dataframe']
-        table = source.get(self.table)
+        self._table_updated()  # also updates box
+        #self.update_box()
 
     @property
     def own_widget_names(self):
         """returns a list of names of widgets in self.widgets to be laid out in controller card"""
 
-        #initial_widgets = [name for name in self.widgets.keys() if name not in self.excluded]
+        # initial_widgets = [name for name in self.widgets.keys() if name not in self.excluded]
         initial_widgets = []
         for name in self.param:
             precedence = self.param[name].precedence
             if (precedence is None or precedence > 0) and name not in self.excluded + ['name']:
                 initial_widgets.append(name)
+        #l1[1:1] = l2
+        select_widgets = [name for name in self.widgets.keys() if name.startswith('select')]
+        initial_widgets[1:1] = select_widgets
 
-        value_widget_names = [f'value_{i}' for i in range(len(self.values))]
-        color_widget_names = [f'color_{i}' for i in range(len(self.colors))]
-        return initial_widgets + value_widget_names + color_widget_names
+        #value_widget_names = [f'value_{i}' for i in range(len(self.values))]
+        #color_widget_names = [f'color_{i}' for i in range(len(self.colors))]
+        widget_names = initial_widgets + [f'value_{i}' for i in range(len(self.values))]
+        if self.mode != 'Color map':
+            widget_names += [f'color_{i}' for i in range(len(self.colors))]
+        return widget_names
 
-#        return initial_widgets + #list(self.values_widgets.keys()) + list(self.colors_widgets.keys())
+    #        return initial_widgets + #list(self.values_widgets.keys()) + list(self.colors_widgets.keys())
+
+    def make_dict(self):
+        return self.generate_widgets(num_colors=pn.widgets.IntInput)
 
     @property
     def _layout(self):
         return {'self': self.own_widget_names,
                 }
 
-    def make_dict(self):
-        #param_widgets = self.generate_widgets(num_colors=pn.widgets.IntInput)
-        #return {**param_widgets, **self.values_widgets, **self.colors_widgets}
-        #make dict is executed before values and color widgets are created
-        return self.generate_widgets(num_colors=pn.widgets.IntInput)
+    def _sources_updated(self, *events):
+        self._table_updated()
+
+    @param.depends('table', watch=True)
+    def _table_updated(self):
+        print('table updated triggered')
+        df = self.get_data()
+        if df.empty:
+            return
+        names = df.columns.names
+
+        # Remove old widgets (list comprehension)
+        for key in self.widgets.keys():
+            if key.startswith('select'):
+                widget = self.widgets.pop(key)
+               # [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+
+#        widgets = []
+        widgets = [pn.widgets.Select(name=name, options=['*'] + list(options), value=options[0]) for name, options in zip(names, df.columns.levels)]
+        # for widget in widgets:
+        #     widget.param.watch(self._ , 'value')
+        widget_dict = {f'select_{i}': widget for i, widget in enumerate(widgets)}
+        self.widgets.update(widget_dict)
+        self.update_box()
+
+    def get_data(self):
+        """object pandas dataframe: returns current multindex dataframe"""
+        source = self.sources['dataframe']
+        df = source.get(self.table)
+
+        return df
+
+    def get_selected_data(self):
+        df = self.get_data().sort_index(axis=1)
+        selected_fields = [widget.value for name, widget in self.widgets.items() if name.startswith('select')]
+        slice_items = tuple(slice(field) if field != '*' else slice(None) for field in selected_fields)
+
+        idx = pd.IndexSlice
+        selected_df = df.loc[:, idx[slice_items]]
+
+        return selected_df
+
+    def get_values(self):
+        """return numpy array with only the values from selected dataframe, nan omitted"""
+
+        array = self.get_selected_data().to_numpy().flatten()
+        values = array[~np.isnan(array)]
+
+        return values
+
+    def _action_otsu(self):
+        if self.num_colors <= 1:
+            return
+        values = self.get_values() # todo check for no values
+        if not values.size:
+            return
+
+        func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
+        thds = threshold_multiotsu(func(values), classes=self.num_colors)
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
+        for thd, widget in zip(thds[::-1], widgets):  # Values from high to low
+            widget.start = None
+            widget.end = None
+            widget.value = np.exp(thd) if self.log_space else thd
+        self._update_bounds()
+
+        #self._get_colors()
+
+    def _action_linear(self):
+        i = 1 if self.mode == 'Discrete' else 0
+        values = self.get_values()
+        if not values.size:
+            return
+
+        if self.log_space:
+            thds = np.logspace(np.log(np.min(values)), np.log(np.max(values)),
+                               num=self.num_colors + i, endpoint=True, base=np.e)
+        else:
+            thds = np.linspace(np.min(values), np.max(values), num=self.num_colors + i, endpoint=True)
+
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
+        for thd, widget in zip(thds[i:self.num_colors][::-1], widgets):
+            # Remove bounds, set values, update bounds
+            widget.start = None
+            widget.end = None
+            widget.value = thd
+        self._update_bounds()
+
+    def get_cmap_and_norm(self):
+        norm_klass = mpl.colors.Normalize if not self.log_space else mpl.colors.LogNorm
+        if len(self.values) < 2:
+            return None, None
+
+        if self.mode == 'Discrete':
+            if len(self.values) != len(self.colors) - 1:
+                return None, None
+            cmap = mpl.colors.ListedColormap(self.colors)
+            norm = mpl.colors.BoundaryNorm(self.values[::-1], self.num_colors, extend='both') #todo refactor values to thd_values
+        elif self.mode == 'Continuous':
+            norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
+            positions = norm(self.values[::-1])
+            cmap = mpl.colors.LinearSegmentedColormap.from_list('custom_cmap', list(zip(positions, self.colors)))
+        elif self.mode == 'Color map':
+            norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
+            if self.library == 'matplotlib':
+                cmap = mpl.cm.get_cmap(self.color_map)
+            elif self.library == 'colorcet':
+                cmap = getattr(colorcet, 'm_' + self.color_map)
+
+        cmap.set_bad(self.no_coverage)
+        return cmap, norm
+
+    @param.depends('color_map', 'values', 'colors', watch=True)
+    def _action_apply(self):
+        cmap, norm = self.get_cmap_and_norm()
+
+        if cmap and norm:
+            #this needs to be updated to more generalized
+            transform = self.transforms['cmap_transform']
+            transform.cmap = cmap
+            transform.norm = norm
+
+    @param.depends('library', watch=True)
+    def _update_library(self):
+        options = self.cmaps[self.library]
+        self.param['color_map'].objects = options
 
     @param.depends('mode', watch=True)
     def _mode_updated(self):
         if self.mode == 'Discrete':
-            self.excluded = []
+            self.excluded = ['library', 'color_map']
+    #        self.num_colors = max(3, self.num_colors)
+    #        self.param['num_colors'].bounds = (3, None)
         elif self.mode == 'Continuous':
-            self.excluded = ['otsu_thd']
+            self.excluded = ['library', 'color_map', 'otsu_thd']
+      #      self.param['num_colors'].bounds = (2, None)
         elif self.mode == 'Color map':
             self.excluded = ['otsu_thd', 'num_colors']
             self.num_colors = 2
@@ -819,6 +962,8 @@ class ClassificationControl(ControlPanel):
             # idx = list(self.colors_widgets).index(event.obj)
             self.colors[widget_index] = event.new
             print('new colors', self.colors)
+
+        self.param.trigger('colors')
 
         #todo param trigger colors????
 

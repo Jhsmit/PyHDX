@@ -131,6 +131,10 @@ class TestMainGUISecB(object):
         assert colors.sum() == 57578
         assert colors.std() == 97.25745214650469
 
+        classification.mode = 'Color map'
+        classification.library = 'colorcet'
+        #classification.color_map =
+        cmap, norm = classification.get_cmap_and_norm()
 
         #
         # cov_figure = ctrl.figure_panels['CoverageFigure']
