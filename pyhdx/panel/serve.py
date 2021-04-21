@@ -1,5 +1,5 @@
 import panel as pn
-from pyhdx.panel.apps import main_app, diff_app, single_app, folding_app, full_deuteration_app
+from pyhdx.panel.apps import main_app#, diff_app, single_app, folding_app, full_deuteration_app
 from pyhdx.panel.base import STATIC_DIR
 import numpy as np
 import torch

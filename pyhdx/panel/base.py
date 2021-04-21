@@ -265,7 +265,6 @@ class ControlPanel(PanelBase):
                         else:
                             widget_list.append(panel)
 
-
         return widget_list
 
     def make_list(self):

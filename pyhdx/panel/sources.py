@@ -138,7 +138,6 @@ class DataSource(param.Parameterized):
     def __getitem__(self, item):
         return self.source.data.__getitem__(item)
 
-
     @property
     def export_df(self):
         df = pd.DataFrame({k: v for k, v in self.source.data.items() if not k.startswith('__')})

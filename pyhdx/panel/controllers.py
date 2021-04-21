@@ -902,16 +902,6 @@ class ClassificationControl(ControlPanel):
         cmap.set_bad(self.no_coverage)
         return cmap, norm
 
-    @param.depends('color_map', 'values', 'colors', watch=True)
-    def _action_apply(self):
-        cmap, norm = self.get_cmap_and_norm()
-
-        if cmap and norm:
-            #this needs to be updated to more generalized
-            transform = self.transforms['cmap_transform']
-            transform.cmap = cmap
-            transform.norm = norm
-
     @param.depends('library', watch=True)
     def _update_library(self):
         options = self.cmaps[self.library]
@@ -1046,7 +1036,7 @@ class ClassificationControl(ControlPanel):
             else:
                 widget.start = None
 
- 
+
 class FitControl(ControlPanel):
     """
     This controller allows users to execute PyTorch fitting of the global data set.
@@ -1773,9 +1763,6 @@ class FitResultControl(ControlPanel):
             dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
             data_source = DataSource(dic, x='time', y='uptake', tags=['uptake_curve'], renderer=renderer, color=color)
             self.parent.publish_data(name, data_source)
-
-
-
 
 
 class ColoringControl(ClassificationControl):
