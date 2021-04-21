@@ -26,4 +26,4 @@ bf = BatchFitting([kf1, kf2], [guesses, guesses])
 result = bf.global_fit(epochs=10)
 
 print(result.output)
-result.output.to_file('temp.txt')
+result.output.to_file('fit_data_pyhdx_format.txt')
