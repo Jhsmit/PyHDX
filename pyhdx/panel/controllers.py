@@ -682,6 +682,9 @@ class ClassificationControl(ControlPanel):
     #apply = param.Action(lambda self: self._action_apply())
     no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage')
 
+    color_set_name = param.String('', doc='Name for the color dataset to add')
+    add_colorset = param.Action(lambda self: self._action_add_colorset())
+
     #show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
     values = param.List(default=[], precedence=-1)
     colors = param.List(default=[], precedence=-1)

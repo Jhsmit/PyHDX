@@ -51,7 +51,9 @@ def main_app():
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
 
-
+    # Availble tables are predefined at launch, but are empty
+    # this way GUI methods can add to them as multiindex subset
+    # more tables can be added later by the gui
     tables = {'peptides': df_peptides, 'rates': df_rates, 'global_fit': df_global_fit}
     source = DataFrameSource(tables=tables, name='dataframe')
 
