@@ -285,42 +285,6 @@ class PeptideFileInputControl(ControlPanel):
 
         return widget_list
 
-    def _action_add_dataset(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
-
-        if self._array is None:
-            self.parent.logger.info("No data loaded")
-            return
-        elif self.dataset_list and self.dataset_name in self.dataset_list:
-            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
-            return
-
-        peptides = PeptideMasterTable(self._array, d_percentage=self.d_percentage,
-                                      drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
-        if self.be_mode == 'FD Sample':
-            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
-            peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
-        elif self.be_mode == 'Flat percentage':
-            # todo @tejas: Add test
-            peptides.set_backexchange(self.be_percent)
-
-        data_states = peptides.data[peptides.data['state'] == self.exp_state]
-        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
-
-        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence, name=self.dataset_name)
-        kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
-        self.parent.fit_objects[self.dataset_name] = kf
-        self.parent.param.trigger('fit_objects')  # Trigger update
-
-        df = pd.DataFrame(series.full_data)
-        target_source = self.parent.sources['dataframe']
-        target_source.add_df(df, 'peptides', self.dataset_name)
-
-        self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
-                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
-        self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
-                                f'Redundancy: {series.coverage.redundancy:.2}')
-
     @param.depends('be_mode', watch=True)
     def _update_be_mode(self):
         # todo @tejas: Add test
@@ -411,6 +375,42 @@ class PeptideFileInputControl(ControlPanel):
         # Update datasets widget as datasets on parents change
         objects = list(self.parent.fit_objects.keys())
         self.param['dataset_list'].objects = objects
+
+    def _action_add_dataset(self):
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+
+        if self._array is None:
+            self.parent.logger.info("No data loaded")
+            return
+        elif self.dataset_list and self.dataset_name in self.dataset_list:
+            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+            return
+
+        peptides = PeptideMasterTable(self._array, d_percentage=self.d_percentage,
+                                      drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        if self.be_mode == 'FD Sample':
+            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
+            peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
+        elif self.be_mode == 'Flat percentage':
+            # todo @tejas: Add test
+            peptides.set_backexchange(self.be_percent)
+
+        data_states = peptides.data[peptides.data['state'] == self.exp_state]
+        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
+
+        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence, name=self.dataset_name)
+        kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
+        self.parent.fit_objects[self.dataset_name] = kf
+        self.parent.param.trigger('fit_objects')  # Trigger update
+
+        df = pd.DataFrame(series.full_data)
+        target_source = self.parent.sources['dataframe']
+        target_source.add_df(df, 'peptides', self.dataset_name)
+
+        self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
+                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
+        self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
+                                f'Redundancy: {series.coverage.redundancy:.2}')
 
     def _action_remove_datasets(self):
         for name in self.dataset_list:
