@@ -677,7 +677,7 @@ class ClassificationControl(ControlPanel):
                               doc='Automatically perform thresholding by creating equally spaced sections.')
     log_space = param.Boolean(False,
                               doc='Boolean to set whether to apply colors in log space or not.')
-    apply = param.Action(lambda self: self._action_apply())
+    #apply = param.Action(lambda self: self._action_apply())
     no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage')
 
     #show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
@@ -1174,7 +1174,7 @@ class GraphControl(ControlPanel):
 
     @property
     def _layout(self):
-        return {
+        return (
             'self': ['coverage'],
             'filters.select_index': None,
             'filters.exposure_slider': None,
@@ -1185,7 +1185,7 @@ class GraphControl(ControlPanel):
             'filters.select_index_global_fit_lv1': None,
             'filters.select_index_global_fit_lv2': None,
             'opts.cmap': None
-        }
+        )
 
 
 class SingleMappingFileInputControl(MappingFileInputControl):
@@ -1254,6 +1254,7 @@ class MatrixMappingFileInputControl(SingleMappingFileInputControl):
             self.datapoints = float_fields
 
 #        self.dataset_name = self.dataset_name or Path(self.widget_dict['input_file'].filename).stem
+
 
 class MatrixImageControl(ControlPanel):
     """
