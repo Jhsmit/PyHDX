@@ -175,7 +175,6 @@ class ControlPanel(PanelBase):
 
     def __init__(self, parent, **params):
         self.parent = parent
-        #self._layout = None  # List with dictionary layout
 
         super(ControlPanel, self).__init__(**params)
 
@@ -243,7 +242,7 @@ class ControlPanel(PanelBase):
             return list(self.widgets.values())
         else:
             widget_list = []
-            for widget_source, contents in self._layout.items():
+            for widget_source, contents in self._layout:
                 if widget_source == 'self':
                     object = self
                 else:

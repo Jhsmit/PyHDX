@@ -189,6 +189,7 @@ class TestFileInputControl(ControlPanel):
 
     def __init__(self, parent, **params):
         super().__init__(parent, **params)
+        # todo property and list of tuples
         self._layout = {
             'self': None,
             'filters.exposure_slider': None
@@ -263,7 +264,7 @@ class PeptideFileInputControl(ControlPanel):
 
     @property
     def _layout(self):
-        return {'self': self.own_widget_names}
+        return [('self', self.own_widget_names)]
 
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(name='Sequence (optional)', placeholder='Enter sequence in FASTA format', max_length=10000,
@@ -431,11 +432,11 @@ class CoverageControl(ControlPanel):
 
     @property
     def _layout(self):
-        return  {
-            'filters.select_index': None,
-            'filters.exposure_slider': None,
-            'self': None
-        }
+        return [
+            ('filters.select_index', None),
+            ('filters.exposure_slider', None),
+            ('self', None)
+        ]
 
     def _action_new_data(self):
         df = csv_to_dataframe(r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_apo_peptides.csv')
@@ -479,10 +480,11 @@ class InitialGuessControl(ControlPanel):
 
     @property
     def _layout(self):
-        return {'self': self.own_widget_names,
-                'filters.select_index_rates_lv1': None,
-                'filters.select_index_rates_lv2': None,
-                        }
+        return [
+            ('self', self.own_widget_names),
+            ('filters.select_index_rates_lv1', None),
+            ('filters.select_index_rates_lv2', None),
+                        ]
 
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
@@ -738,8 +740,9 @@ class ClassificationControl(ControlPanel):
 
     @property
     def _layout(self):
-        return {'self': self.own_widget_names,
-                }
+        return [
+            ('self', self.own_widget_names),
+                ]
 
     def _sources_updated(self, *events):
         self._table_updated()
@@ -1161,31 +1164,32 @@ class FitControl(ControlPanel):
 
 
 class GraphControl(ControlPanel):
-    header = 'Graphs'
-
-    coverage = param.String('Coverage')
-    rates = param.String('Rates')
-    gibbs = param.String('Gibbs')
+    header = 'Graph Control'
 
     def make_dict(self):
-        return self.generate_widgets(coverage=pn.widgets.StaticText,
-                                     rates=pn.widgets.StaticText,
-                                     gibbs=pn.widgets.StaticText)
+        widgets = {
+            'coverage': pn.pane.Markdown('### Coverage'),
+            'rates': pn.pane.Markdown('### Rates'),
+            'gibbs': pn.pane.Markdown('### Gibbs')
+        }
+
+        return widgets
 
     @property
     def _layout(self):
-        return (
-            'self': ['coverage'],
-            'filters.select_index': None,
-            'filters.exposure_slider': None,
-            'self': ['rates'],
-            'filters.select_index_rates_lv1': None,
-            'filters.select_index_rates_lv2': None,
-            'self': ['gibbs'],
-            'filters.select_index_global_fit_lv1': None,
-            'filters.select_index_global_fit_lv2': None,
-            'opts.cmap': None
-        )
+        return [
+            ('self', ['coverage']),
+            ('filters.select_index', None),
+            ('filters.exposure_slider', None),
+            ('opts.cmap', None),
+            ('self', ['rates']),
+            ('filters.select_index_rates_lv1', None),
+            ('filters.select_index_rates_lv2', None),
+            ('self', ['gibbs']),
+            ('filters.select_index_global_fit_lv1', None),
+            ('filters.select_index_global_fit_lv2', None),
+
+        ]
 
 
 class SingleMappingFileInputControl(MappingFileInputControl):
