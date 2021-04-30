@@ -45,16 +45,17 @@ class MainController(param.Parameterized):
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
 
+    logger = param.ClassSelector(logging.Logger, doc="Logger object")
+
     def __init__(self, control_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
         self.cluster = cluster
         self._doc = pn.state.curdoc
-        self.logger = logging.getLogger(str(id(self)))
+        if self.logger is None:
+            self.logger = logging.getLogger(str(id(self)))
 
-        #available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
-        #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
         self.template = None   # Panel template
 
         for filt in self.filters.values():

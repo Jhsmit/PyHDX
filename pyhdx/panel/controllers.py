@@ -29,6 +29,8 @@ import pandas as pd
 import colorcet
 import zipfile
 
+import logging
+
 from .widgets import ColoredStaticText, ASyncProgressBar
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
@@ -1978,12 +1980,15 @@ class DeveloperControl(ControlPanel):
     test_btn = param.Action(lambda self: self._action_test())
     trigger_btn = param.Action(lambda self: self._action_trigger())
     print_btn = param.Action(lambda self: self._action_print())
+    runtime_warning = param.Action(lambda self: self._action_runtime())
 
     def __init__(self, parent, **params):
         super(DeveloperControl, self).__init__(parent, **params)
 
     def _action_test_logging(self):
+        print(self.parent.logger)
         self.parent.logger.debug('TEST DEBUG MESSAGE')
+        #logging.info('THis is some info')
         for i in range(20):
             self.parent.logger.info('dit is een test123')
 
@@ -1993,7 +1998,7 @@ class DeveloperControl(ControlPanel):
     def _action_break(self):
         main_ctrl = self.parent
         control_panels = main_ctrl.control_panels
-        figure_panels = main_ctrl.figure_panels
+        views = main_ctrl.views
         sources = main_ctrl.sources
 
         print('Time for a break')
@@ -2010,7 +2015,9 @@ class DeveloperControl(ControlPanel):
 
         self.parent.publish_data('global_fit', data_source)
 
-
     def _action_trigger(self):
         deltaG_figure = self.parent.figure_panels['DeltaGFigure']
         deltaG_figure.bk_pane.param.trigger('object')
+
+    def _action_runtime(self):
+        result = np.mean([])

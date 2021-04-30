@@ -14,8 +14,10 @@ from pyhdx.panel.sources import DataFrameSource
 from pyhdx.panel.transforms import RescaleTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
 from pyhdx.panel.opts import CmapOpts
 from pyhdx.panel.filters import UniqueValuesFilter, MultiIndexSelectFilter
-
+from pyhdx.panel.log import StreamToLogger
+import logging
 import panel as pn
+from pyhdx.panel.log import logger
 from panel import pane
 from lumen.views import PerspectiveView, hvPlotView
 from lumen.filters import WidgetFilter, ParamFilter
@@ -23,6 +25,7 @@ from lumen.filters import WidgetFilter, ParamFilter
 from pathlib import Path
 import pandas as pd
 import matplotlib as mpl
+import datetime
 
 DEBUG = True
 cluster = '127.0.0.1:52123'
@@ -33,7 +36,9 @@ data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 global_opts = {'show_grid': True}
 
 
+@logger('pyhdx')
 def main_app():
+    logger = main_app.logger
 
     # ---------------------------------------------------------------------- #
     #                                SOURCES
@@ -156,9 +161,12 @@ def main_app():
                           transforms=[reset_index_transform],
                           filters=[multiindex_select_rates_1, multiindex_select_rates_2]
                            )
-
-
     view_list.append(rates)
+
+    log_view = LoggingView(logger=logger, level=logging.INFO, name='Info log')
+    debug_log_view = LoggingView(logger=logger, level=logging.DEBUG, name='Debug log')
+    view_list.append(log_view)
+    view_list.append(debug_log_view)
 
     sources = {src.name: src for src in src_list}
     transforms = {trs.name: trs for trs in trs_list}
@@ -188,7 +196,8 @@ def main_app():
                            filters=filters,
                            opts=opts,
                            views=views,
-                           cluster=cluster)
+                           cluster=cluster,
+                           logger=logger)
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme,
                         title=VERSION_STRING_SHORT)
@@ -197,12 +206,18 @@ def main_app():
 
     elvis.compose(ctrl, elvis.column(
         elvis.view(ctrl.views['coverage']),
-        elvis.stack(
-            elvis.view(ctrl.views['rates']),
-            elvis.view(ctrl.views['gibbs']),
+        elvis.row(
+            elvis.stack(
+                elvis.view(ctrl.views['rates']),
+                elvis.view(ctrl.views['gibbs']),
+            ),
+            elvis.stack(
+                elvis.view(ctrl.views['Info log']),
+                elvis.view(ctrl.views['Debug log'])
+            )
         )
         )
-                  )
+    )
 
     return ctrl
 

@@ -181,6 +181,37 @@ class hvRectangleAppView(View):
         return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
 
 
+class LoggingView(View):
+    view_type = 'logging'
+
+    logger = param.ClassSelector(logging.Logger, doc='Logger object to show in Log view')
+
+    level = param.Integer(default=10, doc='Logging level of the streamhandler redirecting logs to the view')
+
+    def __init__(self, *args, **params):
+        super(LoggingView, self).__init__(**params)
+        self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both')
+
+        self.sh = logging.StreamHandler(self.markdown)
+        self.sh.terminator = '  \n'
+        self.sh.setLevel(self.level)
+        formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', "%Y-%m-%d %H:%M:%S")
+        self.sh.setFormatter(formatter)
+        #sh.setLevel(logging.DEBUG)
+        self.logger.addHandler(self.sh)
+
+    @param.depends('level', watch=True)
+    def _level_updated(self):
+        self.sh.setLevel(self.level)
+
+    @property
+    def panel(self):
+        return self.markdown
+
+    def update(self, *events, invalidate_cache=True):
+        pass
+
+
 class CoverageFigure(BokehFigurePanel):
     title = 'Coverage'
     accepted_tags = ['coverage']
