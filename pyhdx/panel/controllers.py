@@ -1057,6 +1057,8 @@ class FitControl(ControlPanel):
 
     initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
 
+    fit_mode = param.Selector(default='Batch', objects=['Batch', 'Series'])
+
     stop_loss = param.Number(0.01, bounds=(0, None),
                              doc='Threshold loss difference below which to stop fitting.')
     stop_patience = param.Integer(100, bounds=(1, None),
@@ -1072,7 +1074,7 @@ class FitControl(ControlPanel):
     r1 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (peptide axis)',
                       doc='Value of the regularizer along residue axis.')
 
-    r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (sample axis)',
+    r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 2 (sample axis)',
                       doc='Value of the regularizer along sample axis.', constant=True)
 
     do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
@@ -1101,6 +1103,13 @@ class FitControl(ControlPanel):
         if not self.initial_guess and objects:
             self.initial_guess = objects[0]
 
+    @param.depends('fit_mode', watch=True)
+    def _fit_mode_updated(self):
+        if self.fit_mode == 'Batch' and len(self.parent.fit_objects) > 1:
+            self.param['r2'].constant = False
+        else:
+            self.param['r2'].constant = True
+
     @staticmethod
     def result_to_data_source(output):
         output.df['color'] = np.full(len(output), fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
@@ -1114,7 +1123,6 @@ class FitControl(ControlPanel):
                                  renderer='circle', size=10)
 
         return data_source
-
 
     def get_batch_fit_object(self):
         guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess]
@@ -1172,23 +1180,25 @@ class FitControl(ControlPanel):
 
         fit_name = 'global_fit_1'
 
-        if self.batch_fit:
+        if self.fit_mode == 'Batch':
             fit_object = self.get_batch_fit_object()
             result = fit_object.global_fit(**self.fit_kwargs)
             names = [fit_name]
-        else:
-            name = next(iter(self.parent.fit_objects.keys()))  # First key in dictionary
-            fit_object = self.parent.fit_objects[name]
-            guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess][name]
 
-            result  = fit_object.global_fit(guess_df, **self.fit_kwargs)
-            names = [fit_name, name]
+            self.parent.logger.info('Finished PyTorch fit')
+            loss = result.metadata['mse_loss']
+            self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+            self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                    f"({result.regularization_percentage:.1f}%)")
 
-        self.parent.logger.info('Finished PyTorch fit')
-        loss = result.metadata['mse_loss']
-        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                f"({result.regularization_percentage:.1f}%)")
+        elif self.fit_mode == 'Series':
+            for name, fit_object in self.parent.fit_objects.keys():
+                fit_object = self.parent.fit_objects[name]
+                guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess][name]
+
+                result = fit_object.global_fit(guess_df, **self.fit_kwargs)
+                names = [fit_name, name]
+
 
         self.parent.fit_results[fit_name] = result
         self.parent.sources['dataframe'].add_df(result.output.df, 'global_fit', names=names)
@@ -1204,6 +1214,7 @@ class FitControl(ControlPanel):
             self.parent._doc = pn.state.curdoc
             loop = IOLoop.current()
             loop.add_callback(self._do_fitting_async)
+            #todo always do fitting async
         else:
             self._do_fitting()
 
@@ -1833,8 +1844,6 @@ class ColoringControl(ClassificationControl):
 
 
         #self.parent.sources[self.target].source.data['color'] = colors
-
-
 
 
 class DifferenceFileExportControl(FileExportControl):
