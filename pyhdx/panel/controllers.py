@@ -415,6 +415,7 @@ class PeptideFileInputControl(ControlPanel):
                                 f'Redundancy: {series.coverage.redundancy:.2}')
 
     def _action_remove_datasets(self):
+        raise NotImplementedError('Removing datasets not implemented')
         for name in self.dataset_list:
             self.parent.datasets.pop(name)
 
