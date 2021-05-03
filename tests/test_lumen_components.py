@@ -42,7 +42,7 @@ class TestLumenSources(object):
         df_rates = pd.DataFrame(columns=col_index, index=row_index)
 
         tables = {'rates': df_rates}  # rates is nlevels == 3 dataframe
-        source = DataFrameSource(tables=tables, name='dataframe')
+        source = DataFrameSource(tables=tables, name='dataframe', dropna=False)
 
 
         source.add_df(rates_df, 'rates', 'rates_fit')
