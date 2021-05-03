@@ -14,13 +14,14 @@ APP_DICT = {
     'full_deuteration': lambda: full_deuteration_app().template
 }
 
+
 def run_main():
     np.random.seed(43)
     torch.manual_seed(43)
 
-    cluster = ConfigurationSettings().load_cluster()
+    cluster = ConfigurationSettings().cluster
     if verify_cluster(cluster):
-        print("Welcome to PyHDX server!")
+        print("Welcome to the PyHDX server!")
         pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
 
 

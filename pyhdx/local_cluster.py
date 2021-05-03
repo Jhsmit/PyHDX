@@ -16,7 +16,7 @@ def start_cluster():
     if args.port:
         port = int(args.port)
     else:
-        port = int(ConfigurationSettings().config.get('cluster', 'port'))
+        port = int(ConfigurationSettings().get('cluster', 'port'))
 
     local_cluster = LocalCluster(scheduler_port=port, n_workers=10)  # todo default settings local cluster from config
     print(f"Started local cluster at {local_cluster.scheduler_address}")
