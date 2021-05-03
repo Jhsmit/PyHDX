@@ -3,6 +3,7 @@ from ipaddress import ip_address
 from pyhdx.panel import serve
 from pyhdx.panel.configurations import ConfigurationSettings
 
+
 def main():
     parser = argparse.ArgumentParser(prog ='pyhdx',
                                      description ='PyHDX Launcher')
@@ -14,21 +15,20 @@ def main():
   
     args = parser.parse_args()
 
-    if (args.cluster):
+    if args.cluster:
         try:
-            if (ip_address(args.cluster[0])) and int(args.cluster[1])>0 and int(args.cluster[1])<2**16: 
+            if (ip_address(args.cluster[0])) and 0 < int(args.cluster[1]) < 2 ** 16:
                 ConfigurationSettings().update_cluster(args.cluster[0], args.cluster[1])
                 print("Welcome to PyHDX server!")
                 serve.run_main()                
         except ValueError:
-            print("invalid IP address or Port given")
+            print("Invalid IP address or Port given")
     elif args.cluster_auto:
-            #yet to complete this
-            print("will run cluster auto")            
+        raise NotImplementedError("Automatically running Dask cluster is not implemented")
     elif args.serve:
         print("Welcome to PyHDX server!")
         serve.run_main()
             
 
 if __name__ == '__main__':
-        main()
+    main()
