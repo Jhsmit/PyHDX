@@ -876,7 +876,8 @@ class KineticsFitting(object):
 
         fit_func = partial(run_optimizer, inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
                            epochs=epochs, patience=patience, stop_loss=stop_loss)
-        client = await Client(self.cluster, asynchronous=True)
+        client = await Client(self.cluster, asynchronous=True)  #todo allow non-dask operation for fitting inp arallallel
+
         future = client.submit(fit_func)
 
         # Get returned_model from Dask client which has updated params which are the fitted parameters
