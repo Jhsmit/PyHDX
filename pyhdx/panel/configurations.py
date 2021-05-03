@@ -37,7 +37,7 @@ class ConfigurationSettings(object):
         """
         if not self.config.has_section('cluster'):
             self.update_cluster(default_ip, default_port)
-        return str(self.config.get('cluster', 'ip'))+ ":" +str(self.config.get('cluster', 'port'))
+        return str(self.config.get('cluster', 'ip')) + ":" + str(self.config.get('cluster', 'port'))
 
     def update_cluster(self, ip, port):
         """
