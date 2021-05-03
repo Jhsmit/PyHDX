@@ -72,7 +72,6 @@ class MainController(param.Parameterized):
 
     # from lumen.target.Target
     def _rerender(self, *events, invalidate_cache=False):
-        print('rerender')
         self._update_views(invalidate_cache=invalidate_cache)
 
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
