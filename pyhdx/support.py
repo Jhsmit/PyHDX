@@ -14,9 +14,10 @@ from dask.distributed import Client
 def verify_cluster(cluster, timeout='2s'):
     try:
         client = Client(cluster, timeout=timeout)
+        return True
     except (TimeoutError, IOError):
         print(f"No valid Dask scheduler found at specified address: '{cluster}'")
-        return
+        return False
 
 def get_reduced_blocks(coverage, max_combine=2, max_join=5):
     block_length = list(coverage.block_length.copy())
