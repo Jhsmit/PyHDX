@@ -52,6 +52,11 @@ Development install instructures in docs/installation.rst
 Run PyHDX
 =========
 
+.. code-block::
+
+    $ pyhdx serve
+    
+Please refer to the `docs <https://pyhdx.readthedocs.io>`_ for more details on how to run PyHDX.
 
 
 Web Application
