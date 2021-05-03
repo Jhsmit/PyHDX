@@ -62,7 +62,7 @@ def main_app():
     tables = {'peptides': df_peptides, 'rates': df_rates, 'global_fit': df_global_fit}
     source = DataFrameSource(tables=tables, name='dataframe')
 
-    df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
+    #df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
     #source.add_df(df, 'peptides', 'ecSecB_apo')
 
     src_list = [source]
