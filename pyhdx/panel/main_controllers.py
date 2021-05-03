@@ -112,7 +112,8 @@ class PyHDXController(MainController):
     fit_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
 
     # for guesses (nested): <fit name>: {state1: state2:, ...
-    # for global fit: <fit name>: fit_result_object
+    # for global fit (batch): <fit name>: fit_result_object
+    # for global fit (series): <fit name>: {state1: <fit_result_object>, state2:....}
     fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
 
     sample_name = param.String(doc='Name describing the selected protein state')
