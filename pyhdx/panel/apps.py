@@ -255,6 +255,7 @@ def color_matrix_app():
 def fetch_cluster():
     return ConfigurationSettings().load_cluster()
 
+
 if __name__ == '__main__':
     ctrl = folding_app()
     pn.serve(ctrl)
