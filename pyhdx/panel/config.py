@@ -48,6 +48,7 @@ class ConfigurationSettings(metaclass=Singleton):
         return self._config.get(*args, **kwargs)
 
     def set(self, *args, **kwargs):
+        """configparser set"""
         self._config.set(*args, **kwargs)
 
     @property
@@ -80,4 +81,4 @@ current_dir = Path(__file__).parent
 
 config_file_path = config_dir / 'config.ini'
 if not config_file_path.exists():
-    shutil.copy(current_dir / 'config.ini', config_file_path)
+    reset_config()
