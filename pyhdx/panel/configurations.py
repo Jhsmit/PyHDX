@@ -29,6 +29,7 @@ class ConfigurationSettings(object):
     def load_cluster(self):
         """
         This method will load the dask server host IP and Port values from the configuration file
+
         Returns
         -------
         <ip>:<port> : :obj:`str`
@@ -36,11 +37,12 @@ class ConfigurationSettings(object):
         """
         if not self.config.has_section('cluster'):
             self.update_cluster(default_ip, default_port)
-        return str(self.config.get('cluster','ip'))+":"+str(self.config.get('cluster','port'))
+        return str(self.config.get('cluster', 'ip'))+ ":" +str(self.config.get('cluster', 'port'))
 
     def update_cluster(self, ip, port):
         """
         This method is to update the dask server host IP and Port values in the configuration file.
+
         Parameters
         ----------
         ip : :obj:`str` valid IPv4 address
@@ -54,7 +56,7 @@ class ConfigurationSettings(object):
 
     def update_config(self):
         """
-        This method is to updates the configuration file.
+        This method is used to update the configuration file.
         """
         with open(self.config_file, 'w') as config_file:
             self.config.write(config_file)
