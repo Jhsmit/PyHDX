@@ -3,7 +3,8 @@ from pyhdx.panel.apps import main_app, diff_app, single_app, folding_app, full_d
 from pyhdx.panel.base import STATIC_DIR
 import numpy as np
 import torch
-from functools import partial
+from pyhdx.panel.configurations import ConfigurationSettings
+from pyhdx.support import verify_cluster
 
 APP_DICT = {
     'main': lambda: main_app().template,
@@ -16,7 +17,11 @@ APP_DICT = {
 def run_main():
     np.random.seed(43)
     torch.manual_seed(43)
-    pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
+
+    cluster = ConfigurationSettings().load_cluster()
+    if verify_cluster(cluster):
+        print("Welcome to PyHDX server!")
+        pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
 
 
 if __name__ == '__main__':
