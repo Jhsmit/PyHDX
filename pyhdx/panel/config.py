@@ -1,65 +1,83 @@
 import configparser
 from pathlib import Path
-
-default_ip = '127.0.0.1'
-default_port = '52123'
-
-directory = Path(__file__).parent
+import shutil
 
 
-class ConfigurationSettings(object):
+def read_config(path):
+    config = configparser.ConfigParser()
+    config.read(path)
 
-    def __init__(self, config_file='config.ini'):
+    return config
+
+
+def reset_config():
+    shutil.copy(current_dir / 'config.ini', config_file_path)
+
+
+class Singleton(type):
+    #https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+    _instances = {}
+
+    def __call__(cls, *args, **kwargs):
+        if cls not in cls._instances:
+            cls._instances[cls] = super(Singleton, cls).__call__(*args, **kwargs)
+        return cls._instances[cls]
+
+
+class ConfigurationSettings(metaclass=Singleton):
+
+    def __init__(self, file_path=None):
         """
         Parameters
         ----------
-        config_file : pass any *.ini file as argument to load and update, by default reads config.ini in pyhdx/panel
+        file_path : :obj:`str`  (or pathlib.Path)
+            pass any *.ini file as argument to load and update, by default reads config.ini in pyhdx/panel
         """
-        self.config_file = directory / config_file
-        self.config = self.load_config()
 
-    def load_config(self):
-        """
-        This method reads the configuration file
-        """
-        config = configparser.ConfigParser()
-        config.read(self.config_file)
+        pth = file_path or config_file_path
+        self._config = read_config(pth)
 
-        return config
+    def load_config(self, pth):
+        self._config = read_config(pth)
 
+    def __getitem__(self, item):
+        return self._config.__getitem__(item)
 
+    def get(self, *args, **kwargs):
+        """configparser get"""
+        return self._config.get(*args, **kwargs)
 
-    def load_cluster(self):
-        """
-        This method will load the dask server host IP and Port values from the configuration file
+    def set(self, *args, **kwargs):
+        self._config.set(*args, **kwargs)
 
-        Returns
-        -------
-        <ip>:<port> : :obj:`str`
-            Default value - '127.0.0.1:52123'
-        """
-        if not self.config.has_section('cluster'):
-            self.update_cluster(default_ip, default_port)
-        return str(self.config.get('cluster', 'ip')) + ":" + str(self.config.get('cluster', 'port'))
+    @property
+    def cluster(self):
+        """Returns cluster address"""
 
-    def update_cluster(self, ip, port):
-        """
-        This method is to update the dask server host IP and Port values in the configuration file.
+        return f"{self.get('cluster', 'ip')}:{self.get('cluster', 'port')}"
 
-        Parameters
-        ----------
-        ip : :obj:`str` valid IPv4 address
-        port : :obj:`str` valid port address less than 65535
-        """
-        if not self.config.has_section('cluster'):
-            self.config.add_section('cluster')
-        self.config.set('cluster', 'ip', ip)
-        self.config.set('cluster', 'port', port)
-        self.update_config()
+    @cluster.setter
+    def cluster(self, address):
+        ip, port = address.split(':')
+        self.set('cluster', 'ip', ip)
+        self.set('cluster', 'port', port)
 
-    def update_config(self):
+    def write_config(self, path=None):
         """
         This method is used to update the configuration file.
         """
-        with open(self.config_file, 'w') as config_file:
-            self.config.write(config_file)
+
+        pth = path or config_file_path
+
+        with open(pth, 'w') as config_file:
+            self._config.write(config_file)
+
+
+home_dir = Path.home()
+config_dir = home_dir / '.pyhdx'
+config_dir.mkdir(parents=False, exist_ok=True)
+current_dir = Path(__file__).parent
+
+config_file_path = config_dir / 'config.ini'
+if not config_file_path.exists():
+    shutil.copy(current_dir / 'config.ini', config_file_path)
