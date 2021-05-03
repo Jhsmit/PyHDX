@@ -119,8 +119,8 @@ class TestMainGUISecB(object):
         cmap, norm = classification.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 57578
-        assert colors.std() == 97.25745214650469
+        assert colors.sum() == 73089
+        assert colors.std() == 88.44750626284586
 
         value_widget = classification.widgets['value_2']
         value_widget.value = 10e3
@@ -128,13 +128,18 @@ class TestMainGUISecB(object):
         cmap, norm = classification.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 57578
-        assert colors.std() == 97.25745214650469
+        assert colors.sum() == 73098
+        assert colors.std() == 95.4600213493482
 
         classification.mode = 'Color map'
         classification.library = 'colorcet'
-        #classification.color_map =
+        classification.color_map = 'CET_C1'
         cmap, norm = classification.get_cmap_and_norm()
+
+        colors = cmap(norm(values), bytes=True)
+
+        assert colors.sum() == 124011
+        assert colors.std() == 54.34640346513841
 
         #
         # cov_figure = ctrl.figure_panels['CoverageFigure']
