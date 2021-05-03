@@ -1,5 +1,5 @@
 from pathlib import Path
-from pyhdx.panel.configurations import ConfigurationSettings
+from pyhdx.panel.config import ConfigurationSettings
 import pytest
 
 directory = Path(__file__).parent

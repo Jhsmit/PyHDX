@@ -2,7 +2,7 @@ from dask.distributed import LocalCluster
 import time
 import os
 from pathlib import Path
-from pyhdx.panel.configurations import ConfigurationSettings
+from pyhdx.panel.config import ConfigurationSettings
 import argparse
 
 

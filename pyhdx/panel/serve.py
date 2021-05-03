@@ -3,7 +3,7 @@ from pyhdx.panel.apps import main_app, diff_app, single_app, folding_app, full_d
 from pyhdx.panel.base import STATIC_DIR
 import numpy as np
 import torch
-from pyhdx.panel.configurations import ConfigurationSettings
+from pyhdx.panel.config import ConfigurationSettings
 from pyhdx.support import verify_cluster
 
 APP_DICT = {

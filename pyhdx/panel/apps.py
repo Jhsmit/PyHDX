@@ -3,7 +3,7 @@ from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultThem
 from pyhdx.panel.controllers import *
 from pyhdx.panel.main_controllers import ComparisonController, PyHDXController
 from pyhdx.panel.fig_panels import *
-from pyhdx.panel.configurations import ConfigurationSettings
+from pyhdx.panel.config import ConfigurationSettings
 from pyhdx.panel.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING_SHORT
