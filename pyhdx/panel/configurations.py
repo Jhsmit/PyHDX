@@ -1,4 +1,3 @@
-import os
 import configparser
 from pathlib import Path
 
@@ -7,13 +6,16 @@ default_port = '52123'
 
 directory = Path(__file__).parent
 
+
 class ConfigurationSettings(object):
     def load_config(self):
         """
         This method reads the configuration file
         """
-        self.config = configparser.ConfigParser()
-        self.config.read(self.config_file)
+        config = configparser.ConfigParser()
+        config.read(self.config_file)
+
+        return config
 
     def __init__(self, config_file='config.ini'):
         """
@@ -22,7 +24,7 @@ class ConfigurationSettings(object):
         config_file : pass any *.ini file as argument to load and update, by default reads config.ini in pyhdx/panel
         """
         self.config_file = directory / config_file
-        self.load_config()
+        self.config = self.load_config()
 
     def load_cluster(self):
         """
