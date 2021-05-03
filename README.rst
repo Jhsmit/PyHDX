@@ -38,11 +38,13 @@ Installation
 Installation with `conda`:
 
 .. code-block::
+
     $ conda install -c conda-forge pyhdx
 
 Installation with `pip`:
 
 .. code-block::
+
     $ pip install pyhdx
 
 Development install instructures in docs/installation.rst
