@@ -8,14 +8,6 @@ directory = Path(__file__).parent
 
 
 class ConfigurationSettings(object):
-    def load_config(self):
-        """
-        This method reads the configuration file
-        """
-        config = configparser.ConfigParser()
-        config.read(self.config_file)
-
-        return config
 
     def __init__(self, config_file='config.ini'):
         """
@@ -25,6 +17,17 @@ class ConfigurationSettings(object):
         """
         self.config_file = directory / config_file
         self.config = self.load_config()
+
+    def load_config(self):
+        """
+        This method reads the configuration file
+        """
+        config = configparser.ConfigParser()
+        config.read(self.config_file)
+
+        return config
+
+
 
     def load_cluster(self):
         """
