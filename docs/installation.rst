@@ -23,42 +23,42 @@ Installation with `pip`:
 From sources
 ------------
 
-The sources for PyHDX can be downloaded from the `Github repo`_.
+1. Download or ``git clone`` the master branch of the PyHDX repository
 
-To install the dependencies:
+2. Create a ``conda`` environment
 
-.. code-block:: console
+    ``conda create --name <name> python=3.8``
 
-    $ conda install -c conda-forge pyhdx --only-deps
+3. Activate conda environment
 
-Additional `pbr` dependency is needed when using `develop` install:
+    ``conda activate <name>``
 
-.. code-block:: console
+4. Install the dependencies
 
-    $ conda install pbr
+    ``conda install -c conda-forge pyhdx --only-deps``
 
-Then clone the repository:
+5. Building wheels for the project
 
-.. code-block:: console
+    ``python setup.py sdist bdist_wheel``
 
-    $ git clone git://github.com/Jhsmit/pyhdx
+6. Installing the wheels (should be generated in the dist folder)
 
-And install PyHDX with ``conda`` (requires ``conda build``):
+    ``pip install dist/PyHDX-version.whl``
 
-.. code-block:: console
+7. After successful installation, PyHDX web application can be launched from the command line using ``pyhdx`` command with below options,
 
-    $ conda develop pyhdx
+    - To run PyHDX server using default settings on your local server,
 
-To launch the web application:
+        ``pyhdx serve``
 
-.. code-block:: console
+    - To run PyHDX server using the IP address and port number of your dask cluster,
 
-    $ python panel/serve.py
+        ``pyhdx --cluster <ip> <port>``
 
 
 Dependencies
 ------------
 
-The requirements for PyHDX are listed in requirements-conda.txt
+The requirements for PyHDX are listed in requirements.txt
 
 .. _Github repo: https://github.com/Jhsmit/pyhdx
