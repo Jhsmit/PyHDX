@@ -1,5 +1,4 @@
-pbr==5.5.1
-pbr; python_version < '3.8'
+pbr
 symfit
 numpy
 tqdm

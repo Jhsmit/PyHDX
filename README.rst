@@ -38,11 +38,13 @@ Installation
 Installation with `conda`:
 
 .. code-block::
+
     $ conda install -c conda-forge pyhdx
 
 Installation with `pip`:
 
 .. code-block::
+
     $ pip install pyhdx
 
 Development install instructures in docs/installation.rst
@@ -50,6 +52,11 @@ Development install instructures in docs/installation.rst
 Run PyHDX
 =========
 
+.. code-block::
+
+    $ pyhdx serve
+    
+Please refer to the `docs <https://pyhdx.readthedocs.io>`_ for more details on how to run PyHDX.
 
 
 Web Application
