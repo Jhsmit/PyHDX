@@ -1,10 +1,11 @@
 from pathlib import Path
 import numpy as np
 from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx
-from pyhdx.fileIO import txt_to_protein
+from pyhdx.fileIO import txt_to_protein, csv_to_protein
+import asyncio
 
 guess = False
-epochs = 100000
+epochs = 1000
 root_dir = Path().resolve().parent
 test_data_dir = root_dir / 'tests' / 'test_data'
 input_file_path = test_data_dir / 'ecSecB_apo.csv'
@@ -18,14 +19,16 @@ states = pmt.groupby_state()
 series = states['SecB WT apo']
 
 temperature, pH = 273.15 + 30, 8.
-kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
+cluster = '127.0.0.1:61461'
+kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH, cluster=cluster)
 
 if guess:
     wt_avg_result = kf.weighted_avg_fit()
     init_guess = wt_avg_result.output
 else:
-    init_guess = txt_to_protein(test_data_dir / 'ecSecB_guess.txt')
+    init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.txt')
 
-#fr_torch = kf.global_fit(init_guess, epochs=epochs, r1=0.1, stop_loss=0.001, patience=100)
-print(series.cov.percent_coverage)
-print(series.cov.redundancy)
+
+fr_torch = kf.global_fit(init_guess, epochs=epochs, r1=0.1, stop_loss=0.001, patience=100)
+print(fr_torch.metadata['total_loss'])
+

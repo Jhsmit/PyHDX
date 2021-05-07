@@ -1,10 +1,12 @@
-from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein
+from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_intersection
 from pyhdx.panel.widgets import NumericInput
-from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSource
+from pyhdx.panel.transforms import ApplyCmapTransform
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from pyhdx.fitting import KineticsFitting
-from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein
-from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba
+from pyhdx.fitting import KineticsFitting, BatchFitting
+from pyhdx.support import verify_cluster
+from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
+from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba, series_to_pymol
 from pyhdx import VERSION_STRING
 from scipy import constants
 import param
@@ -14,7 +16,7 @@ from numpy.lib.recfunctions import append_fields
 from pathlib import Path
 from skimage.filters import threshold_multiotsu
 from numpy.lib.recfunctions import stack_arrays
-from io import StringIO
+from io import StringIO, BytesIO
 from tornado.ioloop import IOLoop
 from functools import partial
 from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
@@ -25,6 +27,9 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import itertools
 import pandas as pd
+import colorcet
+import zipfile
+import logging
 
 from .widgets import ColoredStaticText, ASyncProgressBar
 
@@ -108,6 +113,1258 @@ class MappingFileInputControl(ControlPanel):
         self.param['datasets_list'].objects = list(self.parent.datasets.keys())
 
 
+import itertools
+cmap_cycle = itertools.cycle(['gray','PiYG', 'jet'])
+
+
+class CSVFileInputControl(ControlPanel):
+    input_file = param.Parameter()
+    load_file = param.Action(lambda self: self._action_load())
+    temp_new_data = param.Action(lambda self: self._action_new_data())
+    temp_new_cmap = param.Action(lambda self: self._action_new_cmap())
+
+    temp_update_filter = param.Action(lambda self: self._action_exposure())
+    temp_cmap_rect = param.Action(lambda self: self._action_cmap_rect())
+
+    #cmap_obj = param.ObjectSelector(default='viridis', objects=['viridis', 'plasma', 'magma'])
+
+
+    def make_dict(self):
+        return self.generate_widgets(input_file=pn.widgets.FileInput(accept='.csv,.txt'))
+
+    def _action_load(self):
+        sio = StringIO(self.input_file.decode('UTF-8'))
+        df = csv_to_dataframe(sio)
+        source = DataFrameSource(df=df)
+
+    def _action_new_data(self):
+
+        source = self.parent.sources['torch_fit']
+        table = source.get('torch_fit')
+
+        size = len(table)
+
+        new_data = 40e3*np.random.rand(size)
+
+        table['deltaG'] = new_data
+
+        self.parent.update()
+
+    def _action_new_cmap(self):
+        cmap_name = np.random.choice(['viridis', 'inferno', 'plasma'])
+        cmap = mpl.cm.get_cmap(cmap_name)
+
+        transform = self.parent.transforms['cmap']
+        transform.cmap = cmap
+
+        self.parent.update()
+
+    def _action_exposure(self):
+        filter = self.parent.filters['exposure']
+        filter.widget.value = 0.
+
+        self.parent.update()
+
+    def _action_cmap_rect(self):
+        new_cmap = next(cmap_cycle)
+
+        rect_view = self.parent.figure_panels['rect_plot']
+        rect_view.opts['cmap'] = new_cmap
+
+        self.parent.update()
+
+        item = self.parent.rows['rect_plot'][0]
+        #item.param.trigger('object')
+
+
+class TestFileInputControl(ControlPanel):
+    input_file = param.Parameter()
+    load_file = param.Action(lambda self: self._action_load())
+
+
+    _layout = {
+        'self': None,
+        'filters.exposure_slider': None
+    }
+
+    def __init__(self, parent, **params):
+        super().__init__(parent, **params)
+        # todo property and list of tuples
+        self._layout = {
+            'self': None,
+            'filters.exposure_slider': None
+        }
+
+        self.update_box()
+
+    def make_dict(self):
+        return self.generate_widgets(input_file=pn.widgets.FileInput(accept='.csv,.txt'))
+
+    def _action_load(self):
+        sio = StringIO(self.input_file.decode('UTF-8'))
+        df = csv_to_dataframe(sio)
+        source = DataFrameSource(df=df)
+
+
+class PeptideFileInputControl(ControlPanel):
+    """
+    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
+    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
+    analysis.
+
+    """
+    header = 'Peptide Input'
+
+    input_files = param.List()
+
+    be_mode = param.Selector(doc='Select method of back exchange correction', label='Back exchange correction method', objects=['FD Sample', 'Flat percentage'])
+    fd_state = param.Selector(doc='State used to normalize uptake', label='FD State')
+    fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='FD Exposure')
+    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
+    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
+                                       , doc='Selected exposure time to use')
+
+    be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
+                              label='Back exchange percentage')
+
+    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
+    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
+    d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
+                                label='Deuterium percentage')
+    fd_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the FD control sample buffer',
+                                 label='FD Deuterium percentage')
+    temperature = param.Number(293.15, bounds=(0, 373.15), doc='Temperature of the D-labelling reaction',
+                               label='Temperature (K)')
+    pH = param.Number(7.5, doc='pH of the D-labelling reaction, as read from pH meter',
+                      label='pH read')
+    #load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
+
+    c_term = param.Integer(0, bounds=(0, None),
+                           doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
+                               'and determination of intrinsic rate of exchange for the C-terminal residue')
+    n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
+                                  'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
+    sequence = param.String('', doc='Optional FASTA protein sequence')
+    dataset_name = param.String()
+    add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
+                                doc='Parse selected peptides for further analysis and apply back-exchange correction')
+    dataset_list = param.ListSelector(label='Datasets', doc='Lists available datasets')
+
+    def __init__(self, parent, **params):
+
+
+        super(PeptideFileInputControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._datasets_updated, ['fit_objects'])
+
+        excluded = ['be_percent']
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        self.update_box()
+
+        self._array = None  # Numpy array with raw input data
+
+    @property
+    def _layout(self):
+        return [('self', self.own_widget_names)]
+
+    def make_dict(self):
+        text_area = pn.widgets.TextAreaInput(name='Sequence (optional)', placeholder='Enter sequence in FASTA format', max_length=10000,
+                                             width=300, height=100, height_policy='fixed', width_policy='fixed')
+        return self.generate_widgets(
+            input_files=pn.widgets.FileInput(multiple=True, name='Input files'),
+            temperature=pn.widgets.FloatInput,
+            #be_mode=pn.widgets.RadioButtonGroup,
+            be_percent=pn.widgets.FloatInput,
+            d_percentage=pn.widgets.FloatInput,
+            fd_percentage=pn.widgets.FloatInput,
+            sequence=text_area)
+
+    def make_list(self):
+        excluded = ['be_percent']
+        widget_list = [widget for name, widget, in self.widget_dict.items() if name not in excluded]
+
+        return widget_list
+
+    @param.depends('be_mode', watch=True)
+    def _update_be_mode(self):
+        # todo @tejas: Add test
+        if self.be_mode == 'FD Sample':
+            excluded = ['be_percent']
+        elif self.be_mode == 'Flat percentage':
+            excluded = ['fd_state', 'fd_exposure']
+
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        #self._layout = {'self': widgets}
+        self.update_box()
+
+    @param.depends('input_files', watch=True)
+    def _read_files(self):
+        """"""
+        if self.input_files:
+            combined_array = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
+            self._array = combined_array
+
+            self.parent.logger.info(
+                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
+                f'of {len(self._array)} peptides')
+
+        else:
+            self._array = None
+
+        self._update_fd_state()
+        self._update_fd_exposure()
+        self._update_exp_state()
+        self._update_exp_exposure()
+
+    def _update_fd_state(self):
+        if self._array is not None:
+            states = list(np.unique(self._array['state']))
+            self.param['fd_state'].objects = states
+            self.fd_state = states[0]
+        else:
+            self.param['fd_state'].objects = []
+
+    @param.depends('fd_state', watch=True)
+    def _update_fd_exposure(self):
+        if self._array is not None:
+            fd_entries = self._array[self._array['state'] == self.fd_state]
+            exposures = list(np.unique(fd_entries['exposure']))
+        else:
+            exposures = []
+        self.param['fd_exposure'].objects = exposures
+        if exposures:
+            self.fd_exposure = exposures[0]
+
+    @param.depends('fd_state', 'fd_exposure', watch=True)
+    def _update_exp_state(self):
+        if self._array is not None:
+            # Booleans of data entries which are in the selected control
+            control_bools = np.logical_and(self._array['state'] == self.fd_state, self._array['exposure'] == self.fd_exposure)
+
+            control_data = self._array[control_bools]
+            other_data = self._array[~control_bools]
+
+            intersection = array_intersection([control_data, other_data], fields=['start', 'end'])  # sequence?
+            states = list(np.unique(intersection[1]['state']))
+        else:
+            states = []
+
+        self.param['exp_state'].objects = states
+        if states:
+            self.exp_state = states[0] if not self.exp_state else self.exp_state
+
+    @param.depends('exp_state', watch=True)
+    def _update_exp_exposure(self):
+        if self._array is not None:
+            exp_entries = self._array[self._array['state'] == self.exp_state]
+            exposures = list(np.unique(exp_entries['exposure']))
+            exposures.sort()
+        else:
+            exposures = []
+
+        self.param['exp_exposures'].objects = exposures
+        self.exp_exposures = exposures
+
+        if not self.dataset_name or self.dataset_name in self.param['exp_state'].objects:
+            self.dataset_name = self.exp_state
+
+        if not self.c_term and exposures:
+            self.c_term = int(np.max(exp_entries['end']))
+
+    def _datasets_updated(self, events):
+        # Update datasets widget as datasets on parents change
+        objects = list(self.parent.fit_objects.keys())
+        self.param['dataset_list'].objects = objects
+
+    def _action_add_dataset(self):
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+
+        if self._array is None:
+            self.parent.logger.info("No data loaded")
+            return
+        elif self.dataset_list and self.dataset_name in self.dataset_list:
+            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+            return
+
+        peptides = PeptideMasterTable(self._array, d_percentage=self.d_percentage,
+                                      drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+        if self.be_mode == 'FD Sample':
+            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
+            peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
+        elif self.be_mode == 'Flat percentage':
+            # todo @tejas: Add test
+            peptides.set_backexchange(self.be_percent)
+
+        data_states = peptides.data[peptides.data['state'] == self.exp_state]
+        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
+
+        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence, name=self.dataset_name)
+        kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
+        self.parent.fit_objects[self.dataset_name] = kf
+        self.parent.param.trigger('fit_objects')  # Trigger update
+
+        df = pd.DataFrame(series.full_data)
+        target_source = self.parent.sources['dataframe']
+        target_source.add_df(df, 'peptides', self.dataset_name)
+
+        self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
+                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
+        self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
+                                f'Redundancy: {series.coverage.redundancy:.2}')
+
+    def _action_remove_datasets(self):
+        raise NotImplementedError('Removing datasets not implemented')
+        for name in self.dataset_list:
+            self.parent.datasets.pop(name)
+
+        self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
+
+
+class CoverageControl(ControlPanel):
+    header = 'Coverage'
+
+    temp_new_data = param.Action(lambda self: self._action_new_data())
+
+    def __init__(self, parent, **params):
+        super().__init__(parent, **params)
+
+
+
+        self.update_box()
+
+    @property
+    def _layout(self):
+        return [
+            ('filters.select_index', None),
+            ('filters.exposure_slider', None),
+            ('self', None)
+        ]
+
+    def _action_new_data(self):
+        df = csv_to_dataframe(r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_apo_peptides.csv')
+
+        reduced_df = df.query('exposure < 50')
+
+        source = self.sources['dataframe']
+
+        source.add_df(reduced_df, 'peptides', 'ecSecB_reduced')
+
+
+class InitialGuessControl(ControlPanel):
+    """
+    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
+    """
+
+    #todo remove lambda symbol although its really really funny
+    header = 'Initial Guesses'
+    fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
+                                   doc='Choose method for determining initial guesses.')
+    dataset = param.Selector(default='', doc='Dataset to apply bounds to')
+    global_bounds = param.Boolean(default=False, doc='Set bounds globally across all datasets')
+    lower_bound = param.Number(0., doc='Lower bound for association model fitting')
+    upper_bound = param.Number(0., doc='Upper bound for association model fitting')
+    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
+                           constant=True)
+
+    def __init__(self, parent, **params):
+        self.pbar1 = ASyncProgressBar()  #tqdm? https://github.com/holoviz/panel/pull/2079
+        self.pbar2 = ASyncProgressBar()
+        super(InitialGuessControl, self).__init__(parent, **params)
+        self.parent.param.watch(self._parent_datasets_updated, ['fit_objects'])  #todo refactor
+
+        excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        # self._layout = {'self': widgets,
+        #                 'filters.select_index_rates_lv1': None,
+        #                 'filters.select_index_rates_lv2': None,
+        #                 }
+        self.update_box()
+
+    @property
+    def _layout(self):
+        return [
+            ('self', self.own_widget_names),
+            ('filters.select_index_rates_lv1', None),
+            ('filters.select_index_rates_lv2', None),
+                        ]
+
+    def make_dict(self):
+        widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
+        widgets.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+
+        return widgets
+
+    # def make_list(self):
+    #     self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
+    #     parameters = ['fitting_model', 'do_fit1', 'pbar1']
+    #
+    #     widget_list = list([self.widget_dict[par] for par in parameters])
+    #     return widget_list
+
+    @param.depends('fitting_model', watch=True)
+    def _fitting_model_updated(self):
+        if self.fitting_model == 'Half-life (λ)':
+            excluded = ['lower_bound', 'upper_bound', 'global_bounds']
+
+        elif self.fitting_model in ['Association', 'Dissociation']:
+            excluded = []
+
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+
+        self.update_box()
+
+    @param.depends('global_bounds', watch=True)
+    def _global_bounds_updated(self):
+        if self.global_bounds:
+            self.param['dataset'].constant = True
+        else:
+            self.param['dataset'].constant = False
+
+    @param.depends('dataset', watch=True)
+    def _dataset_updated(self):
+        kf = self.parent.fit_objects[self.dataset]
+        lower, upper = kf.bounds
+        self.lower_bound = lower
+        self.upper_bound = upper
+
+    @param.depends('lower_bound', watch=True)
+    def _lower_bound_updated(self):
+        #this works but maybe not ideal
+        # set param?
+        if self.global_bounds:
+            kfs = self.parent.fit_objects.values()
+        else:
+            kfs = [self.parent.fit_objects[self.dataset]]
+
+        for kf in kfs:
+            lower, upper = kf.bounds
+            kf.bounds = (self.lower_bound, upper)
+
+    @param.depends('upper_bound', watch=True)
+    def _upper_bound_updated(self):
+        if self.global_bounds:
+            kfs = self.parent.fit_objects.values()
+        else:
+            kfs = [self.parent.fit_objects[self.dataset]]
+
+        for kf in kfs:
+            lower, upper = kf.bounds
+            kf.bounds = (lower, self.upper_bound)
+
+    def _parent_datasets_updated(self, events):
+        if len(self.parent.fit_objects) > 0:
+            self.param['do_fit1'].constant = False
+
+        options = list(self.parent.fit_objects.keys())
+        self.param['dataset'].objects = options
+        if not self.dataset:
+            self.dataset = options[0]
+
+    @staticmethod
+    def fit_result_dict_to_df(results):
+
+        combined_results = pd.concat(results.values(), axis=1,
+                                     keys=list(results.keys()),
+                                     names=['state', 'quantity'])
+
+        return combined_results
+
+    async def _fit1_async(self, output_name):
+        """Do fitting asynchronously on (remote) cluster"""
+        results = {}
+        for name, kf in self.parent.fit_objects.items():
+            fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
+            results[kf.series.state] = fit_result
+
+        self.parent.fit_results['fit_1'] = results  #todo refactor 'fit1' to guess?
+
+        dfs = [result.output.df for result in results.values()]
+        combined_results = pd.concat(dfs, axis=1,
+                                     keys=list(results.keys()),
+                                     names=['state', 'quantity'])
+
+        # def add_df(source, df, table, name):
+        #     source.add_df(df, table)
+
+        callback = partial(self.sources['dataframe'].add_df, combined_results, 'rates', 'fit1')
+        self.parent.doc.add_next_tick_callback(callback)
+
+        with pn.io.unlocked():
+             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
+             self.pbar1.reset()
+             self.param['do_fit1'].constant = False
+
+    def _fit1(self):
+        results = {}
+        for name, kf in self.parent.fit_objects.items():
+            fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
+            results[kf.series.state] = fit_result
+
+        self.parent.fit_results['fit1'] = results
+        self.parent.param.trigger('fit_results')
+
+        dfs = [result.output for result in results.values()]
+        combined_results = pd.concat(dfs, axis=1,
+                                     keys=list(results.keys()),
+                                     names=['state', 'quantity'])
+
+        self.sources['dataframe'].add_df(combined_results, 'rates', 'fit1')  # todo names?
+
+        self.param['do_fit1'].constant = False
+        self.pbar1.reset()
+
+    def _action_fit(self):
+        if len(self.parent.fit_objects) == 0:
+            self.parent.logger.debug('No datasets loaded')
+            return
+
+        self.parent.logger.debug('Start initial guess fit')
+        #todo context manager?
+        self.param['do_fit1'].constant = True
+
+        if self.fitting_model == 'Half-life (λ)':
+            results = {}
+            for name, kf in self.parent.fit_objects.items():
+                fit_result = kf.weighted_avg_t50()
+                results[name] = fit_result
+
+            self.parent.fit_results['half-life'] = results
+            self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
+
+            dfs = [result.output.df for result in results.values()]
+            # Resulting df has Int64Index as index with name 'r_number'
+            combined_results = pd.concat(dfs, axis=1,
+                                         keys=list(results.keys()),
+                                         names=['state', 'quantity'])
+
+            self.sources['dataframe'].add_df(combined_results, 'rates', 'half-life')  #todo names?
+
+            self.sources['dataframe'].tables['half-life'] = combined_results
+            self.sources['dataframe'].updated = True
+
+            self.param['do_fit1'].constant = False
+        else:
+
+            if self.parent.cluster:
+                self.parent._doc = pn.state.curdoc
+                loop = IOLoop.current()
+                loop.add_callback(self._fit1_async)
+            else:
+                self._fit1()
+
+
+class ClassificationControl(ControlPanel):
+    """
+    This controller allows users classify 'mapping' datasets and assign them colors.
+
+    Coloring can be either in discrete categories or as a continuous custom color map.
+    """
+
+    header = 'Classification'
+    # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
+
+    # todo unify name for target field (target_data set)
+    # When coupling param with the same name together there should be an option to exclude this behaviour
+    table = param.Selector(label='Target table')
+    # fit_ID = param.Selector()  # generalize selecting widgets based on selected table
+    # quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
+
+    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous', 'Color map'],
+                          doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
+    num_colors = param.Integer(3, bounds=(1, 10), label='Number of colours',
+                              doc='Number of classification colors.')
+    library = param.Selector(default='matplotlib', objects=['matplotlib', 'colorcet'])
+    color_map = param.Selector()
+    otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
+                            doc="Automatically perform thresholding based on Otsu's method.")
+    linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
+                              doc='Automatically perform thresholding by creating equally spaced sections.')
+    log_space = param.Boolean(False,
+                              doc='Boolean to set whether to apply colors in log space or not.')
+    #apply = param.Action(lambda self: self._action_apply())
+    no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage')
+
+    color_set_name = param.String('', doc='Name for the color dataset to add')
+    add_colorset = param.Action(lambda self: self._action_add_colorset())
+
+    #show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
+    values = param.List(default=[], precedence=-1)
+    colors = param.List(default=[], precedence=-1)
+
+    def __init__(self, parent, **param):
+        super(ClassificationControl, self).__init__(parent, **param)
+
+        # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
+        cc_cmaps = sorted(colorcet.cm.keys())
+        mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
+        self.cmaps = {'matplotlib': mpl_cmaps, 'colorcet': cc_cmaps}
+        self.param['color_map'].objects = mpl_cmaps
+
+        self._update_num_colors()
+        self._update_num_values()
+        self.excluded = []  # excluded widgets based on choice of `mode`
+
+        views = [view for view in self.views.values() if any(isinstance(trs, ApplyCmapTransform) for trs in view.transforms)]
+        options = [view.table for view in views]
+
+        for view in views:
+            view.source.param.watch(self._sources_updated, 'updated')
+
+        self.param['table'].objects = options
+        if not self.table and options:
+            self.table = options[0]
+
+        self._table_updated()  # also updates box
+        #self.update_box()
+
+    @property
+    def own_widget_names(self):
+        """returns a list of names of widgets in self.widgets to be laid out in controller card"""
+
+        # initial_widgets = [name for name in self.widgets.keys() if name not in self.excluded]
+        initial_widgets = []
+        for name in self.param:
+            precedence = self.param[name].precedence
+            if (precedence is None or precedence > 0) and name not in self.excluded + ['name']:
+                initial_widgets.append(name)
+        #l1[1:1] = l2
+        select_widgets = [name for name in self.widgets.keys() if name.startswith('select')]
+        initial_widgets[1:1] = select_widgets
+
+        #value_widget_names = [f'value_{i}' for i in range(len(self.values))]
+        #color_widget_names = [f'color_{i}' for i in range(len(self.colors))]
+        widget_names = initial_widgets + [f'value_{i}' for i in range(len(self.values))]
+        if self.mode != 'Color map':
+            widget_names += [f'color_{i}' for i in range(len(self.colors))]
+        return widget_names
+
+    #        return initial_widgets + #list(self.values_widgets.keys()) + list(self.colors_widgets.keys())
+
+    def make_dict(self):
+        return self.generate_widgets(num_colors=pn.widgets.IntInput)
+
+    @property
+    def _layout(self):
+        return [
+            ('self', self.own_widget_names),
+                ]
+
+    def _sources_updated(self, *events):
+        self._table_updated()
+
+    @param.depends('table', watch=True)
+    def _table_updated(self):
+        df = self.get_data()
+
+        #todo also get schema and check if this table is compatible (ie has numbers, not colors only)
+        if df.empty:
+            return
+        names = df.columns.names
+
+        # Remove old widgets (list comprehension)
+        old_widget_names = [key for key in self.widgets.keys() if key.startswith('select')]
+        [self.widgets.pop(key) for key in old_widget_names]
+        # for key in self.widgets.keys():
+        #     if key.startswith('select'):
+        #         widget = self.widgets.pop(key)
+               # [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+
+#        widgets = []
+        widgets = [pn.widgets.Select(name=name, options=['*'] + list(options), value=options[0]) for name, options in zip(names, df.columns.levels)]
+        # for widget in widgets:
+        #     widget.param.watch(self._ , 'value')
+        widget_dict = {f'select_{i}': widget for i, widget in enumerate(widgets)}
+        self.widgets.update(widget_dict)
+        self.update_box()
+
+    def get_data(self):
+        """object pandas dataframe: returns current multindex dataframe"""
+        source = self.sources['dataframe']
+        df = source.get(self.table)
+
+        return df
+
+    def get_selected_data(self):
+        df = self.get_data()
+        selected_fields = [widget.value for name, widget in self.widgets.items() if name.startswith('select')]
+
+        bools_list = [df.columns.get_level_values(i) == value for i, value in enumerate(selected_fields) if
+                      value != '*']
+        if len(bools_list) == 0:
+            bools = np.ones(len(df.columns)).astype(bool)
+        elif len(bools_list) == 1:
+            bools = np.array(bools_list).flatten()
+        else:
+            bools = np.logical_and(*bools_list)
+        selected_df = df.iloc[:, bools]
+
+        return selected_df
+
+    def get_values(self):
+        """return numpy array with only the values from selected dataframe, nan omitted"""
+
+        array = self.get_selected_data().to_numpy().flatten()
+        values = array[~np.isnan(array)]
+
+        return values
+
+    def _action_otsu(self):
+        if self.num_colors <= 1:
+            return
+        values = self.get_values() # todo check for no values
+        if not values.size:
+            return
+
+        func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
+        thds = threshold_multiotsu(func(values), classes=self.num_colors)
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
+        for thd, widget in zip(thds[::-1], widgets):  # Values from high to low
+            widget.start = None
+            widget.end = None
+            widget.value = np.exp(thd) if self.log_space else thd
+        self._update_bounds()
+
+        #self._get_colors()
+
+    def _action_linear(self):
+        i = 1 if self.mode == 'Discrete' else 0
+        values = self.get_values()
+        if not values.size:
+            return
+
+        if self.log_space:
+            thds = np.logspace(np.log(np.min(values)), np.log(np.max(values)),
+                               num=self.num_colors + i, endpoint=True, base=np.e)
+        else:
+            thds = np.linspace(np.min(values), np.max(values), num=self.num_colors + i, endpoint=True)
+
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
+        for thd, widget in zip(thds[i:self.num_colors][::-1], widgets):
+            # Remove bounds, set values, update bounds
+            widget.start = None
+            widget.end = None
+            widget.value = thd
+        self._update_bounds()
+
+    def _action_add_colorset(self):
+        if not self.color_set_name:
+            self.parent.logger.info('No name given tot the colorset')
+            return
+
+        source = self.sources['dataframe']
+        if self.color_set_name in source.tables.keys():
+            self.parent.logger.info(f'Colorset with name {self.color_set_name} already present')
+            return
+
+        selected_df = self.get_selected_data()
+        cmap, norm = self.get_cmap_and_norm()
+
+        array = cmap(norm(selected_df), bytes=True)
+        colors_hex = rgb_to_hex(array.reshape(-1, 4))
+        output = colors_hex.reshape(array.shape[:-1])
+
+        output_df = pd.DataFrame(output, index=selected_df.index, columns=selected_df.columns)
+        if output_df.index.name == 'r_number':  # The selected dataset is a protein mappable
+            c_term = max([kf.series.coverage.protein.c_term for kf in self.parent.fit_objects.values()])
+            n_term = min([kf.series.coverage.protein.n_term for kf in self.parent.fit_objects.values()])
+
+            new_index = pd.RangeIndex(start=n_term, stop=c_term, name='r_number')
+            output_df = output_df.reindex(index=new_index, fill_value=self.no_coverage.upper())
+
+        source.tables[self.color_set_name] = output_df
+        source.updated = True
+
+    @param.depends('color_map', 'values', 'colors', watch=True)
+    def _action_apply(self):
+        cmap, norm = self.get_cmap_and_norm()
+
+        if cmap and norm:
+            #this needs to be updated to more generalized
+            transform = self.transforms['cmap_transform']
+            transform.cmap = cmap
+            transform.norm = norm
+
+    def get_cmap_and_norm(self):
+        norm_klass = mpl.colors.Normalize if not self.log_space else mpl.colors.LogNorm
+        if len(self.values) < 2:
+            return None, None
+
+        if self.mode == 'Discrete':
+            if len(self.values) != len(self.colors) - 1:
+                return None, None
+            cmap = mpl.colors.ListedColormap(self.colors)
+            norm = mpl.colors.BoundaryNorm(self.values[::-1], self.num_colors, extend='both') #todo refactor values to thd_values
+        elif self.mode == 'Continuous':
+            norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
+            positions = norm(self.values[::-1])
+            cmap = mpl.colors.LinearSegmentedColormap.from_list('custom_cmap', list(zip(positions, self.colors)))
+        elif self.mode == 'Color map':
+            norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
+            if self.library == 'matplotlib':
+                cmap = mpl.cm.get_cmap(self.color_map)
+            elif self.library == 'colorcet':
+                cmap = getattr(colorcet, 'm_' + self.color_map)
+
+        cmap.set_bad(self.no_coverage)
+        return cmap, norm
+
+    @param.depends('library', watch=True)
+    def _update_library(self):
+        options = self.cmaps[self.library]
+        self.param['color_map'].objects = options
+
+    @param.depends('mode', watch=True)
+    def _mode_updated(self):
+        if self.mode == 'Discrete':
+            self.excluded = ['library', 'color_map']
+    #        self.num_colors = max(3, self.num_colors)
+    #        self.param['num_colors'].bounds = (3, None)
+        elif self.mode == 'Continuous':
+            self.excluded = ['library', 'color_map', 'otsu_thd']
+      #      self.param['num_colors'].bounds = (2, None)
+        elif self.mode == 'Color map':
+            self.excluded = ['otsu_thd', 'num_colors']
+            self.num_colors = 2
+
+        #todo adjust add/ remove color widgets methods
+        self.param.trigger('num_colors')
+        self.update_box()
+
+    @param.depends('num_colors', watch=True)
+    def _update_num_colors(self):
+        while len(self.colors) != self.num_colors:
+            if len(self.colors) > self.num_colors:
+                self._remove_color()
+            elif len(self.colors) < self.num_colors:
+                self._add_color()
+        self.param.trigger('colors')
+
+    @param.depends('num_colors', watch=True)
+    def _update_num_values(self):
+        diff = 1 if self.mode == 'Discrete' else 0
+        while len(self.values) != self.num_colors - diff:
+            if len(self.values) > self.num_colors - diff:
+                self._remove_value()
+            elif len(self.values) < self.num_colors - diff:
+                self._add_value()
+
+        self._update_bounds()
+        self.param.trigger('values')
+        self.update_box()
+
+    def _add_value(self):
+        # value widgets are ordered in decreasing order, ergo next value widget
+        # starts with default value of previous value -1
+        try:
+            first_value = self.values[-1]
+        except IndexError:
+            first_value = 0
+
+        default = float(first_value - 1)
+        self.values.append(default)
+
+        name = f'Threshold {len(self.values)}'
+        key = f'value_{len(self.values) - 1}'   # values already populated, first name starts at 1
+        widget = pn.widgets.FloatInput(name=name, value=default)
+        self.widgets[key] = widget
+        widget.param.watch(self._value_event, ['value'])
+
+    def _remove_value(self):
+        key = f'value_{len(self.values) - 1}'
+        widget = self.widgets.pop(key)
+        self.values.pop()
+
+        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+        del widget
+
+    def _add_color(self):
+        try:
+            default = DEFAULT_CLASS_COLORS[len(self.colors)]
+        except IndexError:
+            default = "#"+''.join(np.random.choice(list('0123456789abcdef'), 6))
+
+        self.colors.append(default)
+
+        key = f'color_{len(self.colors) - 1}'
+        widget = pn.widgets.ColorPicker(value=default)
+
+        self.widgets[key] = widget
+
+        widget.param.watch(self._color_event, ['value'])
+
+    def _remove_color(self):
+        key = f'color_{len(self.colors) - 1}'
+        widget = self.widgets.pop(key)
+        self.colors.pop()
+        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
+        del widget
+
+    def _color_event(self, *events):
+        for event in events:
+            idx = list(self.widgets.values()).index(event.obj)
+            key = list(self.widgets.keys())[idx]
+            widget_index = int(key.split('_')[1])
+            # idx = list(self.colors_widgets).index(event.obj)
+            self.colors[widget_index] = event.new
+
+        self.param.trigger('colors')
+
+        #todo param trigger colors????
+
+    def _value_event(self, *events):
+        """triggers when a single value gets changed"""
+        for event in events:
+            idx = list(self.widgets.values()).index(event.obj)
+            key = list(self.widgets.keys())[idx]
+            widget_index = int(key.split('_')[1])
+            self.values[widget_index] = event.new
+
+        self._update_bounds()
+        self.param.trigger('values')
+
+    def _update_bounds(self):
+        #for i, widget in enumerate(self.values_widgets.values()):
+        for i in range(len(self.values)):
+            widget = self.widgets[f'value_{i}']
+            if i > 0:
+                key = f'value_{i-1}'
+                prev_value = float(self.widgets[key].value)
+                widget.end = np.nextafter(prev_value, prev_value - 1)
+            else:
+                widget.end = None
+
+            if i < len(self.values) - 1:
+                key = f'value_{i+1}'
+                next_value = float(self.widgets[key].value)
+                widget.start = np.nextafter(next_value, next_value + 1)
+            else:
+                widget.start = None
+
+
+class FitControl(ControlPanel):
+    """
+    This controller allows users to execute PyTorch fitting of the global data set.
+
+    Currently, repeated fitting overrides the old result.
+    """
+
+    header = 'Fitting'
+
+    initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
+
+    fit_mode = param.Selector(default='Batch', objects=['Batch', 'Series'])
+
+    stop_loss = param.Number(0.01, bounds=(0, None),
+                             doc='Threshold loss difference below which to stop fitting.')
+    stop_patience = param.Integer(100, bounds=(1, None),
+                                  doc='Number of epochs where stop loss should be satisfied before stopping.')
+    learning_rate = param.Number(10, bounds=(0, None),
+                                 doc='Learning rate parameter for optimization.')
+    momentum = param.Number(0.5, bounds=(0, None),
+                            doc='Stochastic Gradient Descent momentum')
+    nesterov = param.Boolean(True,
+                             doc='Use Nesterov type of momentum for SGD')
+    epochs = param.Number(100000, bounds=(1, None),
+                          doc='Maximum number of epochs (iterations.')
+    r1 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (peptide axis)',
+                      doc='Value of the regularizer along residue axis.')
+
+    r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 2 (sample axis)',
+                      doc='Value of the regularizer along sample axis.', constant=True)
+
+    fit_name = param.String(doc="Name for for the fit result")
+
+    do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
+                          doc='Start global fitting')
+
+    def __init__(self, parent, **params):
+        self.pbar1 = ASyncProgressBar() #tqdm?
+        super(FitControl, self).__init__(parent, **params)
+        if not verify_cluster(self.parent.cluster):
+            raise TimeoutError(f"Fitting Controller could not connect to Dask cluster at {self.parent.cluster}")
+
+        source = self.parent.sources['dataframe']
+        source.param.watch(self._source_updated, ['updated'])
+
+        #self.parent.param.watch(self._fit_objects_updated, ['fit_objects'])
+
+    def _source_updated(self, *events):
+        table = self.parent.sources['dataframe'].get('rates')
+
+        objects = list(table.columns.levels[0])
+        if objects:
+            self.param['do_fit'].constant = False
+        num_samples = len(table.columns.levels[1])
+        if num_samples > 1:
+            self.param['r2'].constant = False
+
+        self.param['initial_guess'].objects = objects
+        if not self.initial_guess and objects:
+            self.initial_guess = objects[0]
+
+    @param.depends('fit_mode', watch=True)
+    def _fit_mode_updated(self):
+        if self.fit_mode == 'Batch' and len(self.parent.fit_objects) > 1:
+            self.param['r2'].constant = False
+        else:
+            self.param['r2'].constant = True
+
+    @staticmethod
+    def result_to_data_source(output):
+        output.df['color'] = np.full(len(output), fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
+
+        # Add upper/lower bounds covariances for error bar plotting
+        output.df['__lower'] = output.df['deltaG'] - output.df['covariance']
+        output.df['__upper'] = output.df['deltaG'] + output.df['covariance']
+
+        output_name = 'global_fit'  # Appears twice
+        data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'], name=output_name,
+                                 renderer='circle', size=10)
+
+        return data_source
+
+    def get_batch_fit_object(self):
+        guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess]
+        fit_objects = self.parent.fit_objects  # Dict with name: KineticsFitting object
+
+        guesses = [guess_df[name] for name in fit_objects.keys()]
+        bf = BatchFitting(list(fit_objects.values()), guesses=guesses, cluster=self.parent.cluster)
+
+        return bf
+
+    async def _do_fitting_async(self):
+        if self.fit_mode == 'Batch':
+            fit_object = self.get_batch_fit_object()
+            fit_object.global_fit(**self.fit_kwargs)
+
+        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
+        initial_result = self.parent.fit_results[self.initial_guess].output
+
+        result = await kf.global_fit_async(initial_result, r1=self.regularizer, lr=self.learning_rate,
+                                           momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
+                                           patience=self.stop_patience, stop_loss=self.stop_loss)
+
+        # Duplicate code
+        self.parent.logger.info('Finished PyTorch fit')
+        loss = result.metadata['mse_loss']
+        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                f"({result.regularization_percentage:.1f}%)")
+
+        self.parent.param.trigger('fit_results')
+
+        data_source = self.result_to_data_source(result.output)
+        output_name = 'global_fit'
+        callback = partial(self.parent.publish_data, output_name, data_source)
+
+        self.parent.doc.add_next_tick_callback(callback)
+        self.parent.fit_results['fr_' + output_name] = result
+        with pn.io.unlocked():
+             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
+             self.widgets['do_fit'].loading = False
+
+    @property
+    def batch_fit(self):
+        """:obj:`bool`: True when fitting in batch (multiple samples)"""
+
+        return len(self.parent.fit_objects) > 1
+
+    @property
+    def fit_kwargs(self):
+        fit_kwargs = dict(r1=self.r1, lr=self.learning_rate,momentum=self.momentum, nesterov=self.nesterov,
+                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss)
+        if self.batch_fit:
+            fit_kwargs['r2'] = self.r2
+
+        return fit_kwargs
+
+    def _do_fitting(self):
+
+        fit_name = 'global_fit_1'
+
+        if self.fit_mode == 'Batch':
+            fit_object = self.get_batch_fit_object()
+            result = fit_object.global_fit(**self.fit_kwargs)
+            names = [fit_name]
+
+            self.parent.logger.info('Finished PyTorch fit')
+            loss = result.metadata['mse_loss']
+            self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+            self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                    f"({result.regularization_percentage:.1f}%)")
+
+        elif self.fit_mode == 'Series':
+            for name, fit_object in self.parent.fit_objects.keys():
+                fit_object = self.parent.fit_objects[name]
+                guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess][name]
+
+                result = fit_object.global_fit(guess_df, **self.fit_kwargs)
+                names = [fit_name, name]
+
+
+        self.parent.fit_results[fit_name] = result
+        self.parent.sources['dataframe'].add_df(result.output.df, 'global_fit', names=names)
+
+        self.parent.param.trigger('fit_results')
+        self.widgets['do_fit'].loading = False
+
+    def _action_fit(self):
+        self.widgets['do_fit'].loading = True
+        self.parent.logger.debug('Start PyTorch fit')
+
+        self.parent._doc = pn.state.curdoc
+        loop = IOLoop.current()
+        loop.add_callback(self._do_fitting_async)
+
+
+class GraphControl(ControlPanel):
+    header = 'Graph Control'
+
+    def make_dict(self):
+        widgets = {
+            'coverage': pn.pane.Markdown('### Coverage'),
+            'rates': pn.pane.Markdown('### Rates'),
+            'gibbs': pn.pane.Markdown('### Gibbs')
+        }
+
+        return widgets
+
+    @property
+    def _layout(self):
+        return [
+            ('self', ['coverage']),
+            ('filters.select_index', None),
+            ('filters.exposure_slider', None),
+            ('opts.cmap', None),
+            ('self', ['rates']),
+            ('filters.select_index_rates_lv1', None),
+            ('filters.select_index_rates_lv2', None),
+            ('self', ['gibbs']),
+            ('filters.select_index_global_fit_lv1', None),
+            ('filters.select_index_global_fit_lv2', None),
+
+        ]
+
+
+class FileExportControl(ControlPanel):
+    # todo check if docstring is true
+    """
+    This controller allows users to export and download datasets.
+
+    All datasets can be exported as .txt tables.
+    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
+    based on their 'color' column.
+
+    """
+
+    header = "File Export"
+    table = param.Selector(label='Target dataset', doc='Name of the dataset to export')
+    #todo add color param an dlink with protein viewer color
+
+    def __init__(self, parent, **param):
+        super(FileExportControl, self).__init__(parent, **param)
+
+        objects = list(self.sources['dataframe'].tables.keys())
+        self.param['table'].objects = objects
+        self.table = objects[0]
+        self.sources['dataframe'].param.watch(self._source_updated, 'updated')
+
+    def make_dict(self):
+        widgets = self.generate_widgets()
+        widgets['export_tables'] = pn.widgets.FileDownload(
+            label='Download table',
+            callback=self.table_export_callback,
+            filename='table.txt')
+        widgets['export_pml'] = pn.widgets.FileDownload(label='Download pml scripts',
+                                                        callback=self.pml_export_callback,
+                                                        )
+
+        return widgets
+
+    @property
+    def _layout(self):
+        return [
+            ('self', None)
+        ]
+
+    def _source_updated(self, *events):
+        self.param['table'].objects = list(self.sources['dataframe'].tables.keys())
+        self._table_updated()
+
+    @param.depends('table', watch=True)
+    def _table_updated(self):
+        self.df = self.sources['dataframe'].get(self.table)
+
+        self.widgets['export_tables'].filename = self.table + '.txt'
+
+        if self.df.index.name == 'r_number':
+            self.widgets['export_pml'].disabled = False
+            self.widgets['export_pml'].filename = self.table + '_pml_scripts.zip'
+        else:
+            self.widgets['export_pml'].disabled = True
+
+    def _make_pml(self, target):
+        assert 'r_number' in self.export_dict.keys(), "Target export data must have 'r_number' column"
+
+        try:
+            #todo add no coverage field and link to the other no coverage field
+            no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
+        except KeyError:
+            no_coverage = '#8c8c8c'
+            self.parent.logger.warning('No coverage color found, using default grey')
+
+        try:
+            c_term = self.parent.series.c_term
+        except AttributeError:
+            c_term = None
+
+        try:
+            script = colors_to_pymol(self.export_dict['r_number'], self.export_dict['color'],
+                                     c_term=c_term, no_coverage=no_coverage)
+            return script
+        except KeyError:
+            return None
+
+    # @pn.depends('target', watch=True)
+    # def _update_filename(self):
+    #     #todo subclass and split
+    #     self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
+    #     if 'mapping' in self.export_data_source.tags:
+    #         self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
+    #         # self.pml_script_download.disabled = False
+    #     else:
+    #         self.pml_script_download.filename = 'Not Available'
+    #         # self.pml_script_download.disabled = True # Enable/disable currently bugged:
+
+    @pn.depends('table')
+    def pml_export_callback(self):
+
+        if self.table:
+            #todo check if table is valid for pml conversion
+
+            bio = BytesIO()
+            with zipfile.ZipFile(bio, 'w') as pml_zip:
+                for col_name in self.df.columns:
+                    name = col_name if isinstance(col_name, str) else '_'.join(col_name)
+                    colors = self.df[col_name]
+                    pml_script = series_to_pymol(colors)  # todo refactor pd_series_to_pymol?
+                    pml_zip.writestr(name + '.pml', pml_script)
+
+            bio.seek(0)
+            return bio
+
+    @pn.depends('table')  # param.depends?
+    def table_export_callback(self):
+        io = StringIO()
+        io.write('# ' + VERSION_STRING + ' \n')
+
+        if self.table:
+            self.df.to_csv(io)
+            io.seek(0)
+            return io
+        else:
+            return None
+
+
 class SingleMappingFileInputControl(MappingFileInputControl):
     """
     This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
@@ -180,178 +1437,7 @@ class MatrixImageControl(ControlPanel):
     """
     This controller takes an input loaded matrix and converts it to an (rgba) interpolated rendered image
 
-    O rly
     """
-
-
-class PeptideFileInputControl(ControlPanel):
-    """
-    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
-    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
-    analysis.
-
-    """
-    header = 'Peptide Input'
-
-    add_button = param.Action(lambda self: self._action_add(), doc='Add File', label='Add File')
-    clear_button = param.Action(lambda self: self._action_clear(), doc='Clear files', label='Clear Files')
-    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
-    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
-    d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
-                                label='Deuterium percentage')
-    load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
-
-    be_mode = param.Selector(doc='Select method of back exchange correction', label='Norm mode', objects=['Exp', 'Theory'])
-    fd_state = param.Selector(doc='State used to normalize uptake', label='FD State')
-    fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='FD Exposure')
-    be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
-                              label='Back exchange percentage')
-
-    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
-    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
-                                       , doc='Selected exposure time to use')
-
-    c_term = param.Integer(0, bounds=(0, None),
-                           doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
-                               'and determination of intrinsic rate of exhange for the C-terminal residue')
-    parse_button = param.Action(lambda self: self._action_parse(), label='Parse',
-                                doc='Parse selected peptides for further analysis and apply back-exchange correction')
-
-    def __init__(self, parent, **params):
-        self.file_selectors = [pn.widgets.FileInput(accept='.csv')]
-        super(PeptideFileInputControl, self).__init__(parent, **params)
-
-    def make_dict(self):
-        return self.generate_widgets(be_mode=pn.widgets.RadioButtonGroup, be_percent=pn.widgets.FloatInput,
-                                     d_percentage=pn.widgets.FloatInput)
-
-    def make_list(self):
-        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'd_percentage', 'load_button',
-                      'be_mode', 'fd_state', 'fd_exposure', 'exp_state',
-                      'exp_exposures', 'c_term', 'parse_button']
-        first_widgets = list([self.widget_dict[par] for par in parameters])
-        return self.file_selectors + first_widgets
-
-    def _action_add(self):
-        """Add another FileInput widget/"""
-        widget = pn.widgets.FileInput(accept='.csv')
-        i = len(self.file_selectors)  # position to insert the new file selector into the widget box
-        self.file_selectors.append(widget)
-        self._box.insert(i, widget)
-
-    def _action_clear(self):
-        """Clear all file selectors and set number of file selectors to one."""
-        #todo @tejas: Add test
-        self.parent.logger.debug('Cleared file selectors')
-
-        while self.file_selectors:
-            fs = self.file_selectors.pop()
-            idx = list(self._box).index(fs)
-            self._box.pop(idx)
-        self._action_add()
-
-    def _action_load(self):
-        """Load files from FileInput widgets """
-        data_list = []
-        for file_selector in self.file_selectors:
-            if file_selector.value is not None:
-                s_io = StringIO(file_selector.value.decode('UTF-8'))
-                data = read_dynamx(s_io)
-                data_list.append(data)
-
-        combined = stack_arrays(data_list, asrecarray=True, usemask=False, autoconvert=True)
-
-        self.parent.peptides = PeptideMasterTable(combined, d_percentage=self.d_percentage,
-                                                  drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
-
-        states = list(np.unique(self.parent.peptides.data['state']))
-        self.param['fd_state'].objects = states
-        self.fd_state = states[0]
-        #self.param['zero_state'].objects = ['None'] + states
-        #self.zero_state = 'None'
-
-        self.parent.logger.info(
-            f'Loaded {len(data_list)} file{"s" if len(data_list) > 1 else ""} with a total '
-            f'of {len(self.parent.peptides)} peptides')
-
-    def _action_parse(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
-        if self.be_mode == 'Exp':
-            control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
-            self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
-        elif self.be_mode == 'Theory':
-            # todo @tejas: Add test
-            self.parent.peptides.set_backexchange(self.be_percent)
-
-        data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
-        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
-
-        series = KineticsSeries(data, c_term=self.c_term)
-        self.parent.series = series
-        self.parent.sample_name = self.exp_state
-        self._publish_scores()
-
-
-        self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
-                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
-        self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
-                                f'Redundancy: {series.coverage.redundancy:.2}')
-
-    def _publish_scores(self):
-        exposure_data_dict = {str(exposure): dpt for dpt, exposure in zip(self.parent.series.scores_stack, self.parent.series.timepoints)}
-        data_dict = dict(r_number=self.parent.series.coverage.r_number, **exposure_data_dict)
-
-        data_source = DataSource(data_dict, x='r_number', y=list(exposure_data_dict.keys()), tags=['mapping', 'scores'],
-                                 renderer='circle', size=10, name='scores')
-        self.parent.publish_data('scores', data_source)
-
-    @param.depends('be_mode', watch=True)
-    def _update_be_mode(self):
-        # todo @tejas: Add test
-        if self.be_mode == 'Exp':
-            self.box_pop('be_percent')
-            self.box_insert_after('be_mode', 'fd_state')
-            self.box_insert_after('fd_state', 'fd_exposure')
-
-        elif self.be_mode == 'Theory':
-            self.box_pop('fd_state')
-            self.box_pop('fd_exposure')
-            self.box_insert_after('be_mode', 'be_percent')
-
-            try:
-                states = np.unique(self.parent.peptides.data['state'])
-                self.param['exp_state'].objects = states
-                self.exp_state = states[0] if not self.exp_state else self.exp_state
-            except (TypeError, AttributeError):
-                pass
-
-    @param.depends('fd_state', watch=True)
-    def _update_norm_exposure(self):
-        b = self.parent.peptides.data['state'] == self.fd_state
-        data = self.parent.peptides.data[b]
-        exposures = list(np.unique(data['exposure']))
-        self.param['fd_exposure'].objects = exposures
-        if exposures:
-            self.fd_exposure = exposures[0]
-
-    #todo refactor norm to FD
-    @param.depends('fd_state', 'fd_exposure', watch=True)
-    def _update_experiment(self):
-        #TODO THIS needs to be updated to also incorporate the zero (?)
-        pm_dict = self.parent.peptides.return_by_name(self.fd_state, self.fd_exposure)
-        states = list(np.unique([v.state for v in pm_dict.values()]))
-        self.param['exp_state'].objects = states
-        self.exp_state = states[0] if not self.exp_state else self.exp_state
-
-    @param.depends('exp_state', watch=True)
-    def _update_experiment_exposure(self):
-        b = self.parent.peptides.data['state'] == self.exp_state
-        exposures = list(np.unique(self.parent.peptides.data['exposure'][b]))
-        exposures.sort()
-        self.param['exp_exposures'].objects = exposures
-        self.exp_exposures = exposures
-
-        self.c_term = int(np.max(self.parent.peptides.data['end'][b]))
 
 
 class FDPeptideFileInputControl(PeptideFileInputControl):
@@ -613,261 +1699,10 @@ class SingleControl(ControlPanel):
         self.param['dataset_list'].objects = objects
 
 
-class CoverageControl(ControlPanel):
-    """
-    This controller allows users to control the peptide coverage figure, by choosing how many peptides to plot vertically,
-    which color map to use, and which exposure time to show.
-    """
-    header = 'Coverage'
-
-    wrap = param.Integer(25, bounds=(0, None), doc='Number of peptides vertically before moving to the next row.') # todo auto?
-    color_map = param.Selector(objects=['jet', 'inferno', 'viridis', 'cividis', 'plasma', 'cubehelix'], default='jet',
-                               doc='Color map for coloring peptides by their deuteration percentage.')
-    index = param.Integer(0, bounds=(0, 10), doc='Current index of coverage plot in time.')
-
-    def __init__(self, parent, **params):
-        self.exposure_str = ColoredStaticText(name='Exposure', value='0')  # todo update to some param?
-
-        # We need a reference to color mapper to update it when the cmap changes
-        self.color_mapper = LinearColorMapper(palette=self.palette, low=0, high=100)
-        self.color_bar = self.get_color_bar()
-
-        super(CoverageControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._series_updated, ['series'])
-
-    def make_list(self):
-        lst = super(CoverageControl, self).make_list()
-        return lst + [self.exposure_str]#\, self.color_bar]
-
-    def make_dict(self):
-        return self.generate_widgets(index=pn.widgets.IntSlider)
-
-    @param.depends('color_map', watch=True)
-    def _update_cbar(self): # pragma: no cover
-        # Function is currently not used
-        cmap = mpl.cm.get_cmap(self.color_map)
-        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
-        self.color_mapper.palette = pal
-
-    def get_color_bar(self):
-        """pn.pane.Bokeh: bokeh pane with empty figure and only a color bar
-        Currently is buggy when added in ``make_list``
-        """
-        # f5f5f5
-        # from default value in panel css
-        #https://github.com/holoviz/panel/blob/67bf192ea4138825ab9682c8f38bfe2d696a4e9b/panel/_styles/widgets.css
-        color_bar = ColorBar(color_mapper=self.color_mapper, location=(0, 0), orientation='horizontal',
-                             background_fill_color='#f5f5f5')
-                             #title='D uptake percentage',  title_text_align='center')
-        fig = figure(toolbar_location=None, title='D uptake percentage')
-        fig.title.align = 'center'
-        fig.background_fill_color = '#f5f5f5'
-        fig.border_fill_color = '#f5f5f5'
-        fig.outline_line_color = None
-        fig.add_layout(color_bar, 'above')
-
-        return pn.pane.Bokeh(fig, height=100, width=350)
-
-    @property
-    def palette(self):
-        """:obj:`tuple` Tuple of hex colors"""
-        cmap = mpl.cm.get_cmap(self.color_map)
-        pal = tuple(mpl.colors.to_hex(cmap(value)) for value in np.linspace(0, 1, 1024, endpoint=True))
-        return pal
-
-    @property
-    def peptide_measurement(self):
-        if self.parent.series is not None:
-            return self.parent.series[self.index]
-        else:
-            return None
-
-    @property
-    def coverage(self):
-        """Coverage object describing the peptide layout"""
-        return self.parent.series.coverage
-
-    @property
-    def color(self):
-        """class:`~np.ndarray`: array of color for each peptide based on their uptake score"""
-        cmap = mpl.cm.get_cmap(self.color_map)
-        c_rgba = cmap(self.peptide_measurement.data['scores'] / 100)
-        c = [mpl.colors.to_hex(color) for color in c_rgba]
-
-        return np.array(c)
-
-    def _series_updated(self, event):
-        """Triggered when there is a new :class:`~pyhdx.models.KineticsSeries loaded on the main controller""" #todo refactor
-        # series must be uniform
-        self.wrap = autowrap(self.coverage)
-        self.param['index'].bounds = (0, len(event.new) - 1)
-
-        # set index to zero
-        self.index = 0
-
-        width = self.coverage.data['end'] - self.coverage.data['start'] # Bars are inclusive, inclusive
-        x = self.coverage.data['start'] - 0.5 + (width / 2)
-        y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
-        index = [str(i) for i in range(len(self.coverage))]
-
-        #plot_dict = dict(x=x, y=y, width=width, color=self.color, index=index)
-        prop_dict = {name: self.peptide_measurement.data[name] for name in self.peptide_measurement.data.dtype.names}
-        prop_dict.update(color=self.color, index=index, width=width, x=x, y=y)  # if the names are x and y no need to specify through render_kwargs
-        source = DataSource(prop_dict, tags=['coverage'], name=f'coverage_{self.parent.series.state}')
-
-        self.parent.publish_data('coverage', source)
-
-    @param.depends('wrap', watch=True)
-    def _update_wrap(self):
-        try:
-            y = list(itertools.islice(itertools.cycle(range(self.wrap, 0, -1)), len(self.coverage)))
-            self.parent.sources['coverage'].source.data.update(y=y)
-        except (KeyError, AttributeError):
-            pass
-
-    @param.depends('index', 'color_map', watch=True)
-    def _update_colors(self):
-        try:
-            self.exposure_str.value = str(self.peptide_measurement.exposure)  # todo this should be an js_link?
-            tooltip_fields = {field: self.peptide_measurement.data[field] for field in ['scores', 'uptake', 'uptake_corrected']}
-            self.parent.sources['coverage'].source.data.update(color=self.color, **tooltip_fields)
-
-        except (KeyError, AttributeError):
-            pass
-
-
 class FDCoverageControl(CoverageControl):
     def make_list(self):
         lst = super(CoverageControl, self).make_list()
         return lst[:-1]
-
-
-class InitialGuessControl(ControlPanel):
-    """
-    This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
-    """
-
-    #todo remove lambda symbol although its really really funny
-    header = 'Initial Guesses'
-    fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
-                                   doc='Choose method for determining initial guesses.')
-
-    lower_bound = param.Number(0., doc='Lower bound for association model fitting')
-    upper_bound = param.Number(0., doc='Upper bound for association model fitting')
-    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
-                           constant=True)
-
-    def __init__(self, parent, **params):
-        self.pbar1 = ASyncProgressBar()
-        self.pbar2 = ASyncProgressBar()
-        super(InitialGuessControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._parent_series_updated, ['series'])
-
-    def make_dict(self):
-        return self.generate_widgets(lower_bound=pn.widgets.LiteralInput, upper_bound=pn.widgets.LiteralInput)
-
-    def make_list(self):
-        self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-        parameters = ['fitting_model', 'do_fit1', 'pbar1']
-
-        widget_list = list([self.widget_dict[par] for par in parameters])
-        return widget_list
-
-    @param.depends('fitting_model', watch=True)
-    def _fitting_model_updated(self):
-        if self.fitting_model == 'Half-life (λ)':
-            self.box_pop('lower_bound')
-            self.box_pop('upper_bound')
-        elif self.fitting_model in ['Association', 'Dissociation']:
-            self.box_insert_after('fitting_model', 'upper_bound')
-            self.box_insert_after('fitting_model', 'lower_bound')
-
-    def _parent_series_updated(self, events):
-        if self.parent.series is not None:
-            self.param['do_fit1'].constant = False
-
-            kf = KineticsFitting(self.parent.series)
-            self.lower_bound, self.upper_bound = kf.bounds
-
-    async def _fit1_async(self):
-        """Do fitting asynchronously on (remote) cluster"""
-        kf = KineticsFitting(self.parent.series, cluster=self.parent.cluster, bounds=(self.lower_bound, self.upper_bound))
-        fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-        self.parent.fit_results['fit1'] = fit_result
-
-        output = fit_result.output.to_records('r_number')  # todo remove in between numpy step
-        #todo duplicate code in fit - > method on parent?
-        dic = {name: output[name] for name in output.dtype.names}
-        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding # todo this is obsolete way of doing this
-        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-
-        data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                 renderer='circle', size=10)
-
-        # Trigger plot update
-        callback = partial(self.parent.publish_data, 'fit1', data_source)
-        self.parent.doc.add_next_tick_callback(callback)
-
-        with pn.io.unlocked():
-             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
-             self.pbar1.reset()
-             self.param['do_fit1'].constant = False
-
-    def _fit1(self):
-        kf = KineticsFitting(self.parent.series, bounds=(self.lower_bound, self.upper_bound))
-        fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-        self.parent.fit_results['fit1'] = fit_result
-        output = fit_result.output.to_records('r_number')  # todo remove in between numpy step
-        dic = {name: output[name] for name in output.dtype.names}
-        dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
-        dic['color'] = np.full_like(output, fill_value=DEFAULT_COLORS['fit1'], dtype='<U7')
-
-        data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                 renderer='circle', size=10, name='fit1')
-
-        self.parent.publish_data('fit1', data_source)  #todo refactor to force require setting name on DataSource Ojbect
-        self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-
-        self.param['do_fit1'].constant = False
-        self.pbar1.reset()
-
-    def _action_fit(self):
-        if self.parent.series is None:
-            self.parent.logger.debug('No dataset loaded')
-            return
-
-        self.parent.logger.debug('Start initial guess fit')
-        #todo context manager?
-        self.param['do_fit1'].constant = True
-
-        if self.fitting_model == 'Half-life (λ)':
-            kf = KineticsFitting(self.parent.series)
-            output = kf.weighted_avg_t50()
-            fit_result = HalfLifeFitResult(output=output)
-            array = output.to_records()
-            dic = {name: array[name] for name in array.dtype.names}
-
-            #dic['y'] = output['rate']  # entry y is by default used for plotting and thresholding
-            #todo colors dont work (because DataSource init)
-            dic['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['half-life'], dtype='<U7')
-
-            data_source = DataSource(dic, x='r_number', y='rate', tags=['mapping', 'rate'],
-                                     renderer='circle', size=10, name='half-life')
-
-            self.parent.publish_data('half-life', data_source)
-            self.parent.fit_results['half-life'] = fit_result
-
-            self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-
-            self.param['do_fit1'].constant = False
-        else:
-
-            if self.parent.cluster:
-                self.parent._doc = pn.state.curdoc
-                loop = IOLoop.current()
-                loop.add_callback(self._fit1_async)
-            else:
-                self._fit1()
 
 
 class FoldingFitting(InitialGuessControl):
@@ -880,123 +1715,6 @@ class FoldingFitting(InitialGuessControl):
 
         widget_list = list([self.widget_dict[par] for par in parameters])
         return widget_list
-
-
-class FitControl(ControlPanel):
-    """
-    This controller allows users to execute TensorFlow fitting of the global data set.
-
-    Currently, repeated fitting overrides the old result.
-    """
-
-    header = 'Fitting'
-    initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
-    temperature = param.Number(293.15, doc='Deuterium labelling temperature in Kelvin')
-    pH = param.Number(8., doc='Deuterium labelling pH', label='pH')
-
-    stop_loss = param.Number(0.01, bounds=(0, None),
-                             doc='Threshold loss difference below which to stop fitting.')
-    stop_patience = param.Integer(100, bounds=(1, None),
-                                  doc='Number of epochs where stop loss should be satisfied before stopping.')
-    learning_rate = param.Number(10, bounds=(0, None),
-                                 doc='Learning rate parameter for optimization.')
-    momentum = param.Number(0.5, bounds=(0, None),
-                            doc='Stochastic Gradient Descent momentum')
-    nesterov = param.Boolean(True, doc='Use Nesterov type of momentum for SGD')
-    epochs = param.Number(100000, bounds=(1, None),
-                          doc='Maximum number of epochs (iterations.')
-    regularizer = param.Number(0.5, bounds=(0, None), doc='Value for the regularizer.')
-    do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
-                          doc='Start global fitting')
-
-    def __init__(self, parent, **params):
-        self.pbar1 = ASyncProgressBar()
-        super(FitControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._parent_fit_results_updated, ['fit_results'])
-
-    def _parent_fit_results_updated(self, *events):
-        possible_initial_guesses = ['half-life', 'fit1']
-        objects = [name for name in possible_initial_guesses if name in self.parent.fit_results.keys()]
-        if objects:
-            self.param['do_fit'].constant = False
-
-        self.param['initial_guess'].objects = objects
-        if not self.initial_guess and objects:
-            self.initial_guess = objects[0]
-
-    @staticmethod
-    def result_to_data_source(output):
-        output.df['color'] = np.full(len(output), fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
-
-        # Add upper/lower bounds covariances for error bar plotting
-        output.df['__lower'] = output.df['deltaG'] - output.df['covariance']
-        output.df['__upper'] = output.df['deltaG'] + output.df['covariance']
-
-        output_name = 'global_fit'  # Appears twice
-        data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'], name=output_name,
-                                 renderer='circle', size=10)
-
-        return data_source
-
-    async def _do_fitting_async(self):
-        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
-        initial_result = self.parent.fit_results[self.initial_guess].output
-
-        result = await kf.global_fit_async(initial_result, r1=self.regularizer, lr=self.learning_rate,
-                                           momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
-                                           patience=self.stop_patience, stop_loss=self.stop_loss)
-
-        # Duplicate code
-        self.parent.logger.info('Finished PyTorch fit')
-        loss = result.metadata['mse_loss']
-        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                f"({result.regularization_percentage:.1f}%)")
-
-        self.parent.param.trigger('fit_results')
-
-        data_source = self.result_to_data_source(result.output)
-        output_name = 'global_fit'
-        callback = partial(self.parent.publish_data, output_name, data_source)
-        self.parent.doc.add_next_tick_callback(callback)
-
-        self.parent.fit_results['fr_' + output_name] = result
-        with pn.io.unlocked():
-             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
-             self.widget_dict['do_fit'].loading = False
-
-    def _do_fitting(self):
-        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH)
-        initial_result = self.parent.fit_results[self.initial_guess].output   #todo initial guesses could be derived from the CDS rather than fit results object
-        result = kf.global_fit(initial_result, r1=self.regularizer, lr=self.learning_rate,
-                               momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
-                               patience=self.stop_patience, stop_loss=self.stop_loss)
-
-        self.parent.logger.info('Finished PyTorch fit')
-        loss = result.metadata['mse_loss']
-        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                f"({result.regularization_percentage:.1f}%)")
-
-        self.parent.param.trigger('fit_results')
-
-        data_source = self.result_to_data_source(result.output)
-        output_name = 'global_fit'
-        self.parent.fit_results['fr_' + output_name] = result
-        self.parent.publish_data(output_name, data_source)
-
-        self.widget_dict['do_fit'].loading = False
-
-    def _action_fit(self):
-        self.widget_dict['do_fit'].loading = True
-        self.parent.logger.debug('Start PyTorch fit')
-
-        if self.parent.cluster:
-            self.parent._doc = pn.state.curdoc
-            loop = IOLoop.current()
-            loop.add_callback(self._do_fitting_async)
-        else:
-            self._do_fitting()
 
 
 class FitResultControl(ControlPanel):
@@ -1021,13 +1739,15 @@ class FitResultControl(ControlPanel):
         # --> because they need to be calcualted only once and then dataobjects are generated per index
         # can be improved probably (by putting all data in data source a priory?
 
-        self.parent.param.watch(self._series_updated, ['series'])
+        self.parent.param.watch(self._series_updated, ['datasets']) #todo refactor
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
     def _series_updated(self, *events):
-        self.param['peptide_index'].bounds = (0, len(self.parent.series.coverage.data) - 1)
-        self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
-        self._update_sources()
+        pass
+        #
+        # self.param['peptide_index'].bounds = (0, len(self.parent.series.coverage.data) - 1)
+        # self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
+        # self._update_sources()
 
     @property
     def fit_timepoints(self):
@@ -1062,265 +1782,6 @@ class FitResultControl(ControlPanel):
             dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
             data_source = DataSource(dic, x='time', y='uptake', tags=['uptake_curve'], renderer=renderer, color=color)
             self.parent.publish_data(name, data_source)
-
-
-class ClassificationControl(ControlPanel):
-    """
-    This controller allows users classify 'mapping' datasets and assign them colors.
-
-    Coloring can be either in discrete categories or as a continuous custom color map.
-    """
-
-    header = 'Classification'
-    # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
-    accepted_tags = ['mapping']
-
-    # todo unify name for target field (target_data set)
-    # When coupling param with the same name together there should be an option to exclude this behaviour
-    target = param.Selector(label='Target')
-    quantity = param.Selector(label='Quantity')
-
-    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous'],
-                          doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
-    num_colors = param.Integer(3, bounds=(1, 10),
-                              doc='Number of classification colors.')
-    otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
-                            doc="Automatically perform thresholding based on Otsu's method.")
-    linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
-                              doc='Automatically perform thresholding by creating equally spaced sections.')
-    log_space = param.Boolean(True,
-                              doc='Boolean to set whether to apply colors in log space or not.')
-
-    show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
-    values = param.List(precedence=-1)
-    colors = param.List(precedence=-1)
-
-    def __init__(self, parent, **param):
-        super(ClassificationControl, self).__init__(parent, **param)
-
-        self.values_widgets = []
-        self.colors_widgets = []
-        self._update_num_colors()
-        self._update_num_values()
-
-        self.param.trigger('values')
-        self.param.trigger('colors')
-        self.parent.param.watch(self._parent_sources_updated, ['sources'])
-
-    def make_dict(self):
-        return self.generate_widgets(num_colors=pn.widgets.IntInput, mode=pn.widgets.RadioButtonGroup)
-
-    def _parent_sources_updated(self, *events):
-        data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
-        self.param['target'].objects = list(data_sources)
-
-        # Set target if its not set already
-        if not self.target and data_sources:
-            self.target = data_sources[-1]
-
-        if self.values:
-            self._get_colors()
-
-    @param.depends('target', watch=True)
-    def _target_updated(self):
-        data_source = self.parent.sources[self.target]
-        self.param['quantity'].objects = [f for f in data_source.scalar_fields if not f.startswith('_')]
-        default_priority = ['deltaG', 'comparison']  # Select these fields by default if they are present
-        if not self.quantity and data_source.scalar_fields:
-            for field in default_priority:
-                if field in data_source.scalar_fields:
-                    self.quantity = field
-                    break
-                self.quantity = data_source.scalar_fields[0]
-
-    @property
-    def target_array(self):
-        """returns the array to calculate colors from, NaN entries are removed"""
-
-        try:
-            y_vals = self.parent.sources[self.target][self.quantity]
-            return y_vals[~np.isnan(y_vals)]
-        except KeyError:
-            return None
-
-    def _action_otsu(self):
-        if self.num_colors > 1 and self.target_array is not None:
-            func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
-            thds = threshold_multiotsu(func(self.target_array), classes=self.num_colors)
-            for thd, widget in zip(thds[::-1], self.values_widgets):  # Values from high to low
-                widget.start = None
-                widget.end = None
-                widget.value = np.exp(thd) if self.log_space else thd
-        self._update_bounds()
-        self._get_colors()
-
-    def _action_linear(self):
-        i = 1 if self.mode == 'Discrete' else 0
-        if self.log_space:
-            thds = np.logspace(np.log(np.min(self.target_array)), np.log(np.max(self.target_array)),
-                               num=self.num_colors + i, endpoint=True, base=np.e)
-        else:
-            thds = np.linspace(np.min(self.target_array), np.max(self.target_array), num=self.num_colors + i, endpoint=True)
-        for thd, widget in zip(thds[i:self.num_colors][::-1], self.values_widgets):
-            # Remove bounds, set values, update bounds
-            widget.start = None
-            widget.end = None
-            widget.value = thd
-        self._update_bounds()
-
-    @param.depends('mode', watch=True)
-    def _mode_updated(self):
-        if self.mode == 'Discrete':
-            self.box_insert_after('num_colors', 'otsu_thd')
-            #self.otsu_thd.constant = False
-        elif self.mode == 'Continuous':
-            self.box_pop('otsu_thd')
-        elif self.mode == 'ColorMap':
-            self.num_colors = 2
-            #todo adjust add/ remove color widgets methods
-        self.param.trigger('num_colors')
-
-    def _calc_colors(self, y_vals):
-        if self.num_colors == 1:
-            colors = np.full(len(y_vals), fill_value=self.colors[0], dtype='U7')
-            colors[np.isnan(y_vals)] = np.nan
-        elif self.mode == 'Discrete':
-            full_thds = [-np.inf] + self.values[::-1] + [np.inf]
-            colors = np.full(len(y_vals), fill_value=np.nan, dtype='U7')
-            for lower, upper, color in zip(full_thds[:-1], full_thds[1:], self.colors[::-1]):
-                b = (y_vals > lower) & (y_vals <= upper)
-                colors[b] = color
-        elif self.mode == 'Continuous':
-            func = np.log if self.log_space else lambda x: x
-            vals_space = (func(self.values))  # values in log space depending on setting
-            norm = plt.Normalize(vals_space[-1], vals_space[0], clip=True)
-            nodes = norm(vals_space[::-1])
-            cmap = mpl.colors.LinearSegmentedColormap.from_list("custom_cmap", list(zip(nodes, self.colors[::-1])))
-
-            try:
-                colors_rgba = cmap(norm(func(y_vals)), bytes=True, alpha=0)
-                colors = rgb_to_hex(colors_rgba)
-
-                colors[np.isnan(y_vals)] = np.nan
-
-            except ValueError as err:
-                self.parent.logger.warning(err)
-                return
-
-        return colors
-
-    @param.depends('values', 'colors', 'target', 'quantity', watch=True)
-    def _get_colors(self):
-        # todo or?
-        if np.all(self.values == 0):
-            return
-        elif np.any(np.diff(self.values) > 0):  # Skip applying colors when not strictly monotonic descending
-            return
-        elif not self.target:
-            return
-
-        y_vals = self.parent.sources[self.target][self.quantity]  # full array including nan entries
-        colors = self._calc_colors(y_vals)
-
-        if colors is not None:
-            self.parent.sources[self.target].source.data['color'] = colors  # this triggers an update of the graph
-
-    @param.depends('num_colors', watch=True)
-    def _update_num_colors(self):
-        while len(self.colors_widgets) != self.num_colors:
-            if len(self.colors_widgets) > self.num_colors:
-                self._remove_color()
-            elif len(self.colors_widgets) < self.num_colors:
-                self._add_color()
-        self.param.trigger('colors')
-
-    @param.depends('num_colors', watch=True)
-    def _update_num_values(self):
-        diff = 1 if self.mode == 'Discrete' else 0
-        while len(self.values_widgets) != self.num_colors - diff:
-            if len(self.values_widgets) > self.num_colors - diff:
-                self._remove_value()
-            elif len(self.values_widgets) < self.num_colors - diff:
-                self._add_value()
-
-        self._update_bounds()
-        self.param.trigger('values')
-
-    def _add_value(self):
-        try:
-            first_value = self.values_widgets[-1].value
-        except IndexError:
-            first_value = 0
-
-        default = float(first_value - 1)
-        self.values.append(default)
-
-        name = 'Threshold {}'.format(len(self.values_widgets) + 1)
-        widget = pn.widgets.FloatInput(name=name, value=default)
-        self.values_widgets.append(widget)
-        i = len(self.values_widgets) + self.box_index('show_thds')
-        self._box.insert(i, widget)
-        widget.param.watch(self._value_event, ['value'])
-
-    def _remove_value(self):
-        widget = self.values_widgets.pop(-1)
-        self.box_pop(widget)
-        self.values.pop()
-
-        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
-        del widget
-
-    def _add_color(self):
-        try:
-            default = DEFAULT_CLASS_COLORS[len(self.colors_widgets)]
-        except IndexError:
-            default = "#"+''.join(np.random.choice(list('0123456789abcdef'), 6))
-
-        self.colors.append(default)
-        widget = pn.widgets.ColorPicker(value=default)
-        self.colors_widgets.append(widget)
-        i = len(self.values_widgets) + len(self.colors_widgets) + self.box_index('show_thds')
-        self._box.insert(i, widget)
-        widget.param.watch(self._color_event, ['value'])
-
-    def _remove_color(self):
-        widget = self.colors_widgets.pop(-1)
-        self.colors.pop()
-        self.box_pop(widget)
-        [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
-        del widget
-
-    def _color_event(self, *events):
-        for event in events:
-            idx = list(self.colors_widgets).index(event.obj)
-            self.colors[idx] = event.new
-
-
-        #todo callback?
-        self.param.trigger('colors')
-
-    def _value_event(self, *events):
-        """triggers when a single value gets changed"""
-        for event in events:
-            idx = list(self.values_widgets).index(event.obj)
-            self.values[idx] = event.new
-
-        self._update_bounds()
-        self.param.trigger('values')
-
-    def _update_bounds(self):
-        for i, widget in enumerate(self.values_widgets):
-            if i > 0:
-                prev_value = float(self.values_widgets[i - 1].value)
-                widget.end = np.nextafter(prev_value, prev_value - 1)
-            else:
-                widget.end = None
-
-            if i < len(self.values_widgets) - 1:
-                next_value = float(self.values_widgets[i + 1].value)
-                widget.start = np.nextafter(next_value, next_value + 1)
-            else:
-                widget.start = None
 
 
 class ColoringControl(ClassificationControl):
@@ -1365,7 +1826,6 @@ class ColoringControl(ClassificationControl):
         if colors_hex is None:  # this is the colors not between 0 and 1 bug / error
             return
 
-        print(colors_hex)
         colors_hex[colors_hex == 'nan'] = '#8c8c8c'
         colors_rgba = np.array([hex_to_rgba(h) for h in colors_hex])
 
@@ -1379,118 +1839,8 @@ class ColoringControl(ClassificationControl):
         img_source.render_kwargs['dh'] = timepoints.max()
         img_source.source.data.update(img=[img], scores=[array])
 
-        print('howdoe')
 
         #self.parent.sources[self.target].source.data['color'] = colors
-
-
-class FileExportControl(ControlPanel):
-    # todo check if docstring is true
-    """
-    This controller allows users to export and download datasets.
-
-    All datasets can be exported as .txt tables.
-    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
-    based on their 'color' column.
-
-    """
-
-    header = "File Export"
-    target = param.Selector(label='Target dataset', doc='Name of the dataset to export')
-    #todo add color param an dlink with protein viewer color
-
-    def __init__(self, parent, **param):
-        self.export_linear_download = pn.widgets.FileDownload(filename='<no data>', callback=self.linear_export_callback)
-        self.pml_script_download = pn.widgets.FileDownload(filename='<no data>', callback=self.pml_export_callback)
-        super(FileExportControl, self).__init__(parent, **param)
-
-        self.parent.param.watch(self._sources_updated, ['sources'])
-        try:  # todo write function that does the try/excepting + warnings (or also mixins?)
-            self.parent.param.watch(self._series_updated, ['series'])
-        except ValueError:
-            pass
-
-    def make_list(self):
-        self.widget_dict.update(export_linear_download=self.export_linear_download, pml_script_download=self.pml_script_download)
-        return super(FileExportControl, self).make_list()
-
-    def _sources_updated(self, *events):
-        objects = list(self.parent.sources.keys())
-        self.param['target'].objects = objects
-
-        if not self.target and objects:
-            self.target = objects[0]
-
-    def _series_updated(self, *events):
-        self.c_term = int(self.parent.series.coverage.protein.c_term)
-
-    def _make_pml(self, target):
-        assert 'r_number' in self.export_dict.keys(), "Target export data must have 'r_number' column"
-
-        try:
-            #todo add no coverage field and link to the other no coverage field
-            no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
-        except KeyError:
-            no_coverage = '#8c8c8c'
-            self.parent.logger.warning('No coverage color found, using default grey')
-
-        try:
-            c_term = self.parent.series.c_term
-        except AttributeError:
-            c_term = None
-
-        try:
-            script = colors_to_pymol(self.export_dict['r_number'], self.export_dict['color'],
-                                     c_term=c_term, no_coverage=no_coverage)
-            return script
-        except KeyError:
-            return None
-
-    @property
-    def export_dict(self):
-        return {k: v for k, v in self.export_data_source.source.data.items() if not k.startswith('__')}
-
-    @property
-    def export_data_source(self):
-        return self.parent.sources[self.target]
-
-    @pn.depends('target', watch=True)
-    def _update_filename(self):
-        #todo subclass and split
-        self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
-        if 'mapping' in self.export_data_source.tags:
-            self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
-            # self.pml_script_download.disabled = False
-        else:
-            self.pml_script_download.filename = 'Not Available'
-            # self.pml_script_download.disabled = True # Enable/disable currently bugged:
-
-    @pn.depends('target')
-    def pml_export_callback(self):
-        if self.target:
-            io = StringIO()
-            io.write('# ' + VERSION_STRING + ' \n')
-            script = self._make_pml(self.target)
-            try:
-                io.write(script)
-                io.seek(0)
-                return io
-            except TypeError:
-                return None
-        else:
-            return None
-
-    @pn.depends('target')  # param.depends?
-    def linear_export_callback(self):
-        io = StringIO()
-        io.write('# ' + VERSION_STRING + ' \n')
-
-        if self.target:
-            self.export_data_source.export_df.to_csv(io, index=False)
-            io.seek(0)
-            return io
-        else:
-            return None
 
 
 class DifferenceFileExportControl(FileExportControl):
@@ -1637,12 +1987,15 @@ class DeveloperControl(ControlPanel):
     test_btn = param.Action(lambda self: self._action_test())
     trigger_btn = param.Action(lambda self: self._action_trigger())
     print_btn = param.Action(lambda self: self._action_print())
+    runtime_warning = param.Action(lambda self: self._action_runtime())
 
     def __init__(self, parent, **params):
         super(DeveloperControl, self).__init__(parent, **params)
 
     def _action_test_logging(self):
+        print(self.parent.logger)
         self.parent.logger.debug('TEST DEBUG MESSAGE')
+        #logging.info('THis is some info')
         for i in range(20):
             self.parent.logger.info('dit is een test123')
 
@@ -1652,7 +2005,7 @@ class DeveloperControl(ControlPanel):
     def _action_break(self):
         main_ctrl = self.parent
         control_panels = main_ctrl.control_panels
-        figure_panels = main_ctrl.figure_panels
+        views = main_ctrl.views
         sources = main_ctrl.sources
 
         print('Time for a break')
@@ -1669,7 +2022,9 @@ class DeveloperControl(ControlPanel):
 
         self.parent.publish_data('global_fit', data_source)
 
-
     def _action_trigger(self):
         deltaG_figure = self.parent.figure_panels['DeltaGFigure']
         deltaG_figure.bk_pane.param.trigger('object')
+
+    def _action_runtime(self):
+        result = np.mean([])
