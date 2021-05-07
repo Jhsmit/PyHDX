@@ -1080,7 +1080,7 @@ class FitControl(ControlPanel):
         self.pbar1 = ASyncProgressBar() #tqdm?
         super(FitControl, self).__init__(parent, **params)
         if not verify_cluster(self.parent.cluster):
-            raise TimeoutError(f"Fitting Controller could not connect to Dask cluster at self.parent.cluster}")
+            raise TimeoutError(f"Fitting Controller could not connect to Dask cluster at {self.parent.cluster}")
 
         source = self.parent.sources['dataframe']
         source.param.watch(self._source_updated, ['updated'])
