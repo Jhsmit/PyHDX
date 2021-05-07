@@ -5,7 +5,7 @@ from pyhdx.panel.sources import DataSource
 from pyhdx.panel.config import ConfigurationSettings
 from pyhdx.local_cluster import default_cluster
 from pathlib import Path
-
+import torch
 import numpy as np
 
 directory = Path(__file__).parent
@@ -18,7 +18,8 @@ color color_#8c8c8c, resi 1-9 + resi 18-18 + resi 26-26 + resi 29-29 + resi 38-3
 """
 
 test_port = 55432
-
+np.random.seed(43)
+torch.manual_seed(43)
 
 class TestMainGUISecB(object):
     @classmethod
