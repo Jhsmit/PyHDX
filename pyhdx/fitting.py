@@ -1228,7 +1228,7 @@ class LSQKinetics(KineticsModel): #TODO find a better name (lstsq)
 class BatchFitting(object):
     """Fit multiple datasets simultanuously in batch"""
 
-    def __init__(self, states, guesses=None):
+    def __init__(self, states, guesses=None, cluster=None):
         #todo guesses as deltaG
         self.states = states
 
@@ -1244,6 +1244,7 @@ class BatchFitting(object):
         self.Nt = np.max([len(kf.series.timepoints) for kf in self.states])
 
         self.guesses = guesses
+        self.cluster = cluster
 
     def setup_fit(self):
         assert self.guesses is not None, 'Guesses are required to set up the fit'
@@ -1304,23 +1305,54 @@ class BatchFitting(object):
         inputs = [temperature_T, X_T, k_int_T, timepoints_T]
         output_data = D_T
 
+        #todo return as dict?
         return deltaG_par, inputs, output_data
+
+    async def global_fit_async(self,  **kwargs):
+        """see global fit"""
+        client = await Client(self.cluster, asynchronous=True)
+        fit_func = partial(self.global_fit, **kwargs)
+        future = client.submit(fit_func)
+        result = await future
+        await client.close()
+
+        return result
 
     def global_fit(self, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
                    optimizer='SGD', **optimizer_kwargs):
 
-        deltaG_par, inputs, output_data = self.setup_fit()
+        """
 
+        Parameters
+        ----------
+        r1
+        r2
+        epochs
+        patience
+        stop_loss
+        optimizer
+        optimizer_kwargs
+
+        Returns
+        -------
+
+
+
+        """
+        # todo rewrite:
+        # tensor_dict = self.setup_fit()
+        # optimizer_kwargs, optimizer_klass =
+
+        deltaG_par, inputs, output_data = self.setup_fit()
         model = DeltaGFit(deltaG_par)
 
         # Take default optimizer kwargs and update them with supplied kwargs
         optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}
 
         optimizer_klass = getattr(torch.optim, optimizer)
-        #optimizer_obj = optimizer_klass(model.parameters(), **kwargs)
-
         criterion = torch.nn.MSELoss(reduction='sum')
 
+        #as property?
         def regularizer(param):
             d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
             d_ax2 = torch.abs(param - torch.mean(param, axis=0))
