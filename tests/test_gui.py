@@ -35,7 +35,6 @@ class TestMainGUISecB(object):
         cls.kf = KineticsFitting(cls.series)
         cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
 
-
         cfg = ConfigurationSettings()
         cfg.set('cluster', 'port', str(test_port))
         local_cluster = default_cluster()
@@ -68,7 +67,9 @@ class TestMainGUISecB(object):
         assert series.Nt == 7
         assert series.Np == 63
         assert series.Nr == 146
-        assert np.nanmean(series.scores_stack) == 54.05487325857497
+        # Py39 result:                              54.054873258574965
+        # assert np.nanmean(series.scores_stack) == 54.05487325857497
+        assert abs(np.nanmean(series.scores_stack) - 54.0548732585749) < 1e-6
 
     def test_batch_mode(self):
 
