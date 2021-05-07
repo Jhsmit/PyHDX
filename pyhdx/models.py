@@ -77,6 +77,12 @@ class Protein(object):
         else:
             return attr
 
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
+
     def _make_protein(self, df_out, other):
         """Make a new :class:`~pyhdx.models.Protein` object and combine metadata with other metadata"""
         metadata = {**self.metadata, **other.metadata}
