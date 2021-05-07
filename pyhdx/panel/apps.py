@@ -7,8 +7,6 @@ from pyhdx.panel.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING_SHORT
 from pyhdx.panel.base import BokehFigurePanel, STATIC_DIR
-
-
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.panel.sources import DataFrameSource
 from pyhdx.panel.transforms import RescaleTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
@@ -18,6 +16,7 @@ from pyhdx.panel.log import StreamToLogger
 import logging
 import panel as pn
 from pyhdx.panel.log import logger
+from pyhdx.panel.config import ConfigurationSettings
 from panel import pane
 from lumen.views import PerspectiveView, hvPlotView
 from lumen.filters import WidgetFilter, ParamFilter
@@ -28,13 +27,11 @@ import matplotlib as mpl
 import datetime
 
 DEBUG = True
-cluster = '127.0.0.1:52123'
 
 current_dir = Path(__file__).parent
 data_dir = current_dir.parent.parent / 'tests' / 'test_data'
-
 global_opts = {'show_grid': True}
-
+cfg = ConfigurationSettings()
 
 @logger('pyhdx')
 def main_app():
@@ -148,7 +145,6 @@ def main_app():
 
     multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_rates_lv1', table='rates',
                                                        source=source)
-
     multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates_lv2', table='rates',
                                                        source=source, filters=[multiindex_select_rates_1])
 
@@ -196,7 +192,7 @@ def main_app():
                            filters=filters,
                            opts=opts,
                            views=views,
-                           cluster=cluster,
+                           cluster=cfg.cluster,
                            logger=logger)
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme,
