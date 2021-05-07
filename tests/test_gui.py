@@ -2,6 +2,8 @@ from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries, KineticsFitti
 from pyhdx.fileIO import csv_to_protein, txt_to_np
 from pyhdx.panel.apps import main_app#, diff_app
 from pyhdx.panel.sources import DataSource
+from pyhdx.panel.config import ConfigurationSettings
+from pyhdx.local_cluster import default_cluster
 from pathlib import Path
 
 import numpy as np
@@ -14,6 +16,8 @@ set_color color_#8c8c8c, [140,140,140]
 color color_#0a0ac2, resi 10-17 + resi 19-25 + resi 27-28 + resi 30-37 + resi 39-57 + resi 62-84 + resi 86-94 + resi 100-102 + resi 104-107 + resi 109-113 + resi 115-123 + resi 125-129 + resi 131-133 + resi 138-155
 color color_#8c8c8c, resi 1-9 + resi 18-18 + resi 26-26 + resi 29-29 + resi 38-38 + resi 58-61 + resi 85-85 + resi 95-99 + resi 103-103 + resi 108-108 + resi 114-114 + resi 124-124 + resi 130-130 + resi 134-137
 """
+
+test_port = 55432
 
 
 class TestMainGUISecB(object):
@@ -30,6 +34,11 @@ class TestMainGUISecB(object):
         cls.series = states[cls.state]
         cls.kf = KineticsFitting(cls.series)
         cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
+
+
+        cfg = ConfigurationSettings()
+        cfg.set('cluster', 'port', str(test_port))
+        local_cluster = default_cluster()
 
         # cls.ds_fit = DataSource(cls.prot_fit_result, name='global_fit', x='r_number', tags=['mapping', 'pfact', 'deltaG'],
         #                         renderer='circle', size=10)
