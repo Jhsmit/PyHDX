@@ -4,6 +4,7 @@ from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSourc
 from pyhdx.panel.transforms import ApplyCmapTransform
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.fitting import KineticsFitting, BatchFitting
+from pyhdx.support import verify_cluster
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba, series_to_pymol
 from pyhdx import VERSION_STRING
@@ -28,7 +29,6 @@ import itertools
 import pandas as pd
 import colorcet
 import zipfile
-
 import logging
 
 from .widgets import ColoredStaticText, ASyncProgressBar
@@ -116,6 +116,7 @@ class MappingFileInputControl(ControlPanel):
 import itertools
 cmap_cycle = itertools.cycle(['gray','PiYG', 'jet'])
 
+
 class CSVFileInputControl(ControlPanel):
     input_file = param.Parameter()
     load_file = param.Action(lambda self: self._action_load())
@@ -146,7 +147,6 @@ class CSVFileInputControl(ControlPanel):
         new_data = 40e3*np.random.rand(size)
 
         table['deltaG'] = new_data
-        print('Source data updated')
 
         self.parent.update()
 
@@ -157,11 +157,9 @@ class CSVFileInputControl(ControlPanel):
         transform = self.parent.transforms['cmap']
         transform.cmap = cmap
 
-        print('cmap updated')
         self.parent.update()
 
     def _action_exposure(self):
-        print('here we go')
         filter = self.parent.filters['exposure']
         filter.widget.value = 0.
 
@@ -176,7 +174,6 @@ class CSVFileInputControl(ControlPanel):
         self.parent.update()
 
         item = self.parent.rows['rect_plot'][0]
-        print('item', item)
         #item.param.trigger('object')
 
 
@@ -756,7 +753,6 @@ class ClassificationControl(ControlPanel):
 
     @param.depends('table', watch=True)
     def _table_updated(self):
-        print('table updated triggered')
         df = self.get_data()
 
         #todo also get schema and check if this table is compatible (ie has numbers, not colors only)
@@ -1009,7 +1005,6 @@ class ClassificationControl(ControlPanel):
             widget_index = int(key.split('_')[1])
             # idx = list(self.colors_widgets).index(event.obj)
             self.colors[widget_index] = event.new
-            print('new colors', self.colors)
 
         self.param.trigger('colors')
 
@@ -1022,7 +1017,6 @@ class ClassificationControl(ControlPanel):
             key = list(self.widgets.keys())[idx]
             widget_index = int(key.split('_')[1])
             self.values[widget_index] = event.new
-            print('new values', self.values)
 
         self._update_bounds()
         self.param.trigger('values')
@@ -1077,12 +1071,16 @@ class FitControl(ControlPanel):
     r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 2 (sample axis)',
                       doc='Value of the regularizer along sample axis.', constant=True)
 
+    fit_name = param.String(doc="Name for for the fit result")
+
     do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
                           doc='Start global fitting')
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar() #tqdm?
         super(FitControl, self).__init__(parent, **params)
+        if not verify_cluster(self.parent.cluster):
+            raise TimeoutError(f"Fitting Controller could not connect to Dask cluster at self.parent.cluster}")
 
         source = self.parent.sources['dataframe']
         source.param.watch(self._source_updated, ['updated'])
@@ -1126,15 +1124,18 @@ class FitControl(ControlPanel):
 
     def get_batch_fit_object(self):
         guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess]
-
-        fit_objects = self.parent.fit_objects # Dict with name: KineticsFitting object
+        fit_objects = self.parent.fit_objects  # Dict with name: KineticsFitting object
 
         guesses = [guess_df[name] for name in fit_objects.keys()]
-        bf = BatchFitting(list(fit_objects.values()), guesses=guesses)
+        bf = BatchFitting(list(fit_objects.values()), guesses=guesses, cluster=self.parent.cluster)
 
         return bf
 
     async def _do_fitting_async(self):
+        if self.fit_mode == 'Batch':
+            fit_object = self.get_batch_fit_object()
+            fit_object.global_fit(**self.fit_kwargs)
+
         kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
         initial_result = self.parent.fit_results[self.initial_guess].output
 
@@ -1154,8 +1155,8 @@ class FitControl(ControlPanel):
         data_source = self.result_to_data_source(result.output)
         output_name = 'global_fit'
         callback = partial(self.parent.publish_data, output_name, data_source)
-        self.parent.doc.add_next_tick_callback(callback)
 
+        self.parent.doc.add_next_tick_callback(callback)
         self.parent.fit_results['fr_' + output_name] = result
         with pn.io.unlocked():
              self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
@@ -1210,13 +1211,9 @@ class FitControl(ControlPanel):
         self.widgets['do_fit'].loading = True
         self.parent.logger.debug('Start PyTorch fit')
 
-        if self.parent.cluster:
-            self.parent._doc = pn.state.curdoc
-            loop = IOLoop.current()
-            loop.add_callback(self._do_fitting_async)
-            #todo always do fitting async
-        else:
-            self._do_fitting()
+        self.parent._doc = pn.state.curdoc
+        loop = IOLoop.current()
+        loop.add_callback(self._do_fitting_async)
 
 
 class GraphControl(ControlPanel):
@@ -1746,7 +1743,7 @@ class FitResultControl(ControlPanel):
         self.parent.param.watch(self._fit_results_updated, ['fit_results'])
 
     def _series_updated(self, *events):
-        print('update')
+        pass
         #
         # self.param['peptide_index'].bounds = (0, len(self.parent.series.coverage.data) - 1)
         # self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T

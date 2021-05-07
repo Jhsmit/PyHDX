@@ -36,7 +36,6 @@ class hvPlotAppView(hvPlotView):
             return self.empty_df
 
         data = super().get_data()
-        print('data size in get_data', data.size)
 
         if data.size > 2:
 
