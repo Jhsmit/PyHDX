@@ -309,8 +309,25 @@ class PeptideMasterTable(object):
             Additional keyword arguments to be passed to the :class:`~pyhdx.models.KineticSeries`.
         """
 
+        warnings.warn("Likely to be removed in future versions, use `get_state` instead", PendingDeprecationWarning)
+
         states = np.unique(self.data['state'])
         return {state: KineticsSeries(self.data[self.data['state'] == state], **kwargs) for state in states}
+
+    def get_state(self, state):
+        """
+        Returns entries in the table with state 'state'
+
+        Parameters
+        ----------
+        state: :obj:`str`
+
+
+        Returns
+        -------
+
+        """
+        return np.ascontiguousarray(self.data[self.data['state'] == state])
 
     @staticmethod
     def isin_by_idx(array, test_array):
