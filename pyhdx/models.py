@@ -99,6 +99,8 @@ class Protein(object):
             StringIO to write to. If `None` a new StringIO object is created.
         include_version : :obj:`bool`
             Set ``True`` to include PyHDX version and current time/date
+        fmt: :obj: `str`
+            Formatting to use, options are 'csv' or 'pprint'
         include_metadata
             Not Implemented
 
