@@ -7,6 +7,7 @@ from pyhdx.local_cluster import default_cluster
 from pathlib import Path
 import torch
 import numpy as np
+import pytest
 
 directory = Path(__file__).parent
 from pyhdx.support import rgb_to_hex
@@ -20,6 +21,7 @@ color color_#8c8c8c, resi 1-9 + resi 18-18 + resi 26-26 + resi 29-29 + resi 38-3
 test_port = 55432
 np.random.seed(43)
 torch.manual_seed(43)
+
 
 class TestMainGUISecB(object):
     @classmethod
@@ -193,7 +195,7 @@ class TestMainGUISecB(object):
         #
         # assert val.count('\n') == 148
 
-
+@pytest.mark.skip(reason="Simulated data was removed")
 class TestMainGUISimulated(object):
     @classmethod
     def setup_class(cls):
@@ -232,7 +234,6 @@ class TestMainGUISimulated(object):
     def test_coverage(self):
         ctrl = main_app()
         # todo Add tests
-
 
     def test_initial_guesses(self):
         ctrl = main_app()
@@ -281,46 +282,45 @@ class TestMainGUISimulated(object):
         # assert 'global_fit' in ctrl.sources.keys()
 
 
-# todo add DiffApp test back in
-#
-# class TestDiffApp(object):
-#     @classmethod
-#     def setup_class(cls):
-#         cls.fpath = directory / 'test_data' / 'ecSecB_torch_fit.txt'
-#
-#         with open(cls.fpath, 'rb') as f_obj:
-#             cls.file_binary = f_obj.read()
-#
-#     def test_app(self):
-#         ctrl = diff_app()
-#
-#         f_input = ctrl.control_panels['MappingFileInputControl']
-#         f_input.widget_dict['input_file'].filename = str(self.fpath)
-#         f_input.input_file = self.file_binary
-#         assert f_input.dataset_name == 'ecSecB_torch_fit'
-#         f_input.dataset_name = 'DS1'
-#         f_input._action_add_dataset()
-#         assert f_input.input_file == b''
-#         assert f_input.dataset_name == ''
-#
-#         f_input = ctrl.control_panels['MappingFileInputControl']
-#         f_input.widget_dict['input_file'].filename = str(self.fpath)
-#         f_input.input_file = self.file_binary
-#         f_input.dataset_name = 'DS2'
-#         f_input._action_add_dataset()
-#
-#         diff = ctrl.control_panels['DifferenceControl']
-#         diff.dataset_1 = 'DS1'
-#         diff.dataset_2 = 'DS2'
-#
-#         comparison_name = 'Diff_ds1_ds2'
-#         diff.comparison_name = comparison_name
-#         quantity_objects = diff.param['comparison_quantity'].objects
-#         assert quantity_objects == sorted(['_deltaG', 'covariance', 'deltaG', 'pfact'])
-#
-#         diff.comparison_quantity = 'deltaG'
-#         diff._action_add_comparison()
-#         assert diff.comparison_name == ''
-#         assert comparison_name in ctrl.sources.keys()
-#         assert diff.comparison_list is None
+@pytest.mark.skip(reason="Diff app needs overhaul to lumen framework")
+class TestDiffApp(object):
+    @classmethod
+    def setup_class(cls):
+        cls.fpath = directory / 'test_data' / 'ecSecB_torch_fit.txt'
+
+        with open(cls.fpath, 'rb') as f_obj:
+            cls.file_binary = f_obj.read()
+
+    def test_app(self):
+        ctrl = diff_app()
+
+        f_input = ctrl.control_panels['MappingFileInputControl']
+        f_input.widget_dict['input_file'].filename = str(self.fpath)
+        f_input.input_file = self.file_binary
+        assert f_input.dataset_name == 'ecSecB_torch_fit'
+        f_input.dataset_name = 'DS1'
+        f_input._action_add_dataset()
+        assert f_input.input_file == b''
+        assert f_input.dataset_name == ''
+
+        f_input = ctrl.control_panels['MappingFileInputControl']
+        f_input.widget_dict['input_file'].filename = str(self.fpath)
+        f_input.input_file = self.file_binary
+        f_input.dataset_name = 'DS2'
+        f_input._action_add_dataset()
+
+        diff = ctrl.control_panels['DifferenceControl']
+        diff.dataset_1 = 'DS1'
+        diff.dataset_2 = 'DS2'
+
+        comparison_name = 'Diff_ds1_ds2'
+        diff.comparison_name = comparison_name
+        quantity_objects = diff.param['comparison_quantity'].objects
+        assert quantity_objects == sorted(['_deltaG', 'covariance', 'deltaG', 'pfact'])
+
+        diff.comparison_quantity = 'deltaG'
+        diff._action_add_comparison()
+        assert diff.comparison_name == ''
+        assert comparison_name in ctrl.sources.keys()
+        assert diff.comparison_list is None
 #

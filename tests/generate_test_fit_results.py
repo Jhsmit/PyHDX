@@ -1,5 +1,5 @@
 from pyhdx.fileIO import read_dynamx, csv_to_protein
-from pyhdx import PeptideMasterTable, KineticsFitting, BatchFitting
+from pyhdx import PeptideMasterTable, KineticsFitting, BatchFitting, KineticsSeries
 import numpy as np
 import pickle
 from pathlib import Path
@@ -10,8 +10,8 @@ import torch
 torch.manual_seed(43)
 np.random.seed(43)
 epochs = 1000
-sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLC' \
-           'EVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
+sequence =       'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
+sequence_dimer = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
 print(sequence)
 
@@ -23,10 +23,9 @@ control = ('Full deuteration control', 0.167)
 
 data = read_dynamx(test_data_dir / 'ecSecB_apo.csv', test_data_dir / 'ecSecB_dimer.csv')
 
-pf = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
-pf.set_control(control)
-states = pf.groupby_state()
-series = states['SecB WT apo']
+pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
+pmt.set_control(control)
+series = KineticsSeries(pmt.get_state('SecB WT apo'), sequence=sequence)
 
 temperature, pH = 273.15 + 30, 8.
 kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
@@ -43,12 +42,14 @@ temp = fr_torch.output
 
 fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt')
 
-series_dimer = states['SecB his dimer apo']
+series_dimer = KineticsSeries(pmt.get_state('SecB his dimer apo'), sequence=sequence_dimer)
 kf_dimer = KineticsFitting(series_dimer, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 bf = BatchFitting([kf, kf_dimer], [output, output])
 
 batch_result = bf.global_fit(epochs=epochs)
-output = batch_result.output
-batch_result.output.to_file(directory / 'test_data' / 'ecSecB_batch.csv')
 
-series.coverage.protein.to_file('test.txt')
+batch_result.output.to_file(directory / 'test_data' / 'ecSecB_batch.csv')
+batch_result.output.to_file(directory / 'test_data' / 'ecSecB_batch.txt', fmt='pprint')
+
+series.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.csv')
+series.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.txt', fmt='pprint')
