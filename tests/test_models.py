@@ -10,6 +10,8 @@ from pathlib import Path
 import pandas as pd
 import tempfile
 import pickle
+import pytest
+
 
 directory = Path(__file__).parent
 
