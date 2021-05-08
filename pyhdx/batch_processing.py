@@ -1,13 +1,13 @@
 import yaml
 from pathlib import Path
-from pyhdx.models import PeptideMasterTable
+from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx, txt_to_protein, csv_to_protein
 import asyncio
 import copy
 
 
-def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
+def csv_to_proteinload_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     """
     Creates a :class:`~pyhdx.fitting.KineticsFitting` object from dictionary input.
 
@@ -44,9 +44,10 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
         c_term = yaml_dict.get('c_term', 0) or len(yaml_dict['sequence']) + 1
     except KeyError:
         raise ValueError("Must specify either 'c_term' or 'sequence'")
+    #todo parse n_term and sequence
 
-    states = pmt.groupby_state(c_term=c_term)
-    series = states[yaml_dict['series_name']]
+    state_data = pmt.get_state([yaml_dict['series_name']])
+    series = KineticsSeries(state_data, c_term=c_term)
 
     if yaml_dict['temperature_unit'].lower() == 'celsius':
         temperature = yaml_dict['temperature'] + 273.15
