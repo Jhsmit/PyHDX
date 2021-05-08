@@ -1,0 +1,12 @@
+export function create(id, parent, width, height) {
+  var button = document.createElement('button');
+  button.type = 'button';
+  button.innerHTML = 'Press me';
+  button.className = 'btn-styled';
+
+  button.onclick = function() {
+    alert("hallo")
+  };
+  return button
+}
+
