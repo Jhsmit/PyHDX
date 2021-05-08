@@ -5,6 +5,8 @@ from pyhdx.fitting import BatchFitting, KineticsFitting
 from pyhdx.fileIO import txt_to_protein, csv_to_protein
 import asyncio
 
+# Requires Dask cluster at cfg adress to run
+
 current_dir = Path(__file__).parent
 
 data_dir = current_dir.parent / 'tests' / 'test_data'
