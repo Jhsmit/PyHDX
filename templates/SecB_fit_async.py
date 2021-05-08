@@ -2,7 +2,7 @@ from pathlib import Path
 from pyhdx.fileIO import read_dynamx
 from pyhdx.models import PeptideMasterTable
 from pyhdx.fitting import BatchFitting, KineticsFitting
-from pyhdx.fileIO import txt_to_protein, csv_to_protein
+from pyhdx.fileIO import csv_to_protein
 import asyncio
 
 # Requires Dask cluster at cfg adress to run
@@ -14,17 +14,16 @@ data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data)
 pmt.set_control(('Full deuteration control', 0.167))
+#todo this should return dict of arrays or nested array
 states = pmt.groupby_state()
 
-st1 = states['SecB his dimer apo']
-st2 = states['SecB WT apo']
+state = states['SecB his dimer apo']
 
-kf1 = KineticsFitting(st1, pH=8, temperature=273.15+30)
-kf2 = KineticsFitting(st2, pH=8, temperature=273.15+30)
 
-print(kf1.cluster)
+kf = KineticsFitting(state, pH=8, temperature=273.15+30)
+
 if __name__ == '__main__':
     guesses = csv_to_protein(data_dir / 'ecSecB_guess.txt')
-    result = asyncio.run(kf1.global_fit_async(guesses, epochs=10))
+    result = asyncio.run(kf.global_fit_async(guesses, epochs=10))
     print(result.output)
 

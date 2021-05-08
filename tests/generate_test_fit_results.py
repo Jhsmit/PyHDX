@@ -10,6 +10,10 @@ import torch
 torch.manual_seed(43)
 np.random.seed(43)
 epochs = 1000
+sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLC' \
+           'EVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
+
+print(sequence)
 
 directory = Path(__file__).parent
 test_data_dir = directory / 'test_data'
@@ -46,3 +50,5 @@ bf = BatchFitting([kf, kf_dimer], [output, output])
 batch_result = bf.global_fit(epochs=epochs)
 output = batch_result.output
 batch_result.output.to_file(directory / 'test_data' / 'ecSecB_batch.csv')
+
+series.coverage.protein.to_file('test.txt')
