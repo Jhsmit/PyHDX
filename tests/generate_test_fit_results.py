@@ -5,6 +5,8 @@ import pickle
 from pathlib import Path
 import torch
 
+"""Run this file to renew the fit results which is used to test against"""
+
 torch.manual_seed(43)
 np.random.seed(43)
 epochs = 1000
@@ -31,7 +33,6 @@ if guess:
     output.to_file(directory / 'test_data' / 'ecSecB_guess.txt')
 else:
     output = csv_to_protein(directory / 'test_data' / 'ecSecB_guess.txt')
-
 
 fr_torch = kf.global_fit(output, epochs=epochs)
 temp = fr_torch.output

@@ -17,7 +17,7 @@ from pathlib import Path
 tmpl, ctrl = _color_matrix_app()
 directory = Path(__file__).parent
 
-input_file_path = directory / 'test_data' / 'ec_SecB_scores.txt'
+input_file_path = directory / 'test_data' / 'ecSecB_scores.txt'
 
 file_input_ctrl = ctrl.control_panels['MatrixMappingFileInputControl']
 file_input_widget = file_input_ctrl.widget_dict['input_file']

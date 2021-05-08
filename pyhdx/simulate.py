@@ -3,6 +3,9 @@ from pyhdx import Coverage, PeptideMasterTable
 from numpy.lib.recfunctions import stack_arrays, append_fields
 
 
+
+"""Ancient code which may generate HDX data, use at your own peril"""
+
 def gen_coverage(coverage, prot_length, pep_length):
     """
 
