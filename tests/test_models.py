@@ -195,7 +195,7 @@ class TestProtein(object):
         array3['banana'] = -(np.random.rand(10) + 20)
         cls.array3 = array3
 
-        cls.protein = txt_to_protein(directory / 'test_data' / 'simulated_data_info.txt')
+        cls.protein = txt_to_protein(directory / 'test_data' / 'ecSecB_info.txt')
 
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         pf1 = PeptideMasterTable(read_dynamx(fpath))
