@@ -1,4 +1,4 @@
-pbr; python_version < '3.8'
+pbr
 symfit
 numpy
 tqdm
@@ -12,3 +12,6 @@ torch
 param
 pandas
 hdxrate>=0.2.0
+lumen
+holoviews
+colorcet

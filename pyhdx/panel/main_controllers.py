@@ -7,6 +7,12 @@ from pyhdx import VERSION_STRING_SHORT
 
 from panel.template import BaseTemplate
 
+
+from lumen.sources import Source
+from lumen.filters import FacetFilter
+
+from functools import partial
+
 class MainController(param.Parameterized):
     """
     Base class for application main controller
@@ -17,9 +23,6 @@ class MainController(param.Parameterized):
     control_panels : :obj:`list`
         List of strings referring to which ControlPanels to use for this MainController instance
         Should refer to subclasses of :class:`~pyhdx.panel.base.ControlPanel`
-    figure_panels : :obj:`list`
-        List of string referring to which FigurePanels to use for this MainController instance
-        Should refer to subclasses :class:`~pyhdx.panel.base.FigurePanel`
     cluster : :obj:`str`
         IP:port address for Dask cluster (optional)
 
@@ -36,47 +39,67 @@ class MainController(param.Parameterized):
         Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
 
     """
-    sources = param.Dict({}, doc='Dictionary of ColumnDataSources available for plotting', precedence=-1)
+    sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
+    transforms = param.Dict({}, doc='Dictionary of transforms')
+    filters = param.Dict({}, doc="Dictionary of filters")
+    opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
+    views = param.Dict({}, doc="Dictionary of views")
 
-    def __init__(self, control_panels, figure_panels, cluster=None, **params):
+    logger = param.ClassSelector(logging.Logger, doc="Logger object")
+
+    def __init__(self, control_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
         self.cluster = cluster
         self._doc = pn.state.curdoc
-        self.logger = logging.getLogger(str(id(self)))
+        if self.logger is None:
+            self.logger = logging.getLogger(str(id(self)))
 
-        #available_controllers = {cls.__name__: cls for cls in gen_subclasses(ControlPanel)}
-        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}
-
-        #available_figures = {cls.__name__: cls for cls in gen_subclasses(FigurePanel)}
-        self.figure_panels = {ctrl.name: ctrl(self) for ctrl in figure_panels}
+        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
         self.template = None   # Panel template
+
+        for filt in self.filters.values():
+            if isinstance(filt, FacetFilter):
+                continue
+            print(filt)
+            filt.param.watch(partial(self._rerender, invalidate_cache=True), 'value')
+
+        for trs in self.transforms.values():
+            if hasattr(trs, 'updated'):
+                trs.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
+
+        self._update_views()
+
+    # from lumen.target.Target
+    def _rerender(self, *events, invalidate_cache=False):
+        self._update_views(invalidate_cache=invalidate_cache)
+
+    def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
+        for view in self.views.values():
+            view.update(invalidate_cache=invalidate_cache)
 
     @property
     def doc(self):
         """ :class:`~bokeh.document.document.Document`: Bokeh document for the application"""
         return self._doc or pn.state.curdoc
 
-    def publish_data(self, name, data_source_obj):
-        """
-        Publish dataset to be available for client figure to plot
+    def __panel__(self):
+        # This does something but not as expected
+        return self.template
 
-        Parameters
-        ----------
-        name : :obj:`str`
-            Name of the dataset
-        data_source_obj : :class:`~pyhdx.panel.data_sources.DataSource`
-            Data source object
-        """
+    @property
+    def panel(self):
+        return self.template
 
-        try:  # update existing source
-            src = self.sources[name]
-            #todo next callback??
-            src.source.data.update(**data_source_obj.source.data)  #todo refactor source to cds? (yes)
-        except KeyError:
-            self.sources[name] = data_source_obj
+    def update(self):
+        for view in self.views:
+            view.update()
 
-        self.param.trigger('sources')
+    def start(self):
+        refresh_rate = 50
+        self._cb = pn.state.add_periodic_callback(
+            self.update, refresh_rate
+        )
 
 
 class PyHDXController(MainController):
@@ -84,15 +107,27 @@ class PyHDXController(MainController):
     Main controller for PyHDX web application.
 
     """
+
+    fit_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
+
+    # for guesses (nested): <fit name>: {state1: state2:, ...
+    # for global fit (batch): <fit name>: fit_result_object
+    # for global fit (series): <fit name>: {state1: <fit_result_object>, state2:....}
     fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
-    peptides = param.ClassSelector(PeptideMasterTable, doc='Master list of all peptides', precedence=-1)
-    series = param.ClassSelector(KineticsSeries,
-                                 doc='KineticsSeries object with current selected and corrected peptides', precedence=-1)
 
     sample_name = param.String(doc='Name describing the selected protein state')
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
+
+    @param.depends('fit_objects', watch=True)
+    def _datasets_updated(self):
+        if len(self.fit_objects) == 0:
+            self.sample_name = ''
+        elif len(self.fit_objects) == 1:
+            self.sample_name = str(next(iter(self.fit_objects.keys())))
+        elif len(self.fit_objects) < 5:
+            self.sample_name = ', '.join(self.fit_objects.keys())
 
     @param.depends('sample_name', watch=True)
     def _update_name(self):

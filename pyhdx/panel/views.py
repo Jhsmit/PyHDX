@@ -5,13 +5,210 @@ from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
 from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span, Rect, Range1d, Whisker
 from bokeh.models.markers import Triangle, Circle, Diamond
+from bokeh.models.formatters import NumeralTickFormatter
 import panel as pn
 import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import logging
-
+from lumen.views import hvPlotView, View
 import param
+import pandas as pd
+
+import holoviews as hv
+from lumen.filters import ParamFilter
+
+
+class hvPlotAppView(hvPlotView):
+
+    # def get_panel(self):
+    #     try:
+    #         return super().get_panel()
+    #     except ValueError:
+    #         return pn.pane.HoloViews()
+
+    def get_data(self):
+
+        try:
+            data = super().get_data()
+        except (KeyError, ValueError) as e:
+            print(f'Empty data in {self.__class__}: {e}')
+            return self.empty_df
+
+        data = super().get_data()
+
+        if data.size > 2:
+
+            return data
+        else:
+            print(f'got data but too small in  {self.__class__}, ')
+            return self.empty_df
+
+    @property
+    def empty_df(self):
+        dic = {self.x: [], self.y: []}
+        if 'c' in self.kwargs:
+            dic[self.kwargs['c']] = []
+        return pd.DataFrame(dic)
+
+
+class hvRectangleAppView(View):
+
+    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.")
+
+    view_type = 'rectangles'
+
+    streaming = param.Boolean(default=False, doc="""
+        Whether to stream new data to the plot or rerender the plot.""")
+
+    def __init__(self, **params):
+        # import hvplot.pandas # noqa
+        # if 'dask' in sys.modules:
+        #     try:
+        #         import hvplot.dask # noqa
+        #     except Exception:
+        #         pass
+        self._stream = None
+        self._linked_objs = []
+        super().__init__(**params)
+
+    def get_panel(self):
+        kwargs = self._get_params()
+        #interactive? https://github.com/holoviz/panel/issues/1824
+        return pn.pane.HoloViews(**kwargs)
+
+    def get_plot(self, df):
+        """
+        Dataframe df must have columns x0, y0, x1, y1 (in this order) for coordinates
+        bottom-left (x0, y0) and top right (x1, y1). Optionally a fifth value-column can be provided for colors
+
+        Parameters
+        ----------
+        df
+
+        Returns
+        -------
+
+        """
+        # processed = {}
+        # for k, v in self.kwargs.items():
+        #     if k.endswith('formatter') and isinstance(v, str) and '%' not in v:
+        #         v = NumeralTickFormatter(format=v)
+        #     processed[k] = v
+        # if self.streaming:
+        #     processed['stream'] = self._stream
+
+        #hvplots stream? https://holoviews.org/user_guide/Streaming_Data.html
+
+#        plot = hv.Rectangles([(0, 0, 1, 1), (2, 3, 4, 6), (0.5, 2, 1.5, 4), (2, 1, 3.5, 2.5)])
+
+        processed = {}
+        for k, v in self.kwargs.items():
+            if k.endswith('formatter') and isinstance(v, str) and '%' not in v:
+                v = NumeralTickFormatter(format=v)
+            processed[k] = v
+        if self.streaming:
+            #processed['stream'] = self._stream
+
+            plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])
+            plot = plot.apply.opts(**self.opts) if self.opts else plot
+        else:
+            plot = hv.Rectangles(df)
+            plot.opts(**self.opts) if self.opts else plot
+
+        if self.selection_group or 'selection_expr' in self._param_watchers:
+            plot = self._link_plot(plot)
+
+        return plot
+
+    def _get_params(self):
+        df = self.get_data()
+
+        if self.streaming:
+            from holoviews.streams import Pipe
+            self._stream = Pipe(data=df)
+        return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
+
+    def get_data(self):
+        #todo uniformify this method for all views
+        try:
+            return super().get_data()
+        except (KeyError, ValueError) as e:
+            print(f'Empty data in {self.__class__}: {e}')
+            return self.empty_df
+
+
+
+    def update(self, *events, invalidate_cache=True):
+        """
+        Triggers an update in the View.
+
+        Parameters
+        ----------
+        events: tuple
+            param events that may trigger an update.
+        invalidate_cache : bool
+            Whether to clear the View's cache.
+
+        Returns
+        -------
+        stale : bool
+            Whether the panel on the View is stale and needs to be
+            rerendered.
+        """
+        # Skip events triggered by a parameter change on this View
+        own_parameters = [self.param[p] for p in self.param]
+        own_events = events and all(
+            isinstance(e.obj, ParamFilter) and
+            (e.obj.parameter in own_parameters or
+            e.new is self._ls.selection_expr)
+            for e in events
+        )
+        if own_events:
+            return False
+        if invalidate_cache:
+            self._cache = None
+        if not self.streaming or self._stream is None:
+            upd = self._update_panel()
+            return upd
+        self._stream.send(self.get_data())
+        return False
+
+
+    @property
+    def empty_df(self):
+        return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
+
+
+class LoggingView(View):
+    view_type = 'logging'
+
+    logger = param.ClassSelector(logging.Logger, doc='Logger object to show in Log view')
+
+    level = param.Integer(default=10, doc='Logging level of the streamhandler redirecting logs to the view')
+
+    def __init__(self, *args, **params):
+        super(LoggingView, self).__init__(**params)
+        self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both')
+
+        self.sh = logging.StreamHandler(self.markdown)
+        self.sh.terminator = '  \n'
+        self.sh.setLevel(self.level)
+        formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', "%Y-%m-%d %H:%M:%S")
+        self.sh.setFormatter(formatter)
+        #sh.setLevel(logging.DEBUG)
+        self.logger.addHandler(self.sh)
+
+    @param.depends('level', watch=True)
+    def _level_updated(self):
+        self.sh.setLevel(self.level)
+
+    @property
+    def panel(self):
+        return self.markdown
+
+    def update(self, *events, invalidate_cache=True):
+        pass
 
 
 class CoverageFigure(BokehFigurePanel):

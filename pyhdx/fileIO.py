@@ -123,9 +123,39 @@ def txt_to_np(file_path, delimiter='\t'):
     return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
                          encoding=None, autostrip=True, comments=None, deletechars='')
 
+
 def txt_to_pd(file_path):
 
     pass
+
+def parse_header(file_path, comment='#'):
+    """
+    Parse a the header of a txt file and determine the number of comment and header lines.
+
+    Parameters
+    ----------
+    file_path
+
+    Returns
+    -------
+
+    """
+    if isinstance(file_path, StringIO):
+        file_obj = file_path
+    else:
+        file_obj = open(file_path, 'r')
+
+    num_comments_lines = 0
+    while file_obj.readline().startswith(comment):
+        num_comments_lines += 1
+
+    column_depth = 1
+    while np.mean([c.isdigit() for c in file_obj.readline()]) < 0.1:
+        column_depth += 1
+
+    file_obj.seek(0)
+    return num_comments_lines, column_depth
+
 
 def csv_to_dataframe(file_path, column_depth=None, **kwargs):
     #todo @tejas: intersphinx + update docstring

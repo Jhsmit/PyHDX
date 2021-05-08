@@ -6,44 +6,65 @@ Reload SecB and fitted data and launch  GUI
 from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_dataframe
 from pyhdx import PeptideMasterTable
 import pickle
-from pyhdx.panel.apps import _main_app
+from pyhdx.panel.apps import main_app
 from pyhdx.panel.utils import reload_previous
 from pyhdx.panel.base import DEFAULT_COLORS, STATIC_DIR
-from pyhdx.panel.data_sources import DataSource
+from pyhdx.panel.sources import DataSource
 import panel as pn
 import numpy as np
 from pathlib import Path
 
-tmpl, ctrl = _main_app()
+#temporary imports
+from pyhdx.support import rgb_to_hex
+import matplotlib.pyplot as plt
+
+
+ctrl = main_app()
 directory = Path(__file__).parent
-fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+fpath_1 = directory / 'test_data' / 'ecSecB_apo.csv'
+fpath_2 = directory / 'test_data' / 'ecSecB_dimer.csv'
 
-dic = {}
-dic['file_path'] = directory / 'test_data' / 'ecSecB_apo.csv'
-dic['norm_mode'] = 'Exp'
-dic['fd_state'] = 'Full deuteration control'
-dic['fd_exposure'] = 0.167
-dic['exp_state'] = 'SecB WT apo'
+fpaths = [fpath_1, fpath_2]
+files = [p.read_bytes() for p in fpaths]
 
-src_file = directory / 'test_data' / 'ecSecB_torch_fit.txt'
-df = csv_to_dataframe(src_file)
-data_dict = df.to_dict(orient='series')
+file_input = ctrl.control_panels['PeptideFileInputControl']
 
-print(data_dict)
+file_input.input_files = files
+file_input.fd_state = 'Full deuteration control'
+file_input.fd_exposure = 0.167
+
+file_input.exp_state = 'SecB WT apo'
+file_input.dataset_name = 'testname_123'
+file_input._action_add_dataset()
+
+file_input.exp_state = 'SecB his dimer apo'
+file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
+file_input._action_add_dataset()
+
+initial_guess = ctrl.control_panels['InitialGuessControl']
+initial_guess._action_fit()
+
+fit_control = ctrl.control_panels['FitControl']
+fit_control.epochs = 10
+
+fit_control._do_fitting()
+
+classification = ctrl.control_panels['ClassificationControl']
+classification.widgets['select_1'].value = '*'
+classification.widgets['select_2'].value = 'deltaG'
+
+classification.mode = 'Continuous'
+classification._action_linear()
+classification.color_set_name = 'colorset test'
+classification._action_add_colorset()
 
 
-data_dict['color'] = np.full_like(data_dict['r_number'], fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-data_source = DataSource(data_dict, x='r_number', tags=['mapping', 'pfact', 'deltaG'],
-                         renderer='circle', size=10, name='global_fit')
-
-dic['sources'] = {}
-#dic['sources']['global_fit'] = data_source  #todo: on_load!
-
-dic['rcsb_id'] = '1qyn'
-
-cluster = None
-ctrl = reload_previous(dic, ctrl)
+file_export = ctrl.control_panels['FileExportControl']
+sio = file_export.table_export_callback()
 
 
+
+#
 if __name__ == '__main__':
-    pn.serve(tmpl, show=False, static_dirs={'pyhdx': STATIC_DIR})
+    pn.serve(ctrl.template, show=True
+             , static_dirs={'pyhdx': STATIC_DIR})

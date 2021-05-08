@@ -7,7 +7,17 @@ from skimage.filters import threshold_multiotsu
 import pandas as pd
 from itertools import count, groupby
 import warnings
+from pathlib import Path
+from dask.distributed import Client
 
+
+def verify_cluster(cluster, timeout='2s'):
+    try:
+        client = Client(cluster, timeout=timeout)
+        return True
+    except (TimeoutError, IOError):
+        print(f"No valid Dask scheduler found at specified address: '{cluster}'")
+        return False
 
 def get_reduced_blocks(coverage, max_combine=2, max_join=5):
     block_length = list(coverage.block_length.copy())
@@ -235,12 +245,22 @@ def np_from_txt(file_path, delimiter='\t'):
                          encoding=None, autostrip=True, comments=None)
 
 
-def try_wrap(coverage, wrap, margin=4):
-    """Check for a given coverage if the value of wrap is high enough to not have peptides overlapping within margin"""
-    x = np.zeros((wrap, len(coverage.r_number) + margin))
+def try_wrap(start, end, wrap, margin=4):
+    """Check for a given coverage if the value of wrap is high enough to not have peptides overlapping within margin
+
+    start, end interval is inclusive, exclusive
+
+    """
+    assert len(start) == len(end), "Unequal length of 'start' and 'end' vectors"
+
+    offset = np.min(start)
+    start = np.array(start) - offset
+    end = np.array(end) - offset
+
+    x = np.zeros((wrap, len(start) + margin))
     wrap_gen = itertools.cycle(range(wrap))
-    for i, elem in zip(wrap_gen, coverage.data):
-        section = x[i, elem['start']: elem['end'] + 1 + margin]
+    for i, s, e in zip(wrap_gen, start, end):
+        section = x[i, s: e + margin]
         if np.any(section):
             return False
         section[:] = 1
@@ -248,12 +268,27 @@ def try_wrap(coverage, wrap, margin=4):
     return True
 
 
-def autowrap(coverage, margin=4):
-    """Automatically finds wrap value for coverage to not have overlapping peptides within margin"""
-    wrap = 5
-    while not try_wrap(coverage, wrap, margin=margin):
-        wrap += 5
-        if wrap > len(coverage.r_number):
+def autowrap(start, end, margin=4, step=5):
+    """
+    Automatically finds wrap value for coverage to not have overlapping peptides within margin
+
+    Parameters
+    ----------
+    start
+    end
+    margin
+
+    Returns
+    -------
+
+    """
+    assert len(start) == len(end), "Unequal length of 'start' and 'end' vectors"
+
+    wrap = step
+    while True:
+        wraps = try_wrap(start, end, wrap, margin=margin)
+        wrap += step
+        if wraps or wrap > len(start):
             break
     return wrap
 
@@ -297,6 +332,7 @@ def rgb_to_hex(rgb_a):
         try:
             rgba_array = np.array([[b, g, r, 0] for r, g, b, a in rgb_a], dtype=np.uint8)
         except ValueError:
+            # todo this only works with lists of list and gives to wrong result? tests needed
             rgba_array = np.array([[b, g, r, 0] for r, g, b in rgb_a], dtype=np.uint8)
 
     elif isinstance(rgb_a, np.ndarray):
@@ -358,7 +394,41 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     pd_series = pd_series.replace('nan', no_coverage)  # No coverage at nan entries
     pd_series = pd_series.replace(np.nan, no_coverage)  # Numpy NaNs
 
-    grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
+    # grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
+    #
+    # s_out = ''
+    # for c, pd_series in grp:
+    #     r, g, b = hex_to_rgb(c)
+    #     s_out += f'set_color color_{c}, [{r},{g},{b}]\n'
+    #
+    # # https://stackoverflow.com/questions/30993182/how-to-get-the-index-range-of-a-list-that-the-values-satisfy-some-criterion-in-p
+    # for c, pd_series in grp:
+    #     result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+    #     residues = [f'resi {g[0]}-{g[-1]}' for g in result]
+    #
+    #     s_out += f'color color_{c}, ' + ' + '.join(residues) + '\n'
+
+    return series_to_pymol(pd_series)
+
+
+def series_to_pymol(pd_series):
+    """
+    Coverts a pandas series to pymol script to color proteins structures in pymol
+    Series must have hexadecimal color values and residue number as index
+
+    Parameters
+    ----------
+    pd_series : pandas series
+
+    Returns
+    -------
+
+    s_out: :obj:`string`
+
+    """
+
+    # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
+    grp = pd_series.groupby(pd_series)
 
     s_out = ''
     for c, pd_series in grp:
@@ -446,3 +516,9 @@ def gen_subclasses(cls):
     for sub_cls in cls.__subclasses__():
         yield sub_cls
         yield from gen_subclasses(sub_cls)
+
+
+def pprint_df_to_file(df, file_path):
+    pth = Path(file_path)
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):  # more options can be specified also
+        pth.write_text(df.__str__())

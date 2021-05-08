@@ -113,11 +113,13 @@ class TestSecBDataFit(object):
         output = result.output
 
         check_protein = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_batch.csv'))
-
         states = ['SecB WT apo', 'SecB his dimer apo']
 
         for state in states:
             assert np.allclose(output[state]['deltaG'], check_protein[state]['deltaG'], equal_nan=True, rtol=0.01)
 
-
+        result = asyncio.get_event_loop().run_until_complete(bf.global_fit_async(epochs=1000))
+        output = result.output
+        for state in states:
+            assert np.allclose(output[state]['deltaG'], check_protein[state]['deltaG'], equal_nan=True, rtol=0.01)
 

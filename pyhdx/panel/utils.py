@@ -3,23 +3,25 @@ from pyhdx.support import np_from_txt
 
 
 def reload_previous(dic, ctrl):
+    """WIP function to reload a past session into the GUI"""
     file_input = ctrl.control_panels['PeptideFileInputControl']
 
     if 'file_paths' not in dic.keys() and 'file_path' in dic.keys():
         dic['file_paths'] = [dic['file_path']]
 
-    while len(file_input.file_selectors) < len(dic['file_paths']):
-        ctrl._action_add()
 
     # Read files and add them into the file widgets
-    for fs, file_path in zip(file_input.file_selectors, dic['file_paths']):
+    binary_content = []
+    for file_path in dic['file_paths']:
         with open(file_path, 'rb') as f:
             binary = f.read()
-        fs.value = binary
+        binary_content.append(binary)
+
+    file_input.input_files = binary_content
 
     #todo prolines, drop_first
 
-    file_input._action_load()
+    #file_input._action_load()
 
     # Set back exchange parameters
     try:
@@ -27,7 +29,7 @@ def reload_previous(dic, ctrl):
     except KeyError:
         pass
 
-    if file_input.be_mode == 'Exp':
+    if file_input.be_mode == 'FD Sample':
         file_input.fd_state = dic['fd_state']
         file_input.fd_exposure = dic['fd_exposure']
     else:
@@ -38,33 +40,33 @@ def reload_previous(dic, ctrl):
     #todo add exp_exposures
 
     # Apply back exchange correction
-    file_input._action_parse()
+    #file_input._action_parse()
 
-    if 'sources' not in dic.keys():
-        dic['sources'] = {}
-    try:
-        for k, v in dic['source_files'].items():
-            array = np_from_txt(v)
-            dic['sources'][k] = {name: array[name] for name in array.dtype.names}
-    except KeyError:
-        pass
+    # if 'sources' not in dic.keys():
+    #     dic['sources'] = {}
+    # try:
+    #     for k, v in dic['source_files'].items():
+    #         array = np_from_txt(v)
+    #         dic['sources'][k] = {name: array[name] for name in array.dtype.names}
+    # except KeyError:
+    #     pass
 
     #todo some of these are generated from fit results
-    #there should be a function for that
-    for k, v in dic['sources'].items():
-        ctrl.publish_data(k, v)
+    # #there should be a function for that
+    # for k, v in dic['sources'].items():
+    #     ctrl.publish_data(k, v)
 
-    try:
-        for k, v in dic['fit_results'].items():
-            ctrl.fit_results[k] = v  #trigger?
-    except KeyError:
-        pass
-
-    ctrl.param.trigger('fit_results')
-
-    #make this a yaml file
-    rcsb_id = dic.get('rcsb_id', '')
-    ctrl.control_panels['ProteinViewControl'].rcsb_id = rcsb_id
+    # try:
+    #     for k, v in dic['fit_results'].items():
+    #         ctrl.fit_results[k] = v  #trigger?
+    # except KeyError:
+    #     pass
+    #
+    # ctrl.param.trigger('fit_results')
+    #
+    # #make this a yaml file
+    # rcsb_id = dic.get('rcsb_id', '')
+    # ctrl.control_panels['ProteinViewControl'].rcsb_id = rcsb_id
 
     return ctrl
 

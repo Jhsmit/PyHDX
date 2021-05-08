@@ -8,7 +8,8 @@ from functools import reduce
 from operator import add
 from pathlib import Path
 import pandas as pd
-
+import tempfile
+import pickle
 
 directory = Path(__file__).parent
 
@@ -259,4 +260,11 @@ class TestProtein(object):
         prolines = self.series.coverage.protein['sequence'].to_numpy() == 'P'
         assert np.all(k_int[prolines] == 0)
 
+    def test_pickling(self):
+        with tempfile.TemporaryFile() as tf:
+            pickle.dump(self.protein, tf)
+            tf.seek(0)
+            unpickled = pickle.load(tf)
 
+        pd.testing.assert_frame_equal(self.protein.df, unpickled.df)
+        assert self.protein.metadata == unpickled.metadata

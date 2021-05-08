@@ -29,15 +29,40 @@ PyHDX
 
     <img src="images/PyHDX_rgb.png" width="1000" />
 
-PyHDX is python project which can be used to derive Gibbs free energy and Protection Factors from HDX-MS data.
-Currently the project is functional but in beta. Please refer to docs/installation.rst for installation instructions.
+PyHDX is python project which can be used to derive Gibbs free energy from HDX-MS data.
+Currently the project is functional but in beta, future versions will likely subject to changes in API and analysis.
 
+Installation 
+============
+
+Installation with `conda`:
+
+.. code-block::
+
+    $ conda install -c conda-forge pyhdx
+
+Installation with `pip`:
+
+.. code-block::
+
+    $ pip install pyhdx
+
+Development install instructures in docs/installation.rst
+
+Run PyHDX
+=========
+
+.. code-block::
+
+    $ pyhdx serve
+    
+Please refer to the `docs <https://pyhdx.readthedocs.io>`_ for more details on how to run PyHDX.
 
 
 Web Application
 ===============
 
-A beta version of the web application is available for testing:
+The PyHDX web application is currently hosted at:
 http://pyhdx.jhsmit.org/main
 
 A test file can be downloaded from `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/ecSecB_apo.csv>`_. (right click, save as)

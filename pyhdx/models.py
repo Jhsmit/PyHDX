@@ -50,10 +50,14 @@ class Protein(object):
             self.df.set_index(index, inplace=True)
         elif isinstance(data, pd.DataFrame):
             self.df = data.copy()
-            if not isinstance(self.df.index, pd.Int64Index):
-                raise ValueError(f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be {pd.Int64Index}")
+            if not self.df.index.is_integer():
+                raise ValueError(f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be integer index")
 
-        self.df.sort_index(inplace=True)
+        if not self.df.index.is_unique:
+            raise ValueError("Protein dataframe indices must be unique")
+
+        new_index = pd.RangeIndex(start=self.df.index.min(), stop=self.df.index.max() + 1, name='r_number')
+        self.df = self.df.reindex(new_index)
 
     def __str__(self):
         s = self.df.__str__()
@@ -72,6 +76,12 @@ class Protein(object):
             return partial(protein_wrapper, attr, metadata=self.metadata)
         else:
             return attr
+
+    def __getstate__(self):
+        return self.__dict__
+
+    def __setstate__(self, d):
+        self.__dict__.update(d)
 
     def _make_protein(self, df_out, other):
         """Make a new :class:`~pyhdx.models.Protein` object and combine metadata with other metadata"""
@@ -170,6 +180,10 @@ class Protein(object):
     @property
     def c_term(self):
         return self.df.index.max()
+
+    @property
+    def n_term(self):
+        return self.df.index.min()
 
     def __getitem__(self, item):
         return self.df.__getitem__(item)
@@ -411,64 +425,6 @@ class PeptideMasterTable(object):
             data_final = append_fields(data_final, 'uptake_corrected', data=uptake_corrected, usemask=False)
 
         self.data = data_final
-
-    def return_by_name(self, control_state, control_exposure):
-        #todo return dictionary of kinetic series instead
-        print('deprecate this')  #currently used by GUI
-        #raise DeprecationWarning
-
-        """
-
-        Finds all peptides in the dataset which match the control peptides and the peptides are grouped by their state
-        and exposure and returned in a dictionary.
-
-        Parameters
-        ----------
-        control_state : :obj:`str`
-            Name of the control state
-        control_exposure : :obj:`float`
-            Exposure time of the control
-
-        Returns
-        -------
-        out : :obj:`dict`
-            Dictionary of :class:`~pyhdx.models.PeptideMeasurement` objects
-
-        """
-        bc1 = self.data['state'] == control_state
-        bc2 = self.data['exposure'] == control_exposure
-
-        control = self.data[np.logical_and(bc1, bc2)]
-        st = np.unique(self.data['state'])
-        exp = np.unique(self.data['exposure'])
-
-        out = {}
-        # Iterative over all permutations of state and exposure time to find all entries
-        for s, e in itertools.product(st, exp):
-            b1 = self.data['state'] == s
-            b2 = self.data['exposure'] == e
-            bf = np.logical_and(b1, b2)
-            name = s + '_' + str(round(e, 3))
-
-            d = self.data[bf]
-            b_data = np.isin(d['sequence'], control['sequence'])  # find the sequences in the measurement that are in control
-            d_selected = d[b_data]
-            b_control = np.isin(control['sequence'], d_selected['sequence']) # find the control entries corresponding to these sequences
-            control_selected = control[b_control]
-
-            #sort both datasets by starting index then by sequence
-            data_final = np.sort(d_selected, order=['start', 'sequence'])
-            control_final = np.sort(control_selected, order=['start', 'sequence'])
-
-            assert np.all(data_final['sequence'] == control_final['sequence'])
-            assert np.all(data_final['start'] == control_final['start'])
-            assert np.all(data_final['end'] == control_final['end'])
-            score = 100 * data_final['uptake'] / control_final['uptake']
-
-            if len(score) > 0:
-                out[name] = PeptideMeasurements(data_final)
-
-        return out
 
     def get_data(self, state, exposure):
         """
@@ -731,6 +687,13 @@ class KineticsSeries(object):
         self.coverage = Coverage(selected[0], **cov_kwargs)
 
     @property
+    def name(self):
+        try:
+            return self.metadata['name']
+        except KeyError:
+            return None
+
+    @property
     def temperature(self):
         try:
             return self.metadata['temperature']
@@ -946,8 +909,30 @@ def series_intersection(series_list, fields=None):
     fields = fields or ['_start', '_end', 'exposure']
 
     full_arrays = [series.full_data for series in series_list]
-    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in full_arrays])
-    selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in full_arrays]
+    selected = array_intersection(full_arrays, fields=fields)
 
     series_out = [KineticsSeries(data, **series.metadata) for data, series in zip(selected, series_list)]
     return series_out
+
+
+def array_intersection(arrays_list, fields):
+    """
+    Find and return the intersecting entries in multiple arrays.
+
+    Parameters
+    ----------
+    arrays_list : :obj:`iterable`
+        Iterable of input structured arrays
+    fields : :obj:`iterable'
+        Iterable of fields to use to decide if entires are intersecting
+
+    Returns
+    -------
+    selected : :obj:`iterable`
+        Output iterable of arrays with only intersecting entries.
+
+    """
+    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays_list])
+    selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays_list]
+
+    return selected

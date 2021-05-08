@@ -6,6 +6,8 @@ from pyhdx.panel.widgets import HTMLTitle
 import panel as pn
 import string
 import os
+from param.parameterized import default_label_formatter
+
 
 dist_path = '/pyhdx/'
 
@@ -121,7 +123,7 @@ class GoldenElvis(object):
 
         #return template
 
-    def view(self, fig_panel, title=None, width=None, height=None):
+    def view(self, fig_panel, title=None, width=None, height=None):  #fig_panel is a lumen view instance
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
@@ -130,7 +132,7 @@ class GoldenElvis(object):
         :param height: Initial height.
         """
 
-        pn.config.js_files.update(fig_panel.js_files)
+        #pn.config.js_files.update(fig_panel.js_files)
 
         # We need to register every panel with a unique name such that after
         # composing the jinja2 template, we can add them (see compose function).
@@ -138,9 +140,12 @@ class GoldenElvis(object):
         # It seems that these unique names cannot start with a number or they cannot be referenced directly
         # Therefore, currently tmpl.main.append cannot be used as this generates
         panel_ID = 'ID' + str(id(fig_panel))
-        title = title or getattr(fig_panel, 'title', None)
+        title = default_label_formatter(title or getattr(fig_panel, 'name', None))
 
-        self.panels[panel_ID] = fig_panel.panel
+
+        fig_panel.update() # intialize
+        item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
+        self.panels[panel_ID] = item
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""
         height_str = "height: %s," % str(height) if height is not None else ""
