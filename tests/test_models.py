@@ -67,7 +67,7 @@ class TestSeries(object):
         assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
 
 
-
+@pytest.mark.skip(reason="Simulated data was removed")
 class TestSimulatedData(object):
     @classmethod
     def setup_class(cls):
