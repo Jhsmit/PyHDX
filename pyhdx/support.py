@@ -518,7 +518,21 @@ def gen_subclasses(cls):
         yield from gen_subclasses(sub_cls)
 
 
-def pprint_df_to_file(df, file_path):
-    pth = Path(file_path)
+def pprint_df_to_file(df, file_path_or_obj):
+    """
+    Pretty print (human-readable) a dataframe to a file
+
+    Parameters
+    ----------
+    df: pandas dataframe
+    file_path_or_obj: string, Path or StringIO
+
+    """
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):  # more options can be specified also
-        pth.write_text(df.__str__())
+        if isinstance(file_path_or_obj, str):
+            pth = Path(file_path_or_obj)
+            pth.write_text(df.__str__())
+        elif isinstance(file_path_or_obj, Path):
+            file_path_or_obj.write_text(df.__str__())
+        elif isinstance(file_path_or_obj, StringIO):
+            file_path_or_obj.write(df.__str__())

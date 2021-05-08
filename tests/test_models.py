@@ -2,7 +2,7 @@ import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.models import Protein, Coverage
-from pyhdx.fileIO import read_dynamx, txt_to_np, txt_to_protein
+from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_protein
 import numpy as np
 from functools import reduce
 from operator import add
@@ -10,6 +10,8 @@ from pathlib import Path
 import pandas as pd
 import tempfile
 import pickle
+import pytest
+
 
 directory = Path(__file__).parent
 
@@ -67,7 +69,7 @@ class TestSeries(object):
         assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
 
 
-
+@pytest.mark.skip(reason="Simulated data was removed")
 class TestSimulatedData(object):
     @classmethod
     def setup_class(cls):
@@ -193,12 +195,13 @@ class TestProtein(object):
         array3['banana'] = -(np.random.rand(10) + 20)
         cls.array3 = array3
 
-        cls.protein = txt_to_protein(directory / 'test_data' / 'simulated_data_info.txt')
+        cls.protein = csv_to_protein(directory / 'test_data' / 'ecSecB_info.csv', column_depth=1)
 
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         pf1 = PeptideMasterTable(read_dynamx(fpath))
-        states = pf1.groupby_state(c_term=200)
-        cls.series = states['SecB WT apo']
+        #states = pf1.groupby_state(c_term=200)
+        cls.series = KineticsSeries(pf1.get_state('SecB WT apo'), c_term=200)
+
 
     def test_artithmetic(self):
         p1 = Protein(self.array1, index='r_number')
@@ -245,7 +248,7 @@ class TestProtein(object):
         protein = self.protein.copy()
 
         protein.df.rename(columns={'k_int': 'k_int_saved'}, inplace=True)
-        protein.set_k_int(300, 8)
+        protein.set_k_int(273.15 + 30, 8.)
 
         assert np.allclose(protein['k_int'], protein['k_int_saved'])
 
