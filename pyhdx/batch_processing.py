@@ -7,7 +7,8 @@ import asyncio
 import copy
 
 
-def csv_to_proteinload_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
+def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
+    #todo perhas classmethod on KineticsSeries object?
     """
     Creates a :class:`~pyhdx.fitting.KineticsFitting` object from dictionary input.
 

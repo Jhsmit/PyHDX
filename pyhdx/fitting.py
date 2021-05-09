@@ -1456,7 +1456,7 @@ class BatchFitting(object):
         mse_loss = np.array([val.detach().numpy() for val in mse_loss])
         reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
-        result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
+        result = TorchBatchFitResult(self, model, mse_loss=mse_loss, total_loss=reg_loss)
         return result
 
     @property
