@@ -36,6 +36,7 @@ Installation
 ============
 
 Installation with `conda`:
+
 (Currently PyHDX 0.3.2 is unavailable on conda-forge due to issues with python 3.9 please use 0.3.0 or install from source/pip)
 
 .. code-block::
