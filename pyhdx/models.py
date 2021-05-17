@@ -883,6 +883,11 @@ class PeptideMeasurements(Coverage):
         scores = self.Z.dot(residue_scores)
         return scores
 
+    def weighted_average(self, field):
+        """Calculate per-residue weighted average of values in data column given by 'field'"""
+
+        return self.Z_norm.T.dot(self.data[field])
+
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
 def contiguous_regions(condition):
