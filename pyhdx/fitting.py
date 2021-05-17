@@ -1,6 +1,8 @@
 from pyhdx.support import get_reduced_blocks, temporary_seed
 from pyhdx.models import Protein
 from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
+from pyhdx.fit_models import SingleKineticModel, OneComponentAssociationModel, TwoComponentAssociationModel, OneComponentDissociationModel, \
+    TwoComponentDissociationModel
 from scipy import constants
 from scipy.optimize import fsolve
 import torch
