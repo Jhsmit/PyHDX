@@ -13,11 +13,106 @@ from collections import namedtuple
 from functools import reduce, partial
 from operator import add
 from dask.distributed import Client
+import dask
 import warnings
 
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
 er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
+
+
+# ------------------------------------- #
+# Rates fitting
+# ------------------------------------- #
+
+def _get_bounds(times):
+    """
+    estimate default bound for rate fitting from a series of timepoints
+
+    Parameters
+    ----------
+    times
+
+    Returns
+    -------
+
+    """
+    # todo document
+
+    nonzero_times = times[np.nonzero(times)]
+    t_first = np.min(nonzero_times)
+    t_last = np.max(nonzero_times)
+    b_upper = 50 * np.log(2) / t_first
+    b_lower = np.log(2) / (t_last * 50)
+
+    return b_lower, b_upper
+
+
+def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
+    series = data_obj # todo refactor series
+    bounds = bounds or _get_bounds(data_obj.timepoints)
+
+    arr = series.scores_stack.T  # data array
+    i = 0
+    # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
+    r_excl = np.append(series.coverage.r_number, [series.coverage.r_number[-1] + 1])
+
+    models = []
+    intervals = []  # Intervals; (start, end); (inclusive, exclusive)
+    d_list = []
+    for bl in series.coverage.block_length:
+        d = arr[i]
+        if np.all(np.isnan(d)):  # Skip non-coverage blocks
+            i += bl
+            continue
+        intervals.append((r_excl[i], r_excl[i + bl]))
+        d_list.append(d)
+        if model_type == 'association':
+            model = TwoComponentAssociationModel(bounds)
+        elif model_type == 'dissociation':
+            model = TwoComponentDissociationModel(bounds)
+        else:
+            raise ValueError('Invalid model type {}'.format(model_type))
+        # res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
+
+        models.append(model)
+        i += bl  # increment in block length does not equal move to the next start position
+
+    return d_list, intervals, models
+
+
+@dask.delayed
+def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association', pbar=None, bounds=None):
+    """
+    Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
+    is the same
+
+    Parameters
+    ----------
+    chisq_max
+
+    Returns
+    -------
+
+    """
+
+    d_list, intervals, models = _prepare_wt_avg_fit(data_obj, model_type=model_type, bounds=bounds)
+    if pbar:
+        raise NotImplementedError()
+        # self.num_tasks = len(d_list)
+        # inc = pbar.increment
+    else:
+        inc = lambda: None
+
+    results = []
+    for d, model in zip(d_list, models):
+        result = dask.delayed(fit_kinetics)(data_obj.timepoints, d, model, chisq_thd=chisq_thd)
+        results.append(result)
+
+    results = dask.compute(*results)
+
+    fit_result = KineticsFitResult(data_obj, intervals, results, models)
+    return fit_result
 
 
 def fit_kinetics(t, d, model, chisq_thd):
@@ -38,6 +133,7 @@ def fit_kinetics(t, d, model, chisq_thd):
     res : :class:`~symfit.FitResults`
         Symfit fitresults object.
     """
+
     if np.any(np.isnan(d)):
         raise ValueError('There shouldnt be NaNs anymore')
         er = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
@@ -49,9 +145,12 @@ def fit_kinetics(t, d, model, chisq_thd):
         res = fit.execute()
 
         if not check_bounds(res) or np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd:
+            bools = [not check_bounds(res), np.any(np.isnan(list(res.params.values()))), res.chi_squared > chisq_thd]
+            print('before', res.chi_squared)
             fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
             #grid = model.initial_grid(t, d, step=5)
             res = fit.execute()
+            print('after', res.chi_squared)
 
     return res
 
@@ -118,6 +217,8 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
     #par = model.deltaG.detach().numpy()
     return np.array(mse_loss_list), np.array(total_loss_list), model
+
+
 
 
 class KineticsFitting(object):
