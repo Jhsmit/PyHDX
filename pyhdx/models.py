@@ -703,7 +703,7 @@ class KineticsSeries(object):
         intersection = set.intersection(*sets)
         intersection_array = np.array([tup for tup in intersection], dtype=[('_start', int), ('_end', int)])
 
-        # Select entries in data array which are in the interesection between all timepoints
+        # Select entries in data array which are in the intersection between all timepoints
         selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in data_list]
         self.peptides = [PeptideMeasurements(elem) for elem in selected]
 
