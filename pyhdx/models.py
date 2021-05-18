@@ -889,6 +889,24 @@ class PeptideMeasurements(Coverage):
         return self.Z_norm.T.dot(self.data[field])
 
 
+class HDXMeasurementSet(object):
+    """
+    multiple HDX Measurements
+    """
+
+    def __init__(self, data_objs, guesses=None, alignments=None):
+        self.data_objs = data_objs
+
+        if alignments is not None:
+            raise NotImplementedError('Adding alignment in HDXMeasurementSet not implemented')
+            # self._check_alignment(..)
+
+        if guesses is not None:
+            raise NotImplementedError('Adding guesses in HDXMeasurementSet not implemented')
+            # self._check_guess(..)
+
+
+
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
 def contiguous_regions(condition):
     """Finds contiguous True regions of the boolean array "condition". Returns
