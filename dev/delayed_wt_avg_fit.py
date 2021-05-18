@@ -1,11 +1,12 @@
 from pathlib import Path
 from pyhdx.fileIO import read_dynamx
 from pyhdx.models import PeptideMasterTable, KineticsSeries
-from pyhdx.fitting import BatchFitting, KineticsFitting, fit_rates_weighted_average
+from pyhdx.fitting import BatchFitting, KineticsFitting, fit_rates_weighted_average, fit_rates
 from pyhdx.fileIO import csv_to_protein
 from dask.distributed import Client
 from dask import delayed, compute
 import numpy as np
+import asyncio
 
 current_dir = Path(__file__).parent
 np.random.seed(43)
@@ -29,10 +30,31 @@ for name in names:
 if __name__ == '__main__':
     client = Client('tcp://127.0.0.1:52123')
 
-    results = []
-    for d in data_objs:
-        result = fit_rates_weighted_average(d)
-        results.append(result)
-    results = compute(*results)
-    print(results)
+    # results = []
+    # for d in data_objs:
+    #     result = fit_rates_weighted_average(d)
+    #     results.append(result)
+    # results = compute(*results)
+    # print(results)
 
+    async def do_fitting(data_objs):
+        # client = await Client('tcp://127.0.0.1:52123')
+        # futures = client.map(fit_rates_weighted_average, data_objs)
+        # results = client.gather(futures)
+
+        results = []
+        for d in data_objs:
+            result = fit_rates_weighted_average(d)
+            results.append(result)
+
+        compute(results)
+
+        return results
+
+#    print(futures)
+    result = asyncio.run(do_fitting(data_objs))
+    print(result)
+
+    #results = client.gather(futures)
+
+    #print(results)
