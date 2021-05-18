@@ -3,7 +3,7 @@ from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSource
 from pyhdx.panel.transforms import ApplyCmapTransform
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from pyhdx.fitting import KineticsFitting, BatchFitting
+from pyhdx.fitting import KineticsFitting, BatchFitting, fit_rates_weighted_average, fit_rates_half_time_interpolate
 from pyhdx.support import verify_cluster
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba, series_to_pymol
@@ -30,6 +30,8 @@ import pandas as pd
 import colorcet
 import zipfile
 import logging
+import dask
+import asyncio
 
 from .widgets import ColoredStaticText, ASyncProgressBar
 
@@ -397,9 +399,11 @@ class PeptideFileInputControl(ControlPanel):
         data_states = peptides.data[peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
+        #todo temperature ph kwarg for series
         series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence, name=self.dataset_name)
         kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
         self.parent.fit_objects[self.dataset_name] = kf
+        self.parent.data_objects[self.dataset_name] = series
         self.parent.param.trigger('fit_objects')  # Trigger update
 
         df = pd.DataFrame(series.full_data)
@@ -417,6 +421,9 @@ class PeptideFileInputControl(ControlPanel):
             self.parent.datasets.pop(name)
 
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
+
+
+# todo class DataManagerControl()
 
 
 class CoverageControl(ControlPanel):
@@ -462,6 +469,7 @@ class InitialGuessControl(ControlPanel):
     global_bounds = param.Boolean(default=False, doc='Set bounds globally across all datasets')
     lower_bound = param.Number(0., doc='Lower bound for association model fitting')
     upper_bound = param.Number(0., doc='Upper bound for association model fitting')
+    guess_name = param.String(default='Guess_1', doc='Name for the initial guesses')
     do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
                            constant=True)
 
@@ -473,18 +481,14 @@ class InitialGuessControl(ControlPanel):
 
         excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
-        # self._layout = {'self': widgets,
-        #                 'filters.select_index_rates_lv1': None,
-        #                 'filters.select_index_rates_lv2': None,
-        #                 }
         self.update_box()
 
     @property
     def _layout(self):
         return [
             ('self', self.own_widget_names),
-            ('filters.select_index_rates_lv1', None),
-            ('filters.select_index_rates_lv2', None),
+            # ('filters.select_index_rates_lv1', None),
+            # ('filters.select_index_rates_lv2', None),
                         ]
 
     def make_dict(self):
@@ -509,7 +513,6 @@ class InitialGuessControl(ControlPanel):
             excluded = []
 
         self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
-
         self.update_box()
 
     @param.depends('global_bounds', watch=True)
@@ -568,88 +571,43 @@ class InitialGuessControl(ControlPanel):
 
         return combined_results
 
-    async def _fit1_async(self, output_name):
-        """Do fitting asynchronously on (remote) cluster"""
-        results = {}
-        for name, kf in self.parent.fit_objects.items():
-            fit_result = await kf.weighted_avg_fit_async(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-            results[kf.series.state] = fit_result
+    async def do_rate_fitting(self):
+        self.parent.logger.info('async info')
+        results = []
+        for name, data_obj in self.parent.data_objects.items():
+            #todo add pbar back in
+            if self.fitting_model.lower() in ['association', 'dissociation']:
+                fit_result = fit_rates_weighted_average(data_obj, model_type=self.fitting_model.lower())
+                results.append(fit_result)
+            elif self.fitting_model == 'Half-life (λ)':
+                fit_result = fit_rates_half_time_interpolate(data_obj)
+                results.append(fit_result)
 
-        self.parent.fit_results['fit_1'] = results  #todo refactor 'fit1' to guess?
-
-        dfs = [result.output.df for result in results.values()]
+        results = dask.compute(*results)
+        dfs = [result.output.df for result in results]
         combined_results = pd.concat(dfs, axis=1,
-                                     keys=list(results.keys()),
+                                     keys=list(self.parent.data_objects.keys()),
                                      names=['state', 'quantity'])
 
-        # def add_df(source, df, table, name):
-        #     source.add_df(df, table)
-
-        callback = partial(self.sources['dataframe'].add_df, combined_results, 'rates', 'fit1')
-        self.parent.doc.add_next_tick_callback(callback)
-
-        with pn.io.unlocked():
-             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
-             self.pbar1.reset()
-             self.param['do_fit1'].constant = False
-
-    def _fit1(self):
-        results = {}
-        for name, kf in self.parent.fit_objects.items():
-            fit_result = kf.weighted_avg_fit(model_type=self.fitting_model.lower(), pbar=self.pbar1)
-            results[kf.series.state] = fit_result
-
-        self.parent.fit_results['fit1'] = results
-        self.parent.param.trigger('fit_results')
-
-        dfs = [result.output for result in results.values()]
-        combined_results = pd.concat(dfs, axis=1,
-                                     keys=list(results.keys()),
-                                     names=['state', 'quantity'])
-
-        self.sources['dataframe'].add_df(combined_results, 'rates', 'fit1')  # todo names?
-
+        self.sources['dataframe'].add_df(combined_results, 'rates', self.guess_name)
+        self.parent.fit_results[self.guess_name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
+        self.parent.param.trigger('fit_results')  # Informs other fittings that initial guesses are now available
+        self.pbar1.reset() #todo pbar
         self.param['do_fit1'].constant = False
-        self.pbar1.reset()
 
     def _action_fit(self):
         if len(self.parent.fit_objects) == 0:
-            self.parent.logger.debug('No datasets loaded')
+            self.parent.logger.info('No datasets loaded')
+            return
+
+        if self.guess_name in self.parent.fit_results.keys():
+            self.parent.logger.info(f"Fit results with name {self.guess_name} already in use")
             return
 
         self.parent.logger.debug('Start initial guess fit')
-        #todo context manager?
         self.param['do_fit1'].constant = True
 
-        if self.fitting_model == 'Half-life (λ)':
-            results = {}
-            for name, kf in self.parent.fit_objects.items():
-                fit_result = kf.weighted_avg_t50()
-                results[name] = fit_result
-
-            self.parent.fit_results['half-life'] = results
-            self.parent.param.trigger('fit_results')  # Informs TF fitting that now fit1 is available as initial guesses
-
-            dfs = [result.output.df for result in results.values()]
-            # Resulting df has Int64Index as index with name 'r_number'
-            combined_results = pd.concat(dfs, axis=1,
-                                         keys=list(results.keys()),
-                                         names=['state', 'quantity'])
-
-            self.sources['dataframe'].add_df(combined_results, 'rates', 'half-life')  #todo names?
-
-            self.sources['dataframe'].tables['half-life'] = combined_results
-            self.sources['dataframe'].updated = True
-
-            self.param['do_fit1'].constant = False
-        else:
-
-            if self.parent.cluster:
-                self.parent._doc = pn.state.curdoc
-                loop = IOLoop.current()
-                loop.add_callback(self._fit1_async)
-            else:
-                self._fit1()
+        pn.io.server.async_execute(self.do_rate_fitting)
 
 
 class ClassificationControl(ControlPanel):
@@ -1178,6 +1136,8 @@ class FitControl(ControlPanel):
         return fit_kwargs
 
     def _do_fitting(self):
+
+        #https://distributed.dask.org/en/latest/resources.html?
 
         fit_name = 'global_fit_1'
 
