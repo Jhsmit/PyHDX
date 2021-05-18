@@ -135,15 +135,43 @@ def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association',
 
     results = []
     for d, model in zip(d_list, models):
-        result = dask.delayed(fit_kinetics)(data_obj.timepoints, d, model, chisq_thd=chisq_thd)
+        result = fit_kinetics(data_obj.timepoints, d, model, chisq_thd=chisq_thd)
         results.append(result)
 
     results = dask.compute(*results)
-
     fit_result = KineticsFitResult(data_obj, intervals, results, models)
+    
     return fit_result
 
 
+@dask.delayed
+def fit_rates(data_obj, method='wt_avg', **kwargs):
+    """
+    Fit observed rates of exchange to HDX-MS data in `data_obj`
+
+    Parameters
+    ----------
+    data_obj: KineticsSeries
+    method: :obj:`str`
+        Method to use to determine rates of exchange
+    kwargs
+        Additional kwargs passed to fitting
+
+    Returns
+    -------
+
+    fit_result : class;KinetcisFitresult
+
+    """
+
+    if method == 'wt_avg':
+        result = fit_rates_weighted_average(data_obj, **kwargs)
+    else:
+        raise ValueError(f"Invalid value for 'method': {method}")
+
+    return result
+
+@dask.delayed
 def fit_kinetics(t, d, model, chisq_thd):
     """
     Fit time kinetics with two time components and corresponding relative amplitude.
