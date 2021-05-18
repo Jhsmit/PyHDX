@@ -50,7 +50,6 @@ class MainController(param.Parameterized):
     def __init__(self, control_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
         self.cluster = cluster
-        self._doc = pn.state.curdoc
         if self.logger is None:
             self.logger = logging.getLogger(str(id(self)))
 
@@ -77,11 +76,6 @@ class MainController(param.Parameterized):
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
         for view in self.views.values():
             view.update(invalidate_cache=invalidate_cache)
-
-    @property
-    def doc(self):
-        """ :class:`~bokeh.document.document.Document`: Bokeh document for the application"""
-        return self._doc or pn.state.curdoc
 
     def __panel__(self):
         # This does something but not as expected
