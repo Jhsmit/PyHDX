@@ -109,6 +109,7 @@ class PyHDXController(MainController):
     """
 
     fit_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
+    data_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsSeries objects)') # todo refactor
 
     # for guesses (nested): <fit name>: {state1: state2:, ...
     # for global fit (batch): <fit name>: fit_result_object
