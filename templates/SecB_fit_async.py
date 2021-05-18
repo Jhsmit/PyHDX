@@ -1,6 +1,6 @@
 from pathlib import Path
 from pyhdx.fileIO import read_dynamx
-from pyhdx.models import PeptideMasterTable
+from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import BatchFitting, KineticsFitting
 from pyhdx.fileIO import csv_to_protein
 import asyncio
@@ -15,10 +15,10 @@ data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
 pmt = PeptideMasterTable(data)
 pmt.set_control(('Full deuteration control', 0.167))
 #todo this should return dict of arrays or nested array
-states = pmt.groupby_state()
 
-state = states['SecB his dimer apo']
 
+state_data = pmt.get_state('SecB his dimer apo')
+state = KineticsSeries(state_data)
 
 kf = KineticsFitting(state, pH=8, temperature=273.15+30)
 
