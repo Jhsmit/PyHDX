@@ -49,7 +49,7 @@ def _get_bounds(times):
 
 
 def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
-    series = data_obj # todo refactor series
+    series = data_obj  # todo refactor series
     bounds = bounds or _get_bounds(data_obj.timepoints)
 
     arr = series.scores_stack.T  # data array
@@ -140,7 +140,7 @@ def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association',
 
     results = dask.compute(*results)
     fit_result = KineticsFitResult(data_obj, intervals, results, models)
-    
+
     return fit_result
 
 
@@ -279,7 +279,6 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
 
 class KineticsFitting(object):
-
     def __init__(self, series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
         #todo perhaps this whole object should dissapear in favour of series
         # and make fitting functional instead of object oriented
