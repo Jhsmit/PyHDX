@@ -82,6 +82,35 @@ def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
 
 
 @dask.delayed
+def fit_rates_half_time_interpolate(data_obj):
+    """
+    Calculates exchange rates based on weighted averaging followed by interpolation to determine half-time, which is
+    then calculated to rates.
+
+    Returns
+    -------
+
+    output: :class:`~np.ndarray`
+        array with fields r_number, rate
+
+    """
+    # todo this is uing the soon to be depcrecated coverage object
+    interpolated = np.array(
+        [np.interp(50, d_uptake, data_obj.timepoints) for d_uptake in data_obj.scores_stack.T])
+
+    output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
+    output['r_number'] = data_obj.coverage.r_number
+    output['rate'] = np.log(2) / interpolated
+
+    protein = Protein(output, index='r_number')
+    t50FitResult = namedtuple('t50FitResult', ['output'])
+
+    result = t50FitResult(output=protein)
+
+    return result
+
+
+@dask.delayed
 def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association', pbar=None, bounds=None):
     """
     Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
