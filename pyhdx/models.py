@@ -776,6 +776,7 @@ class KineticsSeries(object):
     @property
     def uptake_corrected(self):
         """matrix shape  N_t, N_p"""
+        #todo refactor to D to match manuscript
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
 
@@ -831,21 +832,13 @@ class KineticsSeries(object):
         p_guess.clip(0., None, inplace=True)  # Some initial guesses might have negative PF values
         deltaG = np.log(p_guess) * constants.R * self.temperature
 
+        #todo interpolate:
+        # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+        # mask = np.isnan(data)
+        # data[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data[~mask])
+
         bools = ~np.isfinite(deltaG)
-        idx = np.where(np.diff(bools))[0]
-        i = 0 if np.isfinite(deltaG.iloc[0]) else 1  # Determine if guesses start with coverage/data or not
-        for start, stop in zip(idx[i::2], idx[i + 1::2]):
-            replacement = np.linspace(deltaG.iloc[start], deltaG.iloc[stop + 1], endpoint=True,
-                                      num=stop - start + 2)
-            deltaG.iloc[start + 1: stop + 1] = replacement[1:-1]
-
-        # Guesses start with NaN block
-        if i:
-            deltaG.iloc[:idx[0]] = deltaG.iloc[idx[0] + 1]
-
-        # Guesses end with NaN block:
-        if (len(idx) + i) % 2 == 1:
-            deltaG.iloc[idx[-1]:] = deltaG.iloc[idx[-1]]
+        deltaG[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), deltaG[~bools])
 
         if crop:
             return self.coverage.apply_interval(deltaG)
@@ -950,6 +943,17 @@ class HDXMeasurementSet(object):
     def __init__(self, data_objs, guesses=None, alignments=None):
         self.data_objs = data_objs
 
+        #todo create Coverage object for the 3d case
+        intervals = np.array([data_obj.coverage.interval for data_obj in self.data_objs])
+        self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
+        r_number = np.arange(*self.interval)
+        self.r_number = r_number
+
+        self.Ns = len(self.data_objs)
+        self.Nr = len(r_number)
+        self.Np = np.max([data_obj.Np for data_obj in self.data_objs])
+        self.Nt = np.max([data_obj.Nt for data_obj in self.data_objs])
+
         if alignments is not None:
             raise NotImplementedError('Adding alignment in HDXMeasurementSet not implemented')
             # self._check_alignment(..)
@@ -957,6 +961,107 @@ class HDXMeasurementSet(object):
         if guesses is not None:
             raise NotImplementedError('Adding guesses in HDXMeasurementSet not implemented')
             # self._check_guess(..)
+
+    def guess_deltaG(self, rates_list):
+        """
+        create deltaG guesses from rates
+
+        Parameters
+        ----------
+        rates_list: iterable
+            list of pandas series with k_obs esimates
+
+        Returns
+        -------
+
+        deltaG_array: numpy array
+            deltaG guesses Ns x Nr shape
+
+        """
+        assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
+
+        guesses = [data_obj.guess_deltaG(rates, crop=True).to_numpy() for rates, data_obj in zip(rates_list, self.data_objs)]
+        flat = np.concatenate(guesses)
+
+        deltaG_array = np.full((self.Ns, self.Nr), fill_value=np.nan)
+        deltaG_array[self.s_r_mask] = flat
+
+        for row in deltaG_array:
+            # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+            bools = ~np.isfinite(row)
+            row[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), row[~bools])
+
+        return deltaG_array
+
+
+    @property
+    def s_r_mask(self):
+        """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
+        mask = np.zeros((self.Ns, self.Nr), dtype=bool)
+        for i, data_obj in enumerate(self.data_objs):
+            interval_sample = data_obj.coverage.interval
+            i0 = interval_sample[0] - self.interval[0]
+            i1 = interval_sample[1] - self.interval[0]
+
+            mask[i, i0:i1] = True
+
+        return mask
+
+
+    def _fill_residues_array(self, iterable, array):
+        assert len(iterable) == len(array), 'Incompatible shapes'
+        for i, data_obj in enumerate(self.data_objs):
+            pass
+
+
+
+
+    def get_tensors(self, exchanges=False):
+        #todo create correct shapes as per table X for all
+        X = np.zeros((self.Ns, self.Np, self.Nr))
+        k_int = np.zeros((self.Ns, self.Nr))
+        timepoints = np.zeros((self.Ns, self.Nt))
+        D = np.zeros((self.Ns, self.Np, self.Nt))
+
+        temperature = np.array([kf.temperature for kf in self.data_objs])
+
+        # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+        # mask = np.isnan(data)
+        # data[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data[~mask])
+
+        for i, data_obj in enumerate(self.data_objs):
+            if 'k_int' not in data_obj.coverage.protein:
+                raise ValueError(f"Unknown intrinsic rates of exchange in measurement {i}, "
+                                 f"please supply pH and temperature parameters")
+
+            interval_sample = data_obj.coverage.interval
+            # Indices of residues
+            i0 = interval_sample[0] - self.interval[0]
+            i1 = interval_sample[1] - self.interval[0]
+
+            Npi = data_obj.Np  # number of peptides in this particular state
+            Nti = data_obj.Nt
+
+
+            k_int_values = data_obj.coverage['k_int'].to_numpy()
+            k_int[i, i0:i1] = k_int_values
+
+            gibbs_values = data_obj.coverage.apply_interval(kf.guess_deltaG(self.guesses[i])).to_numpy()
+            gibbs[i, i0:i1] = gibbs_values
+
+            # Fill missing gibbs values (NaN entries) at start and end with extrapolated values
+            g_row = gibbs[i]
+            idx, = np.diff(np.isnan(g_row)).nonzero()
+            if np.isnan(gibbs[i, 0]):
+                fill_value = g_row[idx[0] + 1]
+                g_row[:idx[0] + 1] = fill_value
+            if np.isnan(g_row[-1]):
+                fill_value = g_row[idx[-1]]
+                g_row[idx[-1] + 1:] = fill_value
+
+            X[i, 0: Npi, i0:i1] = data_obj.coverage.X
+            timepoints[i, -Nti:] = data_obj.timepoints
+            D[i, 0: Npi, -Nti:] = data_obj.uptake_corrected.T
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
