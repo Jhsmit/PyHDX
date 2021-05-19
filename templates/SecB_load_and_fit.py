@@ -1,7 +1,9 @@
 from pathlib import Path
 import numpy as np
-from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx, KineticsSeries
+from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
+from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
 from pyhdx.fileIO import csv_to_protein
+from pyhdx.local_cluster import default_client
 import asyncio
 
 guess = False
@@ -15,18 +17,20 @@ data = read_dynamx(test_data_dir / 'ecSecB_apo.csv', test_data_dir / 'ecSecB_dim
 
 pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
 pmt.set_control(('Full deuteration control', 0.167))
-series = KineticsSeries(pmt.get_state('SecB WT apo'))
-
 temperature, pH = 273.15 + 30, 8.
-kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
+series = KineticsSeries(pmt.get_state('SecB WT apo'), temperature=temperature, pH=pH)
+
+
+#kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 
 if guess:
-    wt_avg_result = kf.weighted_avg_fit()
+    client = default_client()
+    wt_avg_result = fit_rates_weighted_average(series).compute()
     init_guess = wt_avg_result.output
 else:
     init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.txt')
 
-
-fr_torch = kf.global_fit(init_guess, epochs=epochs, r1=0.1, stop_loss=0.001, patience=100)
+gibbs_guess = series.guess_deltaG(init_guess['rate'])
+fr_torch = fit_gibbs_global(series, gibbs_guess, epochs=epochs)
 print(fr_torch.metadata['total_loss'])
 
