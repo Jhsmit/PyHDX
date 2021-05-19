@@ -202,12 +202,9 @@ def fit_kinetics(t, d, model, chisq_thd):
         res = fit.execute()
 
         if not check_bounds(res) or np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd:
-            bools = [not check_bounds(res), np.any(np.isnan(list(res.params.values()))), res.chi_squared > chisq_thd]
-            print('before', res.chi_squared)
             fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
             #grid = model.initial_grid(t, d, step=5)
             res = fit.execute()
-            print('after', res.chi_squared)
 
     return res
 
@@ -221,12 +218,16 @@ def check_bounds(fit_result):
             return False
     return True
 
+#
+# def fit_global(data, model):
+#     fit = Fit(model.sf_model, **data)
+#     res = fit.execute()
+#     return res
 
-def fit_global(data, model):
-    fit = Fit(model.sf_model, **data)
-    res = fit.execute()
-    return res
 
+# ------------------------------------- #
+# Gibbs fitting
+# ------------------------------------- #
 
 # Defaults for PyTorch optimizations
 optimizer_defaults = {
@@ -275,7 +276,39 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
     #par = model.deltaG.detach().numpy()
     return np.array(mse_loss_list), np.array(total_loss_list), model
 
+def regularizer(r1, param):
+    return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
 
+def fit_gibbs_global(data_object, initial_guess, r1=2, epochs=100000, patience=50, stop_loss=0.05,
+               optimizer='SGD', **optimizer_kwargs):
+    #todo @tejas: Missing docstring
+    """Pytorch global fitting"""
+
+    tensors = data_object.get_tensors()
+    inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
+    output_data = tensors['uptake']
+
+    assert len(initial_guess) == data_object.Nr, "Invalid length of initial guesses"
+    deltaG_par = torch.nn.Parameter(torch.Tensor(initial_guess).unsqueeze(-1))
+
+    model = DeltaGFit(deltaG_par)
+    criterion = torch.nn.MSELoss(reduction='sum')
+
+    # Take default optimizer kwargs and update them with supplied kwargs
+    optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
+    optimizer_klass = getattr(torch.optim, optimizer)
+
+    reg_func = partial(regularizer, r1)
+
+    # returned_model is the same object as model
+    mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
+                                                         model, criterion, reg_func, epochs=epochs,
+                                                         patience=patience, stop_loss=stop_loss)
+
+    result = TorchSingleFitResult(data_object, model,
+                                  mse_loss=mse_loss, total_loss=total_loss)
+
+    return result
 
 
 class KineticsFitting(object):
