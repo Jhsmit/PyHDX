@@ -293,7 +293,10 @@ def fit_gibbs_global(data_object, initial_guess, r1=2, epochs=100000, patience=5
         initial_guess = initial_guess.to_numpy()
 
     assert len(initial_guess) == data_object.Nr, "Invalid length of initial guesses"
-    deltaG_par = torch.nn.Parameter(torch.Tensor(initial_guess).unsqueeze(-1))
+    #todo dtype config
+    dtype = torch.float64
+    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).unsqueeze(-1))
+    #deltaG_par = torch.nn.Parameter(torch.Tensor(initial_guess).unsqueeze(-1))
 
     model = DeltaGFit(deltaG_par)
     criterion = torch.nn.MSELoss(reduction='sum')
