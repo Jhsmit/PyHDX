@@ -27,18 +27,20 @@ class DeltaGFit(nn.Module):
         return t.matmul(X, uptake)
 
 
-def estimate_errors(kf, deltaG):
+def estimate_errors(series, deltaG):  #todo refactor to data_obj
     # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
-    bools = kf.series.coverage['exchanges'].to_numpy()
-    r_number = kf.series.coverage.r_number[bools]  # Residue number which exchange
+    bools = series.coverage['exchanges'].to_numpy()
+    r_number = series.coverage.r_number[bools]  # Residue number which exchange
+
+    #todo update to use series.get_tensors
     dtype = t.float64
-    temperature = t.tensor([kf.temperature], dtype=dtype)
-    X = t.tensor(kf.series.coverage.X[:, bools], dtype=dtype)  # Np x Nr, non-exchanging residues removed
-    k_int = t.tensor(kf.series.coverage['k_int'][bools].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
-    timepoints = t.tensor(kf.series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
+    temperature = t.tensor([series.temperature], dtype=dtype)
+    X = t.tensor(series.coverage.X[:, bools], dtype=dtype)  # Np x Nr, non-exchanging residues removed
+    k_int = t.tensor(series.coverage['k_int'][bools].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
+    timepoints = t.tensor(series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
 
     deltaG = t.tensor(deltaG[bools], dtype=dtype)
-    output_data = t.tensor(kf.series.uptake_corrected.T, dtype=dtype)
+    output_data = t.tensor(series.uptake_corrected.T, dtype=dtype)
 
     def calc_loss(deltaG_input):
         criterion = t.nn.MSELoss(reduction='sum')
@@ -97,11 +99,11 @@ class TorchSingleFitResult(TorchFitResult):
 
     @property
     def series(self):
-        return self.fit_object.series
+        return self.fit_object
 
     @property
     def temperature(self):
-        return self.fit_object.temperature
+        return self.series.temperature
 
     @property
     def output(self):

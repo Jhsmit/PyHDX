@@ -1,7 +1,7 @@
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.fileIO import read_dynamx, fmt_export, txt_to_protein, txt_to_np, csv_to_protein
-from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting
+from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting, fit_rates_weighted_average, fit_gibbs_global
 import numpy as np
 import torch
 import pandas as pd
@@ -26,19 +26,31 @@ class TestSecBDataFit(object):
 
         pf = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
         pf.set_control(control)
-        states = pf.groupby_state()
-        cls.series_apo = states['SecB WT apo']
-        cls.series_dimer = states['SecB his dimer apo']
+        cls.series_apo = KineticsSeries(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH)
+        cls.series_dimer = KineticsSeries(pf.get_state('SecB his dimer apo'), temperature=cls.temperature, pH=cls.pH)
+
+        data = pf.get_state('SecB WT apo')
+        reduced_data = data[data['end'] < 40]
+        cls.reduced_series = KineticsSeries(reduced_data)
 
         cluster = LocalCluster()
         cls.address = cluster.scheduler_address
 
+    def test_initial_guess(self):
+        result = fit_rates_weighted_average(self.reduced_series).compute()
+        output = result.output
+
+        assert output.size == 100
+
+        # todo additional assertl, compare to stored values
+
     def test_global_fit(self):
-        kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH)
+        #kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH)
         initial_rates = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
 
         t0 = time.time()  # Very crude benchmarks
-        fr_global = kf.global_fit(initial_rates, epochs=1000)
+        gibbs_guess = self.series_apo.guess_deltaG(initial_rates['rate']).to_numpy()
+        fr_global = fit_gibbs_global(self.series_apo, gibbs_guess, epochs=1000)
         t1 = time.time()
 
         assert t1 - t0 < 5

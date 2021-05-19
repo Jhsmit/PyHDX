@@ -62,12 +62,19 @@ class TestSeries(object):
     def setup_class(cls):
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        d = cls.pmt.groupby_state()
-        cls.series = d['SecB WT apo']
+        d = cls.pmt.get_state('SecB WT apo')
+        cls.series = KineticsSeries(d)
 
     def test_dim(self):
         assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
 
+    def test_guess(self):
+        pass
+
+    def test_tensors(self):
+        tensors = self.series.get_tensors()
+
+        # assert ...
 
 @pytest.mark.skip(reason="Simulated data was removed")
 class TestSimulatedData(object):

@@ -33,8 +33,8 @@ class TestMainGUISecB(object):
         cls.control = ('Full deuteration control', 0.167)
         cls.pmt.set_control(cls.control)
 
-        states = cls.pmt.groupby_state()
-        cls.series = states[cls.state]
+        state_data = cls.pmt.get_state(cls.state)
+        cls.series = KineticsSeries(state_data)
         cls.kf = KineticsFitting(cls.series)
         cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
 

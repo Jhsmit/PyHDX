@@ -10,7 +10,9 @@ from operator import add
 from hdxrate import k_int_from_sequence
 from pyhdx.support import reduce_inter, make_view, fields_view, pprint_df_to_file
 from pyhdx.fileIO import fmt_export
+from scipy import constants
 import pyhdx
+import torch
 
 
 def protein_wrapper(func, *args, **kwargs):
@@ -582,9 +584,9 @@ class Coverage(object):
 
         """
 
-        assert len(array_or_series) == len(self.protein)
         if isinstance(array_or_series, np.ndarray):
             series = pd.Series(array_or_series, index=self.protein.df.index)
+            assert len(array_or_series) == len(self.protein)
         else:
             series = array_or_series
 
@@ -711,6 +713,9 @@ class KineticsSeries(object):
         cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ['c_term', 'n_term', 'sequence']}
         self.coverage = Coverage(selected[0], **cov_kwargs)
 
+        if self.temperature and self.pH:
+            self.coverage.protein.set_k_int(self.temperature, self.pH)
+
     @property
     def name(self):
         try:
@@ -720,36 +725,11 @@ class KineticsSeries(object):
 
     @property
     def temperature(self):
-        try:
-            return self.metadata['temperature']
-        except KeyError:
-            return None
-
-    @temperature.setter
-    def temperature(self, value):
-        self.metadata['temperature'] = value
+        return self.metadata.get('temperature', None)
 
     @property
     def pH(self):
-        try:
-            return self.metadata['pH']
-        except KeyError:
-            return None
-
-    @pH.setter
-    def pH(self, value):
-        self.metadata['pH'] = value
-
-    @property
-    def c_term(self):
-        warnings.warn("'c_term' property will be moved to Coverage object", DeprecationWarning)
-        return self.coverage.protein.c_term
-
-    @c_term.setter
-    def c_term(self, value):
-        raise NotImplementedError('Cannot change c_term after object initialization')
-        #todo allow this by making an new protein / coverage object
-        self.metadata['c_term'] = value
+        return self.metadata.get('pH', None)
 
     @property
     def Np(self):
@@ -798,6 +778,62 @@ class KineticsSeries(object):
         """matrix shape  N_t, N_p"""
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
+
+    def get_tensors(self):
+        dtype = torch.float64
+        if 'k_int' not in self.coverage.protein:
+            raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
+
+        tensors = {'temperature': torch.tensor([self.temperature], dtype=dtype),
+                   'X': torch.tensor(self.coverage.X, dtype=dtype),
+                   'k_int': torch.tensor(self.coverage['k_int'].to_numpy(), dtype=dtype).unsqueeze(-1),
+                   'timepoints': torch.tensor(self.timepoints, dtype=dtype).unsqueeze(0),
+                   'uptake': torch.tensor(self.uptake_corrected.T, dtype=dtype)}
+
+        return tensors
+
+    def guess_deltaG(self, rates, crop=True):
+        """
+
+        Parameters
+        ----------
+        rates : :class:pd series
+            pandas series of esitmated hdx exhanges rates. Index is protein residue number
+        return_type
+
+        Returns
+        -------
+
+        """
+        if 'k_int' not in self.coverage.protein:
+            raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
+        if not isinstance(rates, pd.Series):
+            raise TypeError("Rates input type is pandas.Series")
+
+        p_guess = (self.coverage.protein['k_int'] / rates) - 1
+        p_guess.clip(0., None, inplace=True)  # Some initial guesses might have negative PF values
+        deltaG = np.log(p_guess) * constants.R * self.temperature
+
+        bools = ~np.isfinite(deltaG)
+        idx = np.where(np.diff(bools))[0]
+        i = 0 if np.isfinite(deltaG.iloc[0]) else 1  # Determine if guesses start with coverage/data or not
+        for start, stop in zip(idx[i::2], idx[i + 1::2]):
+            replacement = np.linspace(deltaG.iloc[start], deltaG.iloc[stop + 1], endpoint=True,
+                                      num=stop - start + 2)
+            deltaG.iloc[start + 1: stop + 1] = replacement[1:-1]
+
+        # Guesses start with NaN block
+        if i:
+            deltaG.iloc[:idx[0]] = deltaG.iloc[idx[0] + 1]
+
+        # Guesses end with NaN block:
+        if (len(idx) + i) % 2 == 1:
+            deltaG.iloc[idx[-1]:] = deltaG.iloc[idx[-1]]
+
+        if crop:
+            return self.coverage.apply_interval(deltaG)
+        else:
+            return deltaG
 
 
 class PeptideMeasurements(Coverage):
@@ -904,7 +940,6 @@ class HDXMeasurementSet(object):
         if guesses is not None:
             raise NotImplementedError('Adding guesses in HDXMeasurementSet not implemented')
             # self._check_guess(..)
-
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
