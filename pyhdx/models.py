@@ -832,11 +832,7 @@ class KineticsSeries(object):
         p_guess.clip(0., None, inplace=True)  # Some initial guesses might have negative PF values
         deltaG = np.log(p_guess) * constants.R * self.temperature
 
-        #todo interpolate:
         # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
-        # mask = np.isnan(data)
-        # data[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data[~mask])
-
         bools = ~np.isfinite(deltaG)
         deltaG[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), deltaG[~bools])
 
@@ -953,6 +949,7 @@ class HDXMeasurementSet(object):
         self.Nr = len(r_number)
         self.Np = np.max([data_obj.Np for data_obj in self.data_objs])
         self.Nt = np.max([data_obj.Nt for data_obj in self.data_objs])
+        self.masks = self.get_masks()
 
         if alignments is not None:
             raise NotImplementedError('Adding alignment in HDXMeasurementSet not implemented')
@@ -993,7 +990,6 @@ class HDXMeasurementSet(object):
 
         return deltaG_array
 
-
     @property
     def s_r_mask(self):
         """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
@@ -1007,61 +1003,70 @@ class HDXMeasurementSet(object):
 
         return mask
 
-
-    def _fill_residues_array(self, iterable, array):
-        assert len(iterable) == len(array), 'Incompatible shapes'
+    def get_masks(self):
+        """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
+        sr_mask = np.zeros((self.Ns, self.Nr), dtype=bool)
+        st_mask = np.zeros((self.Ns, self.Nt), dtype=bool)
+        spr_mask = np.zeros((self.Ns, self.Np, self.Nr), dtype=bool)
+        spt_mask = np.zeros((self.Ns, self.Np, self.Nt), dtype=bool)
         for i, data_obj in enumerate(self.data_objs):
-            pass
+            interval_sample = data_obj.coverage.interval
+            i0 = interval_sample[0] - self.interval[0]
+            i1 = interval_sample[1] - self.interval[0]
+            Npi = data_obj.Np
+            Nti = data_obj.Nt
 
+            sr_mask[i, i0:i1] = True
+            st_mask[i, -Nti:] = True
+            spr_mask[i, 0: Npi, i0:i1] = True
+            spt_mask[i, 0: Npi, -Nti:] = True
 
+        mask_dict = {'sr': sr_mask, 'st': st_mask, 'spr': spr_mask, 'spt': spt_mask}
 
+        return mask_dict
 
     def get_tensors(self, exchanges=False):
         #todo create correct shapes as per table X for all
-        X = np.zeros((self.Ns, self.Np, self.Nr))
-        k_int = np.zeros((self.Ns, self.Nr))
-        timepoints = np.zeros((self.Ns, self.Nt))
-        D = np.zeros((self.Ns, self.Np, self.Nt))
-
         temperature = np.array([kf.temperature for kf in self.data_objs])
 
-        # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
-        # mask = np.isnan(data)
-        # data[mask] = np.interp(np.flatnonzero(mask), np.flatnonzero(~mask), data[~mask])
+        X_values = np.concatenate([data_obj.coverage.X.flatten() for data_obj in self.data_objs])
+        X = np.zeros((self.Ns, self.Np, self.Nr))
+        X[self.masks['spr']] = X_values
 
-        for i, data_obj in enumerate(self.data_objs):
-            if 'k_int' not in data_obj.coverage.protein:
-                raise ValueError(f"Unknown intrinsic rates of exchange in measurement {i}, "
-                                 f"please supply pH and temperature parameters")
+        k_int_values = np.concatenate([data_obj.coverage['k_int'].to_numpy() for data_obj in self.data_objs])
+        k_int = np.zeros((self.Ns, self.Nr))
+        k_int[self.masks['sr']] = k_int_values
 
-            interval_sample = data_obj.coverage.interval
-            # Indices of residues
-            i0 = interval_sample[0] - self.interval[0]
-            i1 = interval_sample[1] - self.interval[0]
+        timepoints_values = np.concatenate([data_obj.timepoints for data_obj in self.data_objs])
+        timepoints = np.zeros((self.Ns, self.Nt))
+        timepoints[self.masks['st']] = timepoints_values
 
-            Npi = data_obj.Np  # number of peptides in this particular state
-            Nti = data_obj.Nt
+        D_values = np.concatenate([data_obj.uptake_corrected.T.flatten() for data_obj in self.data_objs])
+        D = np.zeros((self.Ns, self.Np, self.Nt))
+        D[self.masks['spt']] = D_values
+
+        dtype = torch.float64
+
+        tensors = {
+            'temperature': torch.tensor(temperature, dtype=dtype).reshape(self.Ns, 1, 1),
+            'X': torch.tensor(X, dtype=dtype),
+            'k_int': torch.tensor(k_int, dtype=dtype).reshape(self.Ns, self.Nr, 1),
+            'timepoints': torch.tensor(timepoints, dtype=dtype).reshape(self.Ns, 1, self.Nt),
+            'uptake': torch.tensor(D, dtype=dtype)  #todo this is called uptake_corrected/D/uptake
+        }
+
+        return tensors
+
+    @property
+    def exchanges(self):
+        values = np.concatenate([data_obj.coverage['exchanges'].to_numpy() for data_obj in self.data_objs])
+        exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
+        exchanges[self.masks['sr']] = values
+
+        return exchanges
 
 
-            k_int_values = data_obj.coverage['k_int'].to_numpy()
-            k_int[i, i0:i1] = k_int_values
 
-            gibbs_values = data_obj.coverage.apply_interval(kf.guess_deltaG(self.guesses[i])).to_numpy()
-            gibbs[i, i0:i1] = gibbs_values
-
-            # Fill missing gibbs values (NaN entries) at start and end with extrapolated values
-            g_row = gibbs[i]
-            idx, = np.diff(np.isnan(g_row)).nonzero()
-            if np.isnan(gibbs[i, 0]):
-                fill_value = g_row[idx[0] + 1]
-                g_row[:idx[0] + 1] = fill_value
-            if np.isnan(g_row[-1]):
-                fill_value = g_row[idx[-1]]
-                g_row[idx[-1] + 1:] = fill_value
-
-            X[i, 0: Npi, i0:i1] = data_obj.coverage.X
-            timepoints[i, -Nti:] = data_obj.timepoints
-            D[i, 0: Npi, -Nti:] = data_obj.uptake_corrected.T
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
