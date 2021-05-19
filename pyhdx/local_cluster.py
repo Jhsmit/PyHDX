@@ -25,9 +25,12 @@ def blocking_cluster():
         port = int(args.port)
     else:
         port = int(cfg.get('cluster', 'port'))
-
-    local_cluster = LocalCluster(scheduler_port=port, n_workers=10)  # todo default settings local cluster from config
-    print(f"Started local cluster at {local_cluster.scheduler_address}")
+    try:
+        local_cluster = LocalCluster(scheduler_port=port, n_workers=10)  # todo default settings local cluster from config
+        print(f"Started local cluster at {local_cluster.scheduler_address}")
+    except OSError as e:
+        print(f"Could not start local cluster with at port: {port}")
+        raise
     try:
         loop = True
         while loop:
