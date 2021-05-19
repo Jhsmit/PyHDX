@@ -779,16 +779,33 @@ class KineticsSeries(object):
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
 
-    def get_tensors(self):
+    def get_tensors(self, exchanges=False):
+        """
+
+        Parameters
+        ----------
+        exchanges
+            if True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
+        Returns
+        -------
+
+        """
         dtype = torch.float64
         if 'k_int' not in self.coverage.protein:
             raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
 
-        tensors = {'temperature': torch.tensor([self.temperature], dtype=dtype),
-                   'X': torch.tensor(self.coverage.X, dtype=dtype),
-                   'k_int': torch.tensor(self.coverage['k_int'].to_numpy(), dtype=dtype).unsqueeze(-1),
-                   'timepoints': torch.tensor(self.timepoints, dtype=dtype).unsqueeze(0),
-                   'uptake': torch.tensor(self.uptake_corrected.T, dtype=dtype)}
+        if exchanges:
+            #this could be a method on coverage object similar to apply_interval; select exchanging
+            bools = self.coverage['exchanges'].to_numpy()
+        else:
+            bools = np.ones(self.Nr, dtype=bool)
+
+        tensors = {
+            'temperature': torch.tensor([self.temperature], dtype=dtype),
+            'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype),
+            'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype).unsqueeze(-1),
+            'timepoints': torch.tensor(self.timepoints, dtype=dtype).unsqueeze(0),
+            'uptake': torch.tensor(self.uptake_corrected.T, dtype=dtype)}
 
         return tensors
 

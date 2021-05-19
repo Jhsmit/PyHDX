@@ -31,24 +31,17 @@ def estimate_errors(series, deltaG):  #todo refactor to data_obj
     # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
     bools = series.coverage['exchanges'].to_numpy()
     r_number = series.coverage.r_number[bools]  # Residue number which exchange
+    deltaG = t.tensor(deltaG[bools], dtype=t.float64)
 
-    #todo update to use series.get_tensors
-    dtype = t.float64
-    temperature = t.tensor([series.temperature], dtype=dtype)
-    X = t.tensor(series.coverage.X[:, bools], dtype=dtype)  # Np x Nr, non-exchanging residues removed
-    k_int = t.tensor(series.coverage['k_int'][bools].to_numpy(), dtype=dtype).unsqueeze(-1)  # Nr x 1
-    timepoints = t.tensor(series.timepoints, dtype=dtype).unsqueeze(0)  # 1 x Nt
-
-    deltaG = t.tensor(deltaG[bools], dtype=dtype)
-    output_data = t.tensor(series.uptake_corrected.T, dtype=dtype)
+    tensors = series.get_tensors(exchanges=True)
 
     def calc_loss(deltaG_input):
         criterion = t.nn.MSELoss(reduction='sum')
-        pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * temperature))
-        uptake = 1 - t.exp(-t.matmul((k_int / (1 + pfact)), timepoints))
-        output = t.matmul(X, uptake)
+        pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
+        uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
+        output = t.matmul(tensors['X'], uptake)
 
-        loss = criterion(output, output_data)
+        loss = criterion(output, tensors['uptake'])
         return loss
 
     hessian = t.autograd.functional.hessian(calc_loss, deltaG)
@@ -126,8 +119,9 @@ class TorchSingleFitResult(TorchFitResult):
 
     def __call__(self, timepoints):
         """output: Np x Nt array"""
-
+        #todo fix and tests
         with t.no_grad():
+            #tensors = self.series.get_tensors()
             temperature = t.Tensor([self.temperature])
             X = t.Tensor(self.series.coverage.X)  # Np x Nr
             k_int = t.Tensor(self.series.coverage['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
