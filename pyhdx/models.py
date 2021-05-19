@@ -959,6 +959,10 @@ class HDXMeasurementSet(object):
             raise NotImplementedError('Adding guesses in HDXMeasurementSet not implemented')
             # self._check_guess(..)
 
+    @property
+    def temperature(self):
+        return np.array([data_obj.temperature for data_obj in self.data_objs])
+
     def guess_deltaG(self, rates_list):
         """
         create deltaG guesses from rates
@@ -1013,13 +1017,11 @@ class HDXMeasurementSet(object):
             interval_sample = data_obj.coverage.interval
             i0 = interval_sample[0] - self.interval[0]
             i1 = interval_sample[1] - self.interval[0]
-            Npi = data_obj.Np
-            Nti = data_obj.Nt
 
             sr_mask[i, i0:i1] = True
-            st_mask[i, -Nti:] = True
-            spr_mask[i, 0: Npi, i0:i1] = True
-            spt_mask[i, 0: Npi, -Nti:] = True
+            st_mask[i, -data_obj.Nt:] = True
+            spr_mask[i, 0: data_obj.Np, i0:i1] = True
+            spt_mask[i, 0: data_obj.Np, -data_obj.Nt:] = True
 
         mask_dict = {'sr': sr_mask, 'st': st_mask, 'spr': spr_mask, 'spt': spt_mask}
 

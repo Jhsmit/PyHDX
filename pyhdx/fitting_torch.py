@@ -142,7 +142,7 @@ class TorchBatchFitResult(TorchFitResult):
 
         quantities = ['_deltaG', 'deltaG', 'covariance', 'pfact']
 
-        names = [kf.series.name or kf.series.state for kf in self.fit_object.states]
+        names = [data_obj.name or data_obj.state for data_obj in self.fit_object.data_objs]
 
         iterables = [names, quantities]
         col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
@@ -156,12 +156,12 @@ class TorchBatchFitResult(TorchFitResult):
         output_data[:, 0::len(quantities)] = g_values.T
         output_data[:, 1::len(quantities)] = g_values_nan.T
 
-        for i, kf in enumerate(self.fit_object.states):
+        for i, data_obj in enumerate(self.fit_object.data_objs):
             #todo this could use some pandas
-            i0 = kf.series.coverage.interval[0] - self.fit_object.interval[0]
-            i1 = kf.series.coverage.interval[1] - self.fit_object.interval[0]
+            i0 = data_obj.coverage.interval[0] - self.fit_object.interval[0]
+            i1 = data_obj.coverage.interval[1] - self.fit_object.interval[0]
 
-            cov = estimate_errors(kf.series, g_values[i, i0:i1])  # returns a protein? should be series
+            cov = estimate_errors(data_obj, g_values[i, i0:i1])  # returns a protein? should be series
             pd_series = cov['covariance']
             pd_series = pd_series.reindex(self.fit_object.r_number)
 

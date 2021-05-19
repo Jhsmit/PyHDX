@@ -1,7 +1,7 @@
 from pathlib import Path
 from pyhdx.fileIO import read_dynamx
-from pyhdx.models import PeptideMasterTable, KineticsSeries
-from pyhdx.fitting import BatchFitting, KineticsFitting
+from pyhdx.models import PeptideMasterTable, KineticsSeries, HDXMeasurementSet
+from pyhdx.fitting import BatchFitting, fit_gibbs_global_batch
 from pyhdx.fileIO import csv_to_protein
 
 current_dir = Path(__file__).parent
@@ -12,17 +12,14 @@ data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
 pmt = PeptideMasterTable(data)
 pmt.set_control(('Full deuteration control', 0.167))
 
-st1 = KineticsSeries(pmt.get_state('SecB his dimer apo'))
-st2 = KineticsSeries(pmt.get_state('SecB WT apo'))
+st1 = KineticsSeries(pmt.get_state('SecB his dimer apo'), pH=8, temperature=273.15+30)
+st2 = KineticsSeries(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15+30)
 
-kf1 = KineticsFitting(st1, pH=8, temperature=273.15+30)
-kf2 = KineticsFitting(st2, pH=8, temperature=273.15+30)
+hdx_set = HDXMeasurementSet([st1, st2])
+guess = csv_to_protein(data_dir / 'ecSecB_guess.txt')
 
-guesses = csv_to_protein(data_dir / 'ecSecB_guess.txt')
-
-bf = BatchFitting([kf1, kf2], [guesses, guesses])
-
-result = bf.global_fit(epochs=10)
+gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
+result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
 
 #Human readable output
 result.output.to_file('Batch_fit_result.txt', fmt='pprint')

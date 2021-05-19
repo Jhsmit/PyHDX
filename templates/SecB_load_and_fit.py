@@ -20,9 +20,6 @@ pmt.set_control(('Full deuteration control', 0.167))
 temperature, pH = 273.15 + 30, 8.
 series = KineticsSeries(pmt.get_state('SecB WT apo'), temperature=temperature, pH=pH)
 
-
-#kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
-
 if guess:
     client = default_client()
     wt_avg_result = fit_rates_weighted_average(series).compute()

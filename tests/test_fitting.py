@@ -1,7 +1,8 @@
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.fileIO import read_dynamx, fmt_export, txt_to_protein, txt_to_np, csv_to_protein
-from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting, fit_rates_weighted_average, fit_gibbs_global
+from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting, fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch
+from pyhdx.models import HDXMeasurementSet
 import numpy as np
 import torch
 import pandas as pd
@@ -75,11 +76,12 @@ class TestSecBDataFit(object):
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
 
     def test_batch_fit(self):
-        kfs = [KineticsFitting(series, temperature=self.temperature, pH=self.pH) for series in [self.series_apo, self.series_dimer]]
+        hdx_set = HDXMeasurementSet([self.series_apo, self.series_dimer])
         guess = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
 
-        bf = BatchFitting(kfs, [guess, guess])
-        result = bf.global_fit(epochs=1000)
+        gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
+        result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
+
         output = result.output
 
         output.to_file('compare.txt', fmt='pprint')
@@ -93,24 +95,15 @@ class TestSecBDataFit(object):
             result = output[state]['deltaG']
             test = check_protein[state]['deltaG']
 
-            # # todo figure out the differences
-            # idx = np.argmax(np.abs(result-test))
-            # merged = pd.concat([result, test], axis=1)
-            # merged['equal'] = (result - test).abs() > 0.01
-            # merged['diff'] = (result - test).abs()
-            #
-            # from pyhdx.support import pprint_df_to_file
-            # pprint_df_to_file(merged, 'merged.txt')
-
             assert_series_equal(result, test, rtol=0.1)
 
 
-        result = asyncio.get_event_loop().run_until_complete(bf.global_fit_async(epochs=1000))
-        output = result.output
-        for state in states:
-            result = output[state]['deltaG']
-            test = check_protein[state]['deltaG']
-            assert_series_equal(result, test, rtol=0.1)
+        # result = asyncio.get_event_loop().run_until_complete(bf.global_fit_async(epochs=1000))
+        # output = result.output
+        # for state in states:
+        #     result = output[state]['deltaG']
+        #     test = check_protein[state]['deltaG']
+        #     assert_series_equal(result, test, rtol=0.1)
 
             #assert np.allclose(output[state]['deltaG'], check_protein[state]['deltaG'], equal_nan=True, rtol=0.01)
 
