@@ -15,6 +15,7 @@ from operator import add
 from dask.distributed import Client
 import dask
 import warnings
+import pandas as pd
 
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
@@ -287,6 +288,9 @@ def fit_gibbs_global(data_object, initial_guess, r1=2, epochs=100000, patience=5
     tensors = data_object.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['uptake']
+
+    if isinstance(initial_guess, pd.Series):
+        initial_guess = initial_guess.to_numpy()
 
     assert len(initial_guess) == data_object.Nr, "Invalid length of initial guesses"
     deltaG_par = torch.nn.Parameter(torch.Tensor(initial_guess).unsqueeze(-1))
