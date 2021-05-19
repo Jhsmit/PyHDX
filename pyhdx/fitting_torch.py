@@ -161,7 +161,7 @@ class TorchBatchFitResult(TorchFitResult):
             i0 = kf.series.coverage.interval[0] - self.fit_object.interval[0]
             i1 = kf.series.coverage.interval[1] - self.fit_object.interval[0]
 
-            cov = estimate_errors(kf, g_values[i, i0:i1])  # returns a protein? should be series
+            cov = estimate_errors(kf.series, g_values[i, i0:i1])  # returns a protein? should be series
             pd_series = cov['covariance']
             pd_series = pd_series.reindex(self.fit_object.r_number)
 
