@@ -1,5 +1,5 @@
 from pyhdx.support import get_reduced_blocks, temporary_seed
-from pyhdx.models import Protein
+from pyhdx.models import Protein, HDXMeasurementSet
 from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
 from pyhdx.fit_models import SingleKineticModel, OneComponentAssociationModel, TwoComponentAssociationModel, OneComponentDissociationModel, \
     TwoComponentDissociationModel
@@ -368,6 +368,51 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, pa
 
     result = TorchBatchFitResult(hdx_set, model, mse_loss=mse_loss, total_loss=total_loss)
     return result
+
+
+def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
+               optimizer='SGD', **optimizer_kwargs):
+
+    """
+
+    Parameters
+    ----------
+    r1
+    r2
+    epochs
+    patience
+    stop_loss
+    optimizer
+    optimizer_kwargs
+
+    Returns
+    -------
+    """
+    # todo still some repeated code with fit_gibbs single
+    tensors = hdx_set.get_tensors()
+    inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
+    output_data = tensors['uptake']
+
+    assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
+
+    dtype = torch.float64
+    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).reshape(hdx_set.Ns, hdx_set.Nr, 1))
+
+    model = DeltaGFit(deltaG_par)
+    criterion = torch.nn.MSELoss(reduction='sum')
+
+    # Take default optimizer kwargs and update them with supplied kwargs
+    optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
+    optimizer_klass = getattr(torch.optim, optimizer)
+
+    reg_func = partial(regularizer_2d, r1, r2)
+    mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
+                                                         model, criterion, reg_func, epochs=epochs,
+                                                         patience=patience, stop_loss=stop_loss)
+
+    result = TorchBatchFitResult(hdx_set, model, mse_loss=mse_loss, total_loss=total_loss)
+    return result
+
 
 
 class KineticsFitting(object):
@@ -1042,7 +1087,9 @@ class BatchFitting(object):
         mse_loss = np.array([val.detach().numpy() for val in mse_loss])
         reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
-        result = TorchBatchFitResult(self, model, mse_loss=mse_loss, total_loss=reg_loss)
+        data_obj = HDXMeasurementSet([kf.series for kf in self.states])
+
+        result = TorchBatchFitResult(data_obj, model, mse_loss=mse_loss, total_loss=reg_loss)
         return result
 
     @property

@@ -936,7 +936,7 @@ class HDXMeasurementSet(object):
     multiple HDX Measurements
     """
 
-    def __init__(self, data_objs, guesses=None, alignments=None):
+    def __init__(self, data_objs, alignments=None):
         self.data_objs = data_objs
 
         #todo create Coverage object for the 3d case
@@ -955,9 +955,6 @@ class HDXMeasurementSet(object):
             raise NotImplementedError('Adding alignment in HDXMeasurementSet not implemented')
             # self._check_alignment(..)
 
-        if guesses is not None:
-            raise NotImplementedError('Adding guesses in HDXMeasurementSet not implemented')
-            # self._check_guess(..)
 
     @property
     def temperature(self):
