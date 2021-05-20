@@ -10,6 +10,7 @@ from operator import add
 from hdxrate import k_int_from_sequence
 from pyhdx.support import reduce_inter, make_view, fields_view, pprint_df_to_file
 from pyhdx.fileIO import fmt_export
+from pyhdx.alignment import align_dataframes
 from scipy import constants
 import pyhdx
 import torch
@@ -951,10 +952,9 @@ class HDXMeasurementSet(object):
         self.Nt = np.max([data_obj.Nt for data_obj in self.data_objs])
         self.masks = self.get_masks()
 
-        if alignments is not None:
-            raise NotImplementedError('Adding alignment in HDXMeasurementSet not implemented')
-            # self._check_alignment(..)
-
+        # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
+        self.aligned_indices = None
+        self.aligned_dataframes = None
 
     @property
     def temperature(self):
@@ -990,6 +990,19 @@ class HDXMeasurementSet(object):
             row[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), row[~bools])
 
         return deltaG_array
+
+    def add_alignment(self, alignment, first_r_numbers=None):
+        dfs = [data_obj.coverage.protein.df for data_obj in self.data_objs]
+        self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
+
+        df = self.aligned_dataframes['r_number']
+
+        df = df[((self.interval[0] <= df) & (df < self.interval[1])).all(axis=1)] # Crop residue numbers to interval range
+        df = df - self.interval[0]  # First residue in interval selected by index 0
+        df.dropna(how='any', inplace=True)  # Remove non-aligned residues
+
+        self.aligned_indices = df.to_numpy().T
+
 
     @property
     def s_r_mask(self):
