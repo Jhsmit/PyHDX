@@ -3,7 +3,8 @@ from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSource
 from pyhdx.panel.transforms import ApplyCmapTransform
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from pyhdx.fitting import KineticsFitting, BatchFitting, fit_rates_weighted_average, fit_rates_half_time_interpolate
+from pyhdx.fitting import KineticsFitting, BatchFitting, fit_rates_weighted_average, fit_rates_half_time_interpolate, \
+    get_bounds, fit_gibbs_global, fit_gibbs_global_batch
 from pyhdx.support import verify_cluster
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba, series_to_pymol
@@ -253,10 +254,8 @@ class PeptideFileInputControl(ControlPanel):
     dataset_list = param.ListSelector(label='Datasets', doc='Lists available datasets')
 
     def __init__(self, parent, **params):
-
-
         super(PeptideFileInputControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._datasets_updated, ['fit_objects'])
+        self.parent.param.watch(self._datasets_updated, ['data_objects'])
 
         excluded = ['be_percent']
         self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
@@ -374,7 +373,7 @@ class PeptideFileInputControl(ControlPanel):
 
     def _datasets_updated(self, events):
         # Update datasets widget as datasets on parents change
-        objects = list(self.parent.fit_objects.keys())
+        objects = list(self.parent.data_objects.keys())
         self.param['dataset_list'].objects = objects
 
     def _action_add_dataset(self):
@@ -400,11 +399,11 @@ class PeptideFileInputControl(ControlPanel):
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
         #todo temperature ph kwarg for series
-        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence, name=self.dataset_name)
-        kf = KineticsFitting(series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
-        self.parent.fit_objects[self.dataset_name] = kf
+        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
+                                name=self.dataset_name, temperature=self.temperature, pH=self.pH)
+
         self.parent.data_objects[self.dataset_name] = series
-        self.parent.param.trigger('fit_objects')  # Trigger update
+        self.parent.param.trigger('data_objects')  # Trigger update
 
         df = pd.DataFrame(series.full_data)
         target_source = self.parent.sources['dataframe']
@@ -470,14 +469,16 @@ class InitialGuessControl(ControlPanel):
     lower_bound = param.Number(0., doc='Lower bound for association model fitting')
     upper_bound = param.Number(0., doc='Upper bound for association model fitting')
     guess_name = param.String(default='Guess_1', doc='Name for the initial guesses')
-    do_fit1 = param.Action(lambda self: self._action_fit(), label='Do fitting', doc='Start initial guess fitting',
+    do_fit1 = param.Action(lambda self: self._action_fit(), label='Calculate Guesses', doc='Start initial guess fitting',
                            constant=True)
+
+    bounds = param.Dict({}, doc='Dictionary which stores rate fitting bounds', precedence=-1)
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()  #tqdm? https://github.com/holoviz/panel/pull/2079
         self.pbar2 = ASyncProgressBar()
         super(InitialGuessControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._parent_datasets_updated, ['fit_objects'])  #todo refactor
+        self.parent.param.watch(self._parent_datasets_updated, ['data_objects'])  #todo refactor
 
         excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
@@ -497,17 +498,10 @@ class InitialGuessControl(ControlPanel):
 
         return widgets
 
-    # def make_list(self):
-    #     self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-    #     parameters = ['fitting_model', 'do_fit1', 'pbar1']
-    #
-    #     widget_list = list([self.widget_dict[par] for par in parameters])
-    #     return widget_list
-
     @param.depends('fitting_model', watch=True)
     def _fitting_model_updated(self):
         if self.fitting_model == 'Half-life (λ)':
-            excluded = ['lower_bound', 'upper_bound', 'global_bounds']
+            excluded = ['dataset', 'lower_bound', 'upper_bound', 'global_bounds']
 
         elif self.fitting_model in ['Association', 'Dissociation']:
             excluded = []
@@ -524,60 +518,51 @@ class InitialGuessControl(ControlPanel):
 
     @param.depends('dataset', watch=True)
     def _dataset_updated(self):
-        kf = self.parent.fit_objects[self.dataset]
-        lower, upper = kf.bounds
+        lower, upper = self.bounds[self.dataset]
         self.lower_bound = lower
         self.upper_bound = upper
 
-    @param.depends('lower_bound', watch=True)
-    def _lower_bound_updated(self):
-        #this works but maybe not ideal
-        # set param?
-        if self.global_bounds:
-            kfs = self.parent.fit_objects.values()
-        else:
-            kfs = [self.parent.fit_objects[self.dataset]]
-
-        for kf in kfs:
-            lower, upper = kf.bounds
-            kf.bounds = (self.lower_bound, upper)
-
-    @param.depends('upper_bound', watch=True)
-    def _upper_bound_updated(self):
-        if self.global_bounds:
-            kfs = self.parent.fit_objects.values()
-        else:
-            kfs = [self.parent.fit_objects[self.dataset]]
-
-        for kf in kfs:
-            lower, upper = kf.bounds
-            kf.bounds = (lower, self.upper_bound)
+    @param.depends('lower_bound', 'upper_bound', watch=True)
+    def _bounds_updated(self):
+        # if self.global_bounds:
+        #     for k in self.bounds.keys():
+        #         self.bounds[k] = (self.lower_bound, self.upper_bound)
+        if not self.global_bounds:
+            self.bounds[self.dataset] = (self.lower_bound, self.upper_bound)
 
     def _parent_datasets_updated(self, events):
-        if len(self.parent.fit_objects) > 0:
+        if len(self.parent.data_objects) > 0:
             self.param['do_fit1'].constant = False
 
-        options = list(self.parent.fit_objects.keys())
+        # keys to remove:
+        for k in self.bounds.keys() - self.parent.data_objects.keys():
+            self.bounds.pop(k)
+        # keys to add:
+        for k in self.parent.data_objects.keys() - self.bounds.keys():
+            self.bounds[k] = get_bounds(self.parent.data_objects[k].timepoints)
+
+        options = list(self.parent.data_objects.keys())
         self.param['dataset'].objects = options
         if not self.dataset:
             self.dataset = options[0]
 
     @staticmethod
     def fit_result_dict_to_df(results):
-
         combined_results = pd.concat(results.values(), axis=1,
                                      keys=list(results.keys()),
                                      names=['state', 'quantity'])
 
         return combined_results
 
+    @pn.io.with_lock
     async def do_rate_fitting(self):
-        self.parent.logger.info('async info')
         results = []
         for name, data_obj in self.parent.data_objects.items():
             #todo add pbar back in
             if self.fitting_model.lower() in ['association', 'dissociation']:
-                fit_result = fit_rates_weighted_average(data_obj, model_type=self.fitting_model.lower())
+
+                bounds = (self.lower_bound, self.upper_bound) if self.global_bounds else self.bounds[name]
+                fit_result = fit_rates_weighted_average(data_obj, model_type=self.fitting_model.lower(), bounds=bounds)
                 results.append(fit_result)
             elif self.fitting_model == 'Half-life (λ)':
                 fit_result = fit_rates_half_time_interpolate(data_obj)
@@ -591,12 +576,12 @@ class InitialGuessControl(ControlPanel):
 
         self.sources['dataframe'].add_df(combined_results, 'rates', self.guess_name)
         self.parent.fit_results[self.guess_name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
-        self.parent.param.trigger('fit_results')  # Informs other fittings that initial guesses are now available
+        self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available
         self.pbar1.reset() #todo pbar
         self.param['do_fit1'].constant = False
 
     def _action_fit(self):
-        if len(self.parent.fit_objects) == 0:
+        if len(self.parent.data_objects) == 0:
             self.parent.logger.info('No datasets loaded')
             return
 
@@ -608,6 +593,143 @@ class InitialGuessControl(ControlPanel):
         self.param['do_fit1'].constant = True
 
         pn.io.server.async_execute(self.do_rate_fitting)
+
+
+class FitControl(ControlPanel):
+    """
+    This controller allows users to execute PyTorch fitting of the global data set.
+
+    Currently, repeated fitting overrides the old result.
+    """
+
+    header = 'Fitting'
+
+    initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
+
+    fit_mode = param.Selector(default='Batch', objects=['Batch', 'Single'])
+
+    stop_loss = param.Number(0.01, bounds=(0, None),
+                             doc='Threshold loss difference below which to stop fitting.')
+    stop_patience = param.Integer(100, bounds=(1, None),
+                                  doc='Number of epochs where stop loss should be satisfied before stopping.')
+    learning_rate = param.Number(10, bounds=(0, None),
+                                 doc='Learning rate parameter for optimization.')
+    momentum = param.Number(0.5, bounds=(0, None),
+                            doc='Stochastic Gradient Descent momentum')
+    nesterov = param.Boolean(True,
+                             doc='Use Nesterov type of momentum for SGD')
+    epochs = param.Integer(100000, bounds=(1, None),
+                          doc='Maximum number of epochs (iterations.')
+    r1 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (peptide axis)',
+                      doc='Value of the regularizer along residue axis.')
+
+    r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 2 (sample axis)',
+                      doc='Value of the regularizer along sample axis.', constant=True)
+
+    fit_name = param.String("Gibbs_fit_1", doc="Name for for the fit result")
+
+    do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
+                          doc='Start global fitting')
+
+    def __init__(self, parent, **params):
+        self.pbar1 = ASyncProgressBar() #tqdm?
+        super(FitControl, self).__init__(parent, **params)
+        if not verify_cluster(self.parent.cluster):
+            raise TimeoutError(f"Fitting Controller could not connect to Dask cluster at {self.parent.cluster}")
+
+        source = self.parent.sources['dataframe']
+        source.param.watch(self._source_updated, ['updated'])
+
+        self._current_jobs = 0
+        self._max_jobs = 3  #todo config
+
+    def _source_updated(self, *events):
+        table = self.parent.sources['dataframe'].get('rates')
+
+        objects = list(table.columns.levels[0])
+        if objects:
+            self.param['do_fit'].constant = False
+
+        self._fit_mode_updated()
+
+        self.param['initial_guess'].objects = objects
+        if not self.initial_guess and objects:
+            self.initial_guess = objects[0]
+
+    @param.depends('fit_mode', watch=True)
+    def _fit_mode_updated(self):
+        if self.fit_mode == 'Batch' and len(self.parent.data_objects) > 1:
+            self.param['r2'].constant = False
+        else:
+            self.param['r2'].constant = True
+
+    async def _do_fitting_async(self):
+        if self.fit_mode == 'Batch':
+            hdx_set = self.parent.hdx_set
+            rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess)
+
+            rates_guess = [rates_df[state]['rate'] for state in hdx_set.names]
+            gibbs_guess = hdx_set.guess_deltaG(rates_guess)
+
+            result = fit_gibbs_global_batch(hdx_set, gibbs_guess, **self.fit_kwargs)
+
+            self.parent.fit_results[self.fit_name] = result
+            df = result.output.df
+
+            self.parent.logger.info('Finished PyTorch fit')
+            loss = result.metadata['mse_loss']
+            self.parent.logger.info(
+                f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+            self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                    f"({result.regularization_percentage:.1f}%)")
+
+        else:
+            output_dfs = {}
+            results = []
+            for data_obj in self.parent.data_objects.values():
+                rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess, state=data_obj.name)
+                gibbs_guess = data_obj.guess_deltaG(rates_df['rate'])
+
+                result = fit_gibbs_global(data_obj, gibbs_guess, **self.fit_kwargs)
+                results.append(result)
+                output_dfs[data_obj.name] = result.output.df
+
+                self.parent.logger.info(f"Finished PyTorch fit for state: {data_obj.name}")
+                loss = result.metadata['mse_loss']
+                self.parent.logger.info(
+                    f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+                self.parent.logger.info(
+                    f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                    f"({result.regularization_percentage:.1f}%)")
+
+            df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
+
+        self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[self.fit_name])
+        self.parent.param.trigger('fit_results')
+
+        self._current_jobs -= 1
+        if self._current_jobs < self._max_jobs:
+            self.widgets['do_fit'].constant = False
+
+    @property
+    def fit_kwargs(self):
+        fit_kwargs = dict(r1=self.r1, lr=self.learning_rate,momentum=self.momentum, nesterov=self.nesterov,
+                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss)
+        if self.fit_mode == 'Batch':
+            fit_kwargs['r2'] = self.r2
+
+        return fit_kwargs
+
+    def _action_fit(self):
+        self.parent.logger.info('Started PyTorch fit')
+
+        self._current_jobs += 1
+        if self._current_jobs >= self._max_jobs:
+            self.widgets['do_fit'].constant = True
+
+        self.parent.logger.info(f'current_jobs {self._current_jobs}')
+
+        pn.io.server.async_execute(self._do_fitting_async)
 
 
 class ClassificationControl(ControlPanel):
@@ -822,8 +944,8 @@ class ClassificationControl(ControlPanel):
 
         output_df = pd.DataFrame(output, index=selected_df.index, columns=selected_df.columns)
         if output_df.index.name == 'r_number':  # The selected dataset is a protein mappable
-            c_term = max([kf.series.coverage.protein.c_term for kf in self.parent.fit_objects.values()])
-            n_term = min([kf.series.coverage.protein.n_term for kf in self.parent.fit_objects.values()])
+            c_term = max([data_obj.coverage.protein.c_term for data_obj in self.parent.data_objects.values()])
+            n_term = min([data_obj.coverage.protein.n_term for data_obj in self.parent.data_objects.values()])
 
             new_index = pd.RangeIndex(start=n_term, stop=c_term, name='r_number')
             output_df = output_df.reindex(index=new_index, fill_value=self.no_coverage.upper())
@@ -998,182 +1120,7 @@ class ClassificationControl(ControlPanel):
                 widget.start = None
 
 
-class FitControl(ControlPanel):
-    """
-    This controller allows users to execute PyTorch fitting of the global data set.
 
-    Currently, repeated fitting overrides the old result.
-    """
-
-    header = 'Fitting'
-
-    initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
-
-    fit_mode = param.Selector(default='Batch', objects=['Batch', 'Series'])
-
-    stop_loss = param.Number(0.01, bounds=(0, None),
-                             doc='Threshold loss difference below which to stop fitting.')
-    stop_patience = param.Integer(100, bounds=(1, None),
-                                  doc='Number of epochs where stop loss should be satisfied before stopping.')
-    learning_rate = param.Number(10, bounds=(0, None),
-                                 doc='Learning rate parameter for optimization.')
-    momentum = param.Number(0.5, bounds=(0, None),
-                            doc='Stochastic Gradient Descent momentum')
-    nesterov = param.Boolean(True,
-                             doc='Use Nesterov type of momentum for SGD')
-    epochs = param.Number(100000, bounds=(1, None),
-                          doc='Maximum number of epochs (iterations.')
-    r1 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (peptide axis)',
-                      doc='Value of the regularizer along residue axis.')
-
-    r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 2 (sample axis)',
-                      doc='Value of the regularizer along sample axis.', constant=True)
-
-    fit_name = param.String(doc="Name for for the fit result")
-
-    do_fit = param.Action(lambda self: self._action_fit(), constant=True, label='Do Fitting',
-                          doc='Start global fitting')
-
-    def __init__(self, parent, **params):
-        self.pbar1 = ASyncProgressBar() #tqdm?
-        super(FitControl, self).__init__(parent, **params)
-        if not verify_cluster(self.parent.cluster):
-            raise TimeoutError(f"Fitting Controller could not connect to Dask cluster at {self.parent.cluster}")
-
-        source = self.parent.sources['dataframe']
-        source.param.watch(self._source_updated, ['updated'])
-
-        #self.parent.param.watch(self._fit_objects_updated, ['fit_objects'])
-
-    def _source_updated(self, *events):
-        table = self.parent.sources['dataframe'].get('rates')
-
-        objects = list(table.columns.levels[0])
-        if objects:
-            self.param['do_fit'].constant = False
-        num_samples = len(table.columns.levels[1])
-        if num_samples > 1:
-            self.param['r2'].constant = False
-
-        self.param['initial_guess'].objects = objects
-        if not self.initial_guess and objects:
-            self.initial_guess = objects[0]
-
-    @param.depends('fit_mode', watch=True)
-    def _fit_mode_updated(self):
-        if self.fit_mode == 'Batch' and len(self.parent.fit_objects) > 1:
-            self.param['r2'].constant = False
-        else:
-            self.param['r2'].constant = True
-
-    @staticmethod
-    def result_to_data_source(output):
-        output.df['color'] = np.full(len(output), fill_value=DEFAULT_COLORS['pfact'], dtype='<U7') #todo change how default colors are determined
-
-        # Add upper/lower bounds covariances for error bar plotting
-        output.df['__lower'] = output.df['deltaG'] - output.df['covariance']
-        output.df['__upper'] = output.df['deltaG'] + output.df['covariance']
-
-        output_name = 'global_fit'  # Appears twice
-        data_source = DataSource(output, x='r_number', tags=['mapping', 'pfact', 'deltaG'], name=output_name,
-                                 renderer='circle', size=10)
-
-        return data_source
-
-    def get_batch_fit_object(self):
-        guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess]
-        fit_objects = self.parent.fit_objects  # Dict with name: KineticsFitting object
-
-        guesses = [guess_df[name] for name in fit_objects.keys()]
-        bf = BatchFitting(list(fit_objects.values()), guesses=guesses, cluster=self.parent.cluster)
-
-        return bf
-
-    async def _do_fitting_async(self):
-        if self.fit_mode == 'Batch':
-            fit_object = self.get_batch_fit_object()
-            fit_object.global_fit(**self.fit_kwargs)
-
-        kf = KineticsFitting(self.parent.series, temperature=self.temperature, pH=self.pH, cluster=self.parent.cluster)
-        initial_result = self.parent.fit_results[self.initial_guess].output
-
-        result = await kf.global_fit_async(initial_result, r1=self.regularizer, lr=self.learning_rate,
-                                           momentum=self.momentum, nesterov=self.nesterov, epochs=self.epochs,
-                                           patience=self.stop_patience, stop_loss=self.stop_loss)
-
-        # Duplicate code
-        self.parent.logger.info('Finished PyTorch fit')
-        loss = result.metadata['mse_loss']
-        self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                f"({result.regularization_percentage:.1f}%)")
-
-        self.parent.param.trigger('fit_results')
-
-        data_source = self.result_to_data_source(result.output)
-        output_name = 'global_fit'
-        callback = partial(self.parent.publish_data, output_name, data_source)
-
-        self.parent.doc.add_next_tick_callback(callback)
-        self.parent.fit_results['fr_' + output_name] = result
-        with pn.io.unlocked():
-             self.parent.param.trigger('fit_results')  #informs other fittings that initial guesses are now available
-             self.widgets['do_fit'].loading = False
-
-    @property
-    def batch_fit(self):
-        """:obj:`bool`: True when fitting in batch (multiple samples)"""
-
-        return len(self.parent.fit_objects) > 1
-
-    @property
-    def fit_kwargs(self):
-        fit_kwargs = dict(r1=self.r1, lr=self.learning_rate,momentum=self.momentum, nesterov=self.nesterov,
-                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss)
-        if self.batch_fit:
-            fit_kwargs['r2'] = self.r2
-
-        return fit_kwargs
-
-    def _do_fitting(self):
-
-        #https://distributed.dask.org/en/latest/resources.html?
-
-        fit_name = 'global_fit_1'
-
-        if self.fit_mode == 'Batch':
-            fit_object = self.get_batch_fit_object()
-            result = fit_object.global_fit(**self.fit_kwargs)
-            names = [fit_name]
-
-            self.parent.logger.info('Finished PyTorch fit')
-            loss = result.metadata['mse_loss']
-            self.parent.logger.info(f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-            self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                    f"({result.regularization_percentage:.1f}%)")
-
-        elif self.fit_mode == 'Series':
-            for name, fit_object in self.parent.fit_objects.keys():
-                fit_object = self.parent.fit_objects[name]
-                guess_df = self.parent.sources['dataframe'].get('rates')[self.initial_guess][name]
-
-                result = fit_object.global_fit(guess_df, **self.fit_kwargs)
-                names = [fit_name, name]
-
-
-        self.parent.fit_results[fit_name] = result
-        self.parent.sources['dataframe'].add_df(result.output.df, 'global_fit', names=names)
-
-        self.parent.param.trigger('fit_results')
-        self.widgets['do_fit'].loading = False
-
-    def _action_fit(self):
-        self.widgets['do_fit'].loading = True
-        self.parent.logger.debug('Start PyTorch fit')
-
-        self.parent._doc = pn.state.curdoc
-        loop = IOLoop.current()
-        loop.add_callback(self._do_fitting_async)
 
 
 class GraphControl(ControlPanel):
