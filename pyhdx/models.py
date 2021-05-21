@@ -957,6 +957,10 @@ class HDXMeasurementSet(object):
     def temperature(self):
         return np.array([data_obj.temperature for data_obj in self.data_objs])
 
+    @property
+    def names(self):
+        return [data_obj.name for data_obj in self.data_objs]
+
     def guess_deltaG(self, rates_list):
         """
         create deltaG guesses from rates
