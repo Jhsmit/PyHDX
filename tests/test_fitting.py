@@ -1,7 +1,8 @@
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
 from pyhdx.fileIO import read_dynamx, fmt_export, txt_to_protein, txt_to_np, csv_to_protein
-from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting, fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch
+from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting, fit_rates_weighted_average, \
+    fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.models import HDXMeasurementSet
 import numpy as np
 import torch
@@ -84,8 +85,6 @@ class TestSecBDataFit(object):
 
         output = result.output
 
-        output.to_file('compare.txt', fmt='pprint')
-
         check_protein = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_batch.csv'), column_depth=2)
         states = ['SecB WT apo', 'SecB his dimer apo']
 
@@ -97,15 +96,24 @@ class TestSecBDataFit(object):
 
             assert_series_equal(result, test, rtol=0.1)
 
+        mock_alignment = {
+            'apo': 'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
+            'dimer': 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVY--------------EVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGA----YCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA-----------------',
+        }
 
-        # result = asyncio.get_event_loop().run_until_complete(bf.global_fit_async(epochs=1000))
-        # output = result.output
-        # for state in states:
-        #     result = output[state]['deltaG']
-        #     test = check_protein[state]['deltaG']
-        #     assert_series_equal(result, test, rtol=0.1)
+        hdx_set.add_alignment(list(mock_alignment.values()))
 
-            #assert np.allclose(output[state]['deltaG'], check_protein[state]['deltaG'], equal_nan=True, rtol=0.01)
+        gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
+        aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
+        output = aligned_result.output
+        check_protein = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_batch_aligned.csv'), column_depth=2)
+        states = ['SecB WT apo', 'SecB his dimer apo']
 
-    # def test_aligned_fit(self):
+        for state in states:
+            from pandas.testing import assert_series_equal
+            result = output[state]['deltaG']
+            test = check_protein[state]['deltaG']
+
+            assert_series_equal(result, test, rtol=0.1)
+
 

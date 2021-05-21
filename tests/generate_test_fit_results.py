@@ -55,7 +55,7 @@ batch_result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=epochs)
 batch_result.output.to_file(directory / 'test_data' / 'ecSecB_batch.csv')
 batch_result.output.to_file(directory / 'test_data' / 'ecSecB_batch.txt', fmt='pprint')
 
-
+# Order is inverted compared to test!
 mock_alignment = {
     'dimer':   'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVY--------------EVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGA----YCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA-----------------',
     'apo':     'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
