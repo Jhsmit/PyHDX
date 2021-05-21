@@ -44,12 +44,12 @@ def main_app():
     col_index = pd.MultiIndex.from_tuples([], names=('state', 'quantity'))
     df_peptides = pd.DataFrame(columns=col_index)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_rates = pd.DataFrame(columns=col_index, index=row_index)
     # todo make sure that proper-shaped df is used to initiate stream (and generalize for rectangles plot)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
 
@@ -119,7 +119,7 @@ def main_app():
     trs_list.append(rescale_transform)
     trs_list.append(cmap_transform)
 
-    multiindex_select_global_fit_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_global_fit_lv1', table='global_fit',
+    multiindex_select_global_fit_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_global_fit_lv1', table='global_fit',
                                                        source=source)
     multiindex_select_global_fit_2 = MultiIndexSelectFilter(field='state', name='select_index_global_fit_lv2', table='global_fit',
                                                        source=source, filters=[multiindex_select_global_fit_1])
@@ -142,8 +142,7 @@ def main_app():
     view_list.append(coverage)
 
 
-
-    multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit ID', name='select_index_rates_lv1', table='rates',
+    multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_rates_lv1', table='rates',
                                                        source=source)
     multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates_lv2', table='rates',
                                                        source=source, filters=[multiindex_select_rates_1])
