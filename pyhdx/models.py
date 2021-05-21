@@ -937,7 +937,7 @@ class HDXMeasurementSet(object):
     multiple HDX Measurements
     """
 
-    def __init__(self, data_objs, alignments=None):
+    def __init__(self, data_objs):
         self.data_objs = data_objs
 
         #todo create Coverage object for the 3d case
@@ -1076,9 +1076,6 @@ class HDXMeasurementSet(object):
         exchanges[self.masks['sr']] = values
 
         return exchanges
-
-
-
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
