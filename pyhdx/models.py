@@ -719,10 +719,7 @@ class KineticsSeries(object):
 
     @property
     def name(self):
-        try:
-            return self.metadata['name']
-        except KeyError:
-            return None
+        return self.metadata.get('name', None)
 
     @property
     def temperature(self):
