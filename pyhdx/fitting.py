@@ -26,7 +26,7 @@ er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
 # Rates fitting
 # ------------------------------------- #
 
-def _get_bounds(times):
+def get_bounds(times):
     """
     estimate default bound for rate fitting from a series of timepoints
 
@@ -51,7 +51,7 @@ def _get_bounds(times):
 
 def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
     series = data_obj  # todo refactor series
-    bounds = bounds or _get_bounds(data_obj.timepoints)
+    bounds = bounds or get_bounds(data_obj.timepoints)
 
     arr = series.scores_stack.T  # data array
     i = 0
