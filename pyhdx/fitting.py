@@ -281,9 +281,21 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 def regularizer_1d(r1, param):
     return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
 
+
 def regularizer_2d(r1, r2, param):
+    #todo allow regularization wrt reference rather than mean
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - torch.mean(param, axis=0))
+    reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
+    return reg_loss
+
+
+def regularizer_2d_aligned(r1, r2, indices, param):
+    i0 = indices[0]
+    i1 = indices[1]
+    d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
+    d_ax2 = torch.abs(param[0][i0] - param[1][i1])
+
     reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
     return reg_loss
 
@@ -388,7 +400,9 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
     Returns
     -------
     """
-    # todo still some repeated code with fit_gibbs single
+
+    assert hdx_set.Ns == 2, 'Aligned batch fitting is limited to two states'
+
     tensors = hdx_set.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['uptake']
@@ -405,14 +419,18 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
     optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
     optimizer_klass = getattr(torch.optim, optimizer)
 
-    reg_func = partial(regularizer_2d, r1, r2)
+    if hdx_set.aligned_indices is None:
+        raise ValueError("No alignment added to HDX measurements")
+
+    indices = [torch.tensor(i, dtype=torch.long) for i in hdx_set.aligned_indices]
+
+    reg_func = partial(regularizer_2d_aligned, r1, r2, indices)
     mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
 
     result = TorchBatchFitResult(hdx_set, model, mse_loss=mse_loss, total_loss=total_loss)
     return result
-
 
 
 class KineticsFitting(object):

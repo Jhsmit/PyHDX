@@ -1001,7 +1001,7 @@ class HDXMeasurementSet(object):
         df = df - self.interval[0]  # First residue in interval selected by index 0
         df.dropna(how='any', inplace=True)  # Remove non-aligned residues
 
-        self.aligned_indices = df.to_numpy().T
+        self.aligned_indices = df.to_numpy(dtype=int).T
 
 
     @property
