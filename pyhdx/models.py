@@ -792,6 +792,10 @@ class KineticsSeries(object):
         dtype = torch.float64
         if 'k_int' not in self.coverage.protein:
             raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
+        try:
+            upt = self.uptake_corrected
+        except ValueError:
+            raise ValueError("HDX data is not corrected for back exchange.")
 
         if exchanges:
             #this could be a method on coverage object similar to apply_interval; select exchanging
