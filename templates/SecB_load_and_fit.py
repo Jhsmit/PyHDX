@@ -1,7 +1,7 @@
 from pathlib import Path
 import numpy as np
-from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx
-from pyhdx.fileIO import txt_to_protein, csv_to_protein
+from pyhdx import PeptideMasterTable, KineticsFitting, read_dynamx, KineticsSeries
+from pyhdx.fileIO import csv_to_protein
 import asyncio
 
 guess = False
@@ -10,17 +10,15 @@ root_dir = Path().resolve().parent
 test_data_dir = root_dir / 'tests' / 'test_data'
 input_file_path = test_data_dir / 'ecSecB_apo.csv'
 
+# Load the data of two Dynamx files, and combine the result to one table
 data = read_dynamx(test_data_dir / 'ecSecB_apo.csv', test_data_dir / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
 pmt.set_control(('Full deuteration control', 0.167))
-states = pmt.groupby_state()
-
-series = states['SecB WT apo']
+series = KineticsSeries(pmt.get_state('SecB WT apo'))
 
 temperature, pH = 273.15 + 30, 8.
-cluster = '127.0.0.1:61461'
-kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH, cluster=cluster)
+kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 
 if guess:
     wt_avg_result = kf.weighted_avg_fit()

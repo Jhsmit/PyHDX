@@ -8,7 +8,7 @@ from io import StringIO
 from functools import reduce, partial
 from operator import add
 from hdxrate import k_int_from_sequence
-from pyhdx.support import reduce_inter, make_view, fields_view
+from pyhdx.support import reduce_inter, make_view, fields_view, pprint_df_to_file
 from pyhdx.fileIO import fmt_export
 import pyhdx
 
@@ -89,7 +89,7 @@ class Protein(object):
         protein_out = Protein(df_out, index=df_out.index.name, **metadata)
         return protein_out
 
-    def to_stringio(self, io=None, include_version=True, include_metadata=True):
+    def to_stringio(self, io=None, include_version=True, include_metadata=True, fmt='csv'):
         """
         Write Protein data to :class:`~io.StringIO`
 
@@ -99,6 +99,8 @@ class Protein(object):
             StringIO to write to. If `None` a new StringIO object is created.
         include_version : :obj:`bool`
             Set ``True`` to include PyHDX version and current time/date
+        fmt: :obj: `str`
+            Formatting to use, options are 'csv' or 'pprint'
         include_metadata
             Not Implemented
 
@@ -115,13 +117,17 @@ class Protein(object):
             now = datetime.now()
             io.write(f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
 
-        self.df.to_csv(io, line_terminator='\n')
+        if fmt == 'csv':
+            self.df.to_csv(io, line_terminator='\n')
+        elif fmt == 'pprint':
+            io.write('\n')
+            pprint_df_to_file(self.df, io)
 
         io.seek(0)
 
         return io
 
-    def to_file(self, file_path, include_version=True, include_metadata=True):
+    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv'):
         """
         Write Protein data to file.
 
@@ -132,6 +138,8 @@ class Protein(object):
             File path to create and write to.
         include_version : :obj:`bool`
             Set ``True`` to include PyHDX version and current time/date
+        fmt: :obj: `str`
+            Formatting to use, options are 'csv' or 'pprint'
         include_metadata
             Not Implemented
 
@@ -142,7 +150,7 @@ class Protein(object):
 
         """
         #todo update to pathlib Path
-        io = self.to_stringio(include_version=include_version, include_metadata=include_metadata)
+        io = self.to_stringio(include_version=include_version, include_metadata=include_metadata, fmt=fmt)
         with open(file_path, 'w') as f:
             print(io.getvalue(), file=f)
 
@@ -309,8 +317,25 @@ class PeptideMasterTable(object):
             Additional keyword arguments to be passed to the :class:`~pyhdx.models.KineticSeries`.
         """
 
+        warnings.warn("Likely to be removed in future versions, use `get_state` instead", PendingDeprecationWarning)
+
         states = np.unique(self.data['state'])
         return {state: KineticsSeries(self.data[self.data['state'] == state], **kwargs) for state in states}
+
+    def get_state(self, state):
+        """
+        Returns entries in the table with state 'state'
+
+        Parameters
+        ----------
+        state: :obj:`str`
+
+
+        Returns
+        -------
+
+        """
+        return np.ascontiguousarray(self.data[self.data['state'] == state])
 
     @staticmethod
     def isin_by_idx(array, test_array):
@@ -857,6 +882,11 @@ class PeptideMeasurements(Coverage):
 
         scores = self.Z.dot(residue_scores)
         return scores
+
+    def weighted_average(self, field):
+        """Calculate per-residue weighted average of values in data column given by 'field'"""
+
+        return self.Z_norm.T.dot(self.data[field])
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array

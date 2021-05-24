@@ -181,6 +181,7 @@ def csv_to_dataframe(file_path, column_depth=None, **kwargs):
         num_comments_lines += 1
 
     if column_depth is None:
+        #todo this is not determined reliably, see 'ecSecB_info.csv' for example
         column_depth = 1
         while np.mean([c.isdigit() for c in file_obj.readline()]) < 0.1:
             column_depth += 1

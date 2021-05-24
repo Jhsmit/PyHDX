@@ -629,6 +629,8 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 class KineticsFitting(object):
 
     def __init__(self, series, bounds=None, temperature=None, pH=None, c_term=None, cluster=None):
+        #todo perhaps this whole object should dissapear in favour of series
+        # and make fitting functional instead of object oriented
         self.series = series
         self.bounds = bounds or self._get_bounds()
 
@@ -876,7 +878,7 @@ class KineticsFitting(object):
 
         fit_func = partial(run_optimizer, inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
                            epochs=epochs, patience=patience, stop_loss=stop_loss)
-        client = await Client(self.cluster, asynchronous=True)  #todo allow non-dask operation for fitting inp arallallel
+        client = await Client(self.cluster, asynchronous=True)
 
         future = client.submit(fit_func)
 
@@ -1454,7 +1456,7 @@ class BatchFitting(object):
         mse_loss = np.array([val.detach().numpy() for val in mse_loss])
         reg_loss = np.array([val.detach().numpy() for val in reg_loss])
 
-        result = TorchBatchFitResult(self, model, mse_loss=mse_loss, reg_loss=reg_loss)
+        result = TorchBatchFitResult(self, model, mse_loss=mse_loss, total_loss=reg_loss)
         return result
 
     @property
