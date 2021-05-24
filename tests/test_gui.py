@@ -34,8 +34,8 @@ class TestMainGUISecB(object):
         cls.pmt.set_control(cls.control)
 
         state_data = cls.pmt.get_state(cls.state)
-        cls.series = KineticsSeries(state_data)
-        cls.kf = KineticsFitting(cls.series)
+        cls.temperature, cls.pH = 273.15 + 30, 8.
+        cls.series = KineticsSeries(state_data, temperature=cls.temperature, pH=cls.pH)
         cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
 
         cfg = ConfigurationSettings()
@@ -63,9 +63,8 @@ class TestMainGUISecB(object):
         assert file_input_control.exp_exposures == [0.0, 0.167, 0.5, 1.0, 5.0, 10.0, 100.000008]
         file_input_control._action_add_dataset()
 
-        assert self.state in ctrl.fit_objects
-        fit_object = ctrl.fit_objects[self.state]
-        series = fit_object.series
+        assert self.state in ctrl.data_objects
+        series = ctrl.data_objects[self.state]
 
         assert series.Nt == 7
         assert series.Np == 63
@@ -108,7 +107,8 @@ class TestMainGUISecB(object):
         fit_control = ctrl.control_panels['FitControl']
         fit_control.epochs = 10
 
-        fit_control._do_fitting()
+        fit_control.fit_name = 'testfit_1'
+        fit_control._action_fit()
         #assert ....
 
         table = ctrl.sources['dataframe'].get('global_fit')
@@ -116,7 +116,7 @@ class TestMainGUISecB(object):
         # Test classification
         # todo test log space
         # todo probably values should be fixed otherwise tests are co-dependent
-        values = table['global_fit_1']['testname_123']['deltaG']
+        values = table['testfit_1']['testname_123']['deltaG']
         classification = ctrl.control_panels['ClassificationControl']
         classification._action_otsu()
 
@@ -162,7 +162,7 @@ class TestMainGUISecB(object):
 
     def test_initial_guesses_and_fit(self):
         ctrl = main_app()
-        ctrl.fit_objects[self.kf.series.state] = self.kf
+        ctrl.data_objects[self.series.name] = self.series
 
         ctrl.control_panels['InitialGuessControl']._action_fit()
 

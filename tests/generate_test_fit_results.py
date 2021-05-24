@@ -81,7 +81,5 @@ aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.tx
 # bf = BatchFitting([kf, kf_dimer], [output, output])
 # batch_result = bf.global_fit(epochs=epochs)
 
-
-
 series.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.csv')
 series.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.txt', fmt='pprint')

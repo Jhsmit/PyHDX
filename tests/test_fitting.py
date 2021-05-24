@@ -39,7 +39,7 @@ class TestSecBDataFit(object):
         cls.address = cluster.scheduler_address
 
     def test_initial_guess(self):
-        result = fit_rates_weighted_average(self.reduced_series).compute()
+        result = fit_rates_weighted_average(self.reduced_series)
         output = result.output
 
         assert output.size == 100
@@ -56,20 +56,6 @@ class TestSecBDataFit(object):
         t1 = time.time()
 
         assert t1 - t0 < 5
-        out_deltaG = fr_global.output
-        check_deltaG = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
-
-        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
-        assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
-
-    def test_global_fit_async(self):
-        kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH, cluster=self.address)
-        initial_rates = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
-
-        t0 = time.time()  # Very crude benchmarks
-        fr_global = asyncio.get_event_loop().run_until_complete(kf.global_fit_async(initial_rates, epochs=1000))  # py37: run
-        t1 = time.time()
-
         out_deltaG = fr_global.output
         check_deltaG = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_torch_fit.txt'))
 
