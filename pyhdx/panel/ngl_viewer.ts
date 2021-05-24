@@ -125,7 +125,7 @@ export class NGLView extends LayoutDOMView {
     var promise = this._stage.loadFile("rcsb://1CRN")
     var scheme = NGL.ColormakerRegistry.addSelectionScheme(m.color_list, "new scheme");
     promise.then(function (o) {
-        o.addRepresentation("cartoon", { color: first_scheme });
+        o.addRepresentation("cartoon", { color: scheme });
         o.autoView();
     });
 
