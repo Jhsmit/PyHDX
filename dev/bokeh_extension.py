@@ -1,116 +1,15 @@
-import param
-from panel.widgets.input import Widget, _BkTextInput, StaticText
-from panel.widgets import Spinner
-from panel.util import as_unicode
-from panel.pane import HTML, Markdown
-import panel as pn
-from dask.distributed import as_completed
-from bokeh.models import LayoutDOM
-from bokeh.core.properties import String, Bool, List
+import numpy as np
+
+from collections import OrderedDict
+from bokeh.core.properties import Bool, String, List
 from bokeh.models import LayoutDOM
 from bokeh.util.compiler import TypeScript
-from bokeh.models import CustomJS
-
-
-class NumericInput(pn.widgets.input.Widget):
-    """
-    NumericInput allows input of floats with bounds
-    """
-
-    type = param.ClassSelector(default=None, class_=(type, tuple),
-                               is_instance=True)
-
-    value = param.Number(default=None)
-
-    start = param.Number(default=None, allow_None=True)
-
-    end = param.Number(default=None, allow_None=True)
-
-    _rename = {'name': 'title', 'type': None, 'serializer': None, 'start': None, 'end': None}
-
-    _source_transforms = {'value': """JSON.parse(value.replace(/'/g, '"'))"""}
-
-    _target_transforms = {'value': """JSON.stringify(value).replace(/,/g, ", ").replace(/:/g, ": ")"""}
-
-    _widget_type = _BkTextInput
-
-    def __init__(self, **params):
-
-        super(NumericInput, self).__init__(**params)
-        self._state = ''
-        self._validate(None)
-        self._callbacks.append(self.param.watch(self._validate, 'value'))
-
-    def _validate(self, event):
-        if self.type is None: return
-        new = self.value
-        if not isinstance(new, self.type) and new is not None:
-            if event:
-                self.value = event.old
-            types = repr(self.type) if isinstance(self.type, tuple) else self.type.__name__
-            raise ValueError('LiteralInput expected %s type but value %s '
-                             'is of type %s.' %
-                             (types, new, type(new).__name__))
-
-    def _bound_value(self, value):
-        if self.start is not None:
-            value = max(value, self.start)
-        if self.end is not None:
-            value = min(value, self.end)
-        return value
-
-    def _process_property_change(self, msg):
-        if 'value' in msg and msg['value'] is not None:
-            try:
-                value = float(msg['value'])
-                msg['value'] = self._bound_value(value)
-                if msg['value'] != value:
-                    self.param.trigger('value')
-            except ValueError:
-                msg.pop('value')
-        if 'placeholder' in msg and msg['placeholder'] is not None:
-            try:
-                msg['placeholder'] = self._format_value(float(msg['placeholder']))
-            except ValueError:
-                msg.pop('placeholder')
-        return msg
-
-    def _process_param_change(self, msg):
-        msg = super(NumericInput, self)._process_param_change(msg)
-
-        if 'start' in msg:
-            start = msg.pop('start')
-            self.param.value.bounds[0] = start
-        if 'end' in msg:
-            end = msg.pop('end')
-            self.param.value.bounds[1] = end
-
-        if 'value' in msg:
-            value = '' if msg['value'] is None else msg['value']
-            value = as_unicode(value)
-            msg['value'] = value
-        msg['title'] = self.name
-        return msg
-
-
-class ColoredStaticText(StaticText):
-    _format = '<b>{title}</b>: <span class ="panel-colored-statictext">{value}</span>'
-
-
-class HTMLTitle(HTML):
-    title = param.String(
-        doc="""Title"""
-    )
-    priority = 0
-    _rename = dict(HTML._rename, title=None)
-
-    def __init__(self, **params):
-        super().__init__(**params)
-        self._update_title()
-
-    @param.depends('title', watch=True)
-    def _update_title(self):
-        self.object = f"""<a class="title" href="" >{self.title}</a>"""
+from bokeh.plotting import curdoc
+from bokeh.layouts import column
+from bokeh.models import Button, CustomJS
+import panel as pn
+from panel.widgets.base import Widget
+import param
 
 TS_CODE = """
 // This custom model wraps one part of the third-party vis.js library:
@@ -244,7 +143,7 @@ export class NGLView extends LayoutDOMView {
     var m = this.model
     var stage = this._stage
     var promise = this._stage.loadFile("rcsb://1CRN")
-    var scheme = NGL.ColormakerRegistry.addSelectionScheme(m.color_list, "new scheme");
+    var first_scheme = NGL.ColormakerRegistry.addSelectionScheme(m.color_list, "new scheme");
     promise.then(function (o) {
         o.addRepresentation("cartoon", { color: first_scheme });
         o.autoView();
@@ -257,13 +156,13 @@ export class NGLView extends LayoutDOMView {
 
     document.addEventListener('representation', function(){
         stage.compList[0].removeAllRepresentations();
-        stage.compList[0].addRepresentation(m.representation, { color: scheme })
+        stage.compList[0].addRepresentation(m.representation, { color: first_scheme })
     });
 
     document.addEventListener('rcsb_id', function(){
         stage.removeAllComponents("");
-        stage.loadFile(m.rcsb_id).then(function (o) {
-            o.addRepresentation(m.representation, { color: scheme })
+        stage.loadFile(m.rscb).then(function (o) {
+            o.addRepresentation(m.representation, { color: first_scheme })
             o.autoView()
         });
     });
@@ -272,8 +171,8 @@ export class NGLView extends LayoutDOMView {
         console.log(m.color_list)
         var list: Array<Array<String>> = m.color_list
         try{
-              scheme = NGL.ColormakerRegistry.addSelectionScheme(list, "new scheme");
-              stage.compList[0].reprList[0].setParameters( { color: scheme } );
+              var new_scheme = NGL.ColormakerRegistry.addSelectionScheme(list, "new scheme");
+              stage.compList[0].reprList[0].setParameters( { color: new_scheme } );
         }
         catch(err) {
             console.log("badly defined color")
@@ -283,7 +182,7 @@ export class NGLView extends LayoutDOMView {
     document.addEventListener('pdb_string', function(){
         stage.removeAllComponents("");
         stage.loadFile( new Blob([m.pdb_string], {type: 'text/plain'}), { ext:'pdb'}).then(function (o) {
-            o.addRepresentation(m.representation, { color: scheme })
+            o.addRepresentation(m.representation, { color: first_scheme })
             o.autoView()
         });
 
@@ -325,7 +224,7 @@ export namespace ngl {
   export type Props = LayoutDOM.Props & {
     spin: p.Property<boolean>
     representation: p.Property<string>
-    rcsb_id: p.Property<string>
+    rscb: p.Property<string>
     no_coverage: p.Property<string>
     color_list: p.Property<any>
     pdb_string: p.Property<string>
@@ -361,7 +260,7 @@ export class ngl extends LayoutDOM {
     this.define<ngl.Props>(({String, Boolean, Any}) => ({
       spin:             [Boolean, false],
       representation:   [String],
-      rcsb_id:          [String],
+      rscb:             [String],
       no_coverage:      [String],
       color_list:       [Any],
       pdb_string:       [String]
@@ -398,11 +297,10 @@ class ngl(LayoutDOM):
 
     spin = Bool
     representation = String
-    rcsb_id = String
+    rscb = String
     no_coverage = String
     color_list = List(List(String))
     pdb_string = String
-
 
 class NGLview(Widget):
     # Set the Bokeh model to use
@@ -417,7 +315,7 @@ class NGLview(Widget):
     # Parameters to be mapped to Bokeh model properties
     spin = param.Boolean(default=False)
     representation = param.String(default="cartoon")
-    rcsb_id = param.String(default="rcsb://1CRN")
+    rscb = param.String(default="rcsb://1CRN")
     no_coverage = param.String(default='0x8c8c8c')
     color_list = param.List(default=[["red", "64-74 or 134-154 or 222-254 or 310-310 or 322-326"],
                                      ["green", "311-322"],
@@ -427,155 +325,76 @@ class NGLview(Widget):
                                      ["white", "*"]])
 
 
+class test(param.Parameterized):
+    pdb_string = param.String()
+    rcsb_id = param.String(default="rcsb://1CRN", doc='RCSB PDB identifier of protein entry to download and visualize.')
+    representation = param.Selector(default='cartoon',
+                                    objects=['backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
+                                             'ribbon', 'rope', 'spacefill', 'surface'],
+                                    doc='Representation to use to render the protein.')
+    spin = param.Boolean(default=False, doc='Rotate the protein around an axis.')
+    #no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage.')
+    color_list = param.List(default=[["red", "64-74 or 134-154 or 222-254 or 310-310 or 322-326"],
+                                     ["green", "311-322"],
+                                     ["yellow",
+                                      "40-63 or 75-95 or 112-133 or 155-173 or 202-221 or 255-277 or 289-309"],
+                                     ["blue", "1-39 or 96-112 or 174-201 or 278-288"],
+                                     ["white", "*"]])
+
+
+class watcher(object):
+    def __init__(self, ngl_viewer, parent):
+        self.ngl_viewer = ngl_viewer
+        self.parent = parent
+        self.parent.param.watch(self.changeSpin, "spin")
+        self.parent.param.watch(self.changeRepresentation, "representation")
+        self.parent.param.watch(self.changerscb, "rcsb_id")
+        #self.parent.param.watch(self.changeColor, "no_coverage")
+        self.parent.param.watch(self.changeColorList, "color_list")
+        self.parent.param.watch(self.changePDBString, "pdb_string")
+
+
+    def changeSpin(self, event):
+        self.ngl_viewer.spin = event.new
+
+
+    def changeRepresentation(self, event):
+        print(event.new)
+        self.ngl_viewer.representation = event.new
+
+
+    def changerscb(self, event):
+        self.ngl_viewer.rscb = event.new
+
+
+    def changeColor(self, event):
+        self.ngl_viewer.color = event.new.no_coverage.replace('#', '0x')
+
+
+    def changeColorList(self, event):
+        self.ngl_viewer.color_list = event.new
+
+    def changePDBString(self, event):
+        self.ngl_viewer.pdb_string = event.new
+
+
 class NGLView_factory:
 
     @staticmethod
-    def create_view(**kwargs):
-        view = NGLview(**kwargs)
+    def create_view():
+        view = NGLview(width=600, height=600, representation='cartoon')
         view.jscallback(representation="document.dispatchEvent(new Event('representation'));")
         view.jscallback(spin="document.dispatchEvent(new Event('spin'));")
-        view.jscallback(rcsb_id="document.dispatchEvent(new Event('rcsb_id'));")
-        # view.jscallback(no_coverage="document.dispatchEvent(new Event('no_coverage'));")
+        view.jscallback(rscb="document.dispatchEvent(new Event('rcsb_id'));")
+        #view.jscallback(no_coverage="document.dispatchEvent(new Event('no_coverage'));")
         view.jscallback(color_list="document.dispatchEvent(new Event('color_list'));")
         view.jscallback(pdb_string="document.dispatchEvent(new Event('pdb_string'));")
         return view
 
-class NGLViewer(HTML):
-    pdb_string = param.String(
-        doc="""Raw string of PDB file representing molecular structure to visualize."""
-    )
-    rcsb_id = param.String(
-        doc="""ID of PDB structure to fetch from the RCSB Protein Data Bank and visualize."""
-    )
-    no_coverage = param.Color(
-        default='#8c8c8c',
-        doc="""Hexadecimal color code to use for residues without coverage"""
-    )
-    color_list = param.List(default=[], doc="""List of """)
-    representation = param.Selector(
-        default='cartoon',
-        objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
-                 'ribbon', 'rope', 'spacefill', 'surface'],
-        doc="""The type of representation used to visualize the molecular structure."""
-    )
-    spin = param.Boolean(
-        default=False,
-        doc="""Toggle spinning of the molecular structure."""
-    )
-    priority = 0
-    _rename = dict(HTML._rename, pdb_string=None, rcsb_id=None, representation=None, spin=None, color_list=None,
-                   no_coverage=None)
 
-    def __init__(self, **params):
-        super().__init__(**params)
-        self.load_string = \
-        f"""
-        stage = new NGL.Stage("viewport");
-        window.addEventListener( "resize", function( event ){{
-            stage.handleResize();
-        }}, false );
-        stage.loadFile("")""" # this currently gives an error, load empty pdb file?
-        self._update_object_from_parameters()
+p = test()
+view = NGLView_factory.create_view()
+watch = watcher(view, p)
 
-    @property
-    def color_array(self):
-        """return a string to put into javascript to define the color array"""
-        js_string = ', '.join(elem.replace('#', '0x') for elem in self.color_list)
-        js_string = js_string.replace('nan', 'noCoverage')
-        return js_string
-
-    @param.depends('representation', 'spin', 'color_list', 'no_coverage', watch=True)
-    def _update_object_from_parameters(self):
-        html =\
-            f"""
-            <div id="viewport" style="width:100%; height:100%;"></div>
-            <script>
-            var noCoverage = {self.no_coverage.replace('#', '0x')};
-            var colorArray = [{self.color_array}];
-            var customScheme = NGL.ColormakerRegistry.addScheme(function (params) {{
-                this.atomColor = function (atom) {{
-                    if (atom.resno - 1 < colorArray.length) {{
-                        return colorArray[atom.resno - 1]
-                    }} else {{
-                        return noCoverage
-                    }}
-                }}
-            }})
-
-            {self.load_string}.then(function(o){{
-                o.addRepresentation("{self.representation}", {{color: customScheme}});
-                o.autoView();
-                }}
-            );
-            stage.setSpin({'true' if self.spin else 'false'});
-            </script>
-            """
-
-        self.object = html
-
-    @param.depends('pdb_string', watch=True)
-    def _update_object_from_pdb_string(self):
-        self.load_string = \
-            f"""
-            var PDBString = `{self.pdb_string}`;
-            stage = new NGL.Stage("viewport");
-            window.addEventListener( "resize", function( event ){{
-                stage.handleResize();
-            }}, false );
-            stage.loadFile( new Blob([PDBString], {{type: 'text/plain'}}), {{ ext:'pdb'}} )"""
-        self._update_object_from_parameters()
-
-    @param.depends('rcsb_id', watch=True)
-    def _update_object_from_rcsb_id(self):
-        self.load_string = \
-            f"""
-            stage = new NGL.Stage("viewport");
-            window.addEventListener("resize", function( event ){{
-                stage.handleResize();
-            }}, false );
-            stage.loadFile("rcsb://{self.rcsb_id}")"""
-        self._update_object_from_parameters()
-
-    @staticmethod
-    def to_hex_string(hex):
-        hex.replace('#', '0x')
-
-
-class LoggingMarkdown(Markdown):
-    def __init__(self, header, **params):
-        super(LoggingMarkdown, self).__init__(**params)
-        self.header = header
-        self.contents = ''
-        self.object = self.header + self.contents
-
-    def write(self, line):
-        self.contents = line + self.contents
-        self.object = self.header + self.contents
-
-
-class ASyncProgressBar(param.Parameterized):
-    completed = param.Integer(default=0)
-    num_tasks = param.Integer(default=10, bounds=(1, None))
-
-    async def run(self, futures):
-        async for task in as_completed(futures):
-            with pn.io.unlocked():
-                self.completed += 1
-
-    @property
-    def value(self):
-        value = int(100 * (self.completed / self.num_tasks))
-        return max(0, min(value, 100)) # todo check why this is somethings out of bounds
-
-    def reset(self):
-        self.completed = 0
-
-    def increment(self):
-        self.completed += 1
-
-    @param.depends('completed', 'num_tasks')
-    def view(self):
-        if self.value:
-            return pn.widgets.Progress(active=True, value=self.value, align="center", sizing_mode="stretch_width")
-        else:
-            return None
+result = pn.Column(p.param, view)
+result.servable()
