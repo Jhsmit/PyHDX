@@ -5,7 +5,11 @@ from panel.util import as_unicode
 from panel.pane import HTML, Markdown
 import panel as pn
 from dask.distributed import as_completed
-
+from bokeh.models import LayoutDOM
+from bokeh.core.properties import String, Bool, List
+from bokeh.models import LayoutDOM
+from bokeh.util.compiler import TypeScript
+import pathlib
 
 class NumericInput(pn.widgets.input.Widget):
     """
@@ -108,6 +112,55 @@ class HTMLTitle(HTML):
         self.object = f"""<a class="title" href="" >{self.title}</a>"""
 
 
+CUSTOM_TS = pathlib.Path(__file__).parent / "ngl_viewer.ts"
+CUSTOM_TS_STR = str(CUSTOM_TS.resolve())
+
+class ngl(LayoutDOM):
+    __implementation__ = CUSTOM_TS_STR
+
+    spin = Bool
+    representation = String
+    rcsb_id = String
+    no_coverage = String
+    color_list = List(List(String))
+    pdb_string = String
+
+
+class NGLview(Widget):
+
+    _widget_type = ngl
+
+    _rename = {
+        "title": None,
+    }
+
+    pdb_string = param.String()
+    spin = param.Boolean(default=False)
+    representation = param.String(default="cartoon")
+    rcsb_id = param.String(default="rcsb://1CRN")
+    no_coverage = param.String(default='0x8c8c8c')
+    color_list = param.List(default=[["red", "64-74 or 134-154 or 222-254 or 310-310 or 322-326"],
+                                     ["green", "311-322"],
+                                     ["yellow",
+                                      "40-63 or 75-95 or 112-133 or 155-173 or 202-221 or 255-277 or 289-309"],
+                                     ["blue", "1-39 or 96-112 or 174-201 or 278-288"],
+                                     ["white", "*"]])
+
+
+class NGLView_factory:
+
+    @staticmethod
+    def create_view(**kwargs):
+        view = NGLview(**kwargs)
+        view.jscallback(representation="document.dispatchEvent(new Event('representation'));")
+        view.jscallback(spin="document.dispatchEvent(new Event('spin'));")
+        view.jscallback(rcsb_id="document.dispatchEvent(new Event('rcsb_id'));")
+        # view.jscallback(no_coverage="document.dispatchEvent(new Event('no_coverage'));")
+        view.jscallback(color_list="document.dispatchEvent(new Event('color_list'));")
+        view.jscallback(pdb_string="document.dispatchEvent(new Event('pdb_string'));")
+        return view
+
+
 class NGLViewer(HTML):
     pdb_string = param.String(
         doc="""Raw string of PDB file representing molecular structure to visualize."""
@@ -178,7 +231,7 @@ class NGLViewer(HTML):
             stage.setSpin({'true' if self.spin else 'false'});
             </script>
             """
-        
+
         self.object = html
 
     @param.depends('pdb_string', watch=True)

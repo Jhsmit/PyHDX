@@ -561,7 +561,7 @@ class ProteinFigure(FigurePanel):
 
     def __init__(self, *args, **params):
         super(ProteinFigure, self).__init__(*args, **params)
-        self.ngl_view = NGLViewer(sizing_mode='stretch_both')
+        self.ngl_view = NGLview_factory.create_view(sizing_mode='stretch_both')
 
     def setup_hooks(self):
         params = ['rcsb_id', 'no_coverage', 'representation', 'spin']
