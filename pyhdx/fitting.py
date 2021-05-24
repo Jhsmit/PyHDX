@@ -12,10 +12,11 @@ from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
 from functools import reduce, partial
 from operator import add
-from dask.distributed import Client
+from dask.distributed import Client, worker_client
 import dask
 import warnings
 import pandas as pd
+from itertools import repeat
 
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
@@ -111,8 +112,8 @@ def fit_rates_half_time_interpolate(data_obj):
     return result
 
 
-@dask.delayed
-def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association', pbar=None, bounds=None):
+#@dask.delayed
+def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association', client=None, pbar=None, bounds=None):
     """
     Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
     is the same
@@ -129,23 +130,32 @@ def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association',
     d_list, intervals, models = _prepare_wt_avg_fit(data_obj, model_type=model_type, bounds=bounds)
     if pbar:
         raise NotImplementedError()
-        # self.num_tasks = len(d_list)
-        # inc = pbar.increment
     else:
         inc = lambda: None
 
     results = []
-    for d, model in zip(d_list, models):
-        result = fit_kinetics(data_obj.timepoints, d, model, chisq_thd=chisq_thd)
-        results.append(result)
 
-    results = dask.compute(*results)
+    if client is None:
+        for d, model in zip(d_list, models):
+            result = fit_kinetics(data_obj.timepoints, d, model, chisq_thd=chisq_thd)
+            results.append(result)
+    else:
+        iterables = [[data_obj.timepoints]*len(d_list), d_list, models]
+
+        if isinstance(client, Client):
+            futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
+            results = client.gather(futures)
+        elif client == 'worker_client':
+            with worker_client() as client:
+                futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
+                results = client.gather(futures)
+
+
     fit_result = KineticsFitResult(data_obj, intervals, results, models)
 
     return fit_result
 
 
-@dask.delayed
 def fit_rates(data_obj, method='wt_avg', **kwargs):
     """
     Fit observed rates of exchange to HDX-MS data in `data_obj`
@@ -172,8 +182,8 @@ def fit_rates(data_obj, method='wt_avg', **kwargs):
 
     return result
 
-@dask.delayed
-def fit_kinetics(t, d, model, chisq_thd):
+
+def fit_kinetics(t, d, model, chisq_thd=100):
     """
     Fit time kinetics with two time components and corresponding relative amplitude.
 
