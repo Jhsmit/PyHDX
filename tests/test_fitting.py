@@ -1,8 +1,7 @@
 import os
-from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
-from pyhdx.fileIO import read_dynamx, fmt_export, txt_to_protein, txt_to_np, csv_to_protein
-from pyhdx.fitting import KineticsFitting, KineticsFitResult, BatchFitting, fit_rates_weighted_average, \
-    fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
+from pyhdx import PeptideMasterTable, KineticsSeries
+from pyhdx.fileIO import read_dynamx, csv_to_protein
+from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.models import HDXMeasurementSet
 import numpy as np
 import torch

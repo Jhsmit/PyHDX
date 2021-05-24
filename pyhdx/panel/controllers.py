@@ -3,8 +3,8 @@ from pyhdx.panel.widgets import NumericInput
 from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSource
 from pyhdx.panel.transforms import ApplyCmapTransform
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from pyhdx.fitting import KineticsFitting, BatchFitting, fit_rates_weighted_average, fit_rates_half_time_interpolate, \
-    get_bounds, fit_gibbs_global, fit_gibbs_global_batch
+from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
+    fit_gibbs_global_batch
 from pyhdx.support import verify_cluster
 from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
 from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba, series_to_pymol

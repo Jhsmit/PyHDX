@@ -1,7 +1,6 @@
-from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries, KineticsFitting
+from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
 from pyhdx.fileIO import csv_to_protein, txt_to_np
 from pyhdx.panel.apps import main_app#, diff_app
-from pyhdx.panel.sources import DataSource
 from pyhdx.panel.config import ConfigurationSettings
 from pyhdx.local_cluster import default_cluster
 from pathlib import Path
