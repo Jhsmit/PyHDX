@@ -14,6 +14,8 @@ import panel as pn
 import numpy as np
 from pathlib import Path
 
+import asyncio
+
 #temporary imports
 from pyhdx.support import rgb_to_hex
 import matplotlib.pyplot as plt
@@ -44,27 +46,29 @@ def init_dashboard():
 
     initial_guess = ctrl.control_panels['InitialGuessControl']
     #initial_guess.fitting_model = 'Association'
-
-    initial_guess._action_fit()
 #
+    initial_guess._action_fit()
+# # #
     fit_control = ctrl.control_panels['FitControl']
     fit_control.epochs = 10
+# #
+    fit_control.fit_mode = 'Batch'
+#    asyncio.run(fit_control.)
+    fit_control._action_fit()
+#     fit_control._do_fitting()
+# #
+#     classification = ctrl.control_panels['ClassificationControl']
+#     classification.widgets['select_1'].value = '*'
+#     classification.widgets['select_2'].value = 'deltaG'
 #
-    fit_control._do_fitting()
-#
-    classification = ctrl.control_panels['ClassificationControl']
-    classification.widgets['select_1'].value = '*'
-    classification.widgets['select_2'].value = 'deltaG'
-
-    classification.mode = 'Continuous'
-    classification._action_linear()
-    classification.color_set_name = 'colorset test'
-    classification._action_add_colorset()
-#
+#     classification.mode = 'Continuous'
+#     classification._action_linear()
+#     classification.color_set_name = 'colorset test'
+#     classification._action_add_colorset()
+# #
 #
 # file_export = ctrl.control_panels['FileExportControl']
 # sio = file_export.table_export_callback()
-
 
 
 #

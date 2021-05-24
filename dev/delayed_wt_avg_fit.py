@@ -3,6 +3,7 @@ from pyhdx.fileIO import read_dynamx
 from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx.fitting import BatchFitting, KineticsFitting, fit_rates_weighted_average, fit_rates
 from pyhdx.fileIO import csv_to_protein
+from pyhdx.local_cluster import default_client
 from dask.distributed import Client
 from dask import delayed, compute
 import numpy as np
@@ -21,40 +22,25 @@ names = ['SecB his dimer apo', 'SecB WT apo']
 data_objs = []
 for name in names:
     data = pmt.get_state(name)
-    sequences = np.random.choice(np.unique(data['sequence']), size=10, replace=False)
-    bools = np.isin(data['sequence'], sequences)
+    bools = data['end'] < 40
+
     selected_data = data[bools]
     st = KineticsSeries(selected_data)
+    #st = KineticsSeries(data)
+
     data_objs.append(st)
 
+
 if __name__ == '__main__':
-    client = Client('tcp://127.0.0.1:52123')
+    client = default_client()
 
-    # results = []
-    # for d in data_objs:
-    #     result = fit_rates_weighted_average(d)
-    #     results.append(result)
-    # results = compute(*results)
-    # print(results)
+    futures = client.map(fit_rates_weighted_average, data_objs, client='worker_client')
+    print(futures)
+    def future_done(future):
+        print('joohoehoeho', future)
+    futures[0].add_done_callback(future_done)
 
-    async def do_fitting(data_objs):
-        # client = await Client('tcp://127.0.0.1:52123')
-        # futures = client.map(fit_rates_weighted_average, data_objs)
-        # results = client.gather(futures)
-
-        results = []
-        for d in data_objs:
-            result = fit_rates_weighted_average(d)
-            results.append(result)
-
-        compute(results)
-
-        return results
-
-#    print(futures)
-    result = asyncio.run(do_fitting(data_objs))
+    result = client.gather(futures)
     print(result)
 
-    #results = client.gather(futures)
-
-    #print(results)
+    print(result[0].output)
