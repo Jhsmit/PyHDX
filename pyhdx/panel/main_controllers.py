@@ -4,7 +4,7 @@ import panel as pn
 
 from pyhdx.models import PeptideMasterTable, KineticsSeries
 from pyhdx import VERSION_STRING_SHORT
-
+from pyhdx.models import HDXMeasurementSet
 from panel.template import BaseTemplate
 
 
@@ -12,6 +12,7 @@ from lumen.sources import Source
 from lumen.filters import FacetFilter
 
 from functools import partial
+
 
 class MainController(param.Parameterized):
     """
@@ -50,7 +51,6 @@ class MainController(param.Parameterized):
     def __init__(self, control_panels, cluster=None, **params):
         super(MainController, self).__init__(**params)
         self.cluster = cluster
-        self._doc = pn.state.curdoc
         if self.logger is None:
             self.logger = logging.getLogger(str(id(self)))
 
@@ -78,11 +78,6 @@ class MainController(param.Parameterized):
         for view in self.views.values():
             view.update(invalidate_cache=invalidate_cache)
 
-    @property
-    def doc(self):
-        """ :class:`~bokeh.document.document.Document`: Bokeh document for the application"""
-        return self._doc or pn.state.curdoc
-
     def __panel__(self):
         # This does something but not as expected
         return self.template
@@ -108,30 +103,37 @@ class PyHDXController(MainController):
 
     """
 
-    fit_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsFitting objects)')
+    data_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsSeries objects)') # todo refactor
 
     # for guesses (nested): <fit name>: {state1: state2:, ...
     # for global fit (batch): <fit name>: fit_result_object
     # for global fit (series): <fit name>: {state1: <fit_result_object>, state2:....}
     fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
 
-    sample_name = param.String(doc='Name describing the selected protein state')
+    sample_name = param.String(doc='Name describing the selected protein(s) state')
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
 
-    @param.depends('fit_objects', watch=True)
+    @param.depends('data_objects', watch=True)
     def _datasets_updated(self):
-        if len(self.fit_objects) == 0:
+        if len(self.data_objects) == 0:
             self.sample_name = ''
-        elif len(self.fit_objects) == 1:
-            self.sample_name = str(next(iter(self.fit_objects.keys())))
-        elif len(self.fit_objects) < 5:
-            self.sample_name = ', '.join(self.fit_objects.keys())
+        elif len(self.data_objects) == 1:
+            self.sample_name = str(next(iter(self.data_objects.keys())))
+        elif len(self.data_objects) < 5:
+            self.sample_name = ', '.join(self.data_objects.keys())
 
     @param.depends('sample_name', watch=True)
     def _update_name(self):
         self.template.header[0].title = VERSION_STRING_SHORT + ': ' + self.sample_name
+
+    @property
+    def hdx_set(self):
+        """Returns combined HDXMeasurementSet of all currently added data objects"""
+        #todo when alignments are added in, update this as (fixed) attribute
+
+        return HDXMeasurementSet(list(self.data_objects.values()))
 
 
 class ComparisonController(MainController):

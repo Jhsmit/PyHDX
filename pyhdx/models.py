@@ -10,7 +10,10 @@ from operator import add
 from hdxrate import k_int_from_sequence
 from pyhdx.support import reduce_inter, make_view, fields_view, pprint_df_to_file
 from pyhdx.fileIO import fmt_export
+from pyhdx.alignment import align_dataframes
+from scipy import constants
 import pyhdx
+import torch
 
 
 def protein_wrapper(func, *args, **kwargs):
@@ -582,9 +585,9 @@ class Coverage(object):
 
         """
 
-        assert len(array_or_series) == len(self.protein)
         if isinstance(array_or_series, np.ndarray):
             series = pd.Series(array_or_series, index=self.protein.df.index)
+            assert len(array_or_series) == len(self.protein)
         else:
             series = array_or_series
 
@@ -703,7 +706,7 @@ class KineticsSeries(object):
         intersection = set.intersection(*sets)
         intersection_array = np.array([tup for tup in intersection], dtype=[('_start', int), ('_end', int)])
 
-        # Select entries in data array which are in the interesection between all timepoints
+        # Select entries in data array which are in the intersection between all timepoints
         selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in data_list]
         self.peptides = [PeptideMeasurements(elem) for elem in selected]
 
@@ -711,45 +714,20 @@ class KineticsSeries(object):
         cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ['c_term', 'n_term', 'sequence']}
         self.coverage = Coverage(selected[0], **cov_kwargs)
 
+        if self.temperature and self.pH:
+            self.coverage.protein.set_k_int(self.temperature, self.pH)
+
     @property
     def name(self):
-        try:
-            return self.metadata['name']
-        except KeyError:
-            return None
+        return self.metadata.get('name', None)
 
     @property
     def temperature(self):
-        try:
-            return self.metadata['temperature']
-        except KeyError:
-            return None
-
-    @temperature.setter
-    def temperature(self, value):
-        self.metadata['temperature'] = value
+        return self.metadata.get('temperature', None)
 
     @property
     def pH(self):
-        try:
-            return self.metadata['pH']
-        except KeyError:
-            return None
-
-    @pH.setter
-    def pH(self, value):
-        self.metadata['pH'] = value
-
-    @property
-    def c_term(self):
-        warnings.warn("'c_term' property will be moved to Coverage object", DeprecationWarning)
-        return self.coverage.protein.c_term
-
-    @c_term.setter
-    def c_term(self, value):
-        raise NotImplementedError('Cannot change c_term after object initialization')
-        #todo allow this by making an new protein / coverage object
-        self.metadata['c_term'] = value
+        return self.metadata.get('pH', None)
 
     @property
     def Np(self):
@@ -796,8 +774,74 @@ class KineticsSeries(object):
     @property
     def uptake_corrected(self):
         """matrix shape  N_t, N_p"""
+        #todo refactor to D to match manuscript
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
+
+    def get_tensors(self, exchanges=False):
+        """
+
+        Parameters
+        ----------
+        exchanges
+            if True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
+        Returns
+        -------
+
+        """
+        dtype = torch.float64
+        if 'k_int' not in self.coverage.protein:
+            raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
+        try:
+            upt = self.uptake_corrected
+        except ValueError:
+            raise ValueError("HDX data is not corrected for back exchange.")
+
+        if exchanges:
+            #this could be a method on coverage object similar to apply_interval; select exchanging
+            bools = self.coverage['exchanges'].to_numpy()
+        else:
+            bools = np.ones(self.Nr, dtype=bool)
+
+        tensors = {
+            'temperature': torch.tensor([self.temperature], dtype=dtype),
+            'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype),
+            'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype).unsqueeze(-1),
+            'timepoints': torch.tensor(self.timepoints, dtype=dtype).unsqueeze(0),
+            'uptake': torch.tensor(self.uptake_corrected.T, dtype=dtype)}
+
+        return tensors
+
+    def guess_deltaG(self, rates, crop=True):
+        """
+
+        Parameters
+        ----------
+        rates : :class:pd series
+            pandas series of esitmated hdx exhanges rates. Index is protein residue number
+        return_type
+
+        Returns
+        -------
+
+        """
+        if 'k_int' not in self.coverage.protein:
+            raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
+        if not isinstance(rates, pd.Series):
+            raise TypeError("Rates input type is pandas.Series")
+
+        p_guess = (self.coverage.protein['k_int'] / rates) - 1
+        p_guess.clip(0., None, inplace=True)  # Some initial guesses might have negative PF values
+        deltaG = np.log(p_guess) * constants.R * self.temperature
+
+        # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+        bools = ~np.isfinite(deltaG)
+        deltaG[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), deltaG[~bools])
+
+        if crop:
+            return self.coverage.apply_interval(deltaG)
+        else:
+            return deltaG
 
 
 class PeptideMeasurements(Coverage):
@@ -887,6 +931,156 @@ class PeptideMeasurements(Coverage):
         """Calculate per-residue weighted average of values in data column given by 'field'"""
 
         return self.Z_norm.T.dot(self.data[field])
+
+
+class HDXMeasurementSet(object):
+    """
+    multiple HDX Measurements
+    """
+
+    def __init__(self, data_objs):
+        self.data_objs = data_objs
+
+        #todo create Coverage object for the 3d case
+        intervals = np.array([data_obj.coverage.interval for data_obj in self.data_objs])
+        self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
+        r_number = np.arange(*self.interval)
+        self.r_number = r_number
+
+        self.Ns = len(self.data_objs)
+        self.Nr = len(r_number)
+        self.Np = np.max([data_obj.Np for data_obj in self.data_objs])
+        self.Nt = np.max([data_obj.Nt for data_obj in self.data_objs])
+        self.masks = self.get_masks()
+
+        # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
+        self.aligned_indices = None
+        self.aligned_dataframes = None
+
+    @property
+    def temperature(self):
+        return np.array([data_obj.temperature for data_obj in self.data_objs])
+
+    @property
+    def names(self):
+        return [data_obj.name for data_obj in self.data_objs]
+
+    def guess_deltaG(self, rates_list):
+        """
+        create deltaG guesses from rates
+
+        Parameters
+        ----------
+        rates_list: iterable
+            list of pandas series with k_obs esimates
+
+        Returns
+        -------
+
+        deltaG_array: numpy array
+            deltaG guesses Ns x Nr shape
+
+        """
+        assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
+
+        guesses = [data_obj.guess_deltaG(rates, crop=True).to_numpy() for rates, data_obj in zip(rates_list, self.data_objs)]
+        flat = np.concatenate(guesses)
+
+        deltaG_array = np.full((self.Ns, self.Nr), fill_value=np.nan)
+        deltaG_array[self.s_r_mask] = flat
+
+        for row in deltaG_array:
+            # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+            bools = ~np.isfinite(row)
+            row[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), row[~bools])
+
+        return deltaG_array
+
+    def add_alignment(self, alignment, first_r_numbers=None):
+        dfs = [data_obj.coverage.protein.df for data_obj in self.data_objs]
+        self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
+
+        df = self.aligned_dataframes['r_number']
+
+        df = df[((self.interval[0] <= df) & (df < self.interval[1])).all(axis=1)] # Crop residue numbers to interval range
+        df = df - self.interval[0]  # First residue in interval selected by index 0
+        df.dropna(how='any', inplace=True)  # Remove non-aligned residues
+
+        self.aligned_indices = df.to_numpy(dtype=int).T
+
+
+    @property
+    def s_r_mask(self):
+        """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
+        mask = np.zeros((self.Ns, self.Nr), dtype=bool)
+        for i, data_obj in enumerate(self.data_objs):
+            interval_sample = data_obj.coverage.interval
+            i0 = interval_sample[0] - self.interval[0]
+            i1 = interval_sample[1] - self.interval[0]
+
+            mask[i, i0:i1] = True
+
+        return mask
+
+    def get_masks(self):
+        """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
+        sr_mask = np.zeros((self.Ns, self.Nr), dtype=bool)
+        st_mask = np.zeros((self.Ns, self.Nt), dtype=bool)
+        spr_mask = np.zeros((self.Ns, self.Np, self.Nr), dtype=bool)
+        spt_mask = np.zeros((self.Ns, self.Np, self.Nt), dtype=bool)
+        for i, data_obj in enumerate(self.data_objs):
+            interval_sample = data_obj.coverage.interval
+            i0 = interval_sample[0] - self.interval[0]
+            i1 = interval_sample[1] - self.interval[0]
+
+            sr_mask[i, i0:i1] = True
+            st_mask[i, -data_obj.Nt:] = True
+            spr_mask[i, 0: data_obj.Np, i0:i1] = True
+            spt_mask[i, 0: data_obj.Np, -data_obj.Nt:] = True
+
+        mask_dict = {'sr': sr_mask, 'st': st_mask, 'spr': spr_mask, 'spt': spt_mask}
+
+        return mask_dict
+
+    def get_tensors(self, exchanges=False):
+        #todo create correct shapes as per table X for all
+        temperature = np.array([kf.temperature for kf in self.data_objs])
+
+        X_values = np.concatenate([data_obj.coverage.X.flatten() for data_obj in self.data_objs])
+        X = np.zeros((self.Ns, self.Np, self.Nr))
+        X[self.masks['spr']] = X_values
+
+        k_int_values = np.concatenate([data_obj.coverage['k_int'].to_numpy() for data_obj in self.data_objs])
+        k_int = np.zeros((self.Ns, self.Nr))
+        k_int[self.masks['sr']] = k_int_values
+
+        timepoints_values = np.concatenate([data_obj.timepoints for data_obj in self.data_objs])
+        timepoints = np.zeros((self.Ns, self.Nt))
+        timepoints[self.masks['st']] = timepoints_values
+
+        D_values = np.concatenate([data_obj.uptake_corrected.T.flatten() for data_obj in self.data_objs])
+        D = np.zeros((self.Ns, self.Np, self.Nt))
+        D[self.masks['spt']] = D_values
+
+        dtype = torch.float64
+
+        tensors = {
+            'temperature': torch.tensor(temperature, dtype=dtype).reshape(self.Ns, 1, 1),
+            'X': torch.tensor(X, dtype=dtype),
+            'k_int': torch.tensor(k_int, dtype=dtype).reshape(self.Ns, self.Nr, 1),
+            'timepoints': torch.tensor(timepoints, dtype=dtype).reshape(self.Ns, 1, self.Nt),
+            'uptake': torch.tensor(D, dtype=dtype)  #todo this is called uptake_corrected/D/uptake
+        }
+
+        return tensors
+
+    @property
+    def exchanges(self):
+        values = np.concatenate([data_obj.coverage['exchanges'].to_numpy() for data_obj in self.data_objs])
+        exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
+        exchanges[self.masks['sr']] = values
+
+        return exchanges
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array

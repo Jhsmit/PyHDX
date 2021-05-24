@@ -62,12 +62,21 @@ class TestSeries(object):
     def setup_class(cls):
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        d = cls.pmt.groupby_state()
-        cls.series = d['SecB WT apo']
+        cls.pmt.set_control(('Full deuteration control', 0.167))
+        d = cls.pmt.get_state('SecB WT apo')
+        cls.temperature, cls.pH = 273.15 + 30, 8.
+        cls.series = KineticsSeries(d, temperature=cls.temperature, pH=cls.pH)
 
     def test_dim(self):
         assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
 
+    def test_guess(self):
+        pass
+
+    def test_tensors(self):
+        tensors = self.series.get_tensors()
+
+        # assert ...
 
 @pytest.mark.skip(reason="Simulated data was removed")
 class TestSimulatedData(object):
@@ -258,7 +267,7 @@ class TestProtein(object):
         k_int = self.series.coverage.protein['k_int'].to_numpy()
         assert k_int[0] == np.inf  # N terminal exchange rate is zero
         assert np.all(k_int[-10:] == 0.)
-        assert len(k_int) == self.series.c_term
+        assert len(k_int) == self.series.coverage.protein.c_term
 
         prolines = self.series.coverage.protein['sequence'].to_numpy() == 'P'
         assert np.all(k_int[prolines] == 0)
