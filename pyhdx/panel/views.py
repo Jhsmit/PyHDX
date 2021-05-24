@@ -1,5 +1,5 @@
 from .base import BokehFigurePanel, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
-from .widgets import NGLViewer, LoggingMarkdown
+from .widgets import NGLViewer, LoggingMarkdown, NGLView_factory
 from .log import setup_md_log
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
