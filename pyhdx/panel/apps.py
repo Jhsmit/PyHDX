@@ -158,6 +158,9 @@ def main_app():
                            )
     view_list.append(rates)
 
+    protein_view = ProteinView(source=source, name='protein')
+    view_list.append(protein_view)
+
     log_view = LoggingView(logger=logger, level=logging.INFO, name='Info log')
     debug_log_view = LoggingView(logger=logger, level=logging.DEBUG, name='Debug log')
     view_list.append(log_view)
@@ -200,7 +203,10 @@ def main_app():
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
 
     elvis.compose(ctrl, elvis.column(
-        elvis.view(ctrl.views['coverage']),
+        elvis.stack(
+            elvis.view(ctrl.views['coverage']),
+            elvis.view(ctrl.views['protein']),
+        ),
         elvis.row(
             elvis.stack(
                 elvis.view(ctrl.views['rates']),
