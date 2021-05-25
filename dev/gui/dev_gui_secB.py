@@ -71,10 +71,15 @@ def init_dashboard():
 # sio = file_export.table_export_callback()
 
 
-#
-if __name__ == '__main__':
-    pn.state.onload(init_dashboard)
-    #pn.state.onload(ctrl.init_doc)
 
-    pn.serve(ctrl.template, show=True
-             , static_dirs={'pyhdx': STATIC_DIR})
+
+print(__name__)
+
+#if __name__ == '__main__':
+pn.state.onload(init_dashboard)
+#pn.state.onload(ctrl.init_doc)
+
+# pn.serve(ctrl.template, show=True
+#          , static_dirs={'pyhdx': STATIC_DIR})
+
+ctrl.template.servable()

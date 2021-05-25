@@ -1,6 +1,7 @@
 import numpy as np
 
 from collections import OrderedDict
+import bokeh
 from bokeh.core.properties import Bool, String, List
 from bokeh.models import LayoutDOM
 from bokeh.util.compiler import TypeScript
@@ -10,6 +11,9 @@ from bokeh.models import Button, CustomJS
 import panel as pn
 from panel.widgets.base import Widget
 import param
+from pathlib import Path
+from pyhdx.panel.base import STATIC_DIR
+
 
 TS_CODE = """
 // This custom model wraps one part of the third-party vis.js library:
@@ -142,17 +146,13 @@ export class NGLView extends LayoutDOMView {
     this._stage = new NGL.Stage('viewport')
     var m = this.model
     var stage = this._stage
-    var promise = this._stage.loadFile("rcsb://1CRN")
     var first_scheme = NGL.ColormakerRegistry.addSelectionScheme(m.color_list, "new scheme");
-    promise.then(function (o) {
-        o.addRepresentation("cartoon", { color: first_scheme });
-        o.autoView();
-    });
 
     stage.setSpin(m.spin)
     document.addEventListener('spin', function(){
        stage.setSpin(m.spin);
     });
+
 
     document.addEventListener('representation', function(){
         stage.compList[0].removeAllRepresentations();
@@ -327,7 +327,7 @@ class NGLview(Widget):
 
 class test(param.Parameterized):
     pdb_string = param.String()
-    rcsb_id = param.String(default="rcsb://1CRN", doc='RCSB PDB identifier of protein entry to download and visualize.')
+    rcsb_id = param.String(default="1qyn", doc='RCSB PDB identifier of protein entry to download and visualize.')
     representation = param.Selector(default='cartoon',
                                     objects=['backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
                                              'ribbon', 'rope', 'spacefill', 'surface'],
@@ -375,6 +375,7 @@ class watcher(object):
         self.ngl_viewer.color_list = event.new
 
     def changePDBString(self, event):
+        print(event.new)
         self.ngl_viewer.pdb_string = event.new
 
 
@@ -382,7 +383,7 @@ class NGLView_factory:
 
     @staticmethod
     def create_view():
-        view = NGLview(width=600, height=600, representation='cartoon')
+        view = NGLview(sizing_mode='stretch_both', representation='cartoon')
         view.jscallback(representation="document.dispatchEvent(new Event('representation'));")
         view.jscallback(spin="document.dispatchEvent(new Event('spin'));")
         view.jscallback(rscb="document.dispatchEvent(new Event('rcsb_id'));")
@@ -392,9 +393,35 @@ class NGLView_factory:
         return view
 
 
+from bokeh.settings import settings
+print(settings.minified)
+
+import os
+os.environ["BOKEH_XSRF_COOKIES"] = "True"
+
+
 p = test()
 view = NGLView_factory.create_view()
 watch = watcher(view, p)
 
-result = pn.Column(p.param, view)
+result = pn.Row(p.param, view)
+
+pdb_string = Path('1qyn.pdb').read_text()
 result.servable()
+
+def cb():
+    view.pdb_string = pdb_string
+
+pn.state.onload(cb)
+
+current_dir = Path(__file__).parent
+
+#pn.serve(result, static_dirs={'pyhdx': STATIC_DIR, 'bk': current_dir})
+
+# if __name__ == '__main__':
+#     p = test()
+#     view = NGLView_factory.create_view()
+#     watch = watcher(view, p)
+#
+#     result = pn.Column(p.param, view)
+#     pn.serve(result)

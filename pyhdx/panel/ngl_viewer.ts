@@ -122,12 +122,12 @@ export class NGLView extends LayoutDOMView {
     this._stage = new NGL.Stage('viewport')
     var m = this.model
     var stage = this._stage
-    var promise = this._stage.loadFile("rcsb://1CRN")
+  stage.loadFile( new Blob([m.pdb_string], {type: 'text/plain'}), { ext:'pdb'}).then(function (o) {
+o.addRepresentation(m.representation, { color: scheme })
+o.autoView()
+});
     var scheme = NGL.ColormakerRegistry.addSelectionScheme(m.color_list, "new scheme");
-    promise.then(function (o) {
-        o.addRepresentation("cartoon", { color: scheme });
-        o.autoView();
-    });
+
 
     stage.setSpin(m.spin)
     document.addEventListener('spin', function(){
