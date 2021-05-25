@@ -61,7 +61,7 @@ class Test(param.Parameterized):
 pdb_string = Path('1qyn.pdb').read_text()
 
 
-view = NGLView_factory.create_view(pdb_string=pdb_string)
+view = NGLView_factory.create_view(pdb_string=pdb_string, sizing_mode='stretch_both')
 t = Test()
 watch = watcher(view, t)
 

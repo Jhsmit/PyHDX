@@ -1,7 +1,6 @@
 import yaml
 from pathlib import Path
 from pyhdx.models import PeptideMasterTable, KineticsSeries
-from pyhdx.fitting import KineticsFitting
 from pyhdx.fileIO import read_dynamx, txt_to_protein, csv_to_protein
 import asyncio
 import copy
@@ -47,9 +46,6 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
         raise ValueError("Must specify either 'c_term' or 'sequence'")
     #todo parse n_term and sequence
 
-    state_data = pmt.get_state([yaml_dict['series_name']])
-    series = KineticsSeries(state_data, c_term=c_term)
-
     if yaml_dict['temperature_unit'].lower() == 'celsius':
         temperature = yaml_dict['temperature'] + 273.15
     elif yaml_dict['temperature_unit'].lower() == 'kelvin':
@@ -57,9 +53,12 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     else:
         raise ValueError("Invalid option for 'temperature_unit', must be 'Celsius' or 'Kelvin'")
 
-    kf = KineticsFitting(series, temperature=temperature, pH=yaml_dict['pH'])
+    sequence = yaml_dict.get('sequence', None)
 
-    return kf
+    state_data = pmt.get_state([yaml_dict['series_name']])
+    series = KineticsSeries(state_data, c_term=c_term, temperature=temperature, pH=yaml_dict['pH'], sequence=sequence)
+
+    return series
 
 
 def load_folding_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?

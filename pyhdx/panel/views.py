@@ -17,7 +17,7 @@ import pandas as pd
 
 import holoviews as hv
 from lumen.filters import ParamFilter
-
+from itertools import groupby, count
 
 class hvPlotAppView(hvPlotView):
 
@@ -137,8 +137,6 @@ class hvRectangleAppView(View):
             print(f'Empty data in {self.__class__}: {e}')
             return self.empty_df
 
-
-
     def update(self, *events, invalidate_cache=True):
         """
         Triggers an update in the View.
@@ -181,66 +179,75 @@ class hvRectangleAppView(View):
 
 
 class ProteinView(View):
-    title = 'Protein View'
-    accepted_tags = ['mapping']
+    view_type = 'protein'
+
+    spin = param.Boolean(default=False)
 
     #js_files = {'ngl': "https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.37/dist/ngl.js"}
 
     def __init__(self, *args, **params):
-        super(ProteinView, self).__init__(*args, **params)
+        super(ProteinView, self).__init__(**params)
         from pathlib import Path
         pdb_string = Path(r'C:\Users\jhsmi\pp\PyHDX\dev\1qyn.pdb').read_text()
 
-        self.ngl_view = NGLView_factory.create_view(pdb_string=pdb_string)
-
-    # def setup_hooks(self):
-    #     params = ['rcsb_id', 'no_coverage', 'representation', 'spin']
-    #     self.parent.control_panels['ProteinViewControl'].param.watch(self._update_event, params)
-    #     self.parent.control_panels['ProteinViewControl'].file_input.param.watch(self._update_pdb_file, 'value')
-    #     self.parent.control_panels['ProteinViewControl'].param.watch(self._parent_sources_updated, 'target_dataset')
-    #
-    # def _parent_sources_updated(self, *events):
-    #     target = self.parent.control_panels['ProteinViewControl'].target_dataset
-    #     accepted_sources = {k: src for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)}
-    #     accepted_sources = {k: src for k, src in accepted_sources.items() if k == target}
-    #     new_items = {k: v for k, v in accepted_sources.items() if k not in self.renderers}
-    #     self.add_sources(new_items)
-    #
-    #     removed_items = self.renderers.keys() - self.parent.sources.keys()  # Set difference
-    #     #self.parent.logger.debug(f'Protein view removed items: {removed_items}')
-    #     self.remove_sources(removed_items)
-    #
-    # def _data_updated_callback(self, attr, old, new):
-    #     self._update_colors(new['r_number'], new['color'])
-    #
-    # def render_sources(self, src_dict):
-    #     for name, data_source in src_dict.items():
-    #         self._update_colors(data_source.source.data['r_number'], data_source.source.data['color'])
-    #
-    # @property
-    # def no_coverage(self):
-    #     return self.parent.control_panels['ProteinViewControl'].no_coverage
-    #
-    # def _update_pdb_file(self, event):
-    #     self.ngl_view.pdb_string = event.new.decode()
-    #
-    # def _update_colors(self, r_number, color_arr):
-    #     r_start = r_number[0]
-    #     color_list = list(color_arr)
-    #     if r_start < 1:
-    #         remove_num = 1 - r_start
-    #         color_list = color_list[remove_num:]
-    #     else:
-    #         fill_num = r_start - 1
-    #         color_list = fill_num*[self.parent.control_panels['ProteinViewControl'].no_coverage] + color_list
-    #
-    #     self.ngl_view.color_list = color_list
-    #
-    # def _update_event(self, event):
-    #     setattr(self.ngl_view, event.name, event.new)
+        self.ngl_view = NGLView_factory.create_view(pdb_string=pdb_string, sizing_mode='stretch_both')
 
     def get_panel(self):
+        #kwargs = self._get_params()
+        # from pathlib import Path
+        # pdb_string = Path(r'C:\Users\jhsmi\pp\PyHDX\dev\1qyn.pdb').read_text()
+        #
+        # ngl_view = NGLView_factory.create_view(pdb_string=pdb_string, sizing_mode='stretch_both')
+
         return self.ngl_view
+
+    # @property
+    # def panel(self):
+    #     return self._panel
+
+    # def get_panel(self):
+    #     return self.ngl_view
+        #return pn.pane.Pane(self.ngl_view, sizing_mode='stretch_both')
+
+    # def get_data(self):
+    #     #todo uniformify this method for all views
+    #
+    #     return super().get_data()
+        #
+        # try:
+        # except (KeyError, ValueError) as e:
+        #     print(f'Empty data in {self.__class__}: {e}')
+        #     return self.empty_df
+    #
+    # @param.depends('spin', watch=True)
+    # def _spin_updated_123(self):
+    #     print('in view')
+    #     self.ngl_view.spin = self.spin
+    # #
+    # def _get_params(self):
+
+    def update(self, *events, invalidate_cache=True):
+        if invalidate_cache:
+            self._cache = None
+        data = self.get_data()
+        if len(data.columns) > 1 or data.size < 1:
+            # invalid number of columns
+            pass
+        else:
+            pd_series = data.iloc[:, 0]
+            grp = pd_series.groupby(pd_series)
+
+            color_list = []
+            for c, pd_series in grp:
+                result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+
+                resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
+                color_list.append([c, resi])
+
+            self.ngl_view.color_list = color_list
+
+        # update panel?
+        return self._update_panel()
 
 
 class LoggingView(View):
@@ -614,9 +621,6 @@ class FitResultFigure(BokehFigurePanel):
 
         if self.renderers:
             self.figure.legend.location = "bottom_right"
-
-
-
 
 
 class LoggingFigure(FigurePanel):

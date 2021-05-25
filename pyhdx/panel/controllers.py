@@ -33,6 +33,7 @@ import zipfile
 import logging
 import dask
 import asyncio
+import urllib.request
 
 from .widgets import ColoredStaticText, ASyncProgressBar
 
@@ -1120,20 +1121,78 @@ class ClassificationControl(ControlPanel):
                 widget.start = None
 
 
+class ProteinControl(ControlPanel):
+    header = 'Protein Control'
 
 
+    input_mode = param.Selector(doc='Method of protein structure input', objects=['PDB File', 'RCSB Download'])
+    file_binary = param.Parameter()
+    rcsb_id = param.String(doc='RCSB ID of protein to download')
+    load_structure = param.Action(lambda self: self._action_load_structure())
+
+    new_colors = param.Action(lambda self: self._action_new_colors())
+
+    def __init__(self, parent, **params):
+        super(ProteinControl, self).__init__(parent, **params)
+
+        excluded = ['rcsb_id']
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        self.update_box()
+
+    @property
+    def _layout(self):
+        return [('self', self.own_widget_names),
+                ('filters.select_index_colors_lv1', None),
+                ('filters.select_index_colors_lv2', None),
+                ]
+
+    def make_dict(self):
+        return self.generate_widgets(file_binary=pn.widgets.FileInput(multiple=False, accept='.pdb'))
+
+    @param.depends('input_mode', watch=True)
+    def _update_input_mode(self):
+        if self.input_mode == 'PDB File':
+            excluded = ['rcsb_id']
+        elif self.input_mode == 'RCSB Download':
+            excluded = ['file_binary']
+
+        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        self.update_box()
+
+    def _action_load_structure(self):
+        view = self.views['protein']
+        if self.input_mode == 'PDB File':
+            pdb_string = self.file_binary.decode()
+            print(pdb_string)
+            view.ngl_view.pdb_string = pdb_string
+        elif self.input_mode == 'RCSB Download':
+            if len(self.rcsb_id) != 4:
+                self.parent.logger.info(f"Invalid RCSB pdb id: {self.rcsb_id}")
+                return
+
+            url = f'http://files.rcsb.org/download/{self.rcsb_id}.pdb'
+            with urllib.request.urlopen(url) as response:
+                pdb_string = response.read().decode()
+                view.ngl_view.pdb_string = pdb_string
+
+    def _action_new_colors(self):
+        view = self.views['protein']
+        view._panel.color_list = [["red", "1-39"], ["blue", "45-60"]]
 
 class GraphControl(ControlPanel):
     header = 'Graph Control'
+
+    spin = param.Boolean(default=False, doc='Spin the protein object')
 
     def make_dict(self):
         widgets = {
             'coverage': pn.pane.Markdown('### Coverage'),
             'rates': pn.pane.Markdown('### Rates'),
-            'gibbs': pn.pane.Markdown('### Gibbs')
+            'gibbs': pn.pane.Markdown('### Gibbs'),
+            'protein': pn.pane.Markdown('### Protein')
         }
 
-        return widgets
+        return {**widgets, **self.generate_widgets()}
 
     @property
     def _layout(self):
@@ -1148,8 +1207,14 @@ class GraphControl(ControlPanel):
             ('self', ['gibbs']),
             ('filters.select_index_global_fit_lv1', None),
             ('filters.select_index_global_fit_lv2', None),
+            ('self', ['protein', 'spin'])
 
         ]
+
+    @param.depends('spin', watch=True)
+    def _spin_updated(self):
+        view = self.views['protein']
+        view.ngl_view.spin = self.spin
 
 
 class FileExportControl(ControlPanel):

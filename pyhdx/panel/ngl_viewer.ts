@@ -136,9 +136,9 @@ export class NGLView extends LayoutDOMView {
        stage.setSpin(m.spin);
     });
 
-    document.addEventListener( "resize", function( event ){{
+    document.addEventListener( "resize", function(){
         stage.handleResize();
-    }}, false );
+    }, false );
 
     document.addEventListener('representation', function(){
         stage.compList[0].removeAllRepresentations();

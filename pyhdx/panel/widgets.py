@@ -151,7 +151,7 @@ class NGLView_factory:
 
     @staticmethod
     def create_view(**kwargs):
-        view = NGLview(width=600, height=400, **kwargs)
+        view = NGLview(**kwargs)
         view.jscallback(representation="document.dispatchEvent(new Event('representation'));")
         view.jscallback(spin="document.dispatchEvent(new Event('spin'));")
         view.jscallback(rcsb_id="document.dispatchEvent(new Event('rcsb_id'));")

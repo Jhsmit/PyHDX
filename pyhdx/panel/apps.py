@@ -53,10 +53,14 @@ def main_app():
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
 
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
+    row_index = pd.RangeIndex(0, 1, name='r_number')
+    df_colors = pd.DataFrame(columns=col_index, index=row_index)
+
     # Availble tables are predefined at launch, but are empty
     # this way GUI methods can add to them as multiindex subset
     # more tables can be added later by the gui
-    tables = {'peptides': df_peptides, 'rates': df_rates, 'global_fit': df_global_fit}
+    tables = {'peptides': df_peptides, 'rates': df_rates, 'global_fit': df_global_fit, 'colors': df_colors}
     source = DataFrameSource(tables=tables, name='dataframe')
 
     #df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
@@ -158,7 +162,15 @@ def main_app():
                            )
     view_list.append(rates)
 
-    protein_view = ProteinView(source=source, name='protein')
+
+    multiindex_select_colors_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_colors_lv1', table='colors',
+                                                       source=source)
+    multiindex_select_colors_2 = MultiIndexSelectFilter(field='state', name='select_index_colors_lv2', table='colors',
+                                                       source=source, filters=[multiindex_select_colors_1])
+    filter_list += [multiindex_select_colors_1, multiindex_select_colors_2]
+    protein_view = ProteinView(source=source, name='protein', table='colors',
+                               filters=[multiindex_select_colors_1, multiindex_select_colors_2]
+                               )
     view_list.append(protein_view)
 
     log_view = LoggingView(logger=logger, level=logging.INFO, name='Info log')
@@ -178,6 +190,7 @@ def main_app():
         InitialGuessControl,
         FitControl,
         ClassificationControl,
+        ProteinControl,
         GraphControl,
         # FitResultControl,
         FileExportControl,
@@ -204,8 +217,8 @@ def main_app():
 
     elvis.compose(ctrl, elvis.column(
         elvis.stack(
-            elvis.view(ctrl.views['coverage']),
             elvis.view(ctrl.views['protein']),
+            elvis.view(ctrl.views['coverage']),
         ),
         elvis.row(
             elvis.stack(
