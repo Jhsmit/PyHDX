@@ -46,6 +46,7 @@ declare namespace NGL {
     setSpin(flag: Boolean): void
     removeAllComponents(type: String): void
     addRepresentation(representation: String): void
+    handleResize(): void
   }
 
   class ScriptComponent{
@@ -122,10 +123,11 @@ export class NGLView extends LayoutDOMView {
     this._stage = new NGL.Stage('viewport')
     var m = this.model
     var stage = this._stage
-  stage.loadFile( new Blob([m.pdb_string], {type: 'text/plain'}), { ext:'pdb'}).then(function (o) {
-o.addRepresentation(m.representation, { color: scheme })
-o.autoView()
-});
+
+    stage.loadFile( new Blob([m.pdb_string], {type: 'text/plain'}), { ext:'pdb'}).then(function (o) {
+        o.addRepresentation(m.representation, { color: scheme })
+        o.autoView()
+    });
     var scheme = NGL.ColormakerRegistry.addSelectionScheme(m.color_list, "new scheme");
 
 
@@ -133,6 +135,10 @@ o.autoView()
     document.addEventListener('spin', function(){
        stage.setSpin(m.spin);
     });
+
+    document.addEventListener( "resize", function( event ){{
+        stage.handleResize();
+    }}, false );
 
     document.addEventListener('representation', function(){
         stage.compList[0].removeAllRepresentations();
