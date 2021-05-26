@@ -782,7 +782,7 @@ class ClassificationControl(ControlPanel):
 
         self._update_num_colors()
         self._update_num_values()
-        self.excluded = []  # excluded widgets based on choice of `mode`
+        self.excluded = ['library', 'color_map'] # excluded widgets based on choice of `mode`
 
         views = [view for view in self.views.values() if any(isinstance(trs, ApplyCmapTransform) for trs in view.transforms)]
         options = [view.table for view in views]
@@ -865,17 +865,20 @@ class ClassificationControl(ControlPanel):
         return df
 
     def get_selected_data(self):
+        #todo move method to data source?
         df = self.get_data()
         selected_fields = [widget.value for name, widget in self.widgets.items() if name.startswith('select')]
-
         bools_list = [df.columns.get_level_values(i) == value for i, value in enumerate(selected_fields) if
                       value != '*']
+
         if len(bools_list) == 0:
             bools = np.ones(len(df.columns)).astype(bool)
         elif len(bools_list) == 1:
             bools = np.array(bools_list).flatten()
         else:
-            bools = np.logical_and(*bools_list)
+            bools_array = np.array(bools_list)
+            bools = np.product(bools_array, axis=0).astype(bool)
+
         selected_df = df.iloc[:, bools]
 
         return selected_df
@@ -894,6 +897,8 @@ class ClassificationControl(ControlPanel):
         values = self.get_values() # todo check for no values
         if not values.size:
             return
+
+        print('minmaxvals', values.min(), values.max())
 
         func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
         thds = threshold_multiotsu(func(values), classes=self.num_colors)
@@ -1178,6 +1183,7 @@ class ProteinControl(ControlPanel):
     def _action_new_colors(self):
         view = self.views['protein']
         view._panel.color_list = [["red", "1-39"], ["blue", "45-60"]]
+
 
 class GraphControl(ControlPanel):
     header = 'Graph Control'
@@ -1972,7 +1978,13 @@ class DeveloperControl(ControlPanel):
             self.parent.logger.info('dit is een test123')
 
     def _action_print(self):
-        print(self.parent.doc)
+        source = self.sources['dataframe']
+        table = source.get('rates')
+        print('rates table')
+        print(table.index)
+        print(table.columns)
+        print(table)
+
 
     def _action_break(self):
         main_ctrl = self.parent
