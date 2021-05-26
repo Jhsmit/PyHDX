@@ -192,7 +192,6 @@ export namespace ngl {
     spin: p.Property<boolean>
     representation: p.Property<string>
     rcsb_id: p.Property<string>
-    no_coverage: p.Property<string>
     color_list: p.Property<any>
     pdb_string: p.Property<string>
   }
@@ -218,7 +217,6 @@ export class ngl extends LayoutDOM {
       spin:             [Boolean, false],
       representation:   [String],
       rcsb_id:          [String],
-      no_coverage:      [String],
       color_list:       [Any],
       pdb_string:       [String]
     })

@@ -115,6 +115,7 @@ class HTMLTitle(HTML):
 CUSTOM_TS = pathlib.Path(__file__).parent / "ngl_viewer.ts"
 CUSTOM_TS_STR = str(CUSTOM_TS.resolve())
 
+
 class ngl(LayoutDOM):
     __implementation__ = CUSTOM_TS_STR
 
@@ -126,7 +127,7 @@ class ngl(LayoutDOM):
     pdb_string = String
 
 
-class NGLview(Widget):
+class NGL(Widget):
 
     _widget_type = ngl
 
@@ -134,132 +135,30 @@ class NGLview(Widget):
         "title": None,
     }
 
-    pdb_string = param.String()
-    spin = param.Boolean(default=False)
-    representation = param.String(default="cartoon")
-    rcsb_id = param.String(default="rcsb://1CRN")
-    no_coverage = param.String(default='0x8c8c8c')
-    color_list = param.List(default=[["red", "64-74 or 134-154 or 222-254 or 310-310 or 322-326"],
-                                     ["green", "311-322"],
-                                     ["yellow",
-                                      "40-63 or 75-95 or 112-133 or 155-173 or 202-221 or 255-277 or 289-309"],
-                                     ["blue", "1-39 or 96-112 or 174-201 or 278-288"],
-                                     ["white", "*"]])
-
-
-class NGLView_factory:
-
-    @staticmethod
-    def create_view(**kwargs):
-        view = NGLview(**kwargs)
-        view.jscallback(representation="document.dispatchEvent(new Event('representation'));")
-        view.jscallback(spin="document.dispatchEvent(new Event('spin'));")
-        view.jscallback(rcsb_id="document.dispatchEvent(new Event('rcsb_id'));")
-        # view.jscallback(no_coverage="document.dispatchEvent(new Event('no_coverage'));")
-        view.jscallback(color_list="document.dispatchEvent(new Event('color_list'));")
-        view.jscallback(pdb_string="document.dispatchEvent(new Event('pdb_string'));")
-        return view
-
-
-class NGLViewer(HTML):
     pdb_string = param.String(
         doc="""Raw string of PDB file representing molecular structure to visualize."""
     )
-    rcsb_id = param.String(
-        doc="""ID of PDB structure to fetch from the RCSB Protein Data Bank and visualize."""
+    spin = param.Boolean(
+        default=False,
+        doc="""Toggle spinning of the molecular structure."""
     )
-    no_coverage = param.Color(
-        default='#8c8c8c',
-        doc="""Hexadecimal color code to use for residues without coverage"""
-    )
-    color_list = param.List(default=[], doc="""List of """)
     representation = param.Selector(
         default='cartoon',
         objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
                  'ribbon', 'rope', 'spacefill', 'surface'],
         doc="""The type of representation used to visualize the molecular structure."""
     )
-    spin = param.Boolean(
-        default=False,
-        doc="""Toggle spinning of the molecular structure."""
-    )
-    priority = 0
-    _rename = dict(HTML._rename, pdb_string=None, rcsb_id=None, representation=None, spin=None, color_list=None,
-                   no_coverage=None)
+    rcsb_id = param.String(default="rcsb://1CRN")
+    color_list = param.List(default=[["white", "*"]])
 
     def __init__(self, **params):
         super().__init__(**params)
-        self.load_string = \
-        f"""
-        stage = new NGL.Stage("viewport");
-        window.addEventListener( "resize", function( event ){{
-            stage.handleResize();
-        }}, false );
-        stage.loadFile("")""" # this currently gives an error, load empty pdb file?
-        self._update_object_from_parameters()
 
-    @property
-    def color_array(self):
-        """return a string to put into javascript to define the color array"""
-        js_string = ', '.join(elem.replace('#', '0x') for elem in self.color_list)
-        js_string = js_string.replace('nan', 'noCoverage')
-        return js_string
-
-    @param.depends('representation', 'spin', 'color_list', 'no_coverage', watch=True)
-    def _update_object_from_parameters(self):
-        html =\
-            f"""
-            <div id="viewport" style="width:100%; height:100%;"></div>
-            <script>
-            var noCoverage = {self.no_coverage.replace('#', '0x')};
-            var colorArray = [{self.color_array}];
-            var customScheme = NGL.ColormakerRegistry.addScheme(function (params) {{
-                this.atomColor = function (atom) {{
-                    if (atom.resno - 1 < colorArray.length) {{
-                        return colorArray[atom.resno - 1]
-                    }} else {{
-                        return noCoverage
-                    }}
-                }}
-            }})
-
-            {self.load_string}.then(function(o){{
-                o.addRepresentation("{self.representation}", {{color: customScheme}});
-                o.autoView();
-                }}
-            );
-            stage.setSpin({'true' if self.spin else 'false'});
-            </script>
-            """
-
-        self.object = html
-
-    @param.depends('pdb_string', watch=True)
-    def _update_object_from_pdb_string(self):
-        self.load_string = \
-            f"""
-            var PDBString = `{self.pdb_string}`;
-            stage = new NGL.Stage("viewport");
-            window.addEventListener( "resize", function( event ){{
-                stage.handleResize();
-            }}, false );
-            stage.loadFile( new Blob([PDBString], {{type: 'text/plain'}}), {{ ext:'pdb'}} )"""
-        self._update_object_from_parameters()
-
-    @param.depends('rcsb_id', watch=True)
-    def _update_object_from_rcsb_id(self):
-        self.load_string = \
-            f"""
-            stage = new NGL.Stage("viewport");
-            window.addEventListener("resize", function( event ){{
-                stage.handleResize();
-            }}, false );
-            stage.loadFile("rcsb://{self.rcsb_id}")"""
-        self._update_object_from_parameters()
-
-    @staticmethod
-    def to_hex_string(hex):
-        hex.replace('#', '0x')
+        self.jscallback(representation="document.dispatchEvent(new Event('representation'));")
+        self.jscallback(spin="document.dispatchEvent(new Event('spin'));")
+        self.jscallback(rcsb_id="document.dispatchEvent(new Event('rcsb_id'));")
+        self.jscallback(color_list="document.dispatchEvent(new Event('color_list'));")
+        self.jscallback(pdb_string="document.dispatchEvent(new Event('pdb_string'));")
 
 
 class LoggingMarkdown(Markdown):

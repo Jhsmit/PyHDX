@@ -1,5 +1,5 @@
 from .base import BokehFigurePanel, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
-from .widgets import NGLViewer, LoggingMarkdown, NGLView_factory
+from .widgets import LoggingMarkdown, NGL
 from .log import setup_md_log
 from bokeh.plotting import figure, curdoc
 from bokeh.layouts import column
@@ -18,6 +18,7 @@ import pandas as pd
 import holoviews as hv
 from lumen.filters import ParamFilter
 from itertools import groupby, count
+
 
 class hvPlotAppView(hvPlotView):
 
@@ -178,7 +179,7 @@ class hvRectangleAppView(View):
         return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
 
 
-class ProteinView(View):
+class NGLView(View):
     view_type = 'protein'
 
     spin = param.Boolean(default=False)
@@ -186,11 +187,11 @@ class ProteinView(View):
     #js_files = {'ngl': "https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.37/dist/ngl.js"}
 
     def __init__(self, *args, **params):
-        super(ProteinView, self).__init__(**params)
+        super(NGLView, self).__init__(**params)
         from pathlib import Path
         pdb_string = Path(r'C:\Users\jhsmi\pp\PyHDX\dev\1qyn.pdb').read_text()
 
-        self.ngl_view = NGLView_factory.create_view(pdb_string=pdb_string, sizing_mode='stretch_both')
+        self.ngl_view = NGL(pdb_string=pdb_string, sizing_mode='stretch_both')
 
     def get_panel(self):
         #kwargs = self._get_params()
@@ -232,7 +233,7 @@ class ProteinView(View):
         data = self.get_data()
         if len(data.columns) > 1 or data.size < 1:
             # invalid number of columns
-            pass
+            self.ngl_view.color_list = [['white', "*"]]
         else:
             pd_series = data.iloc[:, 0]
             grp = pd_series.groupby(pd_series)

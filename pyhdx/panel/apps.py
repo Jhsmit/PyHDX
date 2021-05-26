@@ -168,7 +168,7 @@ def main_app():
     multiindex_select_colors_2 = MultiIndexSelectFilter(field='state', name='select_index_colors_lv2', table='colors',
                                                        source=source, filters=[multiindex_select_colors_1])
     filter_list += [multiindex_select_colors_1, multiindex_select_colors_2]
-    protein_view = ProteinView(source=source, name='protein', table='colors',
+    protein_view = NGLView(source=source, name='protein', table='colors',
                                filters=[multiindex_select_colors_1, multiindex_select_colors_2]
                                )
     view_list.append(protein_view)
