@@ -127,10 +127,12 @@ class MultiIndexSelectFilter(WebAppWidgetFilter):
 
     def __init__(self, **params):
         super().__init__(**params)
+        for filter in self.filters:
+            filter.param.watch(self.update, 'updated')
 
     def update(self, *events):
         data = self.get_data()
-        options = list(data.columns.levels[0])
+        options = list(data.columns.get_level_values(0).unique())
 
         self.options = options  #does this update the widget?
         self.param['value'].objects = options

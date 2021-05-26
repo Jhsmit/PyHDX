@@ -53,7 +53,7 @@ def main_app():
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('color_ID', 'state', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_colors = pd.DataFrame(columns=col_index, index=row_index)
 
@@ -133,7 +133,7 @@ def main_app():
     opts = {'xlabel': 'Residue Number', 'ylabel': 'ΔG (kJ mol⁻¹)', **global_opts}
     deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
                            table='global_fit', transforms=[cmap_transform, rescale_transform], streaming=True,
-                           filters = [multiindex_select_global_fit_1, multiindex_select_global_fit_2],
+                           filters=[multiindex_select_global_fit_1, multiindex_select_global_fit_2],
                            responsive=True, opts=opts) #issue 154: deltaG units
 
 
@@ -163,7 +163,7 @@ def main_app():
     view_list.append(rates)
 
 
-    multiindex_select_colors_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_colors_lv1', table='colors',
+    multiindex_select_colors_1 = MultiIndexSelectFilter(field='color_ID', name='select_index_colors_lv1', table='colors',
                                                        source=source)
     multiindex_select_colors_2 = MultiIndexSelectFilter(field='state', name='select_index_colors_lv2', table='colors',
                                                        source=source, filters=[multiindex_select_colors_1])

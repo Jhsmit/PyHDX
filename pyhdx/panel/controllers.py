@@ -844,16 +844,18 @@ class ClassificationControl(ControlPanel):
         # Remove old widgets (list comprehension)
         old_widget_names = [key for key in self.widgets.keys() if key.startswith('select')]
         [self.widgets.pop(key) for key in old_widget_names]
-        # for key in self.widgets.keys():
-        #     if key.startswith('select'):
-        #         widget = self.widgets.pop(key)
-               # [widget.param.unwatch(watcher) for watcher in widget.param._watchers]
 
-#        widgets = []
-        widgets = [pn.widgets.Select(name=name, options=['*'] + list(options), value=options[0]) for name, options in zip(names, df.columns.levels)]
-        # for widget in widgets:
-        #     widget.param.watch(self._ , 'value')
-        widget_dict = {f'select_{i}': widget for i, widget in enumerate(widgets)}
+        widget_dict = {}
+        for i, (name, options) in enumerate(zip(names, df.columns.levels)):
+            _opts = ['*'] + list(options) if i != len(names) - 1 else list(options)
+            #todo make function to determine defaults
+            if i == 0:
+                default = _opts[-1]
+            else:
+                default = 'deltaG' if 'deltaG' in _opts else _opts[0]
+            widget = pn.widgets.Select(name=name, options=_opts, value=default)
+            widget_dict[f'select_{i}'] = widget
+
         self.widgets.update(widget_dict)
         self.update_box()
 
@@ -898,8 +900,6 @@ class ClassificationControl(ControlPanel):
         if not values.size:
             return
 
-        print('minmaxvals', values.min(), values.max())
-
         func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
         thds = threshold_multiotsu(func(values), classes=self.num_colors)
         widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
@@ -937,7 +937,7 @@ class ClassificationControl(ControlPanel):
             return
 
         source = self.sources['dataframe']
-        if self.color_set_name in source.tables.keys():
+        if self.color_set_name in source.tables.keys():  #todo update
             self.parent.logger.info(f'Colorset with name {self.color_set_name} already present')
             return
 
@@ -955,9 +955,10 @@ class ClassificationControl(ControlPanel):
 
             new_index = pd.RangeIndex(start=n_term, stop=c_term, name='r_number')
             output_df = output_df.reindex(index=new_index, fill_value=self.no_coverage.upper())
+            output_df.rename_axis(columns={'fit_ID': 'color_ID'}, inplace=True)
+            output_df.columns = output_df.columns.set_levels([self.color_set_name], level=0)
 
-        source.tables[self.color_set_name] = output_df
-        source.updated = True
+        source.add_df(output_df, 'colors')
 
     @param.depends('color_map', 'values', 'colors', watch=True)
     def _action_apply(self):
@@ -1128,7 +1129,6 @@ class ClassificationControl(ControlPanel):
 
 class ProteinControl(ControlPanel):
     header = 'Protein Control'
-
 
     input_mode = param.Selector(doc='Method of protein structure input', objects=['PDB File', 'RCSB Download'])
     file_binary = param.Parameter()
@@ -1848,62 +1848,6 @@ class DifferenceFileExportControl(FileExportControl):
             self.pml_script_download.filename = self.target + '_pymol.pml'
 
 
-class ProteinViewControl(ControlPanel):
-    """
-    This controller allows users control the Protein view figure.
-    Structures can be specified either by RCSB ID or uploading a .pdb file.
-
-    Colors are assigned according to 'color' column of the selected dataset.
-    """
-
-    header = 'Protein Viewer'
-    accepted_tags = ['mapping']
-
-    target_dataset = param.Selector(doc='Name of the dataset to apply coloring from')
-    input_option = param.Selector(default='RCSB PDB', objects=['RCSB PDB', 'Upload File'],
-                                  doc='Choose wheter to upload .pdb file or directly download from RCSB PDB.')
-    rcsb_id = param.String(doc='RCSB PDB identifier of protein entry to download and visualize.')
-    #load_structure = param.Action(lambda self: self._load_structure())
-    no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage.')
-    representation = param.Selector(default='cartoon',
-                                    objects=['backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
-                                             'ribbon', 'rope', 'spacefill', 'surface'],
-                                    doc='Representation to use to render the protein.')
-    spin = param.Boolean(default=False, doc='Rotate the protein around an axis.')
-
-    def __init__(self, parent, **params):
-        self.file_input = pn.widgets.FileInput(accept='.pdb')
-        super(ProteinViewControl, self).__init__(parent, **params)
-
-        self.parent.param.watch(self._parent_sources_updated, ['sources'])
-        self.input_option = 'RCSB PDB'
-
-    def make_list(self):
-        lst = super().make_list()
-        lst.pop(2)  # Remove RCSB ID input field?
-        lst.insert(2, self.file_input)  # add File input widget
-        return lst
-
-    def _parent_sources_updated(self, *events):
-        #todo  this line repeats, put in base class
-        data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
-        self.param['target_dataset'].objects = data_sources
-        if not self.target_dataset and data_sources:
-            self.target_dataset = data_sources[0]
-
-    @param.depends('input_option', watch=True)
-    def _update_input_option(self):
-        if self.input_option == 'Upload File':
-            self.box_pop('rcsb_id')
-            self.box_insert_after('input_option', self.file_input)
-        elif self.input_option == 'RCSB PDB':
-            self.box_pop(self.file_input)
-            self.box_insert_after('input_option', 'rcsb_id')
-
-        elif self.input_option == 'RCSB PDB':
-            self.ngl_html.rcsb_id = self.rcsb_id
-
-
 class OptionsControl(ControlPanel):
     """The controller is used for various settings."""
 
@@ -1978,13 +1922,16 @@ class DeveloperControl(ControlPanel):
             self.parent.logger.info('dit is een test123')
 
     def _action_print(self):
-        source = self.sources['dataframe']
-        table = source.get('rates')
-        print('rates table')
-        print(table.index)
-        print(table.columns)
-        print(table)
 
+        hdx_set = self.parent.hdx_set
+        print(hdx_set.names)
+        guess = self.parent.control_panels['FitControl']
+        rates_df = self.sources['dataframe'].get('rates', fit_ID=guess.initial_guess)
+        print(guess.initial_guess)
+        print(rates_df)
+
+        rates_guess = [rates_df[state]['rate'] for state in hdx_set.names]
+        gibbs_guess = hdx_set.guess_deltaG(rates_guess)
 
     def _action_break(self):
         main_ctrl = self.parent

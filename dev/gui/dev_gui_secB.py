@@ -60,20 +60,26 @@ yaml_dicts = {'testname_123': d1, 'SecB his dimer apo': d2}
 
 def reload_dashboard():
     data_objs = {k: load_from_yaml(v, data_dir=data_dir) for k, v in yaml_dicts.items()}
+    for k, v in data_objs.items():
+        v.metadata['name'] = k
     ctrl.data_objects = data_objs
 
     rates = csv_to_protein('rates.txt', column_depth=3).df
 
     fit = csv_to_protein('global_fit.txt', column_depth=3).df
     colors = csv_to_protein('gibbs_colors_1.txt', column_depth=3).df
+    colors = csv_to_protein('colors_assymetrical.txt', column_depth=3).df
+
     peptides = csv_to_dataframe('peptides.txt', column_depth=2, index_col=0)
     tables = {'rates': rates, 'global_fit': fit}
 
     source = ctrl.sources['dataframe']
     source.add_df(rates, 'rates')
     source.add_df(fit, 'global_fit')
+    source.add_df(colors, 'colors')
 
-    ctrl.sources['dataframe'].tables.update(tables)
+
+    #ctrl.sources['dataframe'].tables.update(tables)
     ctrl.sources['dataframe'].updated = True
 
 def init_dashboard():
