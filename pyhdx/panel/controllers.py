@@ -1135,8 +1135,6 @@ class ProteinControl(ControlPanel):
     rcsb_id = param.String(doc='RCSB ID of protein to download')
     load_structure = param.Action(lambda self: self._action_load_structure())
 
-    new_colors = param.Action(lambda self: self._action_new_colors())
-
     def __init__(self, parent, **params):
         super(ProteinControl, self).__init__(parent, **params)
 
@@ -1179,10 +1177,6 @@ class ProteinControl(ControlPanel):
             with urllib.request.urlopen(url) as response:
                 pdb_string = response.read().decode()
                 view.ngl_view.pdb_string = pdb_string
-
-    def _action_new_colors(self):
-        view = self.views['protein']
-        view._panel.color_list = [["red", "1-39"], ["blue", "45-60"]]
 
 
 class GraphControl(ControlPanel):
