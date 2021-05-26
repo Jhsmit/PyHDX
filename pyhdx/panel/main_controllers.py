@@ -12,6 +12,7 @@ from lumen.sources import Source
 from lumen.filters import FacetFilter
 
 from functools import partial
+from dask.distributed import Client
 
 
 class MainController(param.Parameterized):
@@ -24,8 +25,8 @@ class MainController(param.Parameterized):
     control_panels : :obj:`list`
         List of strings referring to which ControlPanels to use for this MainController instance
         Should refer to subclasses of :class:`~pyhdx.panel.base.ControlPanel`
-    cluster : :obj:`str`
-        IP:port address for Dask cluster (optional)
+    client : dask client
+
 
     Attributes
     ----------
@@ -48,9 +49,9 @@ class MainController(param.Parameterized):
 
     logger = param.ClassSelector(logging.Logger, doc="Logger object")
 
-    def __init__(self, control_panels, cluster=None, **params):
+    def __init__(self, control_panels, client=None, **params):
         super(MainController, self).__init__(**params)
-        self.cluster = cluster
+        self.client = client if client is not None else Client()
         if self.logger is None:
             self.logger = logging.getLogger(str(id(self)))
 

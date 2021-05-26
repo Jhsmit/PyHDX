@@ -7,7 +7,7 @@ import argparse
 
 cfg = ConfigurationSettings()
 
-
+#todo refactor cluster
 def default_client(timeout='2s'):
     cluster = cfg.cluster
     try:

@@ -17,6 +17,7 @@ import logging
 import panel as pn
 from pyhdx.panel.log import logger
 from pyhdx.panel.config import ConfigurationSettings
+from pyhdx.local_cluster import default_client
 from panel import pane
 from lumen.views import PerspectiveView, hvPlotView
 from lumen.filters import WidgetFilter, ParamFilter
@@ -32,6 +33,8 @@ current_dir = Path(__file__).parent
 data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 global_opts = {'show_grid': True}
 cfg = ConfigurationSettings()
+
+client = default_client()
 
 @logger('pyhdx')
 def main_app():
@@ -207,7 +210,7 @@ def main_app():
                            filters=filters,
                            opts=opts,
                            views=views,
-                           cluster=cfg.cluster,
+                           client=client,
                            logger=logger)
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme,
