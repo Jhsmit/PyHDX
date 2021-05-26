@@ -1,41 +1,31 @@
-from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_intersection
-from pyhdx.panel.widgets import NumericInput
-from pyhdx.panel.sources import DataSource, MultiIndexDataSource, DataFrameSource
-from pyhdx.panel.transforms import ApplyCmapTransform
-from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
-    fit_gibbs_global_batch
-from pyhdx.support import verify_cluster
-from pyhdx.fileIO import read_dynamx, txt_to_np, fmt_export, csv_to_protein, txt_to_protein, csv_to_dataframe
-from pyhdx.support import autowrap, colors_to_pymol, rgb_to_hex, hex_to_rgb, hex_to_rgba, series_to_pymol
-from pyhdx import VERSION_STRING
-from scipy import constants
-import param
-import panel as pn
-import numpy as np
-from numpy.lib.recfunctions import append_fields
-from pathlib import Path
-from skimage.filters import threshold_multiotsu
-from numpy.lib.recfunctions import stack_arrays
-from io import StringIO, BytesIO
-from tornado.ioloop import IOLoop
-from functools import partial
-from bokeh.models import ColumnDataSource, LinearColorMapper, ColorBar
-from bokeh.plotting import figure
-from collections import namedtuple
 import operator
+import urllib.request
+import zipfile
+from collections import namedtuple
+from io import StringIO, BytesIO
+from pathlib import Path
+
+import colorcet
+import dask
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import itertools
+import numpy as np
 import pandas as pd
-import colorcet
-import zipfile
-import logging
-import dask
-import asyncio
-import urllib.request
+import panel as pn
+import param
+from numpy.lib.recfunctions import append_fields
+from skimage.filters import threshold_multiotsu
 
-from .widgets import ColoredStaticText, ASyncProgressBar
+from pyhdx import VERSION_STRING
+from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_protein, txt_to_protein, csv_to_dataframe
+from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
+    fit_gibbs_global_batch
+from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_intersection
+from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
+from pyhdx.panel.sources import DataSource, DataFrameSource
+from pyhdx.panel.transforms import ApplyCmapTransform
+from pyhdx.panel.widgets import ASyncProgressBar
+from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
