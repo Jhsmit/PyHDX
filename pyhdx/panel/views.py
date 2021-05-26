@@ -36,10 +36,9 @@ class hvPlotAppView(hvPlotView):
             print(f'Empty data in {self.__class__}: {e}')
             return self.empty_df
 
-        data = super().get_data()
+        #data = super().get_data()
 
-        if data.size > 2:
-
+        if data.size > 2:  #todo fix this weird hack
             return data
         else:
             print(f'got data but too small in  {self.__class__}, ')
