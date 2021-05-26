@@ -22,12 +22,6 @@ from itertools import groupby, count
 
 class hvPlotAppView(hvPlotView):
 
-    # def get_panel(self):
-    #     try:
-    #         return super().get_panel()
-    #     except ValueError:
-    #         return pn.pane.HoloViews()
-
     def get_data(self):
 
         try:
