@@ -1268,44 +1268,11 @@ class FileExportControl(ControlPanel):
 
         self.widgets['export_tables'].filename = self.table + '.txt'
 
-        if self.df.index.name == 'r_number':
+        if self.table == 'colors':
             self.widgets['export_pml'].disabled = False
             self.widgets['export_pml'].filename = self.table + '_pml_scripts.zip'
         else:
             self.widgets['export_pml'].disabled = True
-
-    def _make_pml(self, target):
-        assert 'r_number' in self.export_dict.keys(), "Target export data must have 'r_number' column"
-
-        try:
-            #todo add no coverage field and link to the other no coverage field
-            no_coverage = self.parent.control_panels['ProteinViewControl'].no_coverage
-        except KeyError:
-            no_coverage = '#8c8c8c'
-            self.parent.logger.warning('No coverage color found, using default grey')
-
-        try:
-            c_term = self.parent.series.c_term
-        except AttributeError:
-            c_term = None
-
-        try:
-            script = colors_to_pymol(self.export_dict['r_number'], self.export_dict['color'],
-                                     c_term=c_term, no_coverage=no_coverage)
-            return script
-        except KeyError:
-            return None
-
-    # @pn.depends('target', watch=True)
-    # def _update_filename(self):
-    #     #todo subclass and split
-    #     self.export_linear_download.filename = self.parent.series.state + '_' + self.target + '_linear.txt'
-    #     if 'mapping' in self.export_data_source.tags:
-    #         self.pml_script_download.filename = self.parent.series.state + '_' + self.target + '_pymol.pml'
-    #         # self.pml_script_download.disabled = False
-    #     else:
-    #         self.pml_script_download.filename = 'Not Available'
-    #         # self.pml_script_download.disabled = True # Enable/disable currently bugged:
 
     @pn.depends('table')
     def pml_export_callback(self):
