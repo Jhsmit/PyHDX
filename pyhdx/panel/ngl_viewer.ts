@@ -136,7 +136,7 @@ export class NGLView extends LayoutDOMView {
        stage.setSpin(m.spin);
     });
 
-    document.addEventListener( "resize", function(){
+    window.addEventListener( "resize", function(){
         stage.handleResize();
     }, false );
 
