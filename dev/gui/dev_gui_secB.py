@@ -59,15 +59,21 @@ d2 = {
 yaml_dicts = {'testname_123': d1, 'SecB his dimer apo': d2}
 
 def reload_dashboard():
+    data_objs = {k: load_from_yaml(v, data_dir=data_dir) for k, v in yaml_dicts.items()}
+    ctrl.data_objects = data_objs
+
     rates = csv_to_protein('rates.txt', column_depth=3).df
+
     fit = csv_to_protein('global_fit.txt', column_depth=3).df
     colors = csv_to_protein('gibbs_colors_1.txt', column_depth=3).df
     peptides = csv_to_dataframe('peptides.txt', column_depth=2, index_col=0)
-    tables = {'rates': rates, 'global_fit': fit, 'colors': colors}
-    ctrl.sources['dataframe'].tables.update(tables)
+    tables = {'rates': rates, 'global_fit': fit}
 
-    data_objs = {k: load_from_yaml(v, data_dir=data_dir) for k, v in yaml_dicts.items()}
-    ctrl.data_objects = data_objs
+    source = ctrl.sources['dataframe']
+    source.add_df(rates, 'rates')
+    source.add_df(fit, 'global_fit')
+
+    ctrl.sources['dataframe'].tables.update(tables)
     ctrl.sources['dataframe'].updated = True
 
 def init_dashboard():
@@ -84,17 +90,16 @@ def init_dashboard():
     file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
     file_input._action_add_dataset()
 
-    initial_guess = ctrl.control_panels['InitialGuessControl']
-    #initial_guess.fitting_model = 'Association'
+#     initial_guess = ctrl.control_panels['InitialGuessControl']
+#     #initial_guess.fitting_model = 'Association'
+# #
+#     initial_guess._action_fit()
 #
-    initial_guess._action_fit()
-# # #
     fit_control = ctrl.control_panels['FitControl']
     fit_control.epochs = 10
-# #
-    fit_control.fit_mode = 'Batch'
-#    asyncio.run(fit_control.)
-    fit_control._action_fit()
+#
+#     fit_control.fit_mode = 'Batch'
+#     fit_control._action_fit()
 #     fit_control._do_fitting()
 # #
 #     classification = ctrl.control_panels['ClassificationControl']
@@ -117,7 +122,7 @@ print(__name__)
 
 #if __name__ == '__main__':
 pn.state.onload(reload_dashboard)
-#pn.state.onload(ctrl.init_doc)
+#pn.state.onload(init_dashboard)
 
 # pn.serve(ctrl.template, show=True
 #          , static_dirs={'pyhdx': STATIC_DIR})
