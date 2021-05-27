@@ -475,6 +475,9 @@ class InitialGuessControl(ControlPanel):
         self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
+        self._guess_names = {}
+
+
     @property
     def _layout(self):
         return [
@@ -545,30 +548,18 @@ class InitialGuessControl(ControlPanel):
 
         return combined_results
 
-    @pn.io.with_lock
-    async def do_rate_fitting(self):
-        results = []
-        for name, data_obj in self.parent.data_objects.items():
-            #todo add pbar back in
-            if self.fitting_model.lower() in ['association', 'dissociation']:
+    def add_fit_result(self, future):
+        name = self._guess_names.pop(future.key)
 
-                bounds = (self.lower_bound, self.upper_bound) if self.global_bounds else self.bounds[name]
-                fit_result = fit_rates_weighted_average(data_obj, model_type=self.fitting_model.lower(), bounds=bounds)
-                results.append(fit_result)
-            elif self.fitting_model == 'Half-life (λ)':
-                fit_result = fit_rates_half_time_interpolate(data_obj)
-                results.append(fit_result)
-
-        results = dask.compute(*results)
+        results = future.result()
         dfs = [result.output.df for result in results]
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(self.parent.data_objects.keys()),
                                      names=['state', 'quantity'])
 
-        self.sources['dataframe'].add_df(combined_results, 'rates', self.guess_name)
-        self.parent.fit_results[self.guess_name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
+        self.sources['dataframe'].add_df(combined_results, 'rates', self.name)
+        self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
         self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available
-        self.pbar1.reset() #todo pbar
         self.param['do_fit1'].constant = False
 
     def _action_fit(self):
@@ -576,14 +567,28 @@ class InitialGuessControl(ControlPanel):
             self.parent.logger.info('No datasets loaded')
             return
 
-        if self.guess_name in self.parent.fit_results.keys():
+        if self.guess_name in itertools.chain(self.parent.fit_results.keys(), self._guess_names.values()):
             self.parent.logger.info(f"Fit results with name {self.guess_name} already in use")
             return
 
         self.parent.logger.debug('Start initial guess fit')
         self.param['do_fit1'].constant = True
 
-        pn.io.server.async_execute(self.do_rate_fitting)
+        num_samples = len(self.parent.data_objects)
+        if self.fitting_model.lower() in ['association', 'dissociation']:
+            if self.global_bounds:
+                bounds = [(self.lower_bound, self.upper_bound)]*num_samples
+            else:
+                bounds = self.bounds.values()
+
+            futures = self.parent.client.map(fit_rates_weighted_average,
+                                             self.parent.data_objects.values(), bounds, client='worker_client')
+        elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
+            futures = self.parent.client.map(fit_rates_half_time_interpolate, self.parent.data_objects.values())
+
+        dask_future = self.parent.client.submit(lambda args: args, futures)
+        dask_future.add_done_callback(self.add_fit_result)
+        self._fit_names[dask_future.key] = self.fit_name
 
 
 class FitControl(ControlPanel):
@@ -1889,7 +1894,6 @@ class DeveloperControl(ControlPanel):
         print('Time for a break')
 
     def _action_test(self):
-        from pathlib import Path
         src_file = r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_torch_fit.txt'
         array = txt_to_np(src_file)
         data_dict = {name: array[name] for name in array.dtype.names}

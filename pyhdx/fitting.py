@@ -83,7 +83,6 @@ def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
     return d_list, intervals, models
 
 
-@dask.delayed
 def fit_rates_half_time_interpolate(data_obj):
     """
     Calculates exchange rates based on weighted averaging followed by interpolation to determine half-time, which is
@@ -112,8 +111,7 @@ def fit_rates_half_time_interpolate(data_obj):
     return result
 
 
-#@dask.delayed
-def fit_rates_weighted_average(data_obj, chisq_thd=20, model_type='association', client=None, pbar=None, bounds=None):
+def fit_rates_weighted_average(data_obj, bounds=None, chisq_thd=20, model_type='association', client=None, pbar=None):
     """
     Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
     is the same
