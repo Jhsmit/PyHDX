@@ -58,6 +58,7 @@ class MainController(param.Parameterized):
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
         self.template = None   # Panel template
+        self.future_queue = []  # queue of future, callback
 
         for filt in self.filters.values():
             if isinstance(filt, FacetFilter):
@@ -70,6 +71,7 @@ class MainController(param.Parameterized):
                 trs.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
 
         self._update_views()
+        self.start()
 
     # from lumen.target.Target
     def _rerender(self, *events, invalidate_cache=False):
@@ -91,10 +93,16 @@ class MainController(param.Parameterized):
         for view in self.views:
             view.update()
 
+    def check_futures(self):
+        for future, callback in self.future_queue[:]:
+            if future.status == 'finished':
+                callback(future)
+                self.future_queue.remove((future, callback))
+
     def start(self):
-        refresh_rate = 50
-        self._cb = pn.state.add_periodic_callback(
-            self.update, refresh_rate
+        refresh_rate = 25
+        pn.state.add_periodic_callback(
+            self.check_futures, refresh_rate
         )
 
 

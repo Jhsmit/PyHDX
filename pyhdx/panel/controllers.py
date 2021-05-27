@@ -546,6 +546,7 @@ class InitialGuessControl(ControlPanel):
                                      keys=list(self.parent.data_objects.keys()),
                                      names=['state', 'quantity'])
 
+        #with pn.io.unlocked():
         self.sources['dataframe'].add_df(combined_results, 'rates', name)
         self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
         self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available
@@ -577,7 +578,8 @@ class InitialGuessControl(ControlPanel):
 
         dask_future = self.parent.client.submit(lambda args: args, futures)
         self._guess_names[dask_future.key] = self.guess_name
-        dask_future.add_done_callback(self.add_fit_result)
+
+        self.parent.future_queue.append((dask_future, self.add_fit_result))
 
 
 class FitControl(ControlPanel):
@@ -647,7 +649,6 @@ class FitControl(ControlPanel):
         else:
             self.param['r2'].constant = True
 
-    #@pn.io.with_lock
     def add_fit_result(self, future):
         name = self._fit_names.pop(future.key)
         result = future.result()
@@ -689,18 +690,19 @@ class FitControl(ControlPanel):
             gibbs_guess = hdx_set.guess_deltaG(rates_guess)
 
             dask_future = self.parent.client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
-        #    dask_future.add_done_callback(self.add_fit_result)
         else:
             data_objs = self.parent.data_objects.values()
             rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess)
             gibbs_guesses = [data_obj.guess_deltaG(rates_df[data_obj.name]['rate']) for data_obj in data_objs]
             futures = self.parent.client.map(fit_gibbs_global, data_objs, gibbs_guesses, **self.fit_kwargs)
 
-            # https://github.com/dask/distributed/pull/560
+            # Combine list of futures into one future object
+            # See https://github.com/dask/distributed/pull/560
             dask_future = self.parent.client.submit(lambda args: args, futures)
 
-        dask_future.add_done_callback(self.add_fit_result)
         self._fit_names[dask_future.key] = self.fit_name
+        self.parent.future_queue.append((dask_future, self.add_fit_result))
+
 
     @property
     def fit_kwargs(self):
