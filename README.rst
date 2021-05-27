@@ -67,12 +67,15 @@ Web Application
 The PyHDX web application is currently hosted at:
 http://pyhdx.jhsmit.org/main
 
-A test file can be downloaded from `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/ecSecB_apo.csv>`_. (right click, save as)
-
+A test file can be downloaded from `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/ecSecB_apo.csv>`_ and `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/ecSecB_dimer.csv>`_. (right click, save as).
 
 Two other web applications are available.
-To upload fitting results from the main application and vizualize: 
+To upload fitting results from the main application and visualize: 
 http://pyhdx.jhsmit.org/single
 
-To upload multiple fitting result datasets and compare and vizualize:
+To upload multiple fitting result datasets and compare and visualize:
 http://pyhdx.jhsmit.org/diff
+
+The 0.4.0 beta version of PyHDX (featuring batch fitting / multiple states) is hosted at:
+http://pyhdx-beta.jhsmit.org/main
+
