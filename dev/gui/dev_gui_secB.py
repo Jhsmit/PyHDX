@@ -67,19 +67,18 @@ def reload_dashboard():
         v.metadata['name'] = k
     ctrl.data_objects = data_objs
 
-    rates = csv_to_protein('rates.txt', column_depth=3).df
+    rates = csv_to_protein(test_dir / 'rates.txt', column_depth=3).df
 
-    fit = csv_to_protein('global_fit.txt', column_depth=3).df
-    colors = csv_to_protein('colors.txt', column_depth=3).df
+    fit = csv_to_protein(test_dir / 'global_fit.txt', column_depth=3).df
+    colors = csv_to_protein(test_dir / 'colors.txt', column_depth=3).df
 
-    peptides = csv_to_dataframe('peptides.txt', column_depth=2, index_col=0)
+    peptides = csv_to_dataframe(test_dir / 'peptides.txt', column_depth=2, index_col=0)
 
     source = ctrl.sources['dataframe']
     source.add_df(rates, 'rates')
     #source.add_df(fit, 'global_fit')
     source.add_df(colors, 'colors')
 
-    #ctrl.sources['dataframe'].tables.update(tables)
     ctrl.sources['dataframe'].updated = True
 
     fit_control = ctrl.control_panels['FitControl']
@@ -135,7 +134,7 @@ print(__name__)
 pn.state.onload(reload_dashboard)
 #pn.state.onload(init_dashboard)
 
-# pn.serve(ctrl.template, show=True
-#          , static_dirs={'pyhdx': STATIC_DIR})
+pn.serve(ctrl.template, show=True
+         , static_dirs={'pyhdx': STATIC_DIR})
 
-ctrl.template.servable()
+#ctrl.template.servable()
