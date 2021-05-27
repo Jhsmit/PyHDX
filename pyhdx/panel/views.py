@@ -179,7 +179,7 @@ class NGLView(View):
 
     #js_files = {'ngl': "https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.37/dist/ngl.js"}
 
-    def __init__(self, *args, **params):
+    def __init__(self, **params):
         super(NGLView, self).__init__(**params)
         self.ngl_view = NGL(sizing_mode='stretch_both')
 
