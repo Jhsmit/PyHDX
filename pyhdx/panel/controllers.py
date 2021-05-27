@@ -631,6 +631,7 @@ class FitControl(ControlPanel):
 
         self._current_jobs = 0
         self._max_jobs = 3  #todo config
+        self._fit_names = {}
 
     def _source_updated(self, *events):
         table = self.parent.sources['dataframe'].get('rates')
@@ -654,22 +655,38 @@ class FitControl(ControlPanel):
 
     #@pn.io.with_lock
     def add_fit_result(self, future):
+        name = self._fit_names.pop(future.key)
         result = future.result()
         self._current_jobs -= 1
-        self.parent.fit_results[self.fit_name] = result
-        df = result.output.df
 
-        self.parent.logger.info('Finished PyTorch fit')
-        loss = result.metadata['mse_loss']
-        self.parent.logger.info(
-            f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                f"({result.regularization_percentage:.1f}%)")
+        self.parent.logger.info(f'Finished PyTorch fit: {name}')
 
-        self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[self.fit_name])
+        if isinstance(result, list):
+            self.parent.fit_results[name] = list(result)
+            output_dfs = {fit_result.series.name: fit_result.output.df for fit_result in result}
+            df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
+        else:
+            self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
+            df = result.output.df
+
+            self.parent.logger.info('Finished PyTorch fit')
+            loss = result.metadata['mse_loss']
+            self.parent.logger.info(
+                f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+            self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                    f"({result.regularization_percentage:.1f}%)")
+
+        self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
         self.parent.param.trigger('fit_results')
 
-    def _do_fitting_async(self):
+    def _action_fit(self):
+        self.parent.logger.info('Started PyTorch fit')
+        # todo check for name in existing and future names
+        self._current_jobs += 1
+        if self._current_jobs >= self._max_jobs:
+            self.widgets['do_fit'].constant = True
+
+        self.parent.logger.info(f'Current number of active jobs: {self._current_jobs}')
         if self.fit_mode == 'Batch':
             hdx_set = self.parent.hdx_set
             rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess)
@@ -678,79 +695,28 @@ class FitControl(ControlPanel):
             gibbs_guess = hdx_set.guess_deltaG(rates_guess)
 
             dask_future = self.parent.client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
-            dask_future.add_done_callback(self.add_fit_result)
-            #future = asyncio.ensure_future(dask_future)
-
-            #func = partial(self.add_fit_result, dask_future)
-            #n.io.server.async_execute(func)
-            # async def wrapper():
-            #     result = await self.parent.client.gather(future, asynchronous=True)
-            #     return result
-            # #print(future)
-
-            #loop.add_future(future, self.add_fit_result)
-
-            #result = fit_gibbs_global_batch(hdx_set, gibbs_guess, **self.fit_kwargs)
-
-            # self.parent.fit_results[self.fit_name] = result
-            # df = result.output.df
-            #
-            # self.parent.logger.info('Finished PyTorch fit')
-            # loss = result.metadata['mse_loss']
-            # self.parent.logger.info(
-            #     f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-            # self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-            #                         f"({result.regularization_percentage:.1f}%)")
-
+        #    dask_future.add_done_callback(self.add_fit_result)
         else:
-            output_dfs = {}
-            results = []
-            for data_obj in self.parent.data_objects.values():
-                rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess, state=data_obj.name)
-                gibbs_guess = data_obj.guess_deltaG(rates_df['rate'])
+            data_objs = self.parent.data_objects.values()
+            rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess)
+            gibbs_guesses = [data_obj.guess_deltaG(rates_df[data_obj.name]['rate']) for data_obj in data_objs]
+            futures = self.parent.client.map(fit_gibbs_global, data_objs, gibbs_guesses, **self.fit_kwargs)
 
-                result = fit_gibbs_global(data_obj, gibbs_guess, **self.fit_kwargs)
-                results.append(result)
-                # output_dfs[data_obj.name] = result.output.df
-                #
-                # self.parent.logger.info(f"Finished PyTorch fit for state: {data_obj.name}")
-                # loss = result.metadata['mse_loss']
-                # self.parent.logger.info(
-                #     f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-                # self.parent.logger.info(
-                #     f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                #     f"({result.regularization_percentage:.1f}%)")
+            # https://github.com/dask/distributed/pull/560
+            dask_future = self.parent.client.submit(lambda args: args, futures)
 
-        #     df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
-        #
-        # self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[self.fit_name])
-        # self.parent.param.trigger('fit_results')
-        #
-        # self._current_jobs -= 1
-        # if self._current_jobs < self._max_jobs:
-        #     self.widgets['do_fit'].constant = False
+        dask_future.add_done_callback(self.add_fit_result)
+        self._fit_names[dask_future.key] = self.fit_name
 
     @property
     def fit_kwargs(self):
-        fit_kwargs = dict(r1=self.r1, lr=self.learning_rate,momentum=self.momentum, nesterov=self.nesterov,
+        fit_kwargs = dict(r1=self.r1, lr=self.learning_rate, momentum=self.momentum, nesterov=self.nesterov,
                           epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss)
         if self.fit_mode == 'Batch':
             fit_kwargs['r2'] = self.r2
 
         return fit_kwargs
 
-    def _action_fit(self):
-        self.parent.logger.info('Started PyTorch fit')
-
-        self._current_jobs += 1
-        if self._current_jobs >= self._max_jobs:
-            self.widgets['do_fit'].constant = True
-
-        self.parent.logger.info(f'current_jobs {self._current_jobs}')
-        self._do_fitting_async()
-
-        # func = partial(self.f)
-        # pn.io.server.async_execute(self.add_fit_result)
 
 
 class ClassificationControl(ControlPanel):

@@ -90,6 +90,7 @@ class TorchSingleFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
         super(TorchSingleFitResult, self).__init__(*args, **kwargs)
 
+    #todo refactor series
     @property
     def series(self):
         return self.fit_object

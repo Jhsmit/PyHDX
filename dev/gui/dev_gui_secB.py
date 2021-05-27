@@ -75,12 +75,16 @@ def reload_dashboard():
 
     source = ctrl.sources['dataframe']
     source.add_df(rates, 'rates')
-    source.add_df(fit, 'global_fit')
+    #source.add_df(fit, 'global_fit')
     source.add_df(colors, 'colors')
-
 
     #ctrl.sources['dataframe'].tables.update(tables)
     ctrl.sources['dataframe'].updated = True
+
+    fit_control = ctrl.control_panels['FitControl']
+    fit_control.epochs = 100
+    fit_control.fit_mode = 'Single'
+    fit_control.fit_name = 'new_global_fit_test_123'
 
 def init_dashboard():
     file_input = ctrl.control_panels['PeptideFileInputControl']
