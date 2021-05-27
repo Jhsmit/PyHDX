@@ -557,7 +557,7 @@ class InitialGuessControl(ControlPanel):
                                      keys=list(self.parent.data_objects.keys()),
                                      names=['state', 'quantity'])
 
-        self.sources['dataframe'].add_df(combined_results, 'rates', self.name)
+        self.sources['dataframe'].add_df(combined_results, 'rates', name)
         self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
         self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available
         self.param['do_fit1'].constant = False
@@ -587,8 +587,8 @@ class InitialGuessControl(ControlPanel):
             futures = self.parent.client.map(fit_rates_half_time_interpolate, self.parent.data_objects.values())
 
         dask_future = self.parent.client.submit(lambda args: args, futures)
+        self._guess_names[dask_future.key] = self.guess_name
         dask_future.add_done_callback(self.add_fit_result)
-        self._fit_names[dask_future.key] = self.fit_name
 
 
 class FitControl(ControlPanel):
