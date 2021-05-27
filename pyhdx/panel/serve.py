@@ -28,12 +28,10 @@ def run_main():
     cluster = ConfigurationSettings().cluster
     if verify_cluster(cluster):
         print("Welcome to the PyHDX server!")
-        pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
-    #todo add some logic/kwargs for log keeping
-    log_root_dir = Path('logs')
-    log_dir = log_root_dir / datetime.datetime.now().strftime('%Y%m%d')
-    log_dir.mkdir(parents=False, exist_ok=True) # catch error when log dir does not exist
 
+    log_root_dir = Path.home() / '.pyhdx' / 'logs'
+    log_dir = log_root_dir / datetime.datetime.now().strftime('%Y%m%d')
+    log_dir.mkdir(parents=True, exist_ok=True) # catch error when log dir does not exist
     root_log = logging.getLogger('pyhdx')
     root_log.setLevel(logging.DEBUG)
 
@@ -50,9 +48,7 @@ def run_main():
     fh.setFormatter(formatter)
     fh.setLevel(10)
     tornado_logger.addHandler(fh)
-
-    #sys.stderr = StreamToLogger(logger, logging.DEBUG)
-
+    
     pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
 
 
