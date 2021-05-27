@@ -147,7 +147,6 @@ def main_app():
                                   filters=[multiindex_select_filter, slider_exposure_filter])
     view_list.append(coverage)
 
-
     multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_rates_lv1', table='rates',
                                                        source=source)
     multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates_lv2', table='rates',

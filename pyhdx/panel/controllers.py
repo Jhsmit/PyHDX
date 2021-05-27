@@ -538,7 +538,6 @@ class InitialGuessControl(ControlPanel):
                                      keys=list(self.parent.data_objects.keys()),
                                      names=['state', 'quantity'])
 
-        #with pn.io.unlocked():
         self.sources['dataframe'].add_df(combined_results, 'rates', name)
         self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
         self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available

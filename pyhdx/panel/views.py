@@ -175,50 +175,16 @@ class hvRectangleAppView(View):
 class NGLView(View):
     view_type = 'protein'
 
-    spin = param.Boolean(default=False)
+    #spin = param.Boolean(default=False)
 
     #js_files = {'ngl': "https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.37/dist/ngl.js"}
 
     def __init__(self, *args, **params):
         super(NGLView, self).__init__(**params)
-        from pathlib import Path
-        pdb_string = Path(r'C:\Users\jhsmi\pp\PyHDX\dev\1qyn.pdb').read_text()
-
-        self.ngl_view = NGL(pdb_string=pdb_string, sizing_mode='stretch_both')
+        self.ngl_view = NGL(sizing_mode='stretch_both')
 
     def get_panel(self):
-        #kwargs = self._get_params()
-        # from pathlib import Path
-        # pdb_string = Path(r'C:\Users\jhsmi\pp\PyHDX\dev\1qyn.pdb').read_text()
-        #
-        # ngl_view = NGLView_factory.create_view(pdb_string=pdb_string, sizing_mode='stretch_both')
-
         return self.ngl_view
-
-    # @property
-    # def panel(self):
-    #     return self._panel
-
-    # def get_panel(self):
-    #     return self.ngl_view
-        #return pn.pane.Pane(self.ngl_view, sizing_mode='stretch_both')
-
-    # def get_data(self):
-    #     #todo uniformify this method for all views
-    #
-    #     return super().get_data()
-        #
-        # try:
-        # except (KeyError, ValueError) as e:
-        #     print(f'Empty data in {self.__class__}: {e}')
-        #     return self.empty_df
-    #
-    # @param.depends('spin', watch=True)
-    # def _spin_updated_123(self):
-    #     print('in view')
-    #     self.ngl_view.spin = self.spin
-    # #
-    # def _get_params(self):
 
     def update(self, *events, invalidate_cache=True):
         if invalidate_cache:
@@ -260,7 +226,6 @@ class LoggingView(View):
         self.sh.setLevel(self.level)
         formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', "%Y-%m-%d %H:%M:%S")
         self.sh.setFormatter(formatter)
-        #sh.setLevel(logging.DEBUG)
         self.logger.addHandler(self.sh)
 
     @param.depends('level', watch=True)

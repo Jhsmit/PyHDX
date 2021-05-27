@@ -73,7 +73,6 @@ def reload_dashboard():
     colors = csv_to_protein(test_dir / 'colors.txt', column_depth=3).df
 
     peptides = csv_to_dataframe(test_dir / 'peptides.txt', column_depth=2, index_col=0)
-
     source = ctrl.sources['dataframe']
     source.add_df(rates, 'rates')
     source.add_df(peptides, 'peptides')
@@ -86,6 +85,10 @@ def reload_dashboard():
     fit_control.epochs = 100
     fit_control.fit_mode = 'Single'
     fit_control.fit_name = 'new_global_fit_test_123'
+
+    ngl = ctrl.views['protein']
+    ngl.ngl_view.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
+
 
 def init_dashboard():
     file_input = ctrl.control_panels['PeptideFileInputControl']
@@ -128,8 +131,8 @@ def init_dashboard():
 
 
 #if __name__ == '__main__':
-#pn.state.onload(reload_dashboard)
-pn.state.onload(init_dashboard)
+pn.state.onload(reload_dashboard)
+#pn.state.onload(init_dashboard)
 
 pn.serve(ctrl.template, show=True
          , static_dirs={'pyhdx': STATIC_DIR})
