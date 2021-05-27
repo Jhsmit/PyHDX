@@ -419,12 +419,10 @@ class PeptideFileInputControl(ControlPanel):
 class CoverageControl(ControlPanel):
     header = 'Coverage'
 
-    temp_new_data = param.Action(lambda self: self._action_new_data())
+    #temp_new_data = param.Action(lambda self: self._action_new_data())
 
     def __init__(self, parent, **params):
         super().__init__(parent, **params)
-
-
 
         self.update_box()
 
@@ -433,7 +431,8 @@ class CoverageControl(ControlPanel):
         return [
             ('filters.select_index', None),
             ('filters.exposure_slider', None),
-            ('self', None)
+            ('opts.cmap', None),
+            #('self', None)
         ]
 
     def _action_new_data(self):
@@ -476,7 +475,6 @@ class InitialGuessControl(ControlPanel):
         self.update_box()
 
         self._guess_names = {}
-
 
     @property
     def _layout(self):
@@ -721,7 +719,6 @@ class FitControl(ControlPanel):
             fit_kwargs['r2'] = self.r2
 
         return fit_kwargs
-
 
 
 class ClassificationControl(ControlPanel):
@@ -1188,10 +1185,10 @@ class GraphControl(ControlPanel):
     @property
     def _layout(self):
         return [
-            ('self', ['coverage']),
-            ('filters.select_index', None),
-            ('filters.exposure_slider', None),
-            ('opts.cmap', None),
+            # ('self', ['coverage']),
+            # ('filters.select_index', None),
+            # ('filters.exposure_slider', None),
+            # ('opts.cmap', None),
             ('self', ['rates']),
             ('filters.select_index_rates_lv1', None),
             ('filters.select_index_rates_lv2', None),
