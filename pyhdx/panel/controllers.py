@@ -529,14 +529,6 @@ class InitialGuessControl(ControlPanel):
         if not self.dataset:
             self.dataset = options[0]
 
-    @staticmethod
-    def fit_result_dict_to_df(results):
-        combined_results = pd.concat(results.values(), axis=1,
-                                     keys=list(results.keys()),
-                                     names=['state', 'quantity'])
-
-        return combined_results
-
     def add_fit_result(self, future):
         name = self._guess_names.pop(future.key)
 
@@ -558,7 +550,7 @@ class InitialGuessControl(ControlPanel):
             return
 
         if self.guess_name in itertools.chain(self.parent.fit_results.keys(), self._guess_names.values()):
-            self.parent.logger.info(f"Fit results with name {self.guess_name} already in use")
+            self.parent.logger.info(f"Guess with name {self.guess_name} already in use")
             return
 
         self.parent.logger.debug('Start initial guess fit')
@@ -607,10 +599,10 @@ class FitControl(ControlPanel):
                              doc='Use Nesterov type of momentum for SGD')
     epochs = param.Integer(100000, bounds=(1, None),
                           doc='Maximum number of epochs (iterations.')
-    r1 = param.Number(0.1, bounds=(0, None), label='Regularizer 1 (peptide axis)',
+    r1 = param.Number(0.05, bounds=(0, None), label='Regularizer 1 (peptide axis)',
                       doc='Value of the regularizer along residue axis.')
 
-    r2 = param.Number(0.1, bounds=(0, None), label='Regularizer 2 (sample axis)',
+    r2 = param.Number(0.5, bounds=(0, None), label='Regularizer 2 (sample axis)',
                       doc='Value of the regularizer along sample axis.', constant=True)
 
     fit_name = param.String("Gibbs_fit_1", doc="Name for for the fit result")
@@ -626,7 +618,7 @@ class FitControl(ControlPanel):
         source.param.watch(self._source_updated, ['updated'])
 
         self._current_jobs = 0
-        self._max_jobs = 3  #todo config
+        self._max_jobs = 2  #todo config
         self._fit_names = {}
 
     def _source_updated(self, *events):
@@ -675,8 +667,12 @@ class FitControl(ControlPanel):
         self.parent.param.trigger('fit_results')
 
     def _action_fit(self):
+        if self.fit_name in itertools.chain(self.parent.fit_results.keys(), self._fit_names.values()):
+            self.parent.logger.info(f"Guess with name {self.guess_name} already in use")
+            return
+
         self.parent.logger.info('Started PyTorch fit')
-        # todo check for name in existing and future names
+
         self._current_jobs += 1
         if self._current_jobs >= self._max_jobs:
             self.widgets['do_fit'].constant = True
@@ -702,7 +698,6 @@ class FitControl(ControlPanel):
 
         self._fit_names[dask_future.key] = self.fit_name
         self.parent.future_queue.append((dask_future, self.add_fit_result))
-
 
     @property
     def fit_kwargs(self):
