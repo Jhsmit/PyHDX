@@ -435,15 +435,6 @@ class CoverageControl(ControlPanel):
             #('self', None)
         ]
 
-    def _action_new_data(self):
-        df = csv_to_dataframe(r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_apo_peptides.csv')
-
-        reduced_df = df.query('exposure < 50')
-
-        source = self.sources['dataframe']
-
-        source.add_df(reduced_df, 'peptides', 'ecSecB_reduced')
-
 
 class InitialGuessControl(ControlPanel):
     """

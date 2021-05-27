@@ -76,6 +76,7 @@ def reload_dashboard():
 
     source = ctrl.sources['dataframe']
     source.add_df(rates, 'rates')
+    source.add_df(peptides, 'peptides')
     #source.add_df(fit, 'global_fit')
     source.add_df(colors, 'colors')
 
@@ -126,13 +127,9 @@ def init_dashboard():
 # sio = file_export.table_export_callback()
 
 
-
-
-print(__name__)
-
 #if __name__ == '__main__':
-pn.state.onload(reload_dashboard)
-#pn.state.onload(init_dashboard)
+#pn.state.onload(reload_dashboard)
+pn.state.onload(init_dashboard)
 
 pn.serve(ctrl.template, show=True
          , static_dirs={'pyhdx': STATIC_DIR})
