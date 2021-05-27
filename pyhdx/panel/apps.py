@@ -91,11 +91,11 @@ def main_app():
     #                                FILTERS
     # ---------------------------------------------------------------------- #
 
-    #unique_vals = list(np.sort(peptides_source.get_unique(table='peptides', field='exposure')))
+    # unique_vals = list(np.sort(peptides_source.get_unique(table='peptides', field='exposure')))
     multiindex_select_filter = MultiIndexSelectFilter(field='state', name='select_index', table='peptides',
                                                       source=source)
 
-     # unique_vals = list(np.sort(source.get_unique(table='peptides', field='exposure', state='ecSecB_apo')))
+    # unique_vals = list(np.sort(source.get_unique(table='peptides', field='exposure', state='ecSecB_apo')))
     slider_exposure_filter = UniqueValuesFilter(field='exposure', name='exposure_slider',
                                                 table='peptides', filters=[multiindex_select_filter], source=source)
 
@@ -133,12 +133,11 @@ def main_app():
 
     filter_list += [multiindex_select_global_fit_1, multiindex_select_global_fit_2]
 
-    opts = {'xlabel': 'Residue Number', 'ylabel': 'ΔG (kJ mol⁻¹)', **global_opts}
+    opts = {'xlabel': 'Residue Number', 'ylabel': 'ΔG (kJ mol⁻¹)', 'colorbar': False,  **global_opts}
     deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
                            table='global_fit', transforms=[cmap_transform, rescale_transform], streaming=True,
                            filters=[multiindex_select_global_fit_1, multiindex_select_global_fit_2],
                            responsive=True, opts=opts) #issue 154: deltaG units
-
 
     view_list.append(deltaG)
 
@@ -157,7 +156,7 @@ def main_app():
     filter_list += [multiindex_select_rates_1, multiindex_select_rates_2]
     # perhaps consider derivedsource for the views
 
-    opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)", **global_opts}
+    opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)", 'colorbar': False, **global_opts}
     rates = hvPlotAppView(source=source, name='rates', x='r_number', y='rate', kind='scatter', # c='color'
                            table='rates', streaming=True, responsive=True, opts=opts,
                           transforms=[reset_index_transform],
