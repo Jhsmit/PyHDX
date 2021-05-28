@@ -48,7 +48,7 @@ def run_main():
     fh.setFormatter(formatter)
     fh.setLevel(10)
     tornado_logger.addHandler(fh)
-    
+
     pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
 
 

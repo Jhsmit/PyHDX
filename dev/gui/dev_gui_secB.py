@@ -16,13 +16,6 @@ import panel as pn
 import numpy as np
 from pathlib import Path
 
-import asyncio
-
-#temporary imports
-from pyhdx.support import rgb_to_hex
-import matplotlib.pyplot as plt
-
-
 ctrl = main_app()
 directory = Path(__file__).parent
 root_dir = directory.parent.parent
