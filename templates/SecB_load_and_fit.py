@@ -1,10 +1,8 @@
 from pathlib import Path
-import numpy as np
 from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.local_cluster import default_client
-import asyncio
 
 guess = False
 epochs = 1000
@@ -22,7 +20,7 @@ series = KineticsSeries(pmt.get_state('SecB WT apo'), temperature=temperature, p
 
 if guess:
     client = default_client()
-    wt_avg_result = fit_rates_weighted_average(series).compute()
+    wt_avg_result = fit_rates_weighted_average(series, client=client)
     init_guess = wt_avg_result.output
 else:
     init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.txt')
