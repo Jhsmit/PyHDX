@@ -64,7 +64,7 @@ def align_dataframes(dataframes, alignment, first_r_numbers=None):
         if not isinstance(dataframes, dict):
             raise TypeError("'alignment' and 'dataframes' must either both be `dict` or `list`")
         align_list = list(alignment.values())
-        df_list = list(dataframes.values)
+        df_list = list(dataframes.values())
         assert alignment.keys() == dataframes.keys(), "Keys of input dicts to not match"
     elif isinstance(alignment, list):
         if not isinstance(alignment, list):
