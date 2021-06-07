@@ -58,7 +58,7 @@ class MainController(param.Parameterized):
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
         self.template = None   # Panel template
-        self.future_queue = []  # queue of future, callback
+        self.future_queue = []  # queue of tuples: (future, callback)
 
         for filt in self.filters.values():
             if isinstance(filt, FacetFilter):
