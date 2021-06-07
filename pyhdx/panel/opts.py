@@ -27,23 +27,7 @@ class Opts(param.Parameterized):
 
         return {k: v for k, v in zip(names[1:], widgets)}
 
+
 class CmapOpts(Opts):
 
     cmap = param.ObjectSelector(default='jet', objects=['viridis', 'plasma', 'magma', 'jet'], label='Color map')
-
-
-if __name__ == '__main__':
-    add_opts = {'color': 'value', 'colorbar': True}
-    style = CmapOpts(opts=add_opts)
-    print(style.opts)
-
-    print(style.param)
-    widget_dict = style.generate_widgets()
-    print(widget_dict)
-    param.parameterized.Parameterized
-    for par in style.param:
-        print(par)
-        print(type(par))
-        print(style.param[par])
-
-        pn.serve(style.panel)

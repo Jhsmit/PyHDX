@@ -1141,7 +1141,6 @@ class ProteinControl(ControlPanel):
         view = self.views['protein']
         if self.input_mode == 'PDB File':
             pdb_string = self.file_binary.decode()
-            print(pdb_string)
             view.ngl_view.pdb_string = pdb_string
         elif self.input_mode == 'RCSB Download':
             if len(self.rcsb_id) != 4:

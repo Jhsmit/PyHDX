@@ -63,7 +63,6 @@ class MainController(param.Parameterized):
         for filt in self.filters.values():
             if isinstance(filt, FacetFilter):
                 continue
-            print(filt)
             filt.param.watch(partial(self._rerender, invalidate_cache=True), 'value')
 
         for trs in self.transforms.values():
