@@ -34,10 +34,9 @@ data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 global_opts = {'show_grid': True}
 cfg = ConfigurationSettings()
 
-client = default_client()
-
 @logger('pyhdx')
-def main_app():
+def main_app(client='default'):
+    client = default_client() if client == 'default' else client
     logger = main_app.logger
 
     # ---------------------------------------------------------------------- #
