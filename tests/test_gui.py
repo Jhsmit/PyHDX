@@ -7,6 +7,7 @@ from pathlib import Path
 import torch
 import numpy as np
 import pytest
+import time
 
 directory = Path(__file__).parent
 from pyhdx.support import rgb_to_hex
@@ -39,7 +40,9 @@ class TestMainGUISecB(object):
 
         cfg = ConfigurationSettings()
         cfg.set('cluster', 'port', str(test_port))
-        local_cluster = default_cluster()
+        #local_cluster = default_cluster()
+
+        #print(local_cluster)
 
         # cls.ds_fit = DataSource(cls.prot_fit_result, name='global_fit', x='r_number', tags=['mapping', 'pfact', 'deltaG'],
         #                         renderer='circle', size=10)
@@ -80,7 +83,7 @@ class TestMainGUISecB(object):
         fpaths = [fpath_1, fpath_2]
         files = [p.read_bytes() for p in fpaths]
 
-        ctrl = main_app()
+        ctrl = main_app(client=None)
         file_input = ctrl.control_panels['PeptideFileInputControl']
 
         file_input.input_files = files
@@ -100,6 +103,12 @@ class TestMainGUISecB(object):
         initial_guess = ctrl.control_panels['InitialGuessControl']
         initial_guess._action_fit()
 
+        # Wait until fitting futures are completed
+        while len(ctrl.future_queue) > 0:
+            ctrl.check_futures()
+            time.sleep(0.1)
+
+
         #assert ....
 
 
@@ -108,6 +117,11 @@ class TestMainGUISecB(object):
 
         fit_control.fit_name = 'testfit_1'
         fit_control._action_fit()
+
+        # Wait until fitting futures are completed
+        while len(ctrl.future_queue) > 0:
+            ctrl.check_futures()
+            time.sleep(0.1)
         #assert ....
 
         table = ctrl.sources['dataframe'].get('global_fit')
@@ -131,8 +145,8 @@ class TestMainGUISecB(object):
         cmap, norm = classification.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 73089
-        assert colors.std() == 88.44750626284586
+        assert colors.sum() == 73090
+        assert colors.std() == 89.41501408256475
 
         value_widget = classification.widgets['value_2']
         value_widget.value = 10e3
@@ -140,8 +154,8 @@ class TestMainGUISecB(object):
         cmap, norm = classification.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 73098
-        assert colors.std() == 95.4600213493482
+        assert colors.sum() == 73097
+        assert colors.std() == 91.9688274382922
 
         classification.mode = 'Color map'
         classification.library = 'colorcet'
@@ -150,8 +164,8 @@ class TestMainGUISecB(object):
 
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 124011
-        assert colors.std() == 54.34640346513841
+        assert colors.sum() == 117289
+        assert colors.std() == 64.90120978241222
 
         #
         # cov_figure = ctrl.figure_panels['CoverageFigure']
@@ -160,7 +174,7 @@ class TestMainGUISecB(object):
         # assert renderer.data_source.name == f'coverage_{self.series.state}'
 
     def test_initial_guesses_and_fit(self):
-        ctrl = main_app()
+        ctrl = main_app(client=None)
         ctrl.data_objects[self.series.name] = self.series
 
         ctrl.control_panels['InitialGuessControl']._action_fit()
