@@ -1,6 +1,6 @@
 from pathlib import Path
 import numpy as np
-from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
+from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 
 current_dir = Path(__file__).parent
 np.random.seed(43)
@@ -13,7 +13,7 @@ pmt.set_control(('Full deuteration control', 0.167))
 
 sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
-series = KineticsSeries(pmt.get_state('SecB WT apo'), sequence=sequence)
+series = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence)
 print(series)
 
 #series.coverage.protein.to_file('test.txt', fmt='pprint')

@@ -20,7 +20,7 @@ from pyhdx import VERSION_STRING
 from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_protein, txt_to_protein, csv_to_dataframe
 from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
     fit_gibbs_global_batch
-from pyhdx.models import PeptideMasterTable, KineticsSeries, Protein, array_intersection
+from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
 from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.panel.sources import DataSource, DataFrameSource
 from pyhdx.panel.transforms import ApplyCmapTransform
@@ -368,7 +368,7 @@ class PeptideFileInputControl(ControlPanel):
         self.param['dataset_list'].objects = objects
 
     def _action_add_dataset(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
 
         if self._array is None:
             self.parent.logger.info("No data loaded")
@@ -390,7 +390,7 @@ class PeptideFileInputControl(ControlPanel):
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
         #todo temperature ph kwarg for series
-        series = KineticsSeries(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
+        series = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
                                 name=self.dataset_name, temperature=self.temperature, pH=self.pH)
 
         self.parent.data_objects[self.dataset_name] = series
@@ -1363,7 +1363,7 @@ class FDPeptideFileInputControl(PeptideFileInputControl):
         return self.file_selectors + first_widgets
 
     def _action_parse(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
         pmt = self.parent.peptides
 
         data_states = pmt.data[pmt.data['state'] == self.fd_state]
@@ -1373,7 +1373,7 @@ class FDPeptideFileInputControl(PeptideFileInputControl):
         data_final = append_fields(data_exposure, 'scores', data=scores, usemask=False)
 
         # pmt.set_control((fd_state, fd_exposure))
-        series = KineticsSeries(data_final)
+        series = HDXMeasurement(data_final)
 
         self.parent.series = series
 
@@ -1426,14 +1426,14 @@ class PeptideFoldingFileInputControl(PeptideFileInputControl):
             self.control_exposure = exposures[0]
 
     def _action_parse(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.KineticsSeries`"""
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
         control_0 = self.zero_state, self.zero_exposure
         self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
 
         data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
-        series = KineticsSeries(data)
+        series = HDXMeasurement(data)
         self.parent.series = series
 
         self._publish_scores()

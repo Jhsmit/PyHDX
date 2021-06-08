@@ -2,7 +2,7 @@ import logging
 import param
 import panel as pn
 
-from pyhdx.models import PeptideMasterTable, KineticsSeries
+from pyhdx.models import PeptideMasterTable, HDXMeasurement
 from pyhdx import VERSION_STRING_SHORT
 from pyhdx.models import HDXMeasurementSet
 from panel.template import BaseTemplate
@@ -111,7 +111,7 @@ class PyHDXController(MainController):
 
     """
 
-    data_objects = param.Dict(default={}, doc='Dictionary for all datasets (KineticsSeries objects)') # todo refactor
+    data_objects = param.Dict(default={}, doc='Dictionary for all datasets (HDXMeasurement objects)') # todo refactor
 
     # for guesses (nested): <fit name>: {state1: state2:, ...
     # for global fit (batch): <fit name>: fit_result_object

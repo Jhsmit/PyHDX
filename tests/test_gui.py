@@ -1,4 +1,4 @@
-from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
+from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fileIO import csv_to_protein, txt_to_np
 from pyhdx.panel.apps import main_app#, diff_app
 from pyhdx.panel.config import ConfigurationSettings
@@ -35,7 +35,7 @@ class TestMainGUISecB(object):
 
         state_data = cls.pmt.get_state(cls.state)
         cls.temperature, cls.pH = 273.15 + 30, 8.
-        cls.series = KineticsSeries(state_data, temperature=cls.temperature, pH=cls.pH)
+        cls.series = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
         cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
 
         cfg = ConfigurationSettings()

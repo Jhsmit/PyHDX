@@ -1,5 +1,5 @@
 from pyhdx.fileIO import read_dynamx, csv_to_protein
-from pyhdx import PeptideMasterTable, KineticsFitting, BatchFitting, KineticsSeries
+from pyhdx import PeptideMasterTable, KineticsFitting, BatchFitting, HDXMeasurement
 from pyhdx.models import HDXMeasurementSet
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch
 from pyhdx.local_cluster import default_client
@@ -29,7 +29,7 @@ pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=Fa
 pmt.set_control(control)
 temperature, pH = 273.15 + 30, 8.
 
-series = KineticsSeries(pmt.get_state('SecB WT apo'), sequence=sequence, temperature=temperature, pH=pH)
+series = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence, temperature=temperature, pH=pH)
 kf = KineticsFitting(series, bounds=(1e-2, 800), temperature=temperature, pH=pH)
 
 if guess:
@@ -44,7 +44,7 @@ gibbs_guess = series.guess_deltaG(output['rate'])
 fr_torch = fit_gibbs_global(series, gibbs_guess, epochs=epochs)
 fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt')
 
-series_dimer = KineticsSeries(pmt.get_state('SecB his dimer apo'), sequence=sequence_dimer,
+series_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), sequence=sequence_dimer,
                               temperature=temperature, pH=pH)
 
 hdx_set = HDXMeasurementSet([series_dimer, series])

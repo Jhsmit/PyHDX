@@ -1,13 +1,13 @@
 import yaml
 from pathlib import Path
-from pyhdx.models import PeptideMasterTable, KineticsSeries
+from pyhdx.models import PeptideMasterTable, HDXMeasurement
 from pyhdx.fileIO import read_dynamx, txt_to_protein, csv_to_protein
 import asyncio
 import copy
 
 
 def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
-    #todo perhas classmethod on KineticsSeries object?
+    #todo perhas classmethod on HDXMeasurement object?
     """
     Creates a :class:`~pyhdx.fitting.KineticsFitting` object from dictionary input.
 
@@ -56,7 +56,7 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     sequence = yaml_dict.get('sequence', None)
 
     state_data = pmt.get_state([yaml_dict['series_name']])
-    series = KineticsSeries(state_data, c_term=c_term, temperature=temperature, pH=yaml_dict['pH'], sequence=sequence)
+    series = HDXMeasurement(state_data, c_term=c_term, temperature=temperature, pH=yaml_dict['pH'], sequence=sequence)
 
     return series
 

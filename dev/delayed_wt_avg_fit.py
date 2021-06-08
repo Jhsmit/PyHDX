@@ -1,6 +1,6 @@
 from pathlib import Path
 from pyhdx.fileIO import read_dynamx
-from pyhdx.models import PeptideMasterTable, KineticsSeries
+from pyhdx.models import PeptideMasterTable, HDXMeasurement
 from pyhdx.fitting import BatchFitting, KineticsFitting, fit_rates_weighted_average, fit_rates
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.local_cluster import default_client
@@ -25,8 +25,8 @@ for name in names:
     bools = data['end'] < 40
 
     selected_data = data[bools]
-    st = KineticsSeries(selected_data)
-    #st = KineticsSeries(data)
+    st = HDXMeasurement(selected_data)
+    #st = HDXMeasurement(data)
 
     data_objs.append(st)
 

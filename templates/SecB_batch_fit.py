@@ -1,6 +1,6 @@
 from pathlib import Path
 from pyhdx.fileIO import read_dynamx
-from pyhdx.models import PeptideMasterTable, KineticsSeries, HDXMeasurementSet
+from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fitting import fit_gibbs_global_batch
 from pyhdx.fileIO import csv_to_protein
 
@@ -12,8 +12,8 @@ data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
 pmt = PeptideMasterTable(data)
 pmt.set_control(('Full deuteration control', 0.167))
 
-st1 = KineticsSeries(pmt.get_state('SecB his dimer apo'), pH=8, temperature=273.15+30)
-st2 = KineticsSeries(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15+30)
+st1 = HDXMeasurement(pmt.get_state('SecB his dimer apo'), pH=8, temperature=273.15 + 30)
+st2 = HDXMeasurement(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15 + 30)
 
 hdx_set = HDXMeasurementSet([st1, st2])
 guess = csv_to_protein(data_dir / 'ecSecB_guess.txt')

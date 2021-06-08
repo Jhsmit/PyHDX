@@ -323,7 +323,7 @@ class PeptideMasterTable(object):
         warnings.warn("Likely to be removed in future versions, use `get_state` instead", PendingDeprecationWarning)
 
         states = np.unique(self.data['state'])
-        return {state: KineticsSeries(self.data[self.data['state'] == state], **kwargs) for state in states}
+        return {state: HDXMeasurement(self.data[self.data['state'] == state], **kwargs) for state in states}
 
     def get_state(self, state):
         """
@@ -668,7 +668,7 @@ class Coverage(object):
                np.all(self.data['end'] == other.data['end']) and np.all(self.data['sequence'] == other.data['sequence'])
 
 
-class KineticsSeries(object):
+class HDXMeasurement(object):
     """
     A series of :class:`~pyhdx.models.PeptideMeasurements` which correspond to the same state but with different exposures.
 
@@ -1135,7 +1135,7 @@ def series_intersection(series_list, fields=None):
     full_arrays = [series.full_data for series in series_list]
     selected = array_intersection(full_arrays, fields=fields)
 
-    series_out = [KineticsSeries(data, **series.metadata) for data, series in zip(selected, series_list)]
+    series_out = [HDXMeasurement(data, **series.metadata) for data, series in zip(selected, series_list)]
     return series_out
 
 

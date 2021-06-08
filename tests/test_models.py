@@ -1,6 +1,6 @@
 import pytest
 import os
-from pyhdx import PeptideMeasurements, PeptideMasterTable, KineticsSeries
+from pyhdx import PeptideMeasurements, PeptideMasterTable, HDXMeasurement
 from pyhdx.models import Protein, Coverage
 from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_protein
 import numpy as np
@@ -35,7 +35,7 @@ class TestUptakeFileModels(object):
 
         states = self.pf1.groupby_state()
         series = states['SecB WT apo']
-        assert isinstance(series, KineticsSeries)
+        assert isinstance(series, HDXMeasurement)
 
     # def test_split(self):
     #     series_name = 'SecB WT apo'
@@ -65,7 +65,7 @@ class TestSeries(object):
         cls.pmt.set_control(('Full deuteration control', 0.167))
         d = cls.pmt.get_state('SecB WT apo')
         cls.temperature, cls.pH = 273.15 + 30, 8.
-        cls.series = KineticsSeries(d, temperature=cls.temperature, pH=cls.pH)
+        cls.series = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
 
     def test_dim(self):
         assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
@@ -209,7 +209,7 @@ class TestProtein(object):
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         pf1 = PeptideMasterTable(read_dynamx(fpath))
         #states = pf1.groupby_state(c_term=200)
-        cls.series = KineticsSeries(pf1.get_state('SecB WT apo'), c_term=200)
+        cls.series = HDXMeasurement(pf1.get_state('SecB WT apo'), c_term=200)
 
 
     def test_artithmetic(self):

@@ -1,5 +1,5 @@
 import os
-from pyhdx import PeptideMasterTable, KineticsSeries
+from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.fileIO import read_dynamx, csv_to_protein
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.models import HDXMeasurementSet
@@ -27,12 +27,12 @@ class TestSecBDataFit(object):
 
         pf = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
         pf.set_control(control)
-        cls.series_apo = KineticsSeries(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH)
-        cls.series_dimer = KineticsSeries(pf.get_state('SecB his dimer apo'), temperature=cls.temperature, pH=cls.pH)
+        cls.series_apo = HDXMeasurement(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH)
+        cls.series_dimer = HDXMeasurement(pf.get_state('SecB his dimer apo'), temperature=cls.temperature, pH=cls.pH)
 
         data = pf.get_state('SecB WT apo')
         reduced_data = data[data['end'] < 40]
-        cls.reduced_series = KineticsSeries(reduced_data)
+        cls.reduced_series = HDXMeasurement(reduced_data)
 
         cluster = LocalCluster()
         cls.address = cluster.scheduler_address

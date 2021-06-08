@@ -160,7 +160,7 @@ def fit_rates(data_obj, method='wt_avg', **kwargs):
 
     Parameters
     ----------
-    data_obj: KineticsSeries
+    data_obj: HDXMeasurement
     method: :obj:`str`
         Method to use to determine rates of exchange
     kwargs

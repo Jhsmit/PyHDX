@@ -1,6 +1,6 @@
 """Top-level package for PyHDX."""
 import setuptools   # Import prevents warning
-from .models import PeptideMasterTable, PeptideMeasurements, KineticsSeries, Coverage
+from .models import PeptideMasterTable, PeptideMeasurements, HDXMeasurement, Coverage
 from .fileIO import read_dynamx
 from .output import Output
 from pathlib import Path

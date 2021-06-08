@@ -1,5 +1,5 @@
 from pathlib import Path
-from pyhdx import PeptideMasterTable, read_dynamx, KineticsSeries
+from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.local_cluster import default_client
@@ -16,7 +16,7 @@ data = read_dynamx(test_data_dir / 'ecSecB_apo.csv', test_data_dir / 'ecSecB_dim
 pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
 pmt.set_control(('Full deuteration control', 0.167))
 temperature, pH = 273.15 + 30, 8.
-series = KineticsSeries(pmt.get_state('SecB WT apo'), temperature=temperature, pH=pH)
+series = HDXMeasurement(pmt.get_state('SecB WT apo'), temperature=temperature, pH=pH)
 
 if guess:
     client = default_client()
