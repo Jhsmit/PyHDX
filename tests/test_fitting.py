@@ -43,7 +43,10 @@ class TestSecBDataFit(object):
 
         assert output.size == 100
 
-        # todo additional assertl, compare to stored values
+        # todo additional tests:
+        #  result = fit_rates_half_time_interpolate()
+
+        # todo additional assert, compare to stored values
 
     def test_global_fit(self):
         #kf = KineticsFitting(self.series_apo, bounds=(1e-2, 800), temperature=self.temperature, pH=self.pH)

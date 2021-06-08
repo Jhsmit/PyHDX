@@ -128,7 +128,7 @@ class TwoComponentAssociationModel(SingleKineticModel):
         t = self.make_variable('t')
         y = self.make_variable('y')
 
-        self.sf_model = Model({y: 100 * (1 - (r * exp(-k1*t) + (1 - r) * exp(-k2*t)))})
+        self.sf_model = Model({y: (1 - (r * exp(-k1*t) + (1 - r) * exp(-k2*t)))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
@@ -160,7 +160,7 @@ class TwoComponentAssociationModel(SingleKineticModel):
 
     def initial_grid(self, t, d, step=15):
         kmax = 5 * np.log(1-0.98) / -t[1]
-        d_final = np.min([0.95, d[-1]/100])  # todo refactor norm
+        d_final = np.min([0.95, d[-1]])  # todo refactor norm
         kmin = np.log(1-d_final) / -t[-1]
 
         tau_space = np.logspace(np.log10(1/kmax), np.log10(1/kmin), num=step, endpoint=True)
@@ -233,7 +233,7 @@ class OneComponentAssociationModel(SingleKineticModel):
         t = self.make_variable('t')
         y = self.make_variable('y')
 
-        self.sf_model = Model({y: 100 * (1 - exp(-k1*t))})
+        self.sf_model = Model({y: (1 - exp(-k1*t))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
@@ -279,7 +279,7 @@ class TwoComponentDissociationModel(SingleKineticModel):
         t = self.make_variable('t')
         y = self.make_variable('y')
 
-        self.sf_model = Model({y: 100 * (r * exp(-k1*t) + (1 - r) * exp(-k2*t))})
+        self.sf_model = Model({y: (r * exp(-k1*t) + (1 - r) * exp(-k2*t))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
@@ -311,7 +311,7 @@ class TwoComponentDissociationModel(SingleKineticModel):
 
     def initial_grid(self, t, d, step=15):
         kmax = 5 * np.log(1-0.98) / -t[1]
-        d_final = np.min([0.95, d[-1]/100])  # todo refactor norm
+        d_final = np.min([0.95, d[-1]])  # todo refactor norm
         kmin = np.log(1-d_final) / -t[-1]
 
         tau_space = np.logspace(np.log10(1/kmax), np.log10(1/kmin), num=step, endpoint=True)
@@ -384,7 +384,7 @@ class OneComponentDissociationModel(SingleKineticModel):
         t = self.make_variable('t')
         y = self.make_variable('y')
 
-        self.sf_model = Model({y: 100 * exp(-k1*t)})
+        self.sf_model = Model({y: exp(-k1*t)})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
@@ -438,7 +438,7 @@ def func_short_dis(k, tt, A):
         Amplitude difference given tau, tt, A
 
     """
-    return 100 * np.exp(-k * tt) - A
+    return np.exp(-k * tt) - A
 
 
 def func_long_dis(k, tt, A, k1):
@@ -462,7 +462,7 @@ def func_long_dis(k, tt, A, k1):
         Amplitude difference given tau, tt, A, tau1
 
     """
-    return 100 * (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt)) - A
+    return (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt)) - A
 
 
 def func_short_ass(k, tt, A):
@@ -484,7 +484,7 @@ def func_short_ass(k, tt, A):
         Amplitude difference given tau, tt, A
 
     """
-    return 100 * (1 - np.exp(-k * tt)) - A
+    return (1 - np.exp(-k * tt)) - A
 
 
 def func_long_ass(k, tt, A, k1):
@@ -508,4 +508,4 @@ def func_long_ass(k, tt, A, k1):
         Amplitude difference given tau, tt, A, tau1
 
     """
-    return 100 * (1 - (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt))) - A
+    return (1 - (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt))) - A

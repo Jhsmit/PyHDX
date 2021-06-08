@@ -117,7 +117,7 @@ def fit_rates_half_time_interpolate(hdxm):
 
     """
     interpolated = np.array(
-        [np.interp(50, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues])
+        [np.interp(0.5, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues])
 
     output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
     output['r_number'] = hdxm.coverage.r_number

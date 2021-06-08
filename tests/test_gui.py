@@ -73,7 +73,7 @@ class TestMainGUISecB(object):
         assert series.Nr == 146
         # Py39 result:                              54.054873258574965
         # assert np.nanmean(series.scores_stack) == 54.05487325857497
-        assert abs(np.nanmean(series.rfu_residues) - 54.0548732585749) < 1e-6
+        assert abs(np.nanmean(series.rfu_residues) - 0.540548732585749) < 1e-6
 
     def test_batch_mode(self):
 
