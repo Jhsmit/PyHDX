@@ -384,7 +384,7 @@ class PeptideMasterTable(object):
 
         self.data = append_fields(self.data, ['scores', 'uptake_corrected'], data=[scores, uptake_corrected], usemask=False)
 
-    def set_control(self, control_100, control_0=None):
+    def set_control(self, control_1, control_0=None):
         """
         Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
         value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
@@ -396,7 +396,7 @@ class PeptideMasterTable(object):
 
         Parameters
         ----------
-        control_100 : :obj:`tuple`
+        control_1 : :obj:`tuple`
             tuple with (`state`, `exposure`) for peptides to use for normalization to 100%
             Numpy structured array with control peptides to use for normalization to 100%
         control_0 : :obj:`tuple`, optional
@@ -404,27 +404,27 @@ class PeptideMasterTable(object):
 
         """
 
-        control_100 = self.get_data(*control_100)
+        control_1 = self.get_data(*control_1)
 
         if control_0 is None:
-            control_0 = np.copy(control_100)
+            control_0 = np.copy(control_1)
             control_0['uptake'] = 0
         else:
             control_0 = self.get_data(*control_0)
 
         #todo this should probably go to the log (but atm there isnt any for running without GUI)
-        assert control_100.size > 0, f"No peptides found with state '{control_100[0]}' and exposure '{control_100[1]}'"
+        assert control_1.size > 0, f"No peptides found with state '{control_1[0]}' and exposure '{control_1[1]}'"
         assert control_0.size > 0, f"No peptides found with state '{control_0[0]}' and exposure '{control_0[1]}'"
 
-        b_100 = self.isin_by_idx(self.data, control_100)
+        b_100 = self.isin_by_idx(self.data, control_1)
         b_0 = self.isin_by_idx(self.data, control_0)
         data_selected = self.data[np.logical_and(b_100, b_0)]
 
         # Control peptides corresponding to those peptides in measurement
-        c_100_selected = control_100[self.isin_by_idx(control_100, data_selected)]
+        c_1_selected = control_1[self.isin_by_idx(control_1, data_selected)]
         c_0_selected = control_0[self.isin_by_idx(control_0, data_selected)]
 
-        control_100_final = np.sort(c_100_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
+        control_1_final = np.sort(c_1_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
         control_0_final = np.sort(c_0_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
         # Sort both datasets by starting index and then by sequence to make sure they are both equal
@@ -433,14 +433,14 @@ class PeptideMasterTable(object):
         #Apply controls for each sequence  (#todo there must be a better way to do this)
         rfu = np.zeros(len(data_final), dtype=float)
         uptake_corrected = np.zeros(len(data_final), dtype=float)
-        for c_100, c_0 in zip(control_100_final, control_0_final):
-            bs = data_final['start'] == c_100['start']
-            be = data_final['end'] == c_100['end']
+        for c_1, c_0 in zip(control_1_final, control_0_final):
+            bs = data_final['start'] == c_1['start']
+            be = data_final['end'] == c_1['end']
             b_all = np.logical_and(bs, be)
             uptake = data_final[b_all]['uptake']
-            rfu[b_all] = 100 * (uptake - c_0['uptake']) / (c_100['uptake'] - c_0['uptake'])
+            rfu[b_all] = (uptake - c_0['uptake']) / (c_1['uptake'] - c_0['uptake'])
 
-            uptake_corrected[b_all] = (uptake / c_100['uptake']) * data_final[b_all]['ex_residues']
+            uptake_corrected[b_all] = (uptake / c_1['uptake']) * data_final[b_all]['ex_residues']
 
         if 'rfu' in data_final.dtype.names:
             data_final['rfu'] = rfu

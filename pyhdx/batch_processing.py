@@ -78,7 +78,7 @@ def load_folding_from_yaml(yaml_dict, data_dir=None):  #name: load what from yam
 
     pmt = PeptideMasterTable(data, d_percentage=yaml_dict['d_percentage'])  #todo add proline, n_term options
     #todo merge this with the other func where it checks for control names to determine what to apply
-    pmt.set_control(control_100=tuple(yaml_dict['control_100']), control_0=tuple(yaml_dict['control_0']))
+    pmt.set_control(control_1=tuple(yaml_dict['control_1']), control_0=tuple(yaml_dict['control_0']))
 
     try:
         c_term = yaml_dict.get('c_term', 0) or len(yaml_dict['sequence']) + 1
