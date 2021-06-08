@@ -33,8 +33,8 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, *
     img = (pm.X > 0).astype(float)
     if scores is not None:
         img *= scores[:, np.newaxis]
-    elif pm.scores is not None:
-        img *= pm.scores[:, np.newaxis]
+    elif pm.rfu is not None:
+        img *= pm.rfu[:, np.newaxis]
 
     ma = np.ma.masked_where(img == 0, img)
     cmap = mpl.cm.get_cmap(cmap)
@@ -139,7 +139,7 @@ def plot_peptides(pm, ax, wrap=None, color=True, labels=False, cbar=False, inter
             i = -1
 
         if color:
-            c = cmap(norm(e['scores']))
+            c = cmap(norm(e['rfu']))
         else:
             c = '#707070'
 

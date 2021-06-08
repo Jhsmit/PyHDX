@@ -69,7 +69,7 @@ def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
     """
     bounds = bounds or get_bounds(hdxm.timepoints)
 
-    arr = hdxm.scores_stack.T  # data array
+    arr = hdxm.rfu_residues  # Data array
     i = 0
     # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
     r_excl = np.append(hdxm.coverage.r_number, [hdxm.coverage.r_number[-1] + 1])
@@ -117,7 +117,7 @@ def fit_rates_half_time_interpolate(hdxm):
 
     """
     interpolated = np.array(
-        [np.interp(50, d_uptake, hdxm.timepoints) for d_uptake in hdxm.scores_stack.T])
+        [np.interp(50, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues])
 
     output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
     output['r_number'] = hdxm.coverage.r_number

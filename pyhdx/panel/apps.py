@@ -80,7 +80,7 @@ def main_app(client='default'):
     # norm = mpl.colors.Normalize(vmin=0, vmax=20)
     # cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
 
-    peptides_transform = PeptideLayoutTransform(value='scores')
+    peptides_transform = PeptideLayoutTransform(value='rfu')
 
     reset_index_transform = ResetIndexTransform()
 

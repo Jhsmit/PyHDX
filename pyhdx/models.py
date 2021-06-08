@@ -431,21 +431,21 @@ class PeptideMasterTable(object):
         data_final = np.sort(data_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
         #Apply controls for each sequence  (#todo there must be a better way to do this)
-        scores = np.zeros(len(data_final), dtype=float)
+        rfu = np.zeros(len(data_final), dtype=float)
         uptake_corrected = np.zeros(len(data_final), dtype=float)
         for c_100, c_0 in zip(control_100_final, control_0_final):
             bs = data_final['start'] == c_100['start']
             be = data_final['end'] == c_100['end']
             b_all = np.logical_and(bs, be)
             uptake = data_final[b_all]['uptake']
-            scores[b_all] = 100 * (uptake - c_0['uptake']) / (c_100['uptake'] - c_0['uptake'])
+            rfu[b_all] = 100 * (uptake - c_0['uptake']) / (c_100['uptake'] - c_0['uptake'])
 
             uptake_corrected[b_all] = (uptake / c_100['uptake']) * data_final[b_all]['ex_residues']
 
-        if 'scores' in data_final.dtype.names:
-            data_final['scores'] = scores
+        if 'rfu' in data_final.dtype.names:
+            data_final['rfu'] = rfu
         else:
-            data_final = append_fields(data_final, 'scores', data=scores, usemask=False)
+            data_final = append_fields(data_final, 'rfu', data=rfu, usemask=False)
 
         if 'uptake_corrected' in data_final.dtype.names:
             data_final['uptake_corrected'] = uptake_corrected
@@ -762,19 +762,17 @@ class HDXMeasurement(object):
         return self.peptides.__getitem__(item)
 
     @property
-    def scores_stack(self):
-        """uptake scores to fit in a 2d stack"""
-        scores_2d = np.stack([v.scores_average for v in self])
-        return scores_2d
+    def rfu_residues(self):
+        """Relative fractional uptake per residue. Shape Nr x Nt"""
+        return np.stack([v.rfu_residues for v in self]).T
 
     @property
-    def scores_peptides(self):
-        scores_peptides = np.stack([v.scores for v in self])
-        return scores_peptides
+    def rfu_peptides(self):
+        return np.stack([v.rfu_peptides for v in self])
 
     @property
     def uptake_corrected(self):
-        """matrix shape  N_t, N_p"""
+        """matrix shape  N_t, N_p""" #(should be np nt)
         #todo refactor to D to match manuscript
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
@@ -902,11 +900,8 @@ class PeptideMeasurements(Coverage):
         self.exposure = self.data['exposure'][0]
 
     @property
-    def scores(self):
-        try:
-            return self.data['scores']
-        except ValueError:
-            return self.data['uptake']
+    def rfu_peptides(self):
+        return self.data['rfu']
 
     @property
     def uptake_corrected(self):
@@ -917,26 +912,27 @@ class PeptideMeasurements(Coverage):
         return self.state + '_' + str(self.exposure)
 
     @property
-    def scores_average(self):
-        return self.Z_norm.T.dot(self.scores)
+    def rfu_residues(self):
+        """Weighted averaged relative fractional uptake"""
+        return self.Z_norm.T.dot(self.rfu_peptides)
 
-    def calc_scores(self, residue_scores):
+    def calc_rfu(self, residue_rfu):
         """
-        Calculates uptake scores per peptide given an array of individual residue scores
+        Calculates RFU per peptide given an array of individual residue scores
 
         Parameters
         ----------
-        residue_scores : :class:`~numpy.ndarray`
-            Array of scores per residue of length `prot_len`
+        residue_rfu : :class:`~numpy.ndarray`
+            Array of rfu per residue of length `prot_len`
 
         Returns
         -------
 
         scores : :class:`~numpy.ndarray`
-            Array of scores per peptide
+            Array of rfu per peptide
         """
 
-        scores = self.Z.dot(residue_scores)
+        scores = self.Z.dot(residue_rfu)
         return scores
 
     def weighted_average(self, field):
