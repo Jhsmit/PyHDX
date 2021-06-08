@@ -310,14 +310,14 @@ class PeptideMasterTable(object):
     def groupby_state(self, **kwargs):
         """
         Groups measurements in the dataset by state and returns them in a dictionary as a
-        :class:`~pyhdx.models.KineticSeries`.
+        :class:`~pyhdx.models.HDXMeasurement`.
 
         Returns
         -------
         out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`~pyhdx.models.KineticSeries`.
+            Dictionary where keys are state names and values are :class:`~pyhdx.models.HDXMeasurement`.
         **kwargs
-            Additional keyword arguments to be passed to the :class:`~pyhdx.models.KineticSeries`.
+            Additional keyword arguments to be passed to the :class:`~pyhdx.models.HDXMeasurement`.
         """
 
         warnings.warn("Likely to be removed in future versions, use `get_state` instead", PendingDeprecationWarning)
@@ -575,13 +575,12 @@ class Coverage(object):
         return len(self.data)
 
     def __getitem__(self, item):
-        series = self.protein[item]
-        #return self.apply_interval(series.to_numpy())
-        return self.apply_interval(series)
+        pd_series = self.protein[item]
+        return self.apply_interval(pd_series)
 
     def apply_interval(self, array_or_series):
-        """Given an array or series with a length equal to the full protein, returns the section of the array equal to the covered
-        region. Returned series length is equal to number of colunms in the X matrix
+        """Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
+        region. Returned series length is equal to number of columns in the X matrix
 
         """
 
@@ -670,7 +669,9 @@ class Coverage(object):
 
 class HDXMeasurement(object):
     """
-    A series of :class:`~pyhdx.models.PeptideMeasurements` which correspond to the same state but with different exposures.
+    Main HDX data object. This object has peptide data of a single state but with multiple timepoints.
+
+    Timepoint data is split into :class:`~pyhdx.models.PeptideMeasurements` objects for each timepoint
 
     Parameters
     ----------
@@ -678,7 +679,7 @@ class HDXMeasurement(object):
         Numpy structured array with peptide entries corresponding to a single state,
         or list of :class:`~pyhdx.models.PeptideMeasurements`
     make_uniform : :obj:`bool`
-        If `True` the :class:`~pyhdx.models.KineticSeries` instance is made uniform
+        If `True` the :class:`~pyhdx.models.HDXMeasurement` instance is made uniform
     **metadata
         Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
 
@@ -686,7 +687,7 @@ class HDXMeasurement(object):
     Attributes
     ----------
     state : :obj:`str`
-        State of the kinetic series
+        State of the HDX measurement
     timepoints : :class:`~numpy.ndarray`
         Array with exposure times (sorted)
     peptides : :obj:`list`
@@ -780,13 +781,24 @@ class HDXMeasurement(object):
 
     def get_tensors(self, exchanges=False):
         """
+        Returns a dictionary of tensor variables for fitting to Linderstrøm-Lang kinetics.
+
+        Tensor variables are (shape):
+        Temperature (1 x 1)
+        X (Np x Nr)
+        k_int (Nr x 1)
+        timepoints (1 x Nt)
+        uptake (D) (Np x Nt)
 
         Parameters
         ----------
-        exchanges
+        exchanges: : bool:
             if True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
+
         Returns
         -------
+
+        tensors : dict
 
         """
         dtype = torch.float64
@@ -804,7 +816,7 @@ class HDXMeasurement(object):
             bools = np.ones(self.Nr, dtype=bool)
 
         tensors = {
-            'temperature': torch.tensor([self.temperature], dtype=dtype),
+            'temperature': torch.tensor([self.temperature], dtype=dtype).unsqueeze(-1),
             'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype),
             'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype).unsqueeze(-1),
             'timepoints': torch.tensor(self.timepoints, dtype=dtype).unsqueeze(0),
@@ -818,7 +830,7 @@ class HDXMeasurement(object):
         Parameters
         ----------
         rates : :class:pd series
-            pandas series of esitmated hdx exhanges rates. Index is protein residue number
+            pandas series of estimated hdx exchangs rates. Index is protein residue number
         return_type
 
         Returns
