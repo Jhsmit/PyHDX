@@ -4,6 +4,7 @@ from io import StringIO
 import pandas as pd
 import pyhdx
 
+
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
     """
     Reads a dynamX .csv file and returns the data as a numpy structured array
@@ -212,12 +213,22 @@ def csv_to_protein(file_path, column_depth=None):
 
 
 def txt_to_protein(file_path):
-    """read .txt file and returns a :class:`pyhdx.models.Protein` object"""
+    """
+    Read .txt file and returns a :class:`pyhdx.models.Protein` object
+
+    .txt file must be tab seperated
+
+    """
     array = txt_to_np(file_path)
     return pyhdx.models.Protein(array, index='r_number')
 
 
 def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
+    """
+    Create a format string for array `arr` such that columns are aligned in the output file when
+    saving with np.savetxt
+
+    """
     with np.testing.suppress_warnings() as sup:
         sup.filter(RuntimeWarning)
 

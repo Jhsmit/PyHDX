@@ -950,19 +950,19 @@ class HDXMeasurementSet(object):
     multiple HDX Measurements
     """
 
-    def __init__(self, data_objs):
-        self.data_objs = data_objs
+    def __init__(self, hdxm_list):
+        self.hdxm_list = hdxm_list
 
         #todo create Coverage object for the 3d case
-        intervals = np.array([data_obj.coverage.interval for data_obj in self.data_objs])
+        intervals = np.array([hdxm_list.coverage.interval for hdxm_list in self.hdxm_list])
         self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
         r_number = np.arange(*self.interval)
         self.r_number = r_number
 
-        self.Ns = len(self.data_objs)
+        self.Ns = len(self.hdxm_list)
         self.Nr = len(r_number)
-        self.Np = np.max([data_obj.Np for data_obj in self.data_objs])
-        self.Nt = np.max([data_obj.Nt for data_obj in self.data_objs])
+        self.Np = np.max([hdxm.Np for hdxm in self.hdxm_list])
+        self.Nt = np.max([hdxm.Nt for hdxm in self.hdxm_list])
         self.masks = self.get_masks()
 
         # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
@@ -971,11 +971,11 @@ class HDXMeasurementSet(object):
 
     @property
     def temperature(self):
-        return np.array([data_obj.temperature for data_obj in self.data_objs])
+        return np.array([hdxm.temperature for hdxm in self.hdxm_list])
 
     @property
     def names(self):
-        return [data_obj.name for data_obj in self.data_objs]
+        return [hdxm.name for hdxm in self.hdxm_list]
 
     def guess_deltaG(self, rates_list):
         """
@@ -995,7 +995,7 @@ class HDXMeasurementSet(object):
         """
         assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
 
-        guesses = [data_obj.guess_deltaG(rates, crop=True).to_numpy() for rates, data_obj in zip(rates_list, self.data_objs)]
+        guesses = [hdxm.guess_deltaG(rates, crop=True).to_numpy() for rates, hdxm in zip(rates_list, self.hdxm_list)]
         flat = np.concatenate(guesses)
 
         deltaG_array = np.full((self.Ns, self.Nr), fill_value=np.nan)
@@ -1009,7 +1009,7 @@ class HDXMeasurementSet(object):
         return deltaG_array
 
     def add_alignment(self, alignment, first_r_numbers=None):
-        dfs = [data_obj.coverage.protein.df for data_obj in self.data_objs]
+        dfs = [hdxm.coverage.protein.df for hdxm in self.hdxm_list]
         self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
 
         df = self.aligned_dataframes['r_number']
@@ -1024,8 +1024,8 @@ class HDXMeasurementSet(object):
     def s_r_mask(self):
         """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
         mask = np.zeros((self.Ns, self.Nr), dtype=bool)
-        for i, data_obj in enumerate(self.data_objs):
-            interval_sample = data_obj.coverage.interval
+        for i, hdxm in enumerate(self.hdxm_list):
+            interval_sample = hdxm.coverage.interval
             i0 = interval_sample[0] - self.interval[0]
             i1 = interval_sample[1] - self.interval[0]
 
@@ -1039,15 +1039,15 @@ class HDXMeasurementSet(object):
         st_mask = np.zeros((self.Ns, self.Nt), dtype=bool)
         spr_mask = np.zeros((self.Ns, self.Np, self.Nr), dtype=bool)
         spt_mask = np.zeros((self.Ns, self.Np, self.Nt), dtype=bool)
-        for i, data_obj in enumerate(self.data_objs):
-            interval_sample = data_obj.coverage.interval
+        for i, hdxm in enumerate(self.hdxm_list):
+            interval_sample = hdxm.coverage.interval
             i0 = interval_sample[0] - self.interval[0]
             i1 = interval_sample[1] - self.interval[0]
 
             sr_mask[i, i0:i1] = True
-            st_mask[i, -data_obj.Nt:] = True
-            spr_mask[i, 0: data_obj.Np, i0:i1] = True
-            spt_mask[i, 0: data_obj.Np, -data_obj.Nt:] = True
+            st_mask[i, -hdxm.Nt:] = True
+            spr_mask[i, 0: hdxm.Np, i0:i1] = True
+            spt_mask[i, 0: hdxm.Np, -hdxm.Nt:] = True
 
         mask_dict = {'sr': sr_mask, 'st': st_mask, 'spr': spr_mask, 'spt': spt_mask}
 
@@ -1055,21 +1055,21 @@ class HDXMeasurementSet(object):
 
     def get_tensors(self, exchanges=False):
         #todo create correct shapes as per table X for all
-        temperature = np.array([kf.temperature for kf in self.data_objs])
+        temperature = np.array([kf.temperature for kf in self.hdxm_list])
 
-        X_values = np.concatenate([data_obj.coverage.X.flatten() for data_obj in self.data_objs])
+        X_values = np.concatenate([hdxm.coverage.X.flatten() for hdxm in self.hdxm_list])
         X = np.zeros((self.Ns, self.Np, self.Nr))
         X[self.masks['spr']] = X_values
 
-        k_int_values = np.concatenate([data_obj.coverage['k_int'].to_numpy() for data_obj in self.data_objs])
+        k_int_values = np.concatenate([hdxm.coverage['k_int'].to_numpy() for hdxm in self.hdxm_list])
         k_int = np.zeros((self.Ns, self.Nr))
         k_int[self.masks['sr']] = k_int_values
 
-        timepoints_values = np.concatenate([data_obj.timepoints for data_obj in self.data_objs])
+        timepoints_values = np.concatenate([hdxm.timepoints for hdxm in self.hdxm_list])
         timepoints = np.zeros((self.Ns, self.Nt))
         timepoints[self.masks['st']] = timepoints_values
 
-        D_values = np.concatenate([data_obj.uptake_corrected.T.flatten() for data_obj in self.data_objs])
+        D_values = np.concatenate([hdxm.uptake_corrected.T.flatten() for hdxm in self.hdxm_list])
         D = np.zeros((self.Ns, self.Np, self.Nt))
         D[self.masks['spt']] = D_values
 
@@ -1087,7 +1087,7 @@ class HDXMeasurementSet(object):
 
     @property
     def exchanges(self):
-        values = np.concatenate([data_obj.coverage['exchanges'].to_numpy() for data_obj in self.data_objs])
+        values = np.concatenate([hdxm.coverage['exchanges'].to_numpy() for hdxm in self.hdxm_list])
         exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
         exchanges[self.masks['sr']] = values
 

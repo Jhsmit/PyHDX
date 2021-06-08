@@ -27,13 +27,26 @@ class DeltaGFit(nn.Module):
         return t.matmul(X, uptake)
 
 
-def estimate_errors(series, deltaG):  #todo refactor to data_obj
+def estimate_errors(hdxm, deltaG):
+    """
+    Calculate covariances
+
+    Parameters
+    ----------
+    hdxm: HDXMeasurement
+    deltaG: numpy array
+        Array with deltaG values.
+
+    Returns
+    -------
+
+    """
     # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
-    bools = series.coverage['exchanges'].to_numpy()
-    r_number = series.coverage.r_number[bools]  # Residue number which exchange
+    bools = hdxm.coverage['exchanges'].to_numpy()
+    r_number = hdxm.coverage.r_number[bools]  # Residue number which exchange
     deltaG = t.tensor(deltaG[bools], dtype=t.float64)
 
-    tensors = series.get_tensors(exchanges=True)
+    tensors = hdxm.get_tensors(exchanges=True)
 
     def calc_loss(deltaG_input):
         criterion = t.nn.MSELoss(reduction='sum')
@@ -53,8 +66,19 @@ def estimate_errors(series, deltaG):  #todo refactor to data_obj
 
 
 class TorchFitResult(object):
-    def __init__(self, fit_object, model, **metadata):
-        self.fit_object = fit_object
+    """
+    PyTorch Fit result object.
+
+    Parameters
+    ----------
+
+    data_obj: HDXMeasurement or HDXMeasurementSet
+    model
+    **metdata
+
+    """
+    def __init__(self, data_obj, model, **metadata):
+        self.data_obj = data_obj
         self.model = model
         self.metadata = metadata
 
@@ -90,23 +114,18 @@ class TorchSingleFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
         super(TorchSingleFitResult, self).__init__(*args, **kwargs)
 
-    #todo refactor series
-    @property
-    def series(self):
-        return self.fit_object
-
     @property
     def temperature(self):
-        return self.series.temperature
+        return self.data_obj.temperature
 
     @property
     def output(self):
         out_dict = {}
-        out_dict['r_number'] = self.series.coverage.r_number
-        out_dict['sequence'] = self.series.coverage['sequence'].to_numpy()
+        out_dict['r_number'] = self.data_obj.coverage.r_number
+        out_dict['sequence'] = self.data_obj.coverage['sequence'].to_numpy()
         out_dict['_deltaG'] = self.deltaG
         out_dict['deltaG'] = out_dict['_deltaG'].copy()
-        out_dict['deltaG'][~self.series.coverage['exchanges']] = np.nan
+        out_dict['deltaG'][~self.data_obj.coverage['exchanges']] = np.nan
         if self.temperature is not None:
             pfact = np.exp(out_dict['deltaG'] / (constants.R * self.temperature))
             out_dict['pfact'] = pfact
@@ -114,7 +133,7 @@ class TorchSingleFitResult(TorchFitResult):
         #todo add possibility to add append series to protein?
         #todo update order of columns
         protein = Protein(out_dict, index='r_number')
-        protein_cov = estimate_errors(self.fit_object, self.deltaG)
+        protein_cov = estimate_errors(self.data_obj, self.deltaG)
         protein = protein.join(protein_cov)
         return protein
 
@@ -122,10 +141,9 @@ class TorchSingleFitResult(TorchFitResult):
         """output: Np x Nt array"""
         #todo fix and tests
         with t.no_grad():
-            #tensors = self.series.get_tensors()
             temperature = t.Tensor([self.temperature])
-            X = t.Tensor(self.series.coverage.X)  # Np x Nr
-            k_int = t.Tensor(self.series.coverage['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
+            X = t.Tensor(self.data_obj.coverage.X)  # Np x Nr
+            k_int = t.Tensor(self.data_obj.coverage['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
             timepoints = t.Tensor(timepoints).unsqueeze(0)  # 1 x Nt
             inputs = [temperature, X, k_int, timepoints]
 
@@ -143,34 +161,34 @@ class TorchBatchFitResult(TorchFitResult):
 
         quantities = ['_deltaG', 'deltaG', 'covariance', 'pfact']
 
-        names = [data_obj.name or data_obj.state for data_obj in self.fit_object.data_objs]
+        names = [hdxm.name or hdxm.state for hdxm in self.data_obj.hdxm_list]
 
         iterables = [names, quantities]
         col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
-        output_data = np.zeros((self.fit_object.Nr, self.fit_object.Ns * len(quantities)))
+        output_data = np.zeros((self.data_obj.Nr, self.data_obj.Ns * len(quantities)))
 
         g_values = self.deltaG
         g_values_nan = g_values.copy()
-        g_values_nan[~self.fit_object.exchanges] = np.nan
-        pfact = np.exp(g_values / (constants.R * self.fit_object.temperature[:, np.newaxis]))
+        g_values_nan[~self.data_obj.exchanges] = np.nan
+        pfact = np.exp(g_values / (constants.R * self.data_obj.temperature[:, np.newaxis]))
 
         output_data[:, 0::len(quantities)] = g_values.T
         output_data[:, 1::len(quantities)] = g_values_nan.T
 
-        for i, data_obj in enumerate(self.fit_object.data_objs):
+        for i, data_obj in enumerate(self.data_obj.hdxm_list):
             #todo this could use some pandas
-            i0 = data_obj.coverage.interval[0] - self.fit_object.interval[0]
-            i1 = data_obj.coverage.interval[1] - self.fit_object.interval[0]
+            i0 = data_obj.coverage.interval[0] - self.data_obj.interval[0]
+            i1 = data_obj.coverage.interval[1] - self.data_obj.interval[0]
 
             cov = estimate_errors(data_obj, g_values[i, i0:i1])  # returns a protein? should be series
             pd_series = cov['covariance']
-            pd_series = pd_series.reindex(self.fit_object.r_number)
+            pd_series = pd_series.reindex(self.data_obj.r_number)
 
             output_data[:, 2+i*len(quantities)] = pd_series.to_numpy()
 
         output_data[:, 3::len(quantities)] = pfact.T
 
-        df = pd.DataFrame(output_data, index=self.fit_object.r_number, columns=col_index)
+        df = pd.DataFrame(output_data, index=self.data_obj.r_number, columns=col_index)
 
         return Protein(df)
 

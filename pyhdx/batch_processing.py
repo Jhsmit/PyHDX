@@ -9,9 +9,9 @@ import copy
 def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     #todo perhas classmethod on HDXMeasurement object?
     """
-    Creates a :class:`~pyhdx.fitting.KineticsFitting` object from dictionary input.
+    Creates a :class:`~pyhdx.models.HDXMeasurement` object from dictionary input.
 
-    Dictionary can be generated from .yaml format and should specifiy
+    Dictionary can be generated from .yaml format and should specify
 
     Parameters
     ----------
@@ -21,8 +21,8 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
 
     Returns
     -------
-    kf : :class:`~pyhdx.fititng.KineticsFitting`
-        :class:`~pyhdx.fititng.KineticsFitting` class as specified by input dict.
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
+        Output data object as specified by `yaml_dict`.
     """
 
     if data_dir is not None:
@@ -56,28 +56,18 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     sequence = yaml_dict.get('sequence', None)
 
     state_data = pmt.get_state([yaml_dict['series_name']])
-    series = HDXMeasurement(state_data, c_term=c_term, temperature=temperature, pH=yaml_dict['pH'], sequence=sequence)
+    hdxm = HDXMeasurement(state_data, c_term=c_term, temperature=temperature, pH=yaml_dict['pH'], sequence=sequence)
 
-    return series
+    return hdxm
 
 
 def load_folding_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     """
-    Creates a :class:`~pyhdx.fitting.KineticsFitting` object from dictionary input.
 
-    Dictionary can be generated from .yaml format and should specifiy
 
-    Parameters
-    ----------
-    yaml_dict : :obj:`dict`
-        Input dictionary specifying metadata and file location to load
-    data_dir : :obj:`str` or pathlib.Path object
-
-    Returns
-    -------
-    kf : :class:`~pyhdx.fititng.KineticsFitting`
-        :class:`~pyhdx.fititng.KineticsFitting` class as specified by input dict.
     """
+
+    raise NotImplementedError('Loading folding data from yaml currently not implemented')
 
     if data_dir is not None:
         input_files = [Path(data_dir) / fname for fname in yaml_dict['filenames']]
@@ -111,6 +101,7 @@ def load_folding_from_yaml(yaml_dict, data_dir=None):  #name: load what from yam
 
 
 def do_fitting_from_yaml(yaml_dict, kf_obj):
+    raise NotImplementedError('Fitting from yaml not implemented')
     yaml_dict = copy.deepcopy(yaml_dict)  # Make local copy to not affect the supplied dict by pop
     guess = yaml_dict['initial_guess']
     if 'file_path' in guess.keys():
@@ -126,29 +117,3 @@ def do_fitting_from_yaml(yaml_dict, kf_obj):
     fit_result = kf_obj.global_fit(initial_guess, **global_fit, **optimizer_kwargs)
 
     return fit_result
-
-
-def initial_guess_async(yaml_dict, kf_obj):
-    fit_result = asyncio.run(kf_obj.weighted_avg_fit_async())
-
-    # to stuff
-
-
-def do_stuff(load_dict, fit_dict, output_dir):
-    kf = load_from_yaml(load_dict)
-    fr = do_fitting_from_yaml(fit_dict, kf)
-    output_dir = Path(output_dir)
-    combined_dict = {'load': load_dict, 'fitting': fit_dict}
-
-    yaml_file_out = output_dir / 'settings.yaml'
-    yaml_file_out.write_text(yaml.dump(combined_dict))
-
-    fit_file_out = output_dir / 'deltaG.txt'
-    fr.output.to_file(fit_file_out)
-
-    loss_file_out = output_dir / 'reg_loss.txt'
-    np.savetxt(loss_file_out, fr.metadata['reg_loss'])
-
-    pickle_file_out = output_dir / 'fit_result.pickle'
-    with pickle_file_out.open(mode='wb') as f:
-        pickle.dump(fr, f)

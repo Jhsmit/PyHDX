@@ -52,12 +52,12 @@ def get_bounds(times):
     return b_lower, b_upper
 
 
-def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
+def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
     """
 
     Parameters
     ----------
-    data_obj : HDXMeasurement
+    hdxm : HDXMeasurement
     model_type
     bounds tuple
 
@@ -67,17 +67,17 @@ def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
 
 
     """
-    bounds = bounds or get_bounds(data_obj.timepoints)
+    bounds = bounds or get_bounds(hdxm.timepoints)
 
-    arr = data_obj.scores_stack.T  # data array
+    arr = hdxm.scores_stack.T  # data array
     i = 0
     # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
-    r_excl = np.append(data_obj.coverage.r_number, [data_obj.coverage.r_number[-1] + 1])
+    r_excl = np.append(hdxm.coverage.r_number, [hdxm.coverage.r_number[-1] + 1])
 
     models = []
     intervals = []  # Intervals; (start, end); (inclusive, exclusive)
     d_list = []
-    for bl in data_obj.coverage.block_length:
+    for bl in hdxm.coverage.block_length:
         d = arr[i]
         if np.all(np.isnan(d)):  # Skip non-coverage blocks
             i += bl
@@ -98,7 +98,7 @@ def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
     return d_list, intervals, models
 
 
-def fit_rates_half_time_interpolate(data_obj):
+def fit_rates_half_time_interpolate(hdxm):
     """
     Calculates exchange rates based on weighted averaging followed by interpolation to determine half-time, which is
     then calculated to rates.
@@ -106,7 +106,7 @@ def fit_rates_half_time_interpolate(data_obj):
     Parameters
     ----------
 
-    data_obj: HDXMeasurement
+    hdxm: HDXMeasurement
 
 
     Returns
@@ -117,10 +117,10 @@ def fit_rates_half_time_interpolate(data_obj):
 
     """
     interpolated = np.array(
-        [np.interp(50, d_uptake, data_obj.timepoints) for d_uptake in data_obj.scores_stack.T])
+        [np.interp(50, d_uptake, hdxm.timepoints) for d_uptake in hdxm.scores_stack.T])
 
     output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
-    output['r_number'] = data_obj.coverage.r_number
+    output['r_number'] = hdxm.coverage.r_number
     output['rate'] = np.log(2) / interpolated
 
     protein = Protein(output, index='r_number')
@@ -131,14 +131,14 @@ def fit_rates_half_time_interpolate(data_obj):
     return result
 
 
-def fit_rates_weighted_average(data_obj, bounds=None, chisq_thd=20, model_type='association', client=None, pbar=None):
+def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=20, model_type='association', client=None, pbar=None):
     """
     Fit a model specified by 'model_type' to D-uptake kinetics. D-uptake is weighted averaged across peptides per
     timepoint to obtain residue-level D-uptake.
 
     Parameters
     ----------
-    data_obj: HDXMeasurement
+    hdxm: HDXMeasurement
     bounds: :obj:`tuple`, optional
         Tuple of lower and upper bounds of rate constants in the model used.
     chisq_thd: :obj:`float`
@@ -159,7 +159,7 @@ def fit_rates_weighted_average(data_obj, bounds=None, chisq_thd=20, model_type='
     fit_result: KineticsFitResult
 
     """
-    d_list, intervals, models = _prepare_wt_avg_fit(data_obj, model_type=model_type, bounds=bounds)
+    d_list, intervals, models = _prepare_wt_avg_fit(hdxm, model_type=model_type, bounds=bounds)
     if pbar:
         raise NotImplementedError()
     else:
@@ -169,10 +169,10 @@ def fit_rates_weighted_average(data_obj, bounds=None, chisq_thd=20, model_type='
 
     if client is None:
         for d, model in zip(d_list, models):
-            result = fit_kinetics(data_obj.timepoints, d, model, chisq_thd=chisq_thd)
+            result = fit_kinetics(hdxm.timepoints, d, model, chisq_thd=chisq_thd)
             results.append(result)
     else:
-        iterables = [[data_obj.timepoints]*len(d_list), d_list, models]
+        iterables = [[hdxm.timepoints]*len(d_list), d_list, models]
 
         if isinstance(client, Client):
             futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
@@ -182,18 +182,18 @@ def fit_rates_weighted_average(data_obj, bounds=None, chisq_thd=20, model_type='
                 futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
                 results = client.gather(futures)
 
-    fit_result = KineticsFitResult(data_obj, intervals, results, models)
+    fit_result = KineticsFitResult(hdxm, intervals, results, models)
 
     return fit_result
 
 
-def fit_rates(data_obj, method='wt_avg', **kwargs):
+def fit_rates(hdxm, method='wt_avg', **kwargs):
     """
-    Fit observed rates of exchange to HDX-MS data in `data_obj`
+    Fit observed rates of exchange to HDX-MS data in `hdxm`
 
     Parameters
     ----------
-    data_obj: HDXMeasurement
+    hdxm: HDXMeasurement
     method: :obj:`str`
         Method to use to determine rates of exchange
     kwargs
@@ -207,7 +207,7 @@ def fit_rates(data_obj, method='wt_avg', **kwargs):
     """
 
     if method == 'wt_avg':
-        result = fit_rates_weighted_average(data_obj, **kwargs)
+        result = fit_rates_weighted_average(hdxm, **kwargs)
     else:
         raise ValueError(f"Invalid value for 'method': {method}")
 
@@ -373,14 +373,14 @@ def regularizer_2d_aligned(r1, r2, indices, param):
     return reg_loss
 
 
-def fit_gibbs_global(data_obj, initial_guess, r1=0.1, epochs=100000, patience=50, stop_loss=0.05,
+def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, stop_loss=0.05,
                      optimizer='SGD', **optimizer_kwargs):
     """
-    Fit Gibbs free energies globally to all D-uptake data in the supplied data_obj
+    Fit Gibbs free energies globally to all D-uptake data in the supplied hdxm
 
     Parameters
     ----------
-    data_obj: HDXMeasurement
+    hdxm: HDXMeasurement
     initial_guess: pd series or numpy array
         Gibbs free energy initial guesses (shape Nr)
     r1: :obj:`float`
@@ -397,14 +397,14 @@ def fit_gibbs_global(data_obj, initial_guess, r1=0.1, epochs=100000, patience=50
     #todo @tejas: Missing docstring
     """Pytorch global fitting"""
 
-    tensors = data_obj.get_tensors()
+    tensors = hdxm.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['uptake']
 
     if isinstance(initial_guess, pd.Series):
         initial_guess = initial_guess.to_numpy()
 
-    assert len(initial_guess) == data_obj.Nr, "Invalid length of initial guesses"
+    assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
 
     #todo dtype config
     dtype = torch.float64
@@ -425,7 +425,7 @@ def fit_gibbs_global(data_obj, initial_guess, r1=0.1, epochs=100000, patience=50
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
 
-    result = TorchSingleFitResult(data_obj, model,
+    result = TorchSingleFitResult(hdxm, model,
                                   mse_loss=mse_loss, total_loss=total_loss)
 
     return result
@@ -567,20 +567,20 @@ class KineticsFitResult(object):
     Parameters
     ----------
 
-    data_obj: HDXMeasurement
+    hdxm: HDXMeasurement
     intervals:
     results:
     models:
 
     """
-    def __init__(self, data_obj, intervals, results, models):
+    def __init__(self, hdxm, intervals, results, models):
         """
         each model with corresponding interval covers a region in the protein corresponding to r_number
         """
         assert len(results) == len(models)
 #        assert len(models) == len(block_length)
-        self.data_obj = data_obj
-        self.r_number = data_obj.coverage.r_number
+        self.hdxm = hdxm
+        self.r_number = hdxm.coverage.r_number
         self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
@@ -601,7 +601,7 @@ class KineticsFitResult(object):
             for time in timepoints:
                 p = self.get_p(time)
                 p = np.nan_to_num(p)
-                d = self.data_obj.coverage.X.dot(p)
+                d = self.hdxm.coverage.X.dot(p)
                 d_list.append(d)
         elif self.model_type == 'Global':
             for time in timepoints:

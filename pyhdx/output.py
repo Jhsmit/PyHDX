@@ -1,3 +1,10 @@
+"""
+This module allows users to generate a .pdf output report from their HDX measurement
+
+(Currently outdated/not working)
+"""
+
+
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 import numpy as np
@@ -8,6 +15,7 @@ from functools import lru_cache, partial
 from pyhdx.support import grouper, autowrap
 from pyhdx.plot import plot_peptides
 from tqdm.auto import tqdm
+
 
 try:
     import pylatex as pyl
