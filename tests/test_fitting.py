@@ -51,7 +51,7 @@ class TestSecBDataFit(object):
 
         t0 = time.time()  # Very crude benchmarks
         gibbs_guess = self.series_apo.guess_deltaG(initial_rates['rate']).to_numpy()
-        fr_global = fit_gibbs_global(self.series_apo, gibbs_guess, epochs=1000)
+        fr_global = fit_gibbs_global(self.series_apo, gibbs_guess, epochs=1000, r1=2)
         t1 = time.time()
 
         assert t1 - t0 < 5

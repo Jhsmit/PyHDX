@@ -1020,7 +1020,6 @@ class HDXMeasurementSet(object):
 
         self.aligned_indices = df.to_numpy(dtype=int).T
 
-
     @property
     def s_r_mask(self):
         """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
@@ -1122,33 +1121,33 @@ def contiguous_regions(condition):
     return idx
 
 
-def series_intersection(series_list, fields=None):
+def hdx_intersection(hdx_list, fields=None):
     """
-    Finds the intersection between peptides in :class:`~pydhx.models.KineticSeries` and returns new objects such that
-    all peptides (coverage, exposure) between the series is identical.
+    Finds the intersection between peptides in :class:`~pydhx.models.HDXMeasurement` and returns new objects such that
+    all peptides (coverage, exposure) between the measurements are identical.
 
     Optionally intersections by custom fields can be made.
 
     Parameters
     ----------
-    series_list : :obj:`list`
-        Input list of :class:`~pyhdx.models.KineticSeries`
+    hdx_list : :obj:`list`
+        Input list of :class:`~pyhdx.models.HDXMeasurement`
     fields : :obj:`list`
         By which fields to take the intersections. Default is ['_start', '_end', 'exposure']
 
     Returns
     -------
-    series_out : :obj:`list`
-        Output list of :class:`~pyhdx.models.KineticSeries`
+    hdx_out : :obj:`list`
+        Output list of :class:`~pyhdx.models.HDXMeasurement`
     """
 
     fields = fields or ['_start', '_end', 'exposure']
 
-    full_arrays = [series.full_data for series in series_list]
+    full_arrays = [data_obj.full_data for data_obj in hdx_list]
     selected = array_intersection(full_arrays, fields=fields)
 
-    series_out = [HDXMeasurement(data, **series.metadata) for data, series in zip(selected, series_list)]
-    return series_out
+    hdx_out = [HDXMeasurement(data, **data_obj.metadata) for data, data_obj in zip(selected, hdx_list)]
+    return hdx_out
 
 
 def array_intersection(arrays_list, fields):

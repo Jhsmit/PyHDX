@@ -33,10 +33,12 @@ def get_bounds(times):
 
     Parameters
     ----------
-    times
+    times: array_like
 
     Returns
     -------
+    bounds: :obj:`tuple`
+        lower and upper bounds
 
     """
     # todo document
@@ -51,18 +53,31 @@ def get_bounds(times):
 
 
 def _prepare_wt_avg_fit(data_obj, model_type='association', bounds=None):
-    series = data_obj  # todo refactor series
+    """
+
+    Parameters
+    ----------
+    data_obj : HDXMeasurement
+    model_type
+    bounds tuple
+
+    Returns
+    -------
+
+
+
+    """
     bounds = bounds or get_bounds(data_obj.timepoints)
 
-    arr = series.scores_stack.T  # data array
+    arr = data_obj.scores_stack.T  # data array
     i = 0
     # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
-    r_excl = np.append(series.coverage.r_number, [series.coverage.r_number[-1] + 1])
+    r_excl = np.append(data_obj.coverage.r_number, [data_obj.coverage.r_number[-1] + 1])
 
     models = []
     intervals = []  # Intervals; (start, end); (inclusive, exclusive)
     d_list = []
-    for bl in series.coverage.block_length:
+    for bl in data_obj.coverage.block_length:
         d = arr[i]
         if np.all(np.isnan(d)):  # Skip non-coverage blocks
             i += bl
@@ -88,6 +103,12 @@ def fit_rates_half_time_interpolate(data_obj):
     Calculates exchange rates based on weighted averaging followed by interpolation to determine half-time, which is
     then calculated to rates.
 
+    Parameters
+    ----------
+
+    data_obj: HDXMeasurement
+
+
     Returns
     -------
 
@@ -95,7 +116,6 @@ def fit_rates_half_time_interpolate(data_obj):
         array with fields r_number, rate
 
     """
-    # todo this is uing the soon to be depcrecated coverage object
     interpolated = np.array(
         [np.interp(50, d_uptake, data_obj.timepoints) for d_uptake in data_obj.scores_stack.T])
 
@@ -113,18 +133,32 @@ def fit_rates_half_time_interpolate(data_obj):
 
 def fit_rates_weighted_average(data_obj, bounds=None, chisq_thd=20, model_type='association', client=None, pbar=None):
     """
-    Block length _should_ be equal to the block length of all measurements in the series, provided that all coverage
-    is the same
+    Fit a model specified by 'model_type' to D-uptake kinetics. D-uptake is weighted averaged across peptides per
+    timepoint to obtain residue-level D-uptake.
 
     Parameters
     ----------
-    chisq_max
+    data_obj: HDXMeasurement
+    bounds: :obj:`tuple`, optional
+        Tuple of lower and upper bounds of rate constants in the model used.
+    chisq_thd: :obj:`float`
+        Threshold of chi squared result, values above will trigger a second round of fitting using DifferentialEvolution
+    model_type: :obj:`str`
+        Missing docstring
+    client: : ??
+        Controls delegation of fitting tasks to Dask clusters. Options are: `None`: Do not use task, fitting is done
+        in the local thread in a for loop. :class: Dask Client : Uses the supplied Dask client to schedule fitting task.
+        `worker_client`: The function was ran by a Dask worker and the additional fitting tasks created are scheduled
+        on the same Cluster.
+    pbar:
+        Not implemented
 
     Returns
     -------
 
-    """
+    fit_result: KineticsFitResult
 
+    """
     d_list, intervals, models = _prepare_wt_avg_fit(data_obj, model_type=model_type, bounds=bounds)
     if pbar:
         raise NotImplementedError()
@@ -147,7 +181,6 @@ def fit_rates_weighted_average(data_obj, bounds=None, chisq_thd=20, model_type='
             with worker_client() as client:
                 futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
                 results = client.gather(futures)
-
 
     fit_result = KineticsFitResult(data_obj, intervals, results, models)
 
@@ -191,6 +224,7 @@ def fit_kinetics(t, d, model, chisq_thd=100):
         Array of time points
     d : :class:`~numpy.ndarray`
         Array of uptake values
+    model: fit_models.KineticsModel
     chisq_thd : :obj:`float`
         Threshold chi squared above which the fitting is repeated with the Differential Evolution algorithm.
 
@@ -219,6 +253,7 @@ def fit_kinetics(t, d, model, chisq_thd=100):
 
 
 def check_bounds(fit_result):
+    """ Check if the obtained fit result is within bounds"""
     for param in fit_result.model.params:
         value = fit_result.params[param.name]
         if value < param.min:
@@ -250,6 +285,36 @@ optimizer_defaults = {
 
 def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
                   epochs=100000, patience=50, stop_loss=0.05):
+    """
+
+    Runs optimization/fitting of PyTorch model.
+
+    Parameters
+    ----------
+    inputs: :obj:`list`
+        List of input Tensors
+    output_data: :class pytorch Tensor
+        comparison data to model output
+    optimizer_klass: :class: pytorch optimizer
+    optimizer_kwargs : dict
+        kwargs to pass to pytorch optimizer
+    model: torch.nn.Module
+        pytoch model
+    criterion: callable
+        loss function
+    regularizer callable
+        regularizer function
+    epochs: :obj:`int`
+        Max number of epochs
+    patience: :obj:`int`
+        Number of epochs with less progress than `stop_loss` before terminating optimization
+    stop_loss: :obj:`float`
+        Threshold of optimization value below which no progress is made
+
+    Returns
+    -------
+
+    """
 
     optimizer_obj = optimizer_klass(model.parameters(), **optimizer_kwargs)
 
@@ -308,19 +373,39 @@ def regularizer_2d_aligned(r1, r2, indices, param):
     return reg_loss
 
 
-def fit_gibbs_global(data_object, initial_guess, r1=2, epochs=100000, patience=50, stop_loss=0.05,
-               optimizer='SGD', **optimizer_kwargs):
+def fit_gibbs_global(data_obj, initial_guess, r1=0.1, epochs=100000, patience=50, stop_loss=0.05,
+                     optimizer='SGD', **optimizer_kwargs):
+    """
+    Fit Gibbs free energies globally to all D-uptake data in the supplied data_obj
+
+    Parameters
+    ----------
+    data_obj: HDXMeasurement
+    initial_guess: pd series or numpy array
+        Gibbs free energy initial guesses (shape Nr)
+    r1: :obj:`float`
+    epochs
+    patience
+    stop_loss
+    optimizer: :obj:`str`
+    optimizer_kwargs
+
+    Returns
+    -------
+
+    """
     #todo @tejas: Missing docstring
     """Pytorch global fitting"""
 
-    tensors = data_object.get_tensors()
+    tensors = data_obj.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['uptake']
 
     if isinstance(initial_guess, pd.Series):
         initial_guess = initial_guess.to_numpy()
 
-    assert len(initial_guess) == data_object.Nr, "Invalid length of initial guesses"
+    assert len(initial_guess) == data_obj.Nr, "Invalid length of initial guesses"
+
     #todo dtype config
     dtype = torch.float64
     deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).unsqueeze(-1))  #reshape (nr, 1)
@@ -340,7 +425,7 @@ def fit_gibbs_global(data_object, initial_guess, r1=2, epochs=100000, patience=5
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
 
-    result = TorchSingleFitResult(data_object, model,
+    result = TorchSingleFitResult(data_obj, model,
                                   mse_loss=mse_loss, total_loss=total_loss)
 
     return result
@@ -348,11 +433,13 @@ def fit_gibbs_global(data_object, initial_guess, r1=2, epochs=100000, patience=5
 
 def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
                optimizer='SGD', **optimizer_kwargs):
-
     """
+    Batch fit gibbs free energies to multiple HDX measurements
 
     Parameters
     ----------
+    hdx_set: HDXMeasurementSet
+    initial_guess
     r1
     r2
     epochs
@@ -363,6 +450,7 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, pa
 
     Returns
     -------
+
     """
     # todo still some repeated code with fit_gibbs single
     tensors = hdx_set.get_tensors()
@@ -392,11 +480,15 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, pa
 
 def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
                optimizer='SGD', **optimizer_kwargs):
-
     """
+    Batch fit gibbs free energies to two HDX measurements. The supplied HDXMeasurementSet must have alignment information
+    (supplied by HDXMeasurementSet.add_alignment)
+
 
     Parameters
     ----------
+    hdx_set
+    initial_guess
     r1
     r2
     epochs
@@ -407,10 +499,12 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
 
     Returns
     -------
+
     """
 
     assert hdx_set.Ns == 2, 'Aligned batch fitting is limited to two states'
 
+    #todo duplicate code
     tensors = hdx_set.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['uptake']
@@ -468,22 +562,32 @@ def weighted_avg_linearize(self):
 
 class KineticsFitResult(object):
     """
-    this fit results is only for wt avg fitting
+    Fit result object. Generally used for initial guess results.
+
+    Parameters
+    ----------
+
+    data_obj: HDXMeasurement
+    intervals:
+    results:
+    models:
+
     """
-    def __init__(self, series, intervals, results, models):
+    def __init__(self, data_obj, intervals, results, models):
         """
         each model with corresponding interval covers a region in the protein corresponding to r_number
         """
         assert len(results) == len(models)
 #        assert len(models) == len(block_length)
-        self.series = series
-        self.r_number = series.coverage.r_number
+        self.data_obj = data_obj
+        self.r_number = data_obj.coverage.r_number
         self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
 
     @property
     def model_type(self):
+        # Most likely all current instances have model_type `single`
         if np.all([isinstance(m, SingleKineticModel) for m in self.models]):
             return 'Single'
         else:
@@ -491,12 +595,13 @@ class KineticsFitResult(object):
 
     def __call__(self, timepoints):
         """call the result with timepoints to get fitted uptake per peptide back"""
+        #todo outdated
         d_list = []
         if self.model_type == 'Single':
             for time in timepoints:
                 p = self.get_p(time)
                 p = np.nan_to_num(p)
-                d = self.series.coverage.X.dot(p)
+                d = self.data_obj.coverage.X.dot(p)
                 d_list.append(d)
         elif self.model_type == 'Global':
             for time in timepoints:
@@ -568,6 +673,7 @@ class KineticsFitResult(object):
     @property
     def rate(self):
         """Returns an array with the exchange rates"""
+        #todo pd series/dataframe in favour of searchsorted
         output = np.full_like(self.r_number, np.nan, dtype=float)
         for (s, e), result, model in zip(self.intervals, self.results, self.models):
             rate = model.get_rate(**result.params)
