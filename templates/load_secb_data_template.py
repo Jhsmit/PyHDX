@@ -13,13 +13,7 @@ pmt.set_control(('Full deuteration control', 0.167))
 
 sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
-series = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence)
-print(series)
+hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence)
+print(hdxm)
 
-#series.coverage.protein.to_file('test.txt', fmt='pprint')
-
-from pyhdx.fileIO import csv_to_protein
-protein = csv_to_protein(current_dir.parent / 'tests' / 'test_data' / 'ecSecB_info.csv', column_depth=1)
-
-print(protein.df)
-#print(protein.index)
+#hdxm.coverage.protein.to_file('test.txt', fmt='pprint')
