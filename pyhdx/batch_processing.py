@@ -6,7 +6,7 @@ import asyncio
 import copy
 
 
-def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
+def load_from_yaml(yaml_dict, data_dir=None, **kwargs):  #name: load what from yaml?
     #todo perhas classmethod on HDXMeasurement object?
     """
     Creates a :class:`~pyhdx.models.HDXMeasurement` object from dictionary input.
@@ -40,12 +40,6 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     else:
         raise ValueError('No valid back exchange control method specified')
 
-    try:
-        c_term = yaml_dict.get('c_term', 0) or len(yaml_dict['sequence']) + 1
-    except KeyError:
-        raise ValueError("Must specify either 'c_term' or 'sequence'")
-    #todo parse n_term and sequence
-
     if yaml_dict['temperature_unit'].lower() == 'celsius':
         temperature = yaml_dict['temperature'] + 273.15
     elif yaml_dict['temperature_unit'].lower() == 'kelvin':
@@ -53,10 +47,16 @@ def load_from_yaml(yaml_dict, data_dir=None):  #name: load what from yaml?
     else:
         raise ValueError("Invalid option for 'temperature_unit', must be 'Celsius' or 'Kelvin'")
 
-    sequence = yaml_dict.get('sequence', None)
+    sequence = yaml_dict.get('sequence', '')
+    c_term = yaml_dict.get('c_term', 0)
+    n_term = yaml_dict.get('n_term', 1)
+
+    if not (c_term or sequence):
+        raise ValueError("Must specify either 'c_term' or 'sequence'")
 
     state_data = pmt.get_state([yaml_dict['series_name']])
-    hdxm = HDXMeasurement(state_data, c_term=c_term, temperature=temperature, pH=yaml_dict['pH'], sequence=sequence)
+    hdxm = HDXMeasurement(state_data, temperature=temperature, pH=yaml_dict['pH'],
+                          sequence=sequence, n_term=n_term, c_term=c_term, **kwargs)
 
     return hdxm
 
