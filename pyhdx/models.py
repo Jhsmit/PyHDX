@@ -1005,6 +1005,13 @@ class HDXMeasurementSet(object):
         return deltaG_array
 
     def add_alignment(self, alignment, first_r_numbers=None):
+        """
+
+        :param alignment: list
+        :param first_r_numbers:
+            default is [1, 1, ...] but specifiy here if alignments do not all start at residue 1
+        :return:
+        """
         dfs = [hdxm.coverage.protein.df for hdxm in self.hdxm_list]
         self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
 
