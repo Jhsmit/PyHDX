@@ -20,11 +20,9 @@ for name, dic in data_dict.items():
 
     #Uncomment/adjust path to save sequence info + intrinsic rates
     #hdxm.coverage.protein.to_file(f'{name}_sequence_info.txt', fmt='pprint')
-
     fr = fit_rates_half_time_interpolate(hdxm)#, client=client)
 
-    #Uncomment/adjust path to save result
-    #fr.output.to_file(current_dir / 'guesses' / f'{name}_rates_guess.txt')
+    fr.output.to_file(current_dir / 'guesses' / f'{name}_rates_guess.txt')
 
 
 
