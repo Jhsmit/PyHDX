@@ -14,6 +14,6 @@ pmt.set_control(('Full deuteration control', 0.167))
 sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
 hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence)
-print(hdxm)
+print(hdxm.coverage.protein)
 
 #hdxm.coverage.protein.to_file('test.txt', fmt='pprint')

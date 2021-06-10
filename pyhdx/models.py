@@ -517,22 +517,22 @@ class Coverage(object):
 
     """
 
-    def __init__(self, data, c_term=None, n_term=1, sequence=None):
+    def __init__(self, data, c_term=0, n_term=1, sequence=''):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
         self.data = np.sort(data, order=['start', 'end'])
 
-        start = min(np.min(self.data['_start']), 1)
+        start = np.min(self.data['_start'])
+        end = np.max(self.data['_end'])
+
         if n_term:
             start = min(start, n_term)
-        end = np.max(self.data['_end'])
-        if sequence and c_term is not None:
+        if sequence and not c_term:
             c_term = len(sequence) + n_term - 1
         if c_term:
             end = max(end, c_term + 1)  # c_term is inclusive, therefore plus one
         r_number = np.arange(start, end)  # r_number spanning the full protein range, not just the covered range
-
         # Full sequence
         _seq = np.full_like(r_number, fill_value='X', dtype='U')  # Full sequence
         # Sequence with lower case letters for no coverage due to n_terminal residues or prolines
@@ -709,10 +709,10 @@ class HDXMeasurement(object):
 
         # Select entries in data array which are in the intersection between all timepoints
         selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in data_list]
-        self.peptides = [PeptideMeasurements(elem) for elem in selected]
+        cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [0, 1, ''])}
+        self.peptides = [PeptideMeasurements(elem, **cov_kwargs) for elem in selected]
 
         # Create coverage object from the first time point (as all are now equal)
-        cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ['c_term', 'n_term', 'sequence']}
         self.coverage = Coverage(selected[0], **cov_kwargs)
 
         if self.temperature and self.pH:
@@ -890,11 +890,11 @@ class PeptideMeasurements(Coverage):
 
     """
 
-    def __init__(self, data):
+    def __init__(self, data, **kwargs):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
-        super(PeptideMeasurements, self).__init__(data)
+        super(PeptideMeasurements, self).__init__(data, **kwargs)
 
         self.state = self.data['state'][0]
         self.exposure = self.data['exposure'][0]
