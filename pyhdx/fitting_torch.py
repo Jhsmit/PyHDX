@@ -157,39 +157,32 @@ class TorchBatchFitResult(TorchFitResult):
 
     @property
     def output(self):
-        #todo directly create dataframe
+        #data_obj is HDXMeasurementset
 
-        quantities = ['_deltaG', 'deltaG', 'covariance', 'pfact']
-
+        quantities = ['sequence', '_deltaG', 'deltaG', 'covariance', 'pfact']
         names = [hdxm.name or hdxm.state for hdxm in self.data_obj.hdxm_list]
-
         iterables = [names, quantities]
         col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
-        output_data = np.zeros((self.data_obj.Nr, self.data_obj.Ns * len(quantities)))
+        df = pd.DataFrame(index=self.data_obj.r_number, columns=col_index)
 
-        g_values = self.deltaG
+        g_values = self.deltaG  #  (shape: Ns x Nr)
         g_values_nan = g_values.copy()
         g_values_nan[~self.data_obj.exchanges] = np.nan
         pfact = np.exp(g_values / (constants.R * self.data_obj.temperature[:, np.newaxis]))
 
-        output_data[:, 0::len(quantities)] = g_values.T
-        output_data[:, 1::len(quantities)] = g_values_nan.T
+        for i, hdxm in enumerate(self.data_obj.hdxm_list):
+            sequence = hdxm.coverage['sequence'].reindex(df.index)
+            df[hdxm.name, 'sequence'] = sequence
+            df[hdxm.name, '_deltaG'] = g_values[i]
+            df[hdxm.name, 'deltaG'] = g_values_nan[i]
+            df[hdxm.name, 'pfact'] = pfact[i]
 
-        for i, data_obj in enumerate(self.data_obj.hdxm_list):
-            #todo this could use some pandas
-            i0 = data_obj.coverage.interval[0] - self.data_obj.interval[0]
-            i1 = data_obj.coverage.interval[1] - self.data_obj.interval[0]
+            #     #todo this could use some pandas
+            i0 = hdxm.coverage.interval[0] - self.data_obj.interval[0]
+            i1 = hdxm.coverage.interval[1] - self.data_obj.interval[0]
+            cov = estimate_errors(hdxm, g_values[i, i0:i1])  # returns a protein? should be series
+            cov_series = cov['covariance'].reindex(df.index)
+            df[hdxm.name, 'covariance'] = cov_series
 
-            cov = estimate_errors(data_obj, g_values[i, i0:i1])  # returns a protein? should be series
-            pd_series = cov['covariance']
-            pd_series = pd_series.reindex(self.data_obj.r_number)
-
-            output_data[:, 2+i*len(quantities)] = pd_series.to_numpy()
-
-        output_data[:, 3::len(quantities)] = pfact.T
-
-        df = pd.DataFrame(output_data, index=self.data_obj.r_number, columns=col_index)
 
         return Protein(df)
-
-        # use multi index df: https://stackoverflow.com/questions/24290495/constructing-3d-pandas-dataframe
