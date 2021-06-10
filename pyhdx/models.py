@@ -92,7 +92,7 @@ class Protein(object):
         protein_out = Protein(df_out, index=df_out.index.name, **metadata)
         return protein_out
 
-    def to_stringio(self, io=None, include_version=True, include_metadata=True, fmt='csv'):
+    def to_stringio(self, io=None, include_version=True, include_metadata=True, fmt='csv', **kwargs):
         """
         Write Protein data to :class:`~io.StringIO`
 
@@ -121,7 +121,7 @@ class Protein(object):
             io.write(f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
 
         if fmt == 'csv':
-            self.df.to_csv(io, line_terminator='\n')
+            self.df.to_csv(io, line_terminator='\n', **kwargs)
         elif fmt == 'pprint':
             io.write('\n')
             pprint_df_to_file(self.df, io)
@@ -130,7 +130,7 @@ class Protein(object):
 
         return io
 
-    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv'):
+    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
         """
         Write Protein data to file.
 
@@ -153,7 +153,7 @@ class Protein(object):
 
         """
         #todo update to pathlib Path
-        io = self.to_stringio(include_version=include_version, include_metadata=include_metadata, fmt=fmt)
+        io = self.to_stringio(include_version=include_version, include_metadata=include_metadata, fmt=fmt, **kwargs)
         with open(file_path, 'w') as f:
             print(io.getvalue(), file=f)
 
