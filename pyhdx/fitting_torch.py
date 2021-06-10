@@ -160,7 +160,7 @@ class TorchBatchFitResult(TorchFitResult):
         #data_obj is HDXMeasurementset
 
         quantities = ['sequence', '_deltaG', 'deltaG', 'covariance', 'pfact']
-        names = [hdxm.name or hdxm.state for hdxm in self.data_obj.hdxm_list]
+        names = [hdxm.name for hdxm in self.data_obj.hdxm_list]
         iterables = [names, quantities]
         col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
         df = pd.DataFrame(index=self.data_obj.r_number, columns=col_index)
@@ -183,6 +183,5 @@ class TorchBatchFitResult(TorchFitResult):
             cov = estimate_errors(hdxm, g_values[i, i0:i1])  # returns a protein? should be series
             cov_series = cov['covariance'].reindex(df.index)
             df[hdxm.name, 'covariance'] = cov_series
-
 
         return Protein(df)

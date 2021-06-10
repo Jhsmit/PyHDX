@@ -720,7 +720,7 @@ class HDXMeasurement(object):
 
     @property
     def name(self):
-        return self.metadata.get('name', None)
+        return self.metadata.get('name', self.state)
 
     @property
     def temperature(self):

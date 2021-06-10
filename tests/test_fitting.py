@@ -5,10 +5,8 @@ from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibb
 from pyhdx.models import HDXMeasurementSet
 import numpy as np
 import torch
-import pandas as pd
 import time
 from dask.distributed import LocalCluster
-import asyncio
 
 directory = os.path.dirname(__file__)
 np.random.seed(43)
@@ -78,7 +76,7 @@ class TestSecBDataFit(object):
 
         for state in states:
             from pandas.testing import assert_series_equal
-            #
+
             result = output[state]['deltaG']
             test = check_protein[state]['deltaG']
 
