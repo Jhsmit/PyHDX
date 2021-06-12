@@ -355,13 +355,20 @@ def regularizer_1d(r1, param):
     return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
 
 
-def regularizer_2d(r1, r2, param):
+def regularizer_2d_mean(r1, r2, param):
     #todo allow regularization wrt reference rather than mean
+    #param shape: Ns x Nr x 1
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - torch.mean(param, axis=0))
     reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
     return reg_loss
 
+def regularizer_2d_reference(r1, r2, param):
+    #todo allow regularization wrt reference rather than mean
+    d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
+    d_ax2 = torch.abs(param - param[0])[1:]
+    reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
+    return reg_loss
 
 def regularizer_2d_aligned(r1, r2, indices, param):
     i0 = indices[0]
@@ -431,7 +438,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
     return result
 
 
-def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
+def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=False, epochs=100000, patience=50, stop_loss=0.05,
                optimizer='SGD', **optimizer_kwargs):
     """
     Batch fit gibbs free energies to multiple HDX measurements
@@ -442,6 +449,8 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, pa
     initial_guess
     r1
     r2
+    r2_reference=False,
+        if true the first dataset is used as a reference to calculate r2 differences, otherwise the mean is used
     epochs
     patience
     stop_loss
@@ -469,7 +478,10 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, pa
     optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
     optimizer_klass = getattr(torch.optim, optimizer)
 
-    reg_func = partial(regularizer_2d, r1, r2)
+    if r2_reference:
+        reg_func = partial(regularizer_2d_reference, r1, r2)
+    else:
+        reg_func = partial(regularizer_2d_mean, r1, r2)
     mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
