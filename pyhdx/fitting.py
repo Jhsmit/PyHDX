@@ -419,7 +419,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
     #deltaG_par = torch.nn.Parameter(torch.Tensor(initial_guess).unsqueeze(-1))
 
     model = DeltaGFit(deltaG_par)
-    criterion = torch.nn.MSELoss(reduction='mean')
+    criterion = torch.nn.MSELoss(reduction='sum')
 
     # Take default optimizer kwargs and update them with supplied kwargs
     optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
@@ -472,7 +472,7 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
     deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 
     model = DeltaGFit(deltaG_par)
-    criterion = torch.nn.MSELoss(reduction='mean')
+    criterion = torch.nn.MSELoss(reduction='sum')
 
     # Take default optimizer kwargs and update them with supplied kwargs
     optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
@@ -527,7 +527,7 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
     deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 
     model = DeltaGFit(deltaG_par)
-    criterion = torch.nn.MSELoss(reduction='mean')
+    criterion = torch.nn.MSELoss(reduction='sum')
 
     # Take default optimizer kwargs and update them with supplied kwargs
     optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
