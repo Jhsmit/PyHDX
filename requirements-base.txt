@@ -1,0 +1,10 @@
+pbr
+symfit
+numpy
+scikit-image
+scipy
+matplotlib
+dask[distributed]
+hdxrate>=0.2.0
+pandas
+pytorch
