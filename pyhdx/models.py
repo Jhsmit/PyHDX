@@ -523,14 +523,16 @@ class Coverage(object):
         self.data = np.sort(data, order=['start', 'end'])
 
         start = np.min(self.data['_start'])
-        end = np.max(self.data['_end'])
+        end = np.max(self.data['_end'])  # exclusive end interval
 
         if n_term:
             start = min(start, n_term)
         if sequence and not c_term:
             c_term = len(sequence) + n_term - 1
         if c_term:
-            end = max(end, c_term + 1)  # c_term is inclusive, therefore plus one
+            if c_term + 1 < end:
+                raise ValueError('HDX data extends beyond supplied c_term number')
+            end = c_term + 1  # c_term is inclusive, therefore plus one
         r_number = np.arange(start, end)  # r_number spanning the full protein range, not just the covered range
         # Full sequence
         _seq = np.full_like(r_number, fill_value='X', dtype='U')  # Full sequence
