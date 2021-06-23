@@ -378,11 +378,11 @@ class PeptideMasterTable(object):
         """
 
         back_exchange /= 100
-        scores = 100*self.data['uptake'] / ((1-back_exchange)*self.data['ex_residues'])
+        rfu = 100*self.data['uptake'] / ((1-back_exchange)*self.data['ex_residues'])
 
         uptake_corrected = self.data['uptake'] / (1 - back_exchange)
 
-        self.data = append_fields(self.data, ['scores', 'uptake_corrected'], data=[scores, uptake_corrected], usemask=False)
+        self.data = append_fields(self.data, ['rfu', 'uptake_corrected'], data=[rfu, uptake_corrected], usemask=False)
 
     def set_control(self, control_1, control_0=None):
         """
@@ -397,10 +397,9 @@ class PeptideMasterTable(object):
         Parameters
         ----------
         control_1 : :obj:`tuple`
-            tuple with (`state`, `exposure`) for peptides to use for normalization to 100%
-            Numpy structured array with control peptides to use for normalization to 100%
+            tuple with (`state`, `exposure`) for peptides to use for normalization
         control_0 : :obj:`tuple`, optional
-            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values to 100%
+            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values
 
         """
 
