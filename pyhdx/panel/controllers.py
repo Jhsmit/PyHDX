@@ -400,6 +400,12 @@ class PeptideFileInputControl(ControlPanel):
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'peptides', self.dataset_name)
 
+        index = pd.Index(series.coverage.r_number, name='r_number')
+        df = pd.DataFrame(series.rfu_residues, index=index, columns=series.timepoints)
+        target_source = self.parent.sources['dataframe']
+        target_source.add_df(df, 'rfu', self.dataset_name)
+
+
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
         self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '

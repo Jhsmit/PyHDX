@@ -46,6 +46,10 @@ def main_app(client='default'):
     col_index = pd.MultiIndex.from_tuples([], names=('state', 'quantity'))
     df_peptides = pd.DataFrame(columns=col_index)
 
+    col_index = pd.MultiIndex.from_tuples([], names=('state', 'exposure'))
+    row_index = pd.RangeIndex(0, 1, name='r_number')
+    df_rfu = pd.DataFrame(columns=col_index, index=row_index)
+
     col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_rates = pd.DataFrame(columns=col_index, index=row_index)
@@ -62,7 +66,11 @@ def main_app(client='default'):
     # Availble tables are predefined at launch, but are empty
     # this way GUI methods can add to them as multiindex subset
     # more tables can be added later by the gui
-    tables = {'peptides': df_peptides, 'rates': df_rates, 'global_fit': df_global_fit, 'colors': df_colors}
+    tables = {'peptides': df_peptides,
+              'rfu': df_rfu,
+              'rates': df_rates,
+              'global_fit': df_global_fit,
+              'colors': df_colors}
     source = DataFrameSource(tables=tables, name='dataframe')
 
     #df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
