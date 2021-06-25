@@ -531,7 +531,7 @@ class Coverage(object):
             c_term = len(sequence) + n_term - 1
         if c_term:
             if c_term + 1 < end:
-                raise ValueError('HDX data extends beyond supplied c_term number')
+                raise ValueError("HDX data extends beyond c_term number, check 'sequence' or 'c_term'")
             end = c_term + 1  # c_term is inclusive, therefore plus one
         r_number = np.arange(start, end)  # r_number spanning the full protein range, not just the covered range
         # Full sequence
