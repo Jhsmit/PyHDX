@@ -390,26 +390,26 @@ class PeptideFileInputControl(ControlPanel):
         data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
 
         #todo temperature ph kwarg for series
-        series = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
+        hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
                                 name=self.dataset_name, temperature=self.temperature, pH=self.pH)
 
-        self.parent.data_objects[self.dataset_name] = series
+        self.parent.data_objects[self.dataset_name] = hdxm
         self.parent.param.trigger('data_objects')  # Trigger update
 
-        df = pd.DataFrame(series.full_data)
+        df = pd.DataFrame(hdxm.full_data)
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'peptides', self.dataset_name)
 
-        index = pd.Index(series.coverage.r_number, name='r_number')
-        df = pd.DataFrame(series.rfu_residues, index=index, columns=series.timepoints)
+        index = pd.Index(hdxm.coverage.r_number, name='r_number')
+        df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'rfu', self.dataset_name)
 
 
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
-                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
-        self.parent.logger.info(f'Average coverage: {series.coverage.percent_coverage:.3}%, '
-                                f'Redundancy: {series.coverage.redundancy:.2}')
+                                f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')
+        self.parent.logger.info(f'Average coverage: {hdxm.coverage.percent_coverage:.3}%, '
+                                f'Redundancy: {hdxm.coverage.redundancy:.2}')
 
     def _action_remove_datasets(self):
         raise NotImplementedError('Removing datasets not implemented')
@@ -655,7 +655,7 @@ class FitControl(ControlPanel):
 
         if isinstance(result, list):
             self.parent.fit_results[name] = list(result)
-            output_dfs = {fit_result.series.name: fit_result.output.df for fit_result in result}
+            output_dfs = {fit_result.data_obj.name: fit_result.output.df for fit_result in result}
             df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
         else:
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
