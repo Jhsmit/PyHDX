@@ -49,9 +49,9 @@ class MainController(param.Parameterized):
 
     logger = param.ClassSelector(logging.Logger, doc="Logger object")
 
-    def __init__(self, control_panels, client=None, **params):
+    def __init__(self, control_panels, client=False, **params):
         super(MainController, self).__init__(**params)
-        self.client = client if client is not None else Client()
+        self.client = client if client else Client()
         if self.logger is None:
             self.logger = logging.getLogger(str(id(self)))
 
