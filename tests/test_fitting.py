@@ -61,6 +61,7 @@ class TestSecBDataFit(object):
 
         assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
+        assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
 
     def test_batch_fit(self):
         hdx_set = HDXMeasurementSet([self.series_apo, self.series_dimer])
