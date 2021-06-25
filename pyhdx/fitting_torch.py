@@ -110,25 +110,24 @@ class TorchFitResult(object):
 
 
 class TorchSingleFitResult(TorchFitResult):
-    #todo perhaps pass KineticsFitting object (which includes temperature) (yes do then it can also have methods which return inputs)
     def __init__(self, *args, **kwargs):
         super(TorchSingleFitResult, self).__init__(*args, **kwargs)
 
     @property
-    def temperature(self):
-        return self.data_obj.temperature
-
-    @property
     def output(self):
-        out_dict = {}
-        out_dict['r_number'] = self.data_obj.coverage.r_number
-        out_dict['sequence'] = self.data_obj.coverage['sequence'].to_numpy()
-        out_dict['_deltaG'] = self.deltaG
+        #todo generalize to function and also apply in batch result
+        out_dict = {'r_number': self.data_obj.coverage.r_number,
+                    'sequence': self.data_obj.coverage['sequence'].to_numpy(),
+                    '_deltaG': self.deltaG}
         out_dict['deltaG'] = out_dict['_deltaG'].copy()
         out_dict['deltaG'][~self.data_obj.coverage['exchanges']] = np.nan
-        if self.temperature is not None:
-            pfact = np.exp(out_dict['deltaG'] / (constants.R * self.temperature))
-            out_dict['pfact'] = pfact
+        pfact = np.exp(out_dict['deltaG'] / (constants.R * self.data_obj.temperature))
+        out_dict['pfact'] = pfact
+
+        k_int = self.data_obj.coverage['k_int'].to_numpy()
+
+        k_obs = k_int / (1 + pfact)
+        out_dict['k_obs'] = k_obs
 
         #todo add possibility to add append series to protein?
         #todo update order of columns
