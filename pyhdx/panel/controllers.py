@@ -673,7 +673,7 @@ class FitControl(ControlPanel):
 
     def _action_fit(self):
         if self.fit_name in itertools.chain(self.parent.fit_results.keys(), self._fit_names.values()):
-            self.parent.logger.info(f"Guess with name {self.guess_name} already in use")
+            self.parent.logger.info(f"Fit result with name {self.fit_name} already in use")
             return
 
         self.parent.logger.info('Started PyTorch fit')
