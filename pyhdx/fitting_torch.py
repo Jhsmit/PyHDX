@@ -41,10 +41,9 @@ def estimate_errors(hdxm, deltaG):
     -------
 
     """
-    # boolean array to select residues which are exchanging (ie no nterminal resiudes, no prolines, no regions without coverage)
-    bools = hdxm.coverage['exchanges'].to_numpy()
-    r_number = hdxm.coverage.r_number[bools]  # Residue number which exchange
-    deltaG = t.tensor(deltaG[bools], dtype=t.float64)
+    joined = pd.concat([deltaG, hdxm.coverage['exchanges']], axis=1, keys=['dG', 'ex'])
+    dG = joined.query('ex==True')['dG']
+    deltaG = t.tensor(dG.to_numpy(), dtype=t.float64)
 
     tensors = hdxm.get_tensors(exchanges=True)
 
@@ -61,8 +60,7 @@ def estimate_errors(hdxm, deltaG):
     hessian_inverse = t.inverse(-hessian)
     covariance = np.sqrt(np.abs(np.diagonal(hessian_inverse)))
 
-    #todo return pd series?
-    return Protein({'covariance': covariance, 'r_number': r_number}, index='r_number')
+    return pd.Series(covariance, index=dG.index, name='covariance')
 
 
 class TorchFitResult(object):
@@ -106,7 +104,52 @@ class TorchFitResult(object):
 
     @property
     def deltaG(self):
-        return self.model.deltaG.detach().numpy().squeeze()
+        """output deltaG as pandas series or as pandas dataframe
+
+        index is residue numbers
+        """
+
+        g_values = self.model.deltaG.detach().numpy().squeeze()
+        if g_values.ndim == 1:
+            deltaG = pd.Series(g_values, index=self.data_obj.coverage.index)
+        else:
+            deltaG = pd.DataFrame(g_values.T, index=self.data_obj.coverage.index, columns=self.data_obj.names)
+
+        return deltaG
+
+    @staticmethod
+    def generate_output(hdxm, deltaG):
+        """
+
+        Parameters
+        ----------
+        hdxm HDXMeasreuement
+        deltaG pandas series with r_number as index
+
+        Returns
+        -------
+
+        """
+        out_dict = {
+                    'sequence': hdxm.coverage['sequence'].to_numpy(),
+                    '_deltaG': deltaG}
+        out_dict['deltaG'] = out_dict['_deltaG'].copy()
+        out_dict['deltaG'][~hdxm.coverage['exchanges']] = np.nan
+        pfact = np.exp(out_dict['deltaG'] / (constants.R * hdxm.temperature))
+        out_dict['pfact'] = pfact
+
+        k_int = hdxm.coverage['k_int'].to_numpy()
+
+        k_obs = k_int / (1 + pfact)
+        out_dict['k_obs'] = k_obs
+
+        covariance = estimate_errors(hdxm, deltaG)
+
+        index = pd.Index(hdxm.coverage.r_number, name='r_number')
+        df = pd.DataFrame(out_dict, index=index)
+        df = df.join(covariance)
+
+        return df
 
 
 class TorchSingleFitResult(TorchFitResult):
@@ -115,32 +158,14 @@ class TorchSingleFitResult(TorchFitResult):
 
     @property
     def output(self):
-        #todo generalize to function and also apply in batch result
-        out_dict = {'r_number': self.data_obj.coverage.r_number,
-                    'sequence': self.data_obj.coverage['sequence'].to_numpy(),
-                    '_deltaG': self.deltaG}
-        out_dict['deltaG'] = out_dict['_deltaG'].copy()
-        out_dict['deltaG'][~self.data_obj.coverage['exchanges']] = np.nan
-        pfact = np.exp(out_dict['deltaG'] / (constants.R * self.data_obj.temperature))
-        out_dict['pfact'] = pfact
-
-        k_int = self.data_obj.coverage['k_int'].to_numpy()
-
-        k_obs = k_int / (1 + pfact)
-        out_dict['k_obs'] = k_obs
-
-        #todo add possibility to add append series to protein?
-        #todo update order of columns
-        protein = Protein(out_dict, index='r_number')
-        protein_cov = estimate_errors(self.data_obj, self.deltaG)
-        protein = protein.join(protein_cov)
+        protein = self.generate_output(self.data_obj, self.deltaG)
         return protein
 
     def __call__(self, timepoints):
         """output: Np x Nt array"""
         #todo fix and tests
         with t.no_grad():
-            temperature = t.Tensor([self.temperature])
+            temperature = t.Tensor([self.data_obj.temperature])
             X = t.Tensor(self.data_obj.coverage.X)  # Np x Nr
             k_int = t.Tensor(self.data_obj.coverage['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
             timepoints = t.Tensor(timepoints).unsqueeze(0)  # 1 x Nt
@@ -156,31 +181,9 @@ class TorchBatchFitResult(TorchFitResult):
 
     @property
     def output(self):
-        #data_obj is HDXMeasurementset
-
-        quantities = ['sequence', '_deltaG', 'deltaG', 'covariance', 'pfact']
         names = [hdxm.name for hdxm in self.data_obj.hdxm_list]
-        iterables = [names, quantities]
-        col_index = pd.MultiIndex.from_product(iterables, names=['State', 'Quantity'])
-        df = pd.DataFrame(index=self.data_obj.r_number, columns=col_index)
 
-        g_values = self.deltaG  #  (shape: Ns x Nr)
-        g_values_nan = g_values.copy()
-        g_values_nan[~self.data_obj.exchanges] = np.nan
-        pfact = np.exp(g_values / (constants.R * self.data_obj.temperature[:, np.newaxis]))
-
-        for i, hdxm in enumerate(self.data_obj.hdxm_list):
-            sequence = hdxm.coverage['sequence'].reindex(df.index)
-            df[hdxm.name, 'sequence'] = sequence
-            df[hdxm.name, '_deltaG'] = g_values[i]
-            df[hdxm.name, 'deltaG'] = g_values_nan[i]
-            df[hdxm.name, 'pfact'] = pfact[i]
-
-            #     #todo this could use some pandas
-            i0 = hdxm.coverage.interval[0] - self.data_obj.interval[0]
-            i1 = hdxm.coverage.interval[1] - self.data_obj.interval[0]
-            cov = estimate_errors(hdxm, g_values[i, i0:i1])  # returns a protein? should be series
-            cov_series = cov['covariance'].reindex(df.index)
-            df[hdxm.name, 'covariance'] = cov_series
+        dfs = [self.generate_output(hdxm, self.deltaG[g_column]) for hdxm, g_column in zip(self.data_obj, self.deltaG)]
+        df = pd.concat(dfs, keys=names, axis=1)
 
         return Protein(df)

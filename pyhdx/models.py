@@ -625,6 +625,12 @@ class Coverage(object):
         return np.arange(*self.interval)
 
     @property
+    def index(self):
+        """pd index: """
+        return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
+        #return pd.Index(self.r_number, name='r_number')
+
+    @property
     def block_length(self):
         """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
             along the `r_number` axis"""
@@ -942,87 +948,24 @@ class PeptideMeasurements(Coverage):
         return self.Z_norm.T.dot(self.data[field])
 
 
-class HDXMeasurementSet(object):
-    """
-    multiple HDX Measurements
-    """
-
+class CoverageSet(object):
     def __init__(self, hdxm_list):
         self.hdxm_list = hdxm_list
 
         #todo create Coverage object for the 3d case
         intervals = np.array([hdxm_list.coverage.interval for hdxm_list in self.hdxm_list])
         self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
-        r_number = np.arange(*self.interval)
-        self.r_number = r_number
+        self.r_number = np.arange(*self.interval)
 
         self.Ns = len(self.hdxm_list)
-        self.Nr = len(r_number)
+        self.Nr = len(self.r_number)
         self.Np = np.max([hdxm.Np for hdxm in self.hdxm_list])
         self.Nt = np.max([hdxm.Nt for hdxm in self.hdxm_list])
-        self.masks = self.get_masks()
-
-        # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
-        self.aligned_indices = None
-        self.aligned_dataframes = None
 
     @property
-    def temperature(self):
-        return np.array([hdxm.temperature for hdxm in self.hdxm_list])
-
-    @property
-    def names(self):
-        return [hdxm.name for hdxm in self.hdxm_list]
-
-    def guess_deltaG(self, rates_list):
-        """
-        create deltaG guesses from rates
-
-        Parameters
-        ----------
-        rates_list: iterable
-            list of pandas series with k_obs esimates
-
-        Returns
-        -------
-
-        deltaG_array: numpy array
-            deltaG guesses Ns x Nr shape
-
-        """
-        assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
-
-        guesses = [hdxm.guess_deltaG(rates, crop=True).to_numpy() for rates, hdxm in zip(rates_list, self.hdxm_list)]
-        flat = np.concatenate(guesses)
-
-        deltaG_array = np.full((self.Ns, self.Nr), fill_value=np.nan)
-        deltaG_array[self.s_r_mask] = flat
-
-        for row in deltaG_array:
-            # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
-            bools = ~np.isfinite(row)
-            row[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), row[~bools])
-
-        return deltaG_array
-
-    def add_alignment(self, alignment, first_r_numbers=None):
-        """
-
-        :param alignment: list
-        :param first_r_numbers:
-            default is [1, 1, ...] but specifiy here if alignments do not all start at residue 1
-        :return:
-        """
-        dfs = [hdxm.coverage.protein.df for hdxm in self.hdxm_list]
-        self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
-
-        df = self.aligned_dataframes['r_number']
-
-        df = df[((self.interval[0] <= df) & (df < self.interval[1])).all(axis=1)] # Crop residue numbers to interval range
-        df = df - self.interval[0]  # First residue in interval selected by index 0
-        df.dropna(how='any', inplace=True)  # Remove non-aligned residues
-
-        self.aligned_indices = df.to_numpy(dtype=int).T
+    def index(self):
+        """pd index: """
+        return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
 
     @property
     def s_r_mask(self):
@@ -1057,7 +1000,101 @@ class HDXMeasurementSet(object):
 
         return mask_dict
 
-    def get_tensors(self, exchanges=False):
+
+class HDXMeasurementSet(object):
+    """
+    multiple HDX Measurements
+    """
+
+    def __init__(self, hdxm_list):
+        self.hdxm_list = hdxm_list
+
+        self.coverage = CoverageSet(hdxm_list)
+        self.masks = self.coverage.get_masks()
+
+        # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
+        self.aligned_indices = None
+        self.aligned_dataframes = None
+
+    def __iter__(self):
+        return self.hdxm_list.__iter__()
+
+    @property
+    def Ns(self):
+        return len(self.hdxm_list)
+
+    @property
+    def Nr(self):
+        return self.coverage.Nr
+
+    @property
+    def Np(self):
+        return np.max([hdxm.Np for hdxm in self.hdxm_list])
+
+    @property
+    def Nt(self):
+        return np.max([hdxm.Nt for hdxm in self.hdxm_list])
+
+    @property
+    def temperature(self):
+        return np.array([hdxm.temperature for hdxm in self.hdxm_list])
+
+    @property
+    def names(self):
+        return [hdxm.name for hdxm in self.hdxm_list]
+
+    def guess_deltaG(self, rates_list):
+        """
+        create deltaG guesses from rates
+
+        Parameters
+        ----------
+        rates_list: iterable
+            list of pandas series with k_obs esimates
+
+        Returns
+        -------
+
+        deltaG_array: numpy array
+            deltaG guesses Ns x Nr shape
+
+        """
+        assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
+
+        guesses = [hdxm.guess_deltaG(rates, crop=True).to_numpy() for rates, hdxm in zip(rates_list, self.hdxm_list)]
+        flat = np.concatenate(guesses)
+
+        deltaG_array = np.full((self.Ns, self.Nr), fill_value=np.nan)
+        deltaG_array[self.coverage.s_r_mask] = flat  # todo get this mask from dict?
+
+        for row in deltaG_array:
+            # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+            bools = ~np.isfinite(row)
+            row[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), row[~bools])
+
+        return deltaG_array
+
+    def add_alignment(self, alignment, first_r_numbers=None):
+        """
+
+        :param alignment: list
+        :param first_r_numbers:
+            default is [1, 1, ...] but specifiy here if alignments do not all start at residue 1
+        :return:
+        """
+        dfs = [hdxm.coverage.protein.df for hdxm in self.hdxm_list]
+        self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
+
+        df = self.aligned_dataframes['r_number']
+
+        # Crop residue numbers to interval range
+        df = df[((self.coverage.interval[0] <= df) & (df < self.coverage.interval[1])).all(axis=1)]
+        df = df - self.coverage.interval[0]  # First residue in interval selected by index 0
+        df.dropna(how='any', inplace=True)  # Remove non-aligned residues
+
+        self.aligned_indices = df.to_numpy(dtype=int).T
+
+    def get_tensors(self):
         #todo create correct shapes as per table X for all
         temperature = np.array([kf.temperature for kf in self.hdxm_list])
 
