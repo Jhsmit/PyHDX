@@ -158,8 +158,8 @@ class TorchSingleFitResult(TorchFitResult):
 
     @property
     def output(self):
-        protein = self.generate_output(self.data_obj, self.deltaG)
-        return protein
+        df = self.generate_output(self.data_obj, self.deltaG)
+        return Protein(df)
 
     def __call__(self, timepoints):
         """output: Np x Nt array"""
