@@ -126,12 +126,12 @@ def plot_peptides(pm, ax, wrap=None, color=True, labels=False, cbar=False, inter
 
     """
 
-    wrap = wrap or autowrap(pm)
+    wrap = wrap or autowrap(pm.data['start'], pm.data['end'])
     rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
     rect_kwargs.update(kwargs)
 
     cmap = mpl.cm.get_cmap(cmap)
-    norm = mpl.colors.Normalize(vmin=0, vmax=100)
+    norm = mpl.colors.Normalize(vmin=0, vmax=1)
     i = -1
 
     for p_num, e in enumerate(pm.data):
