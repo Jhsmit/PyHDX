@@ -377,6 +377,10 @@ def group_with_index(arr):
 
 
 #move to output?
+#pymol coloring functions need cleaning/refactoring
+# remvoe color_to_pymol
+# instead use apply_cmap then color_pymol / color_pymol_script
+
 def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     """coverts colors (hexadecimal format) and corresponding residue numbers to pml
     script to color structures in pymol
@@ -394,21 +398,31 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     pd_series = pd_series.replace('nan', no_coverage)  # No coverage at nan entries
     pd_series = pd_series.replace(np.nan, no_coverage)  # Numpy NaNs
 
-    # grp = pd_series.groupby(pd_series)  # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
-    #
-    # s_out = ''
-    # for c, pd_series in grp:
-    #     r, g, b = hex_to_rgb(c)
-    #     s_out += f'set_color color_{c}, [{r},{g},{b}]\n'
-    #
-    # # https://stackoverflow.com/questions/30993182/how-to-get-the-index-range-of-a-list-that-the-values-satisfy-some-criterion-in-p
-    # for c, pd_series in grp:
-    #     result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
-    #     residues = [f'resi {g[0]}-{g[-1]}' for g in result]
-    #
-    #     s_out += f'color color_{c}, ' + ' + '.join(residues) + '\n'
-
     return series_to_pymol(pd_series)
+
+
+def apply_cmap(pd_series, cmap, norm=None):
+    values = pd_series if norm is None else norm(pd_series)
+    rgb_colors = cmap(values, bytes=True)
+    hex_colors = rgb_to_hex(rgb_colors)
+
+    return pd.Series(hex_colors, index=pd_series.index)
+
+
+def color_pymol(pd_series, cmd, model=None):
+    grp = pd_series.groupby(pd_series)
+
+    for c, pd_series in grp:
+        result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+        r, g, b = hex_to_rgb(c)
+        residues = [f'resi {g[0]}-{g[-1]}' for g in result]
+        selection = ' + '.join(residues)
+
+        if model:
+            selection = f'model {model} and ({selection})'
+
+        cmd.set_color(c, [r, g, b])
+        cmd.color(c, selection=selection)
 
 
 def series_to_pymol(pd_series):
