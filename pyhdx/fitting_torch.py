@@ -134,11 +134,12 @@ class TorchFitResult(object):
                     'sequence': hdxm.coverage['sequence'].to_numpy(),
                     '_deltaG': deltaG}
         out_dict['deltaG'] = out_dict['_deltaG'].copy()
-        out_dict['deltaG'][~hdxm.coverage['exchanges']] = np.nan
+        exchanges = hdxm.coverage['exchanges'].reindex(deltaG.index, fill_value=False)
+        out_dict['deltaG'][~exchanges] = np.nan
         pfact = np.exp(out_dict['deltaG'] / (constants.R * hdxm.temperature))
         out_dict['pfact'] = pfact
 
-        k_int = hdxm.coverage['k_int'].to_numpy()
+        k_int = hdxm.coverage['k_int'].reindex(deltaG.index, fill_value=False)
 
         k_obs = k_int / (1 + pfact)
         out_dict['k_obs'] = k_obs
