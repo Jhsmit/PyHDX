@@ -152,6 +152,19 @@ class TorchFitResult(object):
 
         return df
 
+    def __call__(self, timepoints):
+        """output: Np x Nt array"""
+        #todo fix and tests
+        dtype = t.float64
+
+        with t.no_grad():
+            tensors = self.data_obj.get_tensors()
+            inputs = [tensors[key] for key in ['temperature', 'X', 'k_int']]
+            inputs.append(t.tensor(timepoints, dtype=dtype).unsqueeze(0))
+
+            output = self.model(*inputs)
+        return output.detach().numpy()
+
 
 class TorchSingleFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
