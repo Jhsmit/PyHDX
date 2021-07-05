@@ -35,6 +35,8 @@ def parse_clustal_string(s, num_proteins, whitelines=2, offset=0):
 
 
 def align_dataframes(dataframes, alignment, first_r_numbers=None):
+    #todo add option to merge/include sequence information in output dataframes
+    #todo add dict-like input for dataframes (multiindex dataframe)
     """
     Aligned dataframes based on an alignment.
 
