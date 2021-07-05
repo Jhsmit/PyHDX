@@ -175,19 +175,6 @@ class TorchSingleFitResult(TorchFitResult):
         df = self.generate_output(self.data_obj, self.deltaG)
         return Protein(df)
 
-    def __call__(self, timepoints):
-        """output: Np x Nt array"""
-        #todo fix and tests
-        with t.no_grad():
-            temperature = t.Tensor([self.data_obj.temperature])
-            X = t.Tensor(self.data_obj.coverage.X)  # Np x Nr
-            k_int = t.Tensor(self.data_obj.coverage['k_int'].to_numpy()).unsqueeze(-1)  # Nr x 1
-            timepoints = t.Tensor(timepoints).unsqueeze(0)  # 1 x Nt
-            inputs = [temperature, X, k_int, timepoints]
-
-            output = self.model(*inputs)
-        return output.detach().numpy()
-
 
 class TorchBatchFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
