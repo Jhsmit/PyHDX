@@ -378,7 +378,7 @@ class PeptideMasterTable(object):
         """
 
         back_exchange /= 100
-        rfu = 100*self.data['uptake'] / ((1-back_exchange)*self.data['ex_residues'])
+        rfu = self.data['uptake'] / ((1-back_exchange)*self.data['ex_residues'])
 
         uptake_corrected = self.data['uptake'] / (1 - back_exchange)
 
