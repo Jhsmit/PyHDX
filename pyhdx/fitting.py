@@ -363,12 +363,14 @@ def regularizer_2d_mean(r1, r2, param):
     reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
     return reg_loss
 
+
 def regularizer_2d_reference(r1, r2, param):
     #todo allow regularization wrt reference rather than mean
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - param[0])[1:]
     reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
     return reg_loss
+
 
 def regularizer_2d_aligned(r1, r2, indices, param):
     i0 = indices[0]
