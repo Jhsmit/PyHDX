@@ -348,7 +348,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
             stop = 0
 
     #par = model.deltaG.detach().numpy()
-    return np.array(mse_loss_list), np.array(total_loss_list), model
+    return np.array(mse_loss_list[1:]), np.array(total_loss_list[1:]), model
 
 
 def regularizer_1d(r1, param):
