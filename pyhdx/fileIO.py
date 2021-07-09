@@ -223,6 +223,61 @@ def txt_to_protein(file_path):
     return pyhdx.models.Protein(array, index='r_number')
 
 
+def save_fitresult(output_dir, fit_result, settings, log_lines=None):
+    """
+    Save a fit result object to the specified directory with associated metadata
+
+    Output directory contents:
+    deltaG.csv/.txt: Fit output result (deltaG, covariance, k_obs, pfact)
+    losses.csv/.txt: Losses per epoch
+    settings.yaml: yaml file with saved settings
+    log.txt: Log file with additional metadata (number of epochs, final losses, pyhdx version, time/date)
+
+    Parameters
+    ----------
+    output_dir: pathlib.Path or :obj:`str`
+        Output directory to save fitresult to
+    fit_result: pydhx.fittin_torch.TorchFitResult
+        fit result object to save
+    settings: :obj:`dict`
+        Dictionary to save to as yaml file. Typically used for fit parameters
+    log_lines: :obj:`list`
+        Optional additional lines to write to log file.
+
+    Returns
+    -------
+
+    """
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    yaml_file_out = output_dir / 'settings.yaml'
+    yaml_file_out.write_text(yaml.dump(settings))
+
+    fit_file_out = output_dir / 'deltaG.csv'
+    fit_result.output.to_file(fit_file_out)
+
+    fit_file_out_pprint = output_dir / 'deltaG.txt'
+    fit_result.output.to_file(fit_file_out_pprint, fmt='pprint')
+
+    fit_result.losses.to_csv(output_dir / 'losses.csv')
+    pprint_df_to_file(fit_result.losses, output_dir / 'losses.txt')
+
+    loss = f'Total_loss {fit_result.total_loss:.2f}, mse_loss {fit_result.mse_loss:.2f}, reg_loss {fit_result.reg_loss:.2f}' \
+           f'({fit_result.regularization_percentage:.2f}%)'
+    epochs = f"Number of epochs: {len(fit_result.metadata['total_loss'])}"
+    version = pyhdx.VERSION_STRING
+    now = datetime.now()
+    date = f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())})'
+
+    lines = [date, version, loss, epochs]
+    if log_lines is not None:
+        lines.append('')
+        lines += log_lines
+    log_file_out = output_dir / 'log.txt'
+    log_file_out.write_text('\n'.join(lines))
+
+
 def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
     """
     Create a format string for array `arr` such that columns are aligned in the output file when
