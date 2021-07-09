@@ -33,8 +33,8 @@ def estimate_errors(hdxm, deltaG):
 
     Parameters
     ----------
-    hdxm: HDXMeasurement
-    deltaG: numpy array
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
+    deltaG : :class:`~numpy.ndarray`
         Array with deltaG values.
 
     Returns
@@ -70,7 +70,7 @@ class TorchFitResult(object):
     Parameters
     ----------
 
-    data_obj: HDXMeasurement or HDXMeasurementSet
+    data_obj : :class:`~pyhdx.models.HDXMeasurement` or :class:`~pyhdx.models.HDXMeasurementSet`
     model
     **metdata
 
@@ -82,29 +82,29 @@ class TorchFitResult(object):
 
     @property
     def mse_loss(self):
-        """obj:`float`: Losses from mean squared error part of Lagrangian"""
+        """:obj:`float`: Losses from mean squared error part of Lagrangian"""
         mse_loss = self.metadata['mse_loss'][-1]
         return mse_loss
 
     @property
     def total_loss(self):
-        """obj:`float`: Total loss value of the Lagrangian"""
+        """:obj:`float`: Total loss value of the Lagrangian"""
         total_loss = self.metadata['total_loss'][-1]
         return total_loss
 
     @property
     def reg_loss(self):
-        """obj:`float`: Losses from regularization part of Lagrangian"""
+        """:obj:`float`: Losses from regularization part of Lagrangian"""
         return self.total_loss - self.mse_loss
 
     @property
     def regularization_percentage(self):
-        """obj:`float`: Percentage part of the total loss that is regularization loss"""
+        """:obj:`float`: Percentage part of the total loss that is regularization loss"""
         return (self.reg_loss / self.total_loss) * 100
 
     @property
     def losses(self):
-        """pandas dataframe: dataframe with losses information per epoch"""
+        """:class:`~pandas.DataFrame` : dataframe with losses information per epoch"""
         loss_dict = {
             'total_loss': self.metadata['total_loss'],
             'mse_loss': self.metadata['mse_loss']}
@@ -120,7 +120,7 @@ class TorchFitResult(object):
 
     @property
     def deltaG(self):
-        """output deltaG as pandas series or as pandas dataframe
+        """output deltaG as :class:`~pandas.Series` or as :class:`~pandas.DataFrame`
 
         index is residue numbers
         """
@@ -139,8 +139,8 @@ class TorchFitResult(object):
 
         Parameters
         ----------
-        hdxm HDXMeasreuement
-        deltaG pandas series with r_number as index
+        hdxm : :class:`~pyhdx.models.HDXMeasurement`
+        deltaG : :class:`~pandas.Series` with r_number as index
 
         Returns
         -------

@@ -35,7 +35,7 @@ class Protein(object):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray` or dict or dataframe
+    data : :class:`~numpy.ndarray` or :obj:`dict` or :class:`~pandas.DataFrame`
         data object to initiate the protein object from
     index : :obj:`str`, optional
         Name of the column with the residue number (index column)
@@ -102,7 +102,7 @@ class Protein(object):
             StringIO to write to. If `None` a new StringIO object is created.
         include_version : :obj:`bool`
             Set ``True`` to include PyHDX version and current time/date
-        fmt : :obj: `str`
+        fmt : :obj:`str`
             Formatting to use, options are 'csv' or 'pprint'
         include_metadata
             Not Implemented
@@ -626,7 +626,7 @@ class Coverage(object):
 
     @property
     def index(self):
-        """pd index: """
+        """:class:`~pandas.RangeIndex` """
         return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
         #return pd.Index(self.r_number, name='r_number')
 
@@ -834,7 +834,7 @@ class HDXMeasurement(object):
 
         Parameters
         ----------
-        rates : :class:`pd.Series`
+        rates : :class:`~pandas.Series`
             pandas series of estimated hdx exchangs rates. Index is protein residue number
         return_type
 
@@ -1049,7 +1049,7 @@ class HDXMeasurementSet(object):
 
         Parameters
         ----------
-        rates_list: iterable
+        rates_list : :obj:`iterable`
             list of pandas series with k_obs esimates
 
         Returns
@@ -1199,7 +1199,7 @@ def array_intersection(arrays_list, fields):
     ----------
     arrays_list : :obj:`iterable`
         Iterable of input structured arrays
-    fields : :obj:`iterable'
+    fields : :obj:`iterable` 
         Iterable of fields to use to decide if entires are intersecting
 
     Returns
