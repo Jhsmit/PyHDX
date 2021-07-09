@@ -848,8 +848,10 @@ class HDXMeasurement(object):
             raise TypeError("Rates input type is pandas.Series")
 
         p_guess = (self.coverage.protein['k_int'] / rates) - 1
+
         p_guess.clip(0., None, inplace=True)  # Some initial guesses might have negative PF values
-        deltaG = np.log(p_guess) * constants.R * self.temperature
+        with np.errstate(divide='ignore'):
+            deltaG = np.log(p_guess) * constants.R * self.temperature
 
         # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
         bools = ~np.isfinite(deltaG)
