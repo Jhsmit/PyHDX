@@ -103,6 +103,22 @@ class TorchFitResult(object):
         return (self.reg_loss / self.total_loss) * 100
 
     @property
+    def losses(self):
+        """pandas dataframe: dataframe with losses information per epoch"""
+        loss_dict = {
+            'total_loss': self.metadata['total_loss'],
+            'mse_loss': self.metadata['mse_loss']}
+
+        loss_dict['reg_loss'] = loss_dict['total_loss'] - loss_dict['mse_loss']
+        loss_dict['reg_percentage'] = loss_dict['reg_loss'] / loss_dict['total_loss'] * 100
+
+        loss_df = pd.DataFrame(loss_dict)
+        loss_df.index.name = 'epoch'
+        loss_df.index += 1
+
+        return loss_df
+
+    @property
     def deltaG(self):
         """output deltaG as pandas series or as pandas dataframe
 

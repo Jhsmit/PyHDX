@@ -112,7 +112,7 @@ def main_app(client='default'):
     #                                OPTS
     # ---------------------------------------------------------------------- #
 
-    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 100), 'framewise': True,
+    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 1), 'framewise': True,
                        'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, **global_opts}
     cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
 
