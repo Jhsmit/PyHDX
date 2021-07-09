@@ -437,7 +437,7 @@ def series_to_pymol(pd_series):
     Returns
     -------
 
-    s_out: :obj:`string`
+    s_out : :obj:`string`
 
     """
 

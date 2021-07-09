@@ -33,11 +33,11 @@ def get_bounds(times):
 
     Parameters
     ----------
-    times: array_like
-
+    times : array_like
+ 
     Returns
     -------
-    bounds: :obj:`tuple`
+    bounds : :obj:`tuple`
         lower and upper bounds
 
     """
@@ -138,14 +138,14 @@ def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=20, model_type='asso
 
     Parameters
     ----------
-    hdxm: HDXMeasurement
-    bounds: :obj:`tuple`, optional
+    hdxm : HDXMeasurement
+    bounds : :obj:`tuple`, optional
         Tuple of lower and upper bounds of rate constants in the model used.
-    chisq_thd: :obj:`float`
+    chisq_thd : :obj:`float`
         Threshold of chi squared result, values above will trigger a second round of fitting using DifferentialEvolution
-    model_type: :obj:`str`
+    model_type : :obj:`str`
         Missing docstring
-    client: : ??
+    client : : ??
         Controls delegation of fitting tasks to Dask clusters. Options are: `None`: Do not use task, fitting is done
         in the local thread in a for loop. :class: Dask Client : Uses the supplied Dask client to schedule fitting task.
         `worker_client`: The function was ran by a Dask worker and the additional fitting tasks created are scheduled
@@ -194,7 +194,7 @@ def fit_rates(hdxm, method='wt_avg', **kwargs):
     Parameters
     ----------
     hdxm: HDXMeasurement
-    method: :obj:`str`
+    method : :obj:`str`
         Method to use to determine rates of exchange
     kwargs
         Additional kwargs passed to fitting
@@ -291,11 +291,11 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
     Parameters
     ----------
-    inputs: :obj:`list`
+    inputs : :obj:`list`
         List of input Tensors
-    output_data: :class pytorch Tensor
+    output_data : :class pytorch Tensor
         comparison data to model output
-    optimizer_klass: :class: pytorch optimizer
+    optimizer_klass : :class: pytorch optimizer
     optimizer_kwargs : dict
         kwargs to pass to pytorch optimizer
     model: torch.nn.Module
@@ -304,11 +304,11 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         loss function
     regularizer callable
         regularizer function
-    epochs: :obj:`int`
+    epochs : :obj:`int`
         Max number of epochs
-    patience: :obj:`int`
+    patience : :obj:`int`
         Number of epochs with less progress than `stop_loss` before terminating optimization
-    stop_loss: :obj:`float`
+    stop_loss : :obj:`float`
         Threshold of optimization value below which no progress is made
 
     Returns
@@ -390,11 +390,11 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
     hdxm: HDXMeasurement
     initial_guess: pd series or numpy array
         Gibbs free energy initial guesses (shape Nr)
-    r1: :obj:`float`
+    r1 : :obj:`float`
     epochs
     patience
     stop_loss
-    optimizer: :obj:`str`
+    optimizer : :obj:`str`
     optimizer_kwargs
 
     Returns

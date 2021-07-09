@@ -102,7 +102,7 @@ class Protein(object):
             StringIO to write to. If `None` a new StringIO object is created.
         include_version : :obj:`bool`
             Set ``True`` to include PyHDX version and current time/date
-        fmt: :obj: `str`
+        fmt : :obj: `str`
             Formatting to use, options are 'csv' or 'pprint'
         include_metadata
             Not Implemented
@@ -141,7 +141,7 @@ class Protein(object):
             File path to create and write to.
         include_version : :obj:`bool`
             Set ``True`` to include PyHDX version and current time/date
-        fmt: :obj: `str`
+        fmt : :obj:`str`
             Formatting to use, options are 'csv' or 'pprint'
         include_metadata
             Not Implemented
@@ -331,7 +331,7 @@ class PeptideMasterTable(object):
 
         Parameters
         ----------
-        state: :obj:`str`
+        state : :obj:`str`
 
 
         Returns
@@ -495,10 +495,10 @@ class Coverage(object):
         Numpy structured array with input peptides
     c_term : :obj:`int`
         Residue index number of the C-terminal residue (where first residue in index number 1)
-    n_term: :obj`int`
+    n_term : :obj:`int`
         Residue index of the N-terminal residue. Default value is 1, can be negative to accomodate for N-terminal
         purification tags
-    sequence: :ob:`str`
+    sequence : :obj:`str`
         Amino acid sequence of the protein in one-letter FASTA encoding. Optional, if not specified the amino acid sequence
         from the peptide data is used to (partially) reconstruct the sequence. Supplied amino acid sequence must be
         compatible with sequence information in the peptides.
@@ -797,13 +797,13 @@ class HDXMeasurement(object):
 
         Parameters
         ----------
-        exchanges: : bool:
+        exchanges : :obj:`bool`
             if True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
 
         Returns
         -------
 
-        tensors : dict
+        tensors : :obj:`dict`
 
         """
         dtype = torch.float64
@@ -834,7 +834,7 @@ class HDXMeasurement(object):
 
         Parameters
         ----------
-        rates : :class:pd series
+        rates : :class:`pd.Series`
             pandas series of estimated hdx exchangs rates. Index is protein residue number
         return_type
 
@@ -1055,7 +1055,7 @@ class HDXMeasurementSet(object):
         Returns
         -------
 
-        deltaG_array: numpy array
+        deltaG_array: :class:`~numpy.ndarray`
             deltaG guesses Ns x Nr shape
 
         """
