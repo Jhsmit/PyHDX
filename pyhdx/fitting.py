@@ -433,10 +433,8 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
 
     assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
 
-    #todo dtype config
     dtype = torch.float64
     deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).unsqueeze(-1))  #reshape (nr, 1)
-    #deltaG_par = torch.nn.Parameter(torch.Tensor(initial_guess).unsqueeze(-1))
 
     model = DeltaGFit(deltaG_par)
     criterion = torch.nn.MSELoss(reduction='sum')
@@ -469,7 +467,7 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
     initial_guess
     r1
     r2
-    r2_reference=False,
+    r2_reference,
         if true the first dataset is used as a reference to calculate r2 differences, otherwise the mean is used
     epochs
     patience
@@ -487,35 +485,12 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
     locals_dict = locals()
     fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
-    tensors = hdx_set.get_tensors()
-    inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
-    output_data = tensors['uptake']
-
-    assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
-
-    dtype = torch.float64
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).reshape(hdx_set.Ns, hdx_set.Nr, 1))
-
-    model = DeltaGFit(deltaG_par)
-    criterion = torch.nn.MSELoss(reduction='sum')
-
-    # Take default optimizer kwargs and update them with supplied kwargs
-    optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
-    optimizer_klass = getattr(torch.optim, optimizer)
-
     if r2_reference:
         reg_func = partial(regularizer_2d_reference, r1, r2)
     else:
         reg_func = partial(regularizer_2d_mean, r1, r2)
-    mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
-                                                         model, criterion, reg_func, epochs=epochs,
-                                                         patience=patience, stop_loss=stop_loss)
 
-    losses = _loss_df(total_loss, mse_loss)
-    fit_kwargs.update(optimizer_kwargs)
-    result = TorchBatchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
-
-    return result
+    return _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs)
 
 
 def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
@@ -542,13 +517,22 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
 
     """
 
+    assert hdx_set.Ns == 2, 'Aligned batch fitting is limited to two states'
+    if hdx_set.aligned_indices is None:
+        raise ValueError("No alignment added to HDX measurements")
+
+    indices = [torch.tensor(i, dtype=torch.long) for i in hdx_set.aligned_indices]
+    reg_func = partial(regularizer_2d_aligned, r1, r2, indices)
+
     fit_keys = ['r1', 'r2', 'epochs', 'patience', 'stop_loss', 'optimizer']
     locals_dict = locals()
     fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
-    assert hdx_set.Ns == 2, 'Aligned batch fitting is limited to two states'
+    return _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs)
 
-    #todo duplicate code
+
+def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
+    # @tejas docstrings
     tensors = hdx_set.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['uptake']
@@ -562,24 +546,17 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
     criterion = torch.nn.MSELoss(reduction='sum')
 
     # Take default optimizer kwargs and update them with supplied kwargs
-    optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
-    optimizer_klass = getattr(torch.optim, optimizer)
+    optimizer_kwargs = {**optimizer_defaults.get(fit_kwargs['optimizer'], {}), **optimizer_kwargs}  # Take defaults and override with user-specified
+    optimizer_klass = getattr(torch.optim, fit_kwargs['optimizer'])
 
-    if hdx_set.aligned_indices is None:
-        raise ValueError("No alignment added to HDX measurements")
-
-    indices = [torch.tensor(i, dtype=torch.long) for i in hdx_set.aligned_indices]
-
-    reg_func = partial(regularizer_2d_aligned, r1, r2, indices)
+    loop_kwargs = {k: fit_kwargs[k] for k in ['epochs', 'patience', 'stop_loss']}
     mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
-                                                         model, criterion, reg_func, epochs=epochs,
-                                                         patience=patience, stop_loss=stop_loss)
+                                                         model, criterion, reg_func, **loop_kwargs)
     losses = _loss_df(total_loss, mse_loss)
     fit_kwargs.update(optimizer_kwargs)
     result = TorchBatchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
 
     return result
-
 
 """
 this might still serve some use
