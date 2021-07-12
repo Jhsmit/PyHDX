@@ -17,7 +17,7 @@ from pathlib import Path
 tmpl, ctrl = _single_app()
 directory = Path(__file__).parent
 
-fpath = directory / 'test_data' / 'ecSecB_torch_fit.txt'
+fpath = directory / 'test_data' / 'ecSecB_torch_fit.csv'
 with open(fpath, 'rb') as f_obj:
     file_binary = f_obj.read()
 

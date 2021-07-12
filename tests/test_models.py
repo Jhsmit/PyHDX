@@ -2,7 +2,7 @@ import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, HDXMeasurement
 from pyhdx.models import Protein, Coverage
-from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_protein
+from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_hdxm
 import numpy as np
 from functools import reduce
 from operator import add
@@ -14,6 +14,7 @@ import pytest
 
 
 directory = Path(__file__).parent
+
 
 class TestUptakeFileModels(object):
 
@@ -37,27 +38,8 @@ class TestUptakeFileModels(object):
         series = states['SecB WT apo']
         assert isinstance(series, HDXMeasurement)
 
-    # def test_split(self):
-    #     series_name = 'SecB WT apo'
-    #
-    #     states = self.pf1.groupby_state()
-    #
-    #     series = states[series_name]
-    #     series.make_uniform()
-    #
-    #     split_series = series.split()
-    #     new_len = reduce(add, [reduce(add, [len(pm.data) for pm in ks]) for ks in split_series.values()])
-    #
-    #     assert len(series.full_data) == new_len
-    #
-    #     for k, v in split_series.items():
-    #         s, e = np.array(k.split('_')).astype(int)
-    #         pm = v[0]
-    #         assert np.min(pm.data['start']) == s
-    #         assert np.all(pm.data['end'] < e + 1)
 
-
-class TestSeries(object):
+class TestHDXMeasurement(object):
     @classmethod
     def setup_class(cls):
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
@@ -65,18 +47,29 @@ class TestSeries(object):
         cls.pmt.set_control(('Full deuteration control', 0.167))
         d = cls.pmt.get_state('SecB WT apo')
         cls.temperature, cls.pH = 273.15 + 30, 8.
-        cls.series = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
+        cls.hdxm = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
 
     def test_dim(self):
-        assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
+        assert self.hdxm.Nt == len(np.unique(self.hdxm.full_data['exposure']))
 
     def test_guess(self):
         pass
 
     def test_tensors(self):
-        tensors = self.series.get_tensors()
+        tensors = self.hdxm.get_tensors()
 
         # assert ...
+
+    def test_to_file(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fpath = Path(tempdir) / 'hdxm.csv'
+            self.hdxm.to_file(fpath)
+            hdxm_read = csv_to_hdxm(fpath)
+            k1 = self.hdxm.coverage['k_int']
+            k2 = hdxm_read.coverage['k_int']
+            pd.testing.assert_series_equal(k1, k2)
+
+            assert self.hdxm.metadata == hdxm_read.metadata
 
 @pytest.mark.skip(reason="Simulated data was removed")
 class TestSimulatedData(object):
@@ -203,14 +196,14 @@ class TestProtein(object):
         array3['pear'] = np.random.rand(10) + 20
         array3['banana'] = -(np.random.rand(10) + 20)
         cls.array3 = array3
-
-        cls.protein = csv_to_protein(directory / 'test_data' / 'ecSecB_info.csv', column_depth=1)
+        metadata = {'temperature': 273.15, 'pH': 7.5, 'mutations': ['V123S', 'P234S']}
+        cls.protein = csv_to_protein(directory / 'test_data' / 'ecSecB_info.csv')
+        cls.protein.metadata = metadata
 
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         pf1 = PeptideMasterTable(read_dynamx(fpath))
         #states = pf1.groupby_state(c_term=200)
         cls.series = HDXMeasurement(pf1.get_state('SecB WT apo'), c_term=200)
-
 
     def test_artithmetic(self):
         p1 = Protein(self.array1, index='r_number')
@@ -280,3 +273,11 @@ class TestProtein(object):
 
         pd.testing.assert_frame_equal(self.protein.df, unpickled.df)
         assert self.protein.metadata == unpickled.metadata
+
+    def test_to_file(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fpath = Path(tempdir) / 'protein.csv'
+            self.protein.to_file(fpath)
+            protein_read = csv_to_protein(fpath)
+            pd.testing.assert_frame_equal(self.protein.df, protein_read.df)
+            assert self.protein.metadata == protein_read.metadata

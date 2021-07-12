@@ -1,9 +1,12 @@
-from pyhdx.fileIO import csv_to_protein, txt_to_np, read_dynamx, fmt_export, csv_to_np
+import pyhdx
+from pyhdx.fileIO import read_dynamx, csv_to_dataframe, csv_to_protein, dataframe_to_stringio, dataframe_to_file
 from pyhdx.models import Protein
 from pathlib import Path
 from io import StringIO
 import numpy as np
+import pandas as pd
 import pytest
+import tempfile
 
 directory = Path(__file__).parent
 
@@ -35,35 +38,60 @@ class TestFileIO(object):
             data = read_dynamx(StringIO(f.read()))
             assert data.size == 567
 
-    def test_fmt_export(self):
-        # testing fmt_export
-        data = read_dynamx(self.fpath)
-        with pytest.raises(ValueError):
-            fmt_export(data, delimiter=',', width="foo")
+    def test_read_write_tables(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            # Single-index columns
+            df = pd.DataFrame(np.random.randn(25, 4), columns=list('ABCD'))
+            df.index.name = 'singlecolumnindex'
 
-        fmt, hdr = fmt_export(data, delimiter=',', width=0)
-        assert 'protein' in hdr
+            sio = StringIO()
+            dataframe_to_stringio(df, sio)
+            sio.seek(0)
+            df_read = csv_to_dataframe(sio)
+            pd.testing.assert_frame_equal(df, df_read)
 
-        fmt, hdr = fmt_export(data, delimiter=',', width='auto')
-        assert 'protein' in hdr
+            fpath = Path(tempdir) / 'single_index.csv'
+            dataframe_to_file(fpath, df)
+            csv_to_dataframe(fpath)
+            pd.testing.assert_frame_equal(df, df_read)
 
-        fmt, hdr = fmt_export(data, header=False)
-        assert len(hdr) == 0
+            # multi-index column
+            cols = pd.MultiIndex.from_product([('a', 'b'), ('x', 'y')])
+            df = pd.DataFrame(np.random.randn(25, 4), columns=cols)
+            df.index.name = 'multicolumnindex'
 
-        data = np.genfromtxt(self.fpath, skip_header=1, delimiter=',', dtype=[('foo', 'V'), ('bar', 'V')])
-        with pytest.raises(TypeError):
-            fmt_export(data, delimiter=',', width=0)
+            sio = StringIO()
+            dataframe_to_stringio(df, sio)
+            sio.seek(0)
+            df_read = csv_to_dataframe(sio)
+            pd.testing.assert_frame_equal(df, df_read)
 
-    # testing other functions in fileIO
-    def test_methods(self):
-        path = directory / 'test_data' / 'ecSecB_guess.txt'
+            fpath = Path(tempdir) / 'multi_index.csv'
+            dataframe_to_file(fpath, df)
+            df_read = csv_to_dataframe(fpath)
+            pd.testing.assert_frame_equal(df, df_read)
 
-        # testing csv_to_protein
-        ret = csv_to_protein(path)
-        assert type(ret) == Protein
-        assert ret.index.name == 'r_number'
+            protein = csv_to_protein(fpath)
+            assert protein.index.name == 'r_number'
+            assert isinstance(protein, Protein)
 
-        # testing txt_to_np
-        with open(path, mode='r') as f:
-            ret = csv_to_np(StringIO(f.read()))
-            assert 'r_number' in ret.dtype.names
+            metadata = {
+                'instrumuent': 'LCMS',
+                'settings': {'pressure': '5 kPa', 'temperature': '400K'}
+            }
+
+            df.attrs['metadata'] = metadata
+
+            fpath = Path(tempdir) / 'multi_index_with_metadata.csv'
+            dataframe_to_file(fpath, df)
+            df_read = csv_to_dataframe(fpath)
+            pd.testing.assert_frame_equal(df, df_read)
+
+            assert df_read.attrs['metadata'] == metadata
+
+            fpath = Path(tempdir) / 'multi_index_with_metadata.txt'
+            dataframe_to_file(fpath, df, fmt='pprint', include_version=True)
+            lines = Path(fpath).read_text().split('\n')
+            assert len(lines) == 38
+            assert lines[0].strip() == pyhdx.VERSION_STRING
+

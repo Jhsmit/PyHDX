@@ -4,7 +4,6 @@ from pyhdx.models import HDXMeasurementSet
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.local_cluster import default_client
 import numpy as np
-import pickle
 from pathlib import Path
 import torch
 
@@ -31,17 +30,31 @@ temperature, pH = 273.15 + 30, 8.
 
 hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence, temperature=temperature, pH=pH)
 
+data = pmt.get_state('SecB WT apo')
+reduced_data = data[data['end'] < 40]
+reduced_hdxm = HDXMeasurement(reduced_data)
+
+result = fit_rates_weighted_average(reduced_hdxm)
+output = result.output
+output.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.csv')
+output.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.txt', fmt='pprint')
+
 if guess:
+    # Initial guesses changed (by refactoring to rfu?)
     client = default_client()
     wt_avg_result = fit_rates_weighted_average(hdxm, bounds=(1e-2, 800))
     output = wt_avg_result.output
-    output.to_file(directory / 'test_data' / 'ecSecB_guess.txt')
+    output.to_file(directory / 'test_data' / 'ecSecB_guess.csv')
 else:
-    output = csv_to_protein(directory / 'test_data' / 'ecSecB_guess.txt')
+    # output = csv_to_protein(directory / 'test_data' / 'ecSecB_guess.csv')
+    import pandas as pd
+    output = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
 
 gibbs_guess = hdxm.guess_deltaG(output['rate'])
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs, r1=2)
-fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt')
+fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.csv')
+fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt', fmt='pprint')
+
 
 hdxm_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), sequence=sequence_dimer,
                             temperature=temperature, pH=pH)
@@ -64,10 +77,8 @@ hdx_set.add_alignment(list(mock_alignment.values()))
 
 aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
 
-
 aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.csv')
 aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.txt', fmt='pprint')
-
 
 hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.csv')
 hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.txt', fmt='pprint')

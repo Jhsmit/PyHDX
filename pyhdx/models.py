@@ -9,7 +9,7 @@ from functools import reduce, partial
 from operator import add
 from hdxrate import k_int_from_sequence
 from pyhdx.support import reduce_inter, make_view, fields_view, pprint_df_to_file
-from pyhdx.fileIO import fmt_export
+from pyhdx.fileIO import fmt_export, dataframe_to_file, dataframe_to_stringio
 from pyhdx.alignment import align_dataframes
 from scipy import constants
 import pyhdx
@@ -92,44 +92,6 @@ class Protein(object):
         protein_out = Protein(df_out, index=df_out.index.name, **metadata)
         return protein_out
 
-    def to_stringio(self, io=None, include_version=True, include_metadata=True, fmt='csv', **kwargs):
-        """
-        Write Protein data to :class:`~io.StringIO`
-
-        Parameters
-        ----------
-        io : :class:`~io.StringIO`, optional
-            StringIO to write to. If `None` a new StringIO object is created.
-        include_version : :obj:`bool`
-            Set ``True`` to include PyHDX version and current time/date
-        fmt: :obj: `str`
-            Formatting to use, options are 'csv' or 'pprint'
-        include_metadata
-            Not Implemented
-
-        Returns
-        -------
-        io : :class:`~io.StringIO`
-        """
-        #todo add metadata
-
-        io = io or StringIO()
-
-        if include_version:
-            io.write('# ' + pyhdx.VERSION_STRING + ' \n')
-            now = datetime.now()
-            io.write(f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
-
-        if fmt == 'csv':
-            self.df.to_csv(io, line_terminator='\n', **kwargs)
-        elif fmt == 'pprint':
-            io.write('\n')
-            pprint_df_to_file(self.df, io)
-
-        io.seek(0)
-
-        return io
-
     def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
         """
         Write Protein data to file.
@@ -143,19 +105,18 @@ class Protein(object):
             Set ``True`` to include PyHDX version and current time/date
         fmt: :obj: `str`
             Formatting to use, options are 'csv' or 'pprint'
-        include_metadata
-            Not Implemented
-
+        include_metadata : :obj:`bool`
+            If `True`, the objects' metadata is included
+        **kwargs : :obj:`dict`, optional
+            Optional additional keyword arguments passed to `df.to_csv`
         Returns
         -------
-
         None
 
         """
-        #todo update to pathlib Path
-        io = self.to_stringio(include_version=include_version, include_metadata=include_metadata, fmt=fmt, **kwargs)
-        with open(file_path, 'w') as f:
-            print(io.getvalue(), file=f)
+
+        metadata = self.metadata if include_metadata else include_metadata
+        dataframe_to_file(file_path, self.df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
     def set_k_int(self, temperature, pH):
         """
@@ -712,7 +673,8 @@ class HDXMeasurement(object):
         data_list = [(data[data['exposure'] == exposure]) for exposure in self.timepoints]
         sets = [{tuple(elem) for elem in fields_view(d, ['_start', '_end'])} for d in data_list]
         intersection = set.intersection(*sets)
-        intersection_array = np.array([tup for tup in intersection], dtype=[('_start', int), ('_end', int)])
+        dtype = [('_start', data['_start'].dtype), ('_end', data['_end'].dtype)]
+        intersection_array = np.array([tup for tup in intersection], dtype=dtype)
 
         # Select entries in data array which are in the intersection between all timepoints
         selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in data_list]
@@ -861,6 +823,35 @@ class HDXMeasurement(object):
             return self.coverage.apply_interval(deltaG)
         else:
             return deltaG
+
+    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+        """
+        Write Protein data to file.
+
+
+        Parameters
+        ----------
+        file_path : :obj:`str`
+            File path to create and write to.
+        include_version : :obj:`bool`
+            Set ``True`` to include PyHDX version and current time/date
+        fmt: :obj: `str`
+            Formatting to use, options are 'csv' or 'pprint'
+        include_metadata : :obj:`bool`
+            If `True`, the objects' metadata is included
+        **kwargs : :obj:`dict`, optional
+            Optional additional keyword arguments passed to `df.to_csv`
+        Returns
+        -------
+        None
+
+        """
+
+        metadata = self.metadata if include_metadata else include_metadata
+        df = pd.DataFrame(self.full_data)
+        df.index.name = 'peptide_index'
+        df.index += 1
+        dataframe_to_file(file_path, df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
 
 class PeptideMeasurements(Coverage):

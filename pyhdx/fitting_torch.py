@@ -6,6 +6,7 @@ from scipy import constants
 import numpy as np
 import pandas as pd
 from pyhdx.models import Protein
+from pyhdx.fileIO import dataframe_to_file
 
 
 class DeltaGFit(nn.Module):
@@ -75,22 +76,29 @@ class TorchFitResult(object):
     **metdata
 
     """
-    def __init__(self, data_obj, model, **metadata):
+    def __init__(self, data_obj, model, losses=None, **metadata):
         self.data_obj = data_obj
         self.model = model
+        self.losses = losses
         self.metadata = metadata
+        self.metadata['total_loss'] = self.total_loss
+        self.metadata['mse_loss'] = self.mse_loss
+        self.metadata['reg_loss'] = self.reg_loss
+        self.metadata['regularization_percentage'] = self.regularization_percentage
+        self.metadata['epochs_run'] = len(self.losses)
+        self.output = None  # implemented by subclasses
 
     @property
     def mse_loss(self):
         """obj:`float`: Losses from mean squared error part of Lagrangian"""
-        mse_loss = self.metadata['mse_loss'][-1]
-        return mse_loss
+        mse_loss = self.losses['mse_loss'].iloc[-1]
+        return float(mse_loss)
 
     @property
     def total_loss(self):
         """obj:`float`: Total loss value of the Lagrangian"""
-        total_loss = self.metadata['total_loss'][-1]
-        return total_loss
+        total_loss = self.losses['total_loss'].iloc[-1]
+        return float(total_loss)
 
     @property
     def reg_loss(self):
@@ -101,22 +109,6 @@ class TorchFitResult(object):
     def regularization_percentage(self):
         """obj:`float`: Percentage part of the total loss that is regularization loss"""
         return (self.reg_loss / self.total_loss) * 100
-
-    @property
-    def losses(self):
-        """pandas dataframe: dataframe with losses information per epoch"""
-        loss_dict = {
-            'total_loss': self.metadata['total_loss'],
-            'mse_loss': self.metadata['mse_loss']}
-
-        loss_dict['reg_loss'] = loss_dict['total_loss'] - loss_dict['mse_loss']
-        loss_dict['reg_percentage'] = loss_dict['reg_loss'] / loss_dict['total_loss'] * 100
-
-        loss_df = pd.DataFrame(loss_dict)
-        loss_df.index.name = 'epoch'
-        loss_df.index += 1
-
-        return loss_df
 
     @property
     def deltaG(self):
@@ -181,26 +173,26 @@ class TorchFitResult(object):
             output = self.model(*inputs)
         return output.detach().numpy()
 
+    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+        metadata = self.metadata if include_metadata else include_metadata
+        dataframe_to_file(file_path, self.output.df, include_version=include_version, include_metadata=metadata,
+                          fmt=fmt, **kwargs)
+
 
 class TorchSingleFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
         super(TorchSingleFitResult, self).__init__(*args, **kwargs)
 
-    @property
-    def output(self):
         df = self.generate_output(self.data_obj, self.deltaG)
-        return Protein(df)
+        self.output = Protein(df)
 
 
 class TorchBatchFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
         super(TorchBatchFitResult, self).__init__(*args, **kwargs)
-
-    @property
-    def output(self):
         names = [hdxm.name for hdxm in self.data_obj.hdxm_list]
 
         dfs = [self.generate_output(hdxm, self.deltaG[g_column]) for hdxm, g_column in zip(self.data_obj, self.deltaG)]
         df = pd.concat(dfs, keys=names, axis=1)
 
-        return Protein(df)
+        self.output = Protein(df)
