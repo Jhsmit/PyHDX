@@ -246,7 +246,7 @@ def dataframe_to_stringio(df, sio=None, fmt='csv', include_metadata=True, includ
                 sio.write(f'{k.capitalize().replace("_", " ")}\n')
                 sep = len(k)*'-'
                 sio.write(f'{sep}\n')
-                sio.write(yaml.dump(v))
+                sio.write(yaml.dump(v, sort_keys=False))
                 sio.write('\n')
         with pd.option_context('display.max_rows', None, 'display.max_columns', None,
                                'display.expand_frame_repr', False):
