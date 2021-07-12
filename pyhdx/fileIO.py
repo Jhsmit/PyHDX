@@ -161,6 +161,34 @@ def csv_to_protein(filepath_or_buffer, comment='#', **kwargs):
     return protein
 
 
+def csv_to_hdxm(filepath_or_buffer, comment='#', **kwargs):
+    """
+    Reads a .csv file or buffer into a  pyhdx.models.HDXMeasurement object.
+    Comment lines are parsed where json dictionaries marked by tags are read.
+    The <pandas_kwargs> marked json dict is used as kwargs for `pd.read_csv`
+    The <metadata> marked json dict is stored in the returned dataframe object as `df.attrs['metadata'].
+
+    Parameters
+    ----------
+    filepath_or_buffer : :obj:`str` or pathlib.Path or io.StringIO
+        Filepath or StringIO buffer to read.
+    comment : :obj:`str`
+        Indicates which lines are comments.
+    **kwargs : :obj:`dict`, optional
+        Optional additional keyword arguments passed to `pd.read_csv`
+    Returns
+    -------
+    protein : pyhdx.models.HDXMeasurement
+        Resulting HDXMeasurement object with `r_number` as index
+    """
+
+    df = csv_to_dataframe(filepath_or_buffer, comment=comment, **kwargs)
+    metadata = df.attrs.pop('metadata', {})
+    data = df.to_records()
+    hdxm = pyhdx.models.HDXMeasurement(data, **metadata)
+    return hdxm
+
+
 def dataframe_to_stringio(df, sio=None, fmt='csv', include_metadata=True, include_version=True, **kwargs):
     """
     Save a pd.DataFrame to an io.StringIO object. Kwargs to read the resulting .csv object with pd.read_csv to

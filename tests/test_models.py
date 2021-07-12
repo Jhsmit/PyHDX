@@ -2,7 +2,7 @@ import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, HDXMeasurement
 from pyhdx.models import Protein, Coverage
-from pyhdx.fileIO import read_dynamx, csv_to_protein
+from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_hdxm
 import numpy as np
 from functools import reduce
 from operator import add
@@ -39,7 +39,7 @@ class TestUptakeFileModels(object):
         assert isinstance(series, HDXMeasurement)
 
 
-class TestSeries(object):
+class TestHDXMeasurement(object):
     @classmethod
     def setup_class(cls):
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
@@ -47,18 +47,29 @@ class TestSeries(object):
         cls.pmt.set_control(('Full deuteration control', 0.167))
         d = cls.pmt.get_state('SecB WT apo')
         cls.temperature, cls.pH = 273.15 + 30, 8.
-        cls.series = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
+        cls.hdxm = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
 
     def test_dim(self):
-        assert self.series.Nt == len(np.unique(self.series.full_data['exposure']))
+        assert self.hdxm.Nt == len(np.unique(self.hdxm.full_data['exposure']))
 
     def test_guess(self):
         pass
 
     def test_tensors(self):
-        tensors = self.series.get_tensors()
+        tensors = self.hdxm.get_tensors()
 
         # assert ...
+
+    def test_to_file(self):
+        with tempfile.TemporaryDirectory() as tempdir:
+            fpath = Path(tempdir) / 'hdxm.csv'
+            self.hdxm.to_file(fpath)
+            hdxm_read = csv_to_hdxm(fpath)
+            k1 = self.hdxm.coverage['k_int']
+            k2 = hdxm_read.coverage['k_int']
+            pd.testing.assert_series_equal(k1, k2)
+
+            assert self.hdxm.metadata == hdxm_read.metadata
 
 @pytest.mark.skip(reason="Simulated data was removed")
 class TestSimulatedData(object):

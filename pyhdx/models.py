@@ -116,7 +116,7 @@ class Protein(object):
         """
 
         metadata = self.metadata if include_metadata else include_metadata
-        dataframe_to_file(file_path, self.df, include_version=True, include_metadata=metadata, fmt=fmt, **kwargs)
+        dataframe_to_file(file_path, self.df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
     def set_k_int(self, temperature, pH):
         """
@@ -673,7 +673,8 @@ class HDXMeasurement(object):
         data_list = [(data[data['exposure'] == exposure]) for exposure in self.timepoints]
         sets = [{tuple(elem) for elem in fields_view(d, ['_start', '_end'])} for d in data_list]
         intersection = set.intersection(*sets)
-        intersection_array = np.array([tup for tup in intersection], dtype=[('_start', int), ('_end', int)])
+        dtype = [('_start', data['_start'].dtype), ('_end', data['_end'].dtype)]
+        intersection_array = np.array([tup for tup in intersection], dtype=dtype)
 
         # Select entries in data array which are in the intersection between all timepoints
         selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in data_list]
@@ -822,6 +823,36 @@ class HDXMeasurement(object):
             return self.coverage.apply_interval(deltaG)
         else:
             return deltaG
+
+    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+        """
+        Write Protein data to file.
+
+
+        Parameters
+        ----------
+        file_path : :obj:`str`
+            File path to create and write to.
+        include_version : :obj:`bool`
+            Set ``True`` to include PyHDX version and current time/date
+        fmt: :obj: `str`
+            Formatting to use, options are 'csv' or 'pprint'
+        include_metadata : :obj:`bool`
+            If `True`, the objects' metadata is included
+        **kwargs : :obj:`dict`, optional
+            Optional additional keyword arguments passed to `df.to_csv`
+        Returns
+        -------
+        None
+
+        """
+
+        metadata = self.metadata if include_metadata else include_metadata
+        df = pd.DataFrame(self.full_data)
+        df.index.name = 'peptide_index'
+        df.index += 1
+        dataframe_to_file(file_path, df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
+
 
 
 class PeptideMeasurements(Coverage):
