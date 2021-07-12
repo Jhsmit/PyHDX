@@ -1,8 +1,17 @@
+from pathlib import Path
+
 import numpy as np
 from numpy.lib.recfunctions import stack_arrays
 from io import StringIO
 import pandas as pd
 import pyhdx
+import yaml
+import json
+import re
+import shutil
+from datetime import datetime
+
+from pyhdx.support import pprint_df_to_file
 
 
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
@@ -59,168 +68,201 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
     return full_data
 
 
-def csv_to_np(file_path, delimiter='\t', column_depth=None):
-    """Read csv file and returns a numpy ndarray"""
-    if isinstance(file_path, StringIO):
-        file_obj = file_path
-    else:
-        file_obj = open(file_path, 'r')
-
-    lines = []
-    num_comments_lines = 0
+def read_header(file_obj, comment='#'):
+    header = []
     while True:
         line = file_obj.readline()
-        num_comments_lines += 1
-        lines.append(line)
-        if not line.startswith('#'):
-            break
-          #first two lines
-
-    if column_depth is None:
-        column_depth = 0
-
-        while True:
-            line = file_obj.readline()
-            column_depth += 1
-
-            if np.mean([c.isdigit() for c in line]) > 0.1:
-                break
-
-            lines.append(line)
-    else:
-        for i in range(column_depth - 1):
-            line = file_obj.readline()
-            lines.append(line)
-
-    names = lines[-1].split(',')
-
-    if column_depth > 1:
-        raise ValueError('Cannot read multi-index column files into numpy structured array')
-
-    file_obj.seek(0)
-
-    return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=num_comments_lines+column_depth, delimiter=delimiter,
-                         encoding=None, autostrip=True, comments=None, deletechars='')
-
-
-def txt_to_np(file_path, delimiter='\t'):
-    """Read .txt file and returns a numpy ndarray"""
-    if isinstance(file_path, StringIO):
-        file_obj = file_path
-    else:
-        file_obj = open(file_path, 'r')
-
-    names = None
-    header_lines = 0
-    while True:
-        header = file_obj.readline().strip()
-        if header.startswith('#'):
-            names = header[2:].split(delimiter)
-            header_lines += 1
+        if line.startswith(comment):
+            header.append(line)
         else:
             break
-    file_obj.seek(0)
-
-    return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
-                         encoding=None, autostrip=True, comments=None, deletechars='')
+    return header
 
 
-def txt_to_pd(file_path):
+def parse_header(filepath_or_buffer, comment='#'):
+    if isinstance(filepath_or_buffer, StringIO):
+        header = read_header(filepath_or_buffer, comment=comment)
+        filepath_or_buffer.seek(0)
 
-    pass
+    else:
+        with open(filepath_or_buffer, 'r') as file_obj:
+            header = read_header(file_obj, comment=comment)
 
-def parse_header(file_path, comment='#'):
+    header = [h.strip('#\n ') for h in header]
+    pattern = r'<[^>]+>'
+    header_dict = {}
+    for line in header:
+        tags = re.findall(r'<[^>]+>', line)
+        if len(tags) == 2 and tags[0] == tags[1].replace('/', ''):
+            name = tags[0].strip('<>')
+            content = json.loads(re.sub(pattern, '', line))
+            header_dict[name] = content
+
+    return header_dict
+
+
+def csv_to_dataframe(filepath_or_buffer, comment='#', **kwargs):
     """
-    Parse a the header of a txt file and determine the number of comment and header lines.
+    Reads a .csv file or buffer into a :pandas:`DataFrame` object.
+    Comment lines are parsed where json dictionaries marked by tags are read.
+    The <pandas_kwargs> marked json dict is used as kwargs for `pd.read_csv`
+    The <metadata> marked json dict is stored in the returned dataframe object as `df.attrs['metadata'].
 
     Parameters
     ----------
-    file_path
-
+    filepath_or_buffer : :obj:`str`, pathlib.Path or io.StringIO
+        Filepath or StringIO buffer to read.
+    comment : :obj:`str`
+        Indicates which lines are comments.
+    kwargs
+        Optional additional keyword arguments passed to `pd.read_csv`
     Returns
     -------
-
+    df: pd.DataFrame
     """
-    if isinstance(file_path, StringIO):
-        file_obj = file_path
+
+    if comment is not None:
+        header_dict = parse_header(filepath_or_buffer, comment=comment)
     else:
-        file_obj = open(file_path, 'r')
+        header_dict = {}
 
-    num_comments_lines = 0
-    while file_obj.readline().startswith(comment):
-        num_comments_lines += 1
-
-    column_depth = 1
-    while np.mean([c.isdigit() for c in file_obj.readline()]) < 0.1:
-        column_depth += 1
-
-    file_obj.seek(0)
-    return num_comments_lines, column_depth
-
-
-def csv_to_dataframe(file_path, column_depth=None, **kwargs):
-    #todo @tejas: intersphinx + update docstring
-    """
-    Read .csv file and return <pandas dataframe>
-
-    Parameters
-    ----------
-    file_path
-    column_depth: number of lines after header which describe column headings (typical = 1)
-
-    Returns
-    -------
-
-    """
-    if isinstance(file_path, StringIO):
-        file_obj = file_path
-    else:
-        file_obj = open(file_path, 'r')
-
-    num_comments_lines = 0
-    while file_obj.readline().startswith('#'):
-        num_comments_lines += 1
-
-    if column_depth is None:
-        #todo this is not determined reliably, see 'ecSecB_info.csv' for example
-        column_depth = 1
-        while np.mean([c.isdigit() for c in file_obj.readline()]) < 0.1:
-            column_depth += 1
-
-    file_obj.seek(0)
-    header = [i + num_comments_lines for i in range(column_depth)]
-    df = pd.read_csv(file_path, header=header, **kwargs)
+    pd_kwargs = header_dict.get('pandas_kwargs', {})
+    pd_kwargs.update(kwargs)
+    df = pd.read_csv(filepath_or_buffer, **pd_kwargs)
+    if 'metadata' in header_dict:
+        df.attrs['metadata'] = header_dict['metadata']
     return df
 
 
-def csv_to_protein(file_path, column_depth=None):
-    #todo @tejas: intersphinx + update docstring
+def csv_to_protein(filepath_or_buffer, comment='#', **kwargs):
     """
+    Reads a .csv file or buffer into a  pyhdx.models.Protein object.
+    Comment lines are parsed where json dictionaries marked by tags are read.
+    The <pandas_kwargs> marked json dict is used as kwargs for `pd.read_csv`
+    The <metadata> marked json dict is stored in the returned dataframe object as `df.attrs['metadata'].
 
     Parameters
     ----------
-    file_path
-    column_depth
+    filepath_or_buffer : :obj:`str` or pathlib.Path or io.StringIO
+        Filepath or StringIO buffer to read.
+    comment : :obj:`str`
+        Indicates which lines are comments.
+    **kwargs : :obj:`dict`, optional
+        Optional additional keyword arguments passed to `pd.read_csv`
+    Returns
+    -------
+    protein : pyhdx.models.Protein
+        Resulting Protein object with `r_number` as index
+    """
+
+    df = csv_to_dataframe(filepath_or_buffer, comment=comment, **kwargs)
+    metadata = df.attrs.pop('metadata', {})
+    protein = pyhdx.models.Protein(df, **metadata)
+    return protein
+
+
+def dataframe_to_stringio(df, sio=None, fmt='csv', include_metadata=True, include_version=True, **kwargs):
+    """
+    Save a pd.DataFrame to an io.StringIO object. Kwargs to read the resulting .csv object with pd.read_csv to
+    get the original pd.DataFrame back are included in the comments.
+    Optionally additional metadata or the version of PyHDX used can be included in the comments.
+
+    Parameters
+    ----------
+    df: pd.DataFrame
+        The pandas dataframe to write to the io.StringIO object.
+    sio: `io.StringIO`, optional
+        The `io.StringIO` object to write to. If `None`, a new `io.StringIO` object is created.
+    fmt: :obj:`str`
+        Specify the formatting of the output. Options are '.csv' (machine readable) or 'pprint' (human readable)
+    include_metadata: :obj:`bool` or :obj:`dict`
+        If `True`, the metadata in df.attrs['metadata'] is included. If :obj:`dict`, this dictionary is used as the
+        metadata. If `False`, no metadata is included.
+    include_version : :obj:`bool`
+        `True` to include PyHDX version information.
+    **kwargs : :obj:`dict`, optional
+            Optional additional keyword arguments passed to `df.to_csv`
+
 
     Returns
     -------
+    sio: io.StringIO
+        Resulting io.StringIO object.
 
     """
+    sio = sio or StringIO()
 
-    df = csv_to_dataframe(file_path, column_depth=column_depth, index_col=0)
+    if include_version:
+        prefix = '# ' if fmt == 'csv' else ''
+        sio.write(prefix + pyhdx.VERSION_STRING + ' \n')
+        now = datetime.now()
+        sio.write(prefix + f'{now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
 
-    return pyhdx.models.Protein(df) #todo metadata
+    json_header = {}
+    if include_metadata and 'metadata' in df.attrs:
+        json_header['metadata'] = df.attrs['metadata']
+    elif isinstance(include_metadata, dict):
+        json_header['metadata'] = include_metadata
+
+    if fmt == 'csv':
+        json_header['pandas_kwargs'] = {'comment': '#', 'header': list(range(df.columns.nlevels)), 'index_col': 0}
+        for k, v in json_header.items():
+            if v:
+                sio.write(f'# <{k}>{json.dumps(v)}</{k}>\n')
+        df.to_csv(sio, line_terminator='\n', **kwargs)
+    elif fmt == 'pprint':
+        if include_version:
+            sio.write('\n')
+        for k, v in json_header.items():
+            if v:
+                sio.write(f'{k.capitalize().replace("_", " ")}\n')
+                sep = len(k)*'-'
+                sio.write(f'{sep}\n')
+                sio.write(yaml.dump(v))
+                sio.write('\n')
+        with pd.option_context('display.max_rows', None, 'display.max_columns', None,
+                               'display.expand_frame_repr', False):
+            sio.write(df.__str__())
+    else:
+        raise ValueError(f"Invalid specification for fmt: '{fmt}', must be 'csv' or 'pprint'")
+
+    sio.seek(0)
+    return sio
 
 
-def txt_to_protein(file_path):
+def dataframe_to_file(file_path, df, fmt='csv', include_metadata=True, include_version=False, **kwargs):
     """
-    Read .txt file and returns a :class:`pyhdx.models.Protein` object
+    Save a pd.DataFrame to an io.StringIO object. Kwargs to read the resulting .csv object with pd.read_csv to
+    get the original pd.DataFrame back are included in the comments.
+    Optionally additional metadata or the version of PyHDX used can be included in the comments.
 
-    .txt file must be tab seperated
+    Parameters
+    ----------
+    file_path: :obj:`str` or `pathlib.Path`
+        File path of the target file to write.
+    df: pd.DataFrame
+        The pandas dataframe to write to the file.
+    fmt: :obj:`str`
+        Specify the formatting of the output. Options are '.csv' (machine readable) or 'pprint' (human readable)
+    include_metadata: :obj:`bool` or :obj:`dict`
+        If `True`, the metadata in df.attrs['metadata'] is included. If :obj:`dict`, this dictionary is used as the
+        metadata. If `False`, no metadata is included.
+    include_version : :obj:`bool`
+        `True` to include PyHDX version information.
+    **kwargs : :obj:`dict`, optional
+            Optional additional keyword arguments passed to `df.to_csv`
+
+
+    Returns
+    -------
+    sio: io.StringIO
+        Resulting io.StringIO object.
 
     """
-    array = txt_to_np(file_path)
-    return pyhdx.models.Protein(array, index='r_number')
+    sio = dataframe_to_stringio(df, fmt=fmt, include_metadata=include_metadata, include_version=include_version, **kwargs)
+    with open(file_path, 'w') as f:
+        sio.seek(0)
+        shutil.copyfileobj(sio, f)
 
 
 def save_fitresult(output_dir, fit_result, settings, log_lines=None):
