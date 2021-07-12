@@ -11,12 +11,12 @@ def load_from_yaml(yaml_dict, data_dir=None, **kwargs):  #name: load what from y
     """
     Creates a :class:`~pyhdx.models.HDXMeasurement` object from dictionary input.
 
-    Dictionary can be generated from .yaml format and should specify
+    Dictionary can be generated from .yaml format. See templates/yaml_files/SecB.yaml for format specification.
 
     Parameters
     ----------
     yaml_dict : :obj:`dict`
-        Input dictionary specifying metadata and file location to load
+        Input dictionary specifying experimental metadata and file location to load
     data_dir : :obj:`str` or pathlib.Path object
 
     Returns
