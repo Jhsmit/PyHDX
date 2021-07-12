@@ -1,6 +1,8 @@
 import os
+import tempfile
+
 from pyhdx import PeptideMasterTable, HDXMeasurement
-from pyhdx.fileIO import read_dynamx, csv_to_protein
+from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.models import HDXMeasurementSet
 import numpy as np
@@ -49,7 +51,6 @@ class TestSecBDataFit(object):
         # todo additional tests:
         #  result = fit_rates_half_time_interpolate()
 
-
     def test_global_fit(self):
         # initial_rates = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
         initial_rates = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
@@ -67,6 +68,12 @@ class TestSecBDataFit(object):
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
         assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
 
+        with tempfile.TemporaryDirectory() as tempdir:
+            fpath = Path(tempdir) / 'fit_result_single.csv'
+            fr_global.to_file(fpath)
+            df = csv_to_dataframe(fpath)
+            assert df.attrs['metadata'] == fr_global.metadata
+
     def test_batch_fit(self):
         hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
         #guess = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
@@ -74,6 +81,12 @@ class TestSecBDataFit(object):
 
         gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
         result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            fpath = Path(tempdir) / 'fit_result_batch.csv'
+            result.to_file(fpath)
+            df = csv_to_dataframe(fpath)
+            assert df.attrs['metadata'] == result.metadata
 
         output = result.output
 
