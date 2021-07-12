@@ -1,5 +1,5 @@
-pyHDX version 0.4.0, development version 44e7267 
-2021/07/12 18:41:08 (1626108068) 
+pyHDX version 0.4.0, development version 04b7676 
+2021/07/12 19:08:57 (1626109737) 
 
          sequence       _deltaG        deltaG         pfact       k_obs    covariance
 r_number                                                                             

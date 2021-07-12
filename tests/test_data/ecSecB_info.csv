@@ -1,5 +1,5 @@
-# pyHDX version 0.4.0, development version 44e7267 
-# 2021/07/12 18:41:11 (1626108071) 
+# pyHDX version 0.4.0, development version 04b7676 
+# 2021/07/12 19:08:59 (1626109739) 
 # <pandas_kwargs>{"comment": "#", "header": [0], "index_col": 0}</pandas_kwargs>
 r_number,sequence,coverage,exchanges,k_int
 1,M,False,False,inf

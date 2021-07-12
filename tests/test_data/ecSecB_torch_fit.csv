@@ -1,5 +1,5 @@
-# pyHDX version 0.4.0, development version 44e7267 
-# 2021/07/12 18:41:08 (1626108068) 
+# pyHDX version 0.4.0, development version 04b7676 
+# 2021/07/12 19:08:57 (1626109737) 
 # <pandas_kwargs>{"comment": "#", "header": [0], "index_col": 0}</pandas_kwargs>
 r_number,sequence,_deltaG,deltaG,pfact,k_obs,covariance
 10,T,19668.199738805863,19668.199738805863,2448.429437481631,4.032142977211099,1461.6263957969009
