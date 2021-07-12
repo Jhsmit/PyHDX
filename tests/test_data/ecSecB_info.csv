@@ -1,5 +1,6 @@
-# pyHDX version 0.4.0, development version ce4f583 
-# 2021/06/25 12:19:50 (1624616390) 
+# pyHDX version 0.4.0, development version 44e7267 
+# 2021/07/12 18:41:11 (1626108071) 
+# <pandas_kwargs>{"comment": "#", "header": [0], "index_col": 0}</pandas_kwargs>
 r_number,sequence,coverage,exchanges,k_int
 1,M,False,False,inf
 2,S,False,False,1133968.1495735266
@@ -156,4 +157,3 @@ r_number,sequence,coverage,exchanges,k_int
 153,Q,True,True,16102.753092099765
 154,D,True,True,17977.55798095285
 155,A,True,True,94.36841156271376
-
