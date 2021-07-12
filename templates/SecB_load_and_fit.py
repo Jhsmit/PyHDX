@@ -24,7 +24,8 @@ if guess:
     wt_avg_result = fit_rates_weighted_average(hdxm, client=client)
     init_guess = wt_avg_result.output
 else:
-    init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.txt')
+    #todo initial guesse needs to be updated
+    init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.txt', header=[2], index_col=0)
 
 gibbs_guess = hdxm.guess_deltaG(init_guess['rate'])
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs)

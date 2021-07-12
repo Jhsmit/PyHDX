@@ -16,7 +16,8 @@ st1 = HDXMeasurement(pmt.get_state('SecB his dimer apo'), pH=8, temperature=273.
 st2 = HDXMeasurement(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15 + 30)
 
 hdx_set = HDXMeasurementSet([st1, st2])
-guess = csv_to_protein(data_dir / 'ecSecB_guess.txt')
+#todo update to new format
+guess = csv_to_protein(data_dir / 'ecSecB_guess.txt', header=[2], index_col=0)
 
 gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
 

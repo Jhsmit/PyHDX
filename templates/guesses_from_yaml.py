@@ -22,7 +22,7 @@ for name, dic in data_dict.items():
     #hdxm.coverage.protein.to_file(f'{name}_sequence_info.txt', fmt='pprint')
 
     fr = fit_rates_weighted_average(hdxm, client=client)
-    fr.output.to_file(current_dir / 'guesses' / f'{name}_rates_guess.txt')
+    fr.output.to_file(current_dir / 'guesses' / f'{name}_rates_guess.csv')
 
 
 
