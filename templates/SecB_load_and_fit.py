@@ -1,7 +1,7 @@
 from pathlib import Path
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
-from pyhdx.fileIO import csv_to_protein
+from pyhdx.fileIO import csv_to_protein, save_fitresult
 from pyhdx.local_cluster import default_client
 from pyhdx.support import pprint_df_to_file
 
@@ -38,3 +38,4 @@ fr_torch.to_file(output_dir / 'SecB_fit_result.txt', fmt='pprint')
 #Machine readable output
 fr_torch.to_file(output_dir / 'SecB_fit_result.csv', fmt='csv')
 
+save_fitresult(output_dir / 'SecB_fit', fr_torch)
