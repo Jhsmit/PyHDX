@@ -7,8 +7,10 @@ from pyhdx.support import pprint_df_to_file
 
 guess = False
 epochs = 1000  # For real applications used higher values, ie 100000
-root_dir = Path().resolve().parent
-test_data_dir = root_dir / 'tests' / 'test_data'
+current_dir = Path(__file__).parent
+output_dir = current_dir / 'output'
+output_dir.mkdir(exist_ok=True)
+test_data_dir = current_dir.parent / 'tests' / 'test_data'
 input_file_path = test_data_dir / 'ecSecB_apo.csv'
 
 # Load the data of two Dynamx files, and combine the result to one table
@@ -29,6 +31,10 @@ else:
 
 gibbs_guess = hdxm.guess_deltaG(init_guess['rate'])
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs)
-print(fr_torch.metadata['total_loss'])
 
+#Human readable output
+fr_torch.to_file(output_dir / 'SecB_fit_result.txt', fmt='pprint')
+
+#Machine readable output
+fr_torch.to_file(output_dir / 'SecB_fit_result.csv', fmt='csv')
 

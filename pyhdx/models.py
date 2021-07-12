@@ -854,7 +854,6 @@ class HDXMeasurement(object):
         dataframe_to_file(file_path, df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
 
-
 class PeptideMeasurements(Coverage):
     """
     Class with subset of peptides corresponding to only one state and exposure

@@ -382,6 +382,20 @@ def regularizer_2d_aligned(r1, r2, indices, param):
     return reg_loss
 
 
+def _loss_df(total_loss, mse_loss):
+    loss_dict = {
+        'total_loss': total_loss,
+        'mse_loss': mse_loss}
+    loss_dict['reg_loss'] = loss_dict['total_loss'] - loss_dict['mse_loss']
+    loss_dict['reg_percentage'] = loss_dict['reg_loss'] / loss_dict['total_loss'] * 100
+
+    loss_df = pd.DataFrame(loss_dict)
+    loss_df.index.name = 'epoch'
+    loss_df.index += 1
+
+    return loss_df
+
+
 def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, stop_loss=0.05,
                      optimizer='SGD', **optimizer_kwargs):
     """
@@ -405,6 +419,10 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
     """
     #todo @tejas: Missing docstring
     """Pytorch global fitting"""
+
+    fit_keys = ['r1', 'epochs', 'patience', 'stop_loss', 'optimizer']
+    locals_dict = locals()
+    fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
     tensors = hdxm.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
@@ -433,9 +451,9 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
     mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
-
-    result = TorchSingleFitResult(hdxm, model,
-                                  mse_loss=mse_loss, total_loss=total_loss)
+    losses = _loss_df(total_loss, mse_loss)
+    fit_kwargs.update(optimizer_kwargs)
+    result = TorchSingleFitResult(hdxm, model, losses=losses, **fit_kwargs)
 
     return result
 
@@ -464,6 +482,11 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
 
     """
     # todo still some repeated code with fit_gibbs single
+
+    fit_keys = ['r1', 'r2', 'r2_reference', 'epochs', 'patience', 'stop_loss', 'optimizer']
+    locals_dict = locals()
+    fit_kwargs = {k: locals_dict[k] for k in fit_keys}
+
     tensors = hdx_set.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['uptake']
@@ -488,7 +511,10 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
 
-    result = TorchBatchFitResult(hdx_set, model, mse_loss=mse_loss, total_loss=total_loss)
+    losses = _loss_df(total_loss, mse_loss)
+    fit_kwargs.update(optimizer_kwargs)
+    result = TorchBatchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
+
     return result
 
 
@@ -515,6 +541,10 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
     -------
 
     """
+
+    fit_keys = ['r1', 'r2', 'epochs', 'patience', 'stop_loss', 'optimizer']
+    locals_dict = locals()
+    fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
     assert hdx_set.Ns == 2, 'Aligned batch fitting is limited to two states'
 
@@ -544,8 +574,10 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
     mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
+    losses = _loss_df(total_loss, mse_loss)
+    fit_kwargs.update(optimizer_kwargs)
+    result = TorchBatchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
 
-    result = TorchBatchFitResult(hdx_set, model, mse_loss=mse_loss, total_loss=total_loss)
     return result
 
 

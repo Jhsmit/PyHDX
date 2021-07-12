@@ -12,7 +12,8 @@ mock_alignment = {
 }
 
 current_dir = Path(__file__).parent
-
+output_dir = current_dir / 'output'
+output_dir.mkdir(exist_ok=True)
 data_dir = current_dir.parent / 'tests' / 'test_data'
 data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
 
@@ -29,6 +30,10 @@ gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
 hdx_set.add_alignment(list(mock_alignment.values()))
 result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
 
-print(result.output)
+#Human readable output
+result.to_file(output_dir / 'Batch_aligned_fit_result.txt', fmt='pprint')
+
+#Machine readable output
+result.to_file(output_dir / 'Batch_aligned_fit_result.csv', fmt='csv')
 
 
