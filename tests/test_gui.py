@@ -1,5 +1,5 @@
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
-from pyhdx.fileIO import csv_to_protein, txt_to_np
+from pyhdx.fileIO import csv_to_protein
 from pyhdx.panel.apps import main_app#, diff_app
 from pyhdx.panel.config import ConfigurationSettings
 from pyhdx.local_cluster import default_cluster
@@ -10,7 +10,6 @@ import pytest
 import time
 
 directory = Path(__file__).parent
-from pyhdx.support import rgb_to_hex
 
 TEST_PML = """set_color color_#0a0ac2, [10,10,194]
 set_color color_#8c8c8c, [140,140,140]
@@ -36,7 +35,7 @@ class TestMainGUISecB(object):
         state_data = cls.pmt.get_state(cls.state)
         cls.temperature, cls.pH = 273.15 + 30, 8.
         cls.series = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
-        cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.txt')
+        cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.csv')
 
         cfg = ConfigurationSettings()
         cfg.set('cluster', 'port', str(test_port))
@@ -76,7 +75,6 @@ class TestMainGUISecB(object):
         assert abs(np.nanmean(series.rfu_residues) - 0.540548732585749) < 1e-6
 
     def test_batch_mode(self):
-
         fpath_1 = directory / 'test_data' / 'ecSecB_apo.csv'
         fpath_2 = directory / 'test_data' / 'ecSecB_dimer.csv'
 
@@ -299,7 +297,7 @@ class TestMainGUISimulated(object):
 class TestDiffApp(object):
     @classmethod
     def setup_class(cls):
-        cls.fpath = directory / 'test_data' / 'ecSecB_torch_fit.txt'
+        cls.fpath = directory / 'test_data' / 'ecSecB_torch_fit.csv'
 
         with open(cls.fpath, 'rb') as f_obj:
             cls.file_binary = f_obj.read()
