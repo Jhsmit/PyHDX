@@ -1,7 +1,7 @@
 import yaml
 from pathlib import Path
 from pyhdx.models import PeptideMasterTable, HDXMeasurement
-from pyhdx.fileIO import read_dynamx, txt_to_protein, csv_to_protein
+from pyhdx.fileIO import read_dynamx
 import asyncio
 import copy
 
