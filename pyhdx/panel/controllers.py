@@ -662,9 +662,9 @@ class FitControl(ControlPanel):
             df = result.output.df
 
             self.parent.logger.info('Finished PyTorch fit')
-            loss = result.metadata['mse_loss']
+
             self.parent.logger.info(
-                f"Finished fitting in {len(loss)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+                f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
             self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
                                     f"({result.regularization_percentage:.1f}%)")
 
