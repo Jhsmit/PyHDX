@@ -38,7 +38,7 @@ file_input_widget.value = input_file_path.read_bytes()
 #
 #
 #
-# src_file = directory / 'test_data' / 'ecSecB_torch_fit.txt'
+# src_file = directory / 'test_data' / 'ecSecB_torch_fit.csv'
 # array = txt_to_np(src_file)
 # data_dict = {name: array[name] for name in array.dtype.names}
 
