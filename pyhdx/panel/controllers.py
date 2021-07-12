@@ -17,7 +17,7 @@ from numpy.lib.recfunctions import append_fields
 from skimage.filters import threshold_multiotsu
 
 from pyhdx import VERSION_STRING
-from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_protein, txt_to_protein, csv_to_dataframe
+from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
     fit_gibbs_global_batch
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
@@ -1273,12 +1273,8 @@ class FileExportControl(ControlPanel):
 
     @pn.depends('table')  # param.depends?
     def table_export_callback(self):
-        io = StringIO()
-        io.write('# ' + VERSION_STRING + ' \n')
-
         if self.table:
-            self.df.to_csv(io)
-            io.seek(0)
+            io = dataframe_to_stringio(self.df)
             return io
         else:
             return None
