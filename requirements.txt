@@ -1,4 +1,3 @@
-pbr
 symfit
 numpy
 tqdm
