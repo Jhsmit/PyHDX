@@ -3,7 +3,7 @@ Reload SecB and fitted data and launch  GUI
 
 """
 
-from pyhdx.fileIO import read_dynamx, txt_to_np, csv_to_dataframe
+from pyhdx.fileIO import read_dynamx, csv_to_dataframe
 from pyhdx import PeptideMasterTable
 import pickle
 from pyhdx.panel.apps import main_app
@@ -124,7 +124,7 @@ def init_dashboard():
 
 
 #if __name__ == '__main__':
-pn.state.onload(reload_dashboard)
+#pn.state.onload(reload_dashboard)
 #pn.state.onload(init_dashboard)
 
 pn.serve(ctrl.template, show=True
