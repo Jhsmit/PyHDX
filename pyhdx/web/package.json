@@ -1,7 +1,7 @@
 {
   "name": "web",
   "version": "0.0.1",
-  "description": "NGL viewer",
+  "description": "Web interface for PyHDX",
   "license": "BSD-3-Clause",
   "keywords": [],
   "repository": {},
