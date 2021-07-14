@@ -10,6 +10,8 @@ from bokeh.core.properties import String, Bool, List
 from bokeh.models import LayoutDOM
 from bokeh.util.compiler import TypeScript
 import pathlib
+from pyhdx.panel.bokeh_extensions.ngl_viewer import ngl
+
 
 class NumericInput(pn.widgets.input.Widget):
     """
@@ -110,21 +112,6 @@ class HTMLTitle(HTML):
     @param.depends('title', watch=True)
     def _update_title(self):
         self.object = f"""<a class="title" href="" >{self.title}</a>"""
-
-
-CUSTOM_TS = pathlib.Path(__file__).parent / "ngl_viewer.ts"
-CUSTOM_TS_STR = str(CUSTOM_TS.resolve())
-
-
-class ngl(LayoutDOM):
-    __implementation__ = CUSTOM_TS_STR
-
-    spin = Bool
-    representation = String
-    rcsb_id = String
-    no_coverage = String
-    color_list = List(List(String))
-    pdb_string = String
 
 
 class NGL(Widget):
