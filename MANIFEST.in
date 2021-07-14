@@ -14,3 +14,4 @@ include pyhdx/_version.py
 include pyhdx/web/*.html
 include pyhdx/web/*.ts
 graft pyhdx/web/dist
+graft pyhdx/web/static

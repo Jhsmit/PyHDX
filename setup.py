@@ -1,10 +1,10 @@
 """The setup script."""
 
-from setuptools import setup
+from setuptools import setup, find_packages
 import versioneer
-
-test_requirements = ['pytest', ]
 
 setup(
     version=versioneer.get_version(),
+    packages=find_packages(),
+    include_package_data=True
 )
