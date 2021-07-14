@@ -5,7 +5,7 @@ from pyhdx.panel.main_controllers import ComparisonController, PyHDXController
 from pyhdx.panel.views import *
 from pyhdx.panel.log import get_default_handler
 import sys
-from pyhdx import VERSION_STRING_SHORT
+from pyhdx import VERSION_STRING
 from pyhdx.panel.base import BokehFigurePanel, STATIC_DIR
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.panel.sources import DataFrameSource
@@ -219,7 +219,7 @@ def main_app(client='default'):
                            logger=logger)
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme,
-                        title=VERSION_STRING_SHORT)
+                        title=VERSION_STRING)
 
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
 
