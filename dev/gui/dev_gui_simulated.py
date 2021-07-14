@@ -1,9 +1,9 @@
-from pyhdx.panel.utils import reload_previous
+from pyhdx.web.utils import reload_previous
 from pyhdx.support import np_from_txt
 import os
 import numpy as np
-from pyhdx.panel.base import DEFAULT_COLORS
-from pyhdx.panel.main import tmpl, ctrl
+from pyhdx.web.base import DEFAULT_COLORS
+from pyhdx.web.main import tmpl, ctrl
 import panel as pn
 import pickle
 

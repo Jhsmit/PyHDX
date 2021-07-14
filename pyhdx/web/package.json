@@ -1,0 +1,12 @@
+{
+  "name": "panel",
+  "version": "0.0.1",
+  "description": "NGL viewer",
+  "license": "BSD-3-Clause",
+  "keywords": [],
+  "repository": {},
+  "dependencies": {
+    "@bokeh/bokehjs": "^2.3.0"
+  },
+  "devDependencies": {}
+}

@@ -6,10 +6,10 @@ from pyhdx.fileIO import read_dynamx, txt_to_np
 from pyhdx import PeptideMasterTable
 import pickle
 import os
-from pyhdx.panel.apps import _single_app
-from pyhdx.panel.utils import reload_previous
-from pyhdx.panel.base import DEFAULT_COLORS, STATIC_DIR
-from pyhdx.panel.sources import DataSource
+from pyhdx.web.apps import _single_app
+from pyhdx.web.utils import reload_previous
+from pyhdx.web.base import DEFAULT_COLORS, STATIC_DIR
+from pyhdx.web.sources import DataSource
 import panel as pn
 import numpy as np
 from pathlib import Path

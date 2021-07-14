@@ -1,0 +1,86 @@
+@import url("https://golden-layout.com/assets/css/goldenlayout-dark-theme.css");
+
+:root {
+  --main-feature-color: #194661;
+  --main-text-color: #ffb62c;
+}
+
+
+body {
+  color: white;
+  background-color: #121212;
+}
+
+#header {
+  background-color: #2f2f2f;
+}
+
+#main {
+  color: white;
+  background-color: #121212;
+}
+
+#sidebar {
+  color: white;
+  border-color: #2f2f2f !important;
+  background-color: #121212;
+}
+
+.bk.card {
+  color: white;
+  background-color: #2f2f2f;
+}
+
+.bk.card-header-row {
+  color: white;
+  background-color: #292929 !important;
+}
+
+.lm_content {
+  border: 1px solid black;
+    border-top-color: black;
+    border-top-style: solid;
+    border-top-width: 1px;
+    border-right-color: black;
+    border-right-style: solid;
+    border-right-width: 1px;
+    border-bottom-color: black;
+    border-bottom-style: solid;
+    border-bottom-width: 1px;
+    border-left-color: black;
+    border-left-style: solid;
+    border-left-width: 1px;
+    border-image-source: initial;
+    border-image-slice: initial;
+    border-image-width: initial;
+    border-image-outset: initial;
+    border-image-repeat: initial;
+}
+
+.lm_header .lm_tab.lm_active {
+  padding-bottom: 6px;
+}
+
+.bk-btn-default {
+    color: #ffffff !important;
+    border: 1px #0a0b09 !important;
+    background-color: var(--main-feature-color) !important;
+}
+
+.bk-noUi-handle {
+    background:  #272822 !important;
+}
+
+.bk-input {
+    color: var(--main-text-color);
+    border-color: #666 !important;
+    background-color: #272822 !important;
+}
+
+.bk-slider-value {
+    color: var(--main-text-color);
+}
+
+.panel-colored-statictext {
+    color: var(--main-text-color);
+}
