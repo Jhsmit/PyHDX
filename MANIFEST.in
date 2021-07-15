@@ -13,5 +13,6 @@ include versioneer.py
 include pyhdx/_version.py
 include pyhdx/web/*.html
 include pyhdx/web/*.ts
+include pyhdx/web/bokeh_extensions/*.ts
 graft pyhdx/web/dist
 graft pyhdx/web/static
