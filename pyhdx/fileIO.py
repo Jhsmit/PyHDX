@@ -11,8 +11,6 @@ import re
 import shutil
 from datetime import datetime
 
-from pyhdx.support import pprint_df_to_file
-
 
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
     """
@@ -321,8 +319,8 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     fit_result.to_file(output_dir / 'fit_result.csv')
     fit_result.to_file(output_dir / 'fit_result.txt', fmt='pprint')
 
-    fit_result.losses.to_csv(output_dir / 'losses.csv')
-    pprint_df_to_file(fit_result.losses, output_dir / 'losses.txt')
+    dataframe_to_file(output_dir / 'losses.csv', fit_result.losses)
+    dataframe_to_file(output_dir / 'losses.txt', fit_result.losses, fmt='pprint')
 
     loss = f'Total_loss {fit_result.total_loss:.2f}, mse_loss {fit_result.mse_loss:.2f}, reg_loss {fit_result.reg_loss:.2f}' \
            f'({fit_result.regularization_percentage:.2f}%)'
