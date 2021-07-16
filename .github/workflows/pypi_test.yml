@@ -23,8 +23,8 @@ jobs:
       run: |
         pip install wheel
         pip install pbr
-        pip install panel
-        panel build pyhdx/web
+#         pip install panel
+        # panel build pyhdx/web
         python setup.py sdist bdist_wheel
     - name: Publish distribution 📦 to Test PyPI
       uses: pypa/gh-action-pypi-publish@master
