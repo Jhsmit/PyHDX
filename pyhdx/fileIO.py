@@ -1,5 +1,6 @@
 from pathlib import Path
-
+import torch as t
+import torch.nn as nn
 import numpy as np
 from numpy.lib.recfunctions import stack_arrays
 from io import StringIO
@@ -10,6 +11,8 @@ import json
 import re
 import shutil
 from datetime import datetime
+
+from importlib import import_module
 
 
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
@@ -322,6 +325,9 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     dataframe_to_file(output_dir / 'losses.csv', fit_result.losses)
     dataframe_to_file(output_dir / 'losses.txt', fit_result.losses, fmt='pprint')
 
+    if isinstance(fit_result.data_obj, pyhdx.HDXMeasurement):
+        fit_result.data_obj.to_file(output_dir / 'HDXMeasurement.csv')
+
     loss = f'Total_loss {fit_result.total_loss:.2f}, mse_loss {fit_result.mse_loss:.2f}, reg_loss {fit_result.reg_loss:.2f}' \
            f'({fit_result.regularization_percentage:.2f}%)'
     epochs = f"Number of epochs: {len(fit_result.losses)}"
@@ -335,6 +341,37 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
         lines += log_lines
     log_file_out = output_dir / 'log.txt'
     log_file_out.write_text('\n'.join(lines))
+
+
+def load_fitresult(fit_dir_or_file, hdmx=None, losses=None):
+    """Load a fitresult into a fitting_torch.TorchSingleFitResult object
+
+    Loading of TorchBatchFitResult is not implemented
+
+    """
+    pth = Path(fit_dir_or_file)
+    if pth.is_dir():
+        fit_result = csv_to_dataframe(fit_dir_or_file / 'fit_result.csv')
+        losses = csv_to_dataframe(fit_dir_or_file / 'losses.csv')
+        hdxm = csv_to_hdxm(fit_dir_or_file / 'HDXMeasurement.csv')
+    elif pth.is_file():
+        fit_result = csv_to_dataframe(fit_dir_or_file)
+        assert isinstance(hdxm, pyhdx.HDXMeasurement), 'No valid HDXMeasurement data object supplied'
+    else:
+        raise ValueError("Invalid fit result directory or file specified")
+
+
+    fit_metadata = fit_result.attrs.pop('metadata')
+    #model_klass = getattr(pyhdx.fitting_torch, fit_metadata['model_name'])
+    model_klass = getattr(import_module('pyhdx.fitting_torch'), fit_metadata['model_name'])
+
+    g_parameter = nn.Parameter(t.tensor(fit_result['_deltaG'].to_numpy())).unsqueeze(-1)  # todo record/generalize shapes
+    model = model_klass(g_parameter)
+
+    #todo pass metadata
+    fit_result_obj = pyhdx.fitting_torch.TorchSingleFitResult(hdxm, model, losses=losses, metadata=fit_metadata)
+
+    return fit_result_obj
 
 
 def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):

@@ -6,7 +6,13 @@ from pyhdx.local_cluster import default_client
 from pyhdx.support import pprint_df_to_file
 
 guess = False
-epochs = 1000  # For real applications used higher values, ie 100000
+
+fit_kwargs = {
+    'epochs': 100000,
+    'lr': 1e2,
+    'stop_loss': 0.001
+}
+
 current_dir = Path(__file__).parent
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
@@ -30,7 +36,7 @@ else:
     init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.txt', header=[2], index_col=0)
 
 gibbs_guess = hdxm.guess_deltaG(init_guess['rate'])
-fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs)
+fr_torch = fit_gibbs_global(hdxm, gibbs_guess, **fit_kwargs)
 
 #Human readable output
 fr_torch.to_file(output_dir / 'SecB_fit_result.txt', fmt='pprint')
