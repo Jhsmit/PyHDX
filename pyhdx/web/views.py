@@ -1,23 +1,18 @@
-from .base import BokehFigurePanel, FigurePanel, DEFAULT_RENDERERS, DEFAULT_COLORS, MIN_BORDER_LEFT
-from .widgets import LoggingMarkdown, NGL
-from .log import setup_md_log
-from bokeh.plotting import figure, curdoc
-from bokeh.layouts import column
-from bokeh.models import LabelSet, ColumnDataSource, HoverTool, GlyphRenderer, Span, Rect, Range1d, Whisker
-from bokeh.models.markers import Triangle, Circle, Diamond
-from bokeh.models.formatters import NumeralTickFormatter
-import panel as pn
-import numpy as np
-import matplotlib as mpl
-import matplotlib.pyplot as plt
 import logging
-from lumen.views import hvPlotView, View
-import param
-import pandas as pd
+from itertools import groupby, count
 
 import holoviews as hv
+import pandas as pd
+import panel as pn
+import param
+from bokeh.models import HoverTool, Span, Rect, Whisker
+from bokeh.models.formatters import NumeralTickFormatter
+from bokeh.plotting import figure
 from lumen.filters import ParamFilter
-from itertools import groupby, count
+from lumen.views import hvPlotView, View
+
+from pyhdx.web.base import BokehFigurePanel, FigurePanel, MIN_BORDER_LEFT
+from pyhdx.web.widgets import LoggingMarkdown, NGL
 
 
 class hvPlotAppView(hvPlotView):
