@@ -1,6 +1,6 @@
-import {LayoutDOM, LayoutDOMView} from "@bokehjs/models/layouts/layout_dom"
-import {LayoutItem} from "@bokehjs/core/layout"
-import * as p from "@bokehjs/core/properties"
+import {LayoutDOM, LayoutDOMView} from "models/layouts/layout_dom"
+import {LayoutItem} from "core/layout"
+import * as p from "core/properties"
 
 declare namespace NGL {
   class AtomProxy{
