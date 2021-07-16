@@ -93,13 +93,14 @@ class MainController(param.Parameterized):
             view.update()
 
     def check_futures(self):
-        for future, callback in self.future_queue[:]:
-            if future.status == 'finished':
-                callback(future)
-                self.future_queue.remove((future, callback))
+        if self.future_queue:
+            for future, callback in self.future_queue[:]:
+                if future.status == 'finished':
+                    callback(future)
+                    self.future_queue.remove((future, callback))
 
     def start(self):
-        refresh_rate = 25
+        refresh_rate = 1000
         pn.state.add_periodic_callback(
             self.check_futures, refresh_rate
         )
