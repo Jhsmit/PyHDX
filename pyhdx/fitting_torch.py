@@ -82,11 +82,13 @@ class TorchFitResult(object):
         self.model = model
         self.losses = losses
         self.metadata = metadata
-        self.metadata['total_loss'] = self.total_loss
-        self.metadata['mse_loss'] = self.mse_loss
-        self.metadata['reg_loss'] = self.reg_loss
-        self.metadata['regularization_percentage'] = self.regularization_percentage
-        self.metadata['epochs_run'] = len(self.losses)
+        self.metadata['model_name'] = type(model).__name__
+        if losses is not None:
+            self.metadata['total_loss'] = self.total_loss
+            self.metadata['mse_loss'] = self.mse_loss
+            self.metadata['reg_loss'] = self.reg_loss
+            self.metadata['regularization_percentage'] = self.regularization_percentage
+            self.metadata['epochs_run'] = len(self.losses)
         self.output = None  # implemented by subclasses
 
     @property
@@ -197,3 +199,20 @@ class TorchBatchFitResult(TorchFitResult):
         df = pd.concat(dfs, keys=names, axis=1)
 
         self.output = Protein(df)
+
+
+if __name__ == '__main__':
+    print('hoi')
+    import numpy as np
+    import pandas as pd
+    data = np.random.rand(100)
+    pd_s = pd.Series(data)
+    g = t.nn.Parameter(t.tensor(pd_s).unsqueeze(-1))
+    print(g.shape)
+    module = DeltaGFit(g)
+    print(module)
+    print(module.__class__)
+    print(type(module).__name__)
+
+    g_new = vars()['DeltaGFit'](g)
+    print(g_new)

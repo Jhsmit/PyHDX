@@ -743,8 +743,15 @@ class HDXMeasurement(object):
     def uptake_corrected(self):
         """matrix shape  N_t, N_p""" #(should be np nt)
         #todo refactor to D to match manuscript
+        #todo deprecate
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
+
+    @property
+    def d_exp(self):
+        """np.ndarray (shape Np x Nt)
+            Experimentally measured D-uptake values, corrected for back-exchange """
+        return self.uptake_corrected.T
 
     def get_tensors(self, exchanges=False):
         """
