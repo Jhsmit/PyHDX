@@ -1,3 +1,4 @@
+"""Perform fitting with a range of regularizers"""
 from pyhdx.batch_processing import load_from_yaml
 from pathlib import Path
 from pyhdx.fitting import fit_gibbs_global_batch

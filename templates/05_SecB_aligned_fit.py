@@ -1,3 +1,5 @@
+"""Load two HDX-MS datasets and guesses and perform fitting in batch with a second regualizer and mock alignment"""
+
 from pathlib import Path
 from pyhdx.fileIO import read_dynamx
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet

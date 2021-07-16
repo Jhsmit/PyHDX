@@ -1,3 +1,5 @@
+"""Load SecB HDX-MS data and guesses, perform global fit of gibbs free energy, save results to directory"""
+
 from pathlib import Path
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
