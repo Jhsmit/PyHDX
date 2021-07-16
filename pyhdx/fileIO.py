@@ -343,7 +343,7 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     log_file_out.write_text('\n'.join(lines))
 
 
-def load_fitresult(fit_dir_or_file, hdmx=None, losses=None):
+def load_fitresult(fit_dir_or_file, hdxm=None, losses=None):
     """Load a fitresult into a fitting_torch.TorchSingleFitResult object
 
     Loading of TorchBatchFitResult is not implemented
