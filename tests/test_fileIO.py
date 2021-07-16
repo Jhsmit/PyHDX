@@ -144,4 +144,10 @@ class TestFileIO(object):
             timepoints = np.linspace(0, 30, num=100)
             d_calc = fit_result_loaded(timepoints)
             assert d_calc.shape == (self.hdxm.Np, len(timepoints))
+            assert fr_load_with_hdxm.losses == None
 
+            losses = csv_to_dataframe(fit_result_dir / 'losses.csv')
+            fr_load_with_hdxm_and_losses = load_fitresult(fit_result_dir / 'fit_result.csv',
+                                                          hdxm=self.hdxm, losses=losses)
+            assert len(fr_load_with_hdxm_and_losses.losses) == 100
+            assert fr_load_with_hdxm_and_losses.metadata['total_loss'] == losses['total_loss'].iloc[-1]
