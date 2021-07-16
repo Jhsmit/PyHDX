@@ -14,6 +14,7 @@ import shutil
 from functools import lru_cache, partial
 from pyhdx.support import grouper, autowrap
 from pyhdx.plot import plot_peptides
+from pyhdx.fitting_torch import TorchSingleFitResult
 from tqdm.auto import tqdm
 
 
@@ -40,7 +41,7 @@ class Report(object):
     def __init__(self, output, name=None, doc=None, add_date=True):
         if not pyl:
             raise ModuleNotFoundError('pylatex module not installed')
-        name = name or output.series.state
+        name = name or output.fit_result.data_obj.name
         self.output = output
         self.doc = doc or self._init_doc(name, add_date=add_date)
         self._temp_dir = self.make_temp_dir()
@@ -87,7 +88,8 @@ class Report(object):
         self.make_subfigure(funcs, layout=layout, close=close)
 
     def add_peptide_figures(self, layout=(5, 4), close=True, **kwargs):
-        funcs = [partial(self.output._make_peptide_graph, i, **kwargs) for i in range(len(self.output.series.coverage))]
+        Np = self.output.fit_result.data_obj.Np
+        funcs = [partial(self.output._make_peptide_graph, i, **kwargs) for i in range(Np)]
         self.make_subfigure(funcs, layout=layout, close=close)
 
     def make_subfigure(self, fig_funcs, layout=(5, 4), close=True):
@@ -139,65 +141,30 @@ class Report(object):
         if os.path.exists(self._temp_dir):
             shutil.rmtree(self._temp_dir)
 
-    def generate_pdf(self, file_path=None):
+    def generate_pdf(self, file_path):
         self.doc.generate_pdf(file_path, compiler='pdflatex')
 
 
 class Output(object):
+    # Currently only TorchSingleFitResult support
+    def __init__(self, fit_result, time_axis=None, **settings):
+        assert isinstance(fit_result, TorchSingleFitResult), "Invalid type of `fit_result`"
+        self.settings = {'fit_time_axis': 'Log'}
+        self.settings.update(settings)
 
-    def __init__(self, series, fit_results, **settings):
-        #todo series is now an attribute in fit_results
-        self.series = series
-        self.fit_results = fit_results # dictionary with name: KineticsFitresult
-        self.settings = settings #dictionary with additional settings
+        #todo restore multiple fit results functionality
+        self.fit_result = fit_result
+        self.fit_timepoints = time_axis or self.get_fit_timepoints()
+        self.d_calc = self.fit_result(self.fit_timepoints)
 
-    @property
-    def fit_timepoints(self):
-        timepoints = self.series.timepoints
+    def get_fit_timepoints(self):
+        timepoints = self.fit_result.data_obj.timepoints
         x_axis_type = self.settings.get('fit_time_axis', 'Log')
         if x_axis_type == 'Linear':
             time = np.linspace(0, timepoints.max(), num=250)
         elif x_axis_type == 'Log':
             time = np.logspace(-2, np.log10(timepoints.max()), num=250)
         return time
-
-    @lru_cache(8)
-    def call_fitresult(self, fit_name, time=None):
-        """
-
-        Parameters
-        ----------
-        fit_name : :obj:`str`
-            Name of the fit result to use from `fit_results` dictionary
-        time : array_like
-            Optional array of timepoints
-
-        Returns
-        -------
-        uptake : :obj:`str`
-            Numpy array with fitted uptake values for each peptide per row
-        """
-        fit_timepoints = time or self.fit_timepoints
-
-        # Moved to fit results
-        # fit_result = self.fit_results[fit_name]
-        # d_list = []
-        # if fit_result.model_type == 'Single':
-        #     for time in fit_timepoints:
-        #         p = fit_result.get_p(time)
-        #         p = np.nan_to_num(p)
-        #         d = self.series.coverage.X.dot(p)
-        #         d_list.append(d)
-        # elif fit_result.model_type == 'Global':
-        #     for time in fit_timepoints:
-        #         d = fit_result.get_d(time)
-        #         d_list.append(d)
-        #
-        # uptake = np.vstack(d_list).T
-
-        uptake = self.fit_results[fit_name](fit_timepoints)
-
-        return uptake
 
     def add_peptide_fits(self, ax_scale='log', fit_names=None):
         pass
@@ -213,22 +180,23 @@ class Output(object):
         if ax_scale == 'log':
             ax.set_xscale('log')
 
-        for k in self.fit_results.keys():
-            ax.plot(self.fit_timepoints, self.call_fitresult(k)[index], label=k)
+        ax.plot(self.fit_timepoints, self.d_calc[index], color='r')
+        ax.scatter(self.fit_result.data_obj.timepoints, self.fit_result.data_obj.d_exp[index], color='k')
 
-        ax.scatter(self.series.timepoints, self.series.uptake_corrected.T[index], color='k')
-        t_unit = fig_kwargs.get('time_unit', '')
+        t_unit = fig_kwargs.get('time_unit', 'min')
         t_unit = f'({t_unit})' if t_unit else t_unit
         ax.set_xlabel(f'Time' + t_unit)
         ax.set_ylabel('Corrected D-uptake')
-        start, end = self.series.coverage.data['_start'][index], self.series.coverage.data['_end'][index]
+        start = self.fit_result.data_obj.coverage.data['_start'][index]
+        end = self.fit_result.data_obj.coverage.data['_end'][index]
         ax.set_title(f'peptide_{start}_{end}')
-        ax.legend()
+        #ax.legend()
         plt.tight_layout()
 
         return fig
 
     def _make_coverage_graph(self, index, figsize=(14, 4), cbar=True, **fig_kwargs):
+        raise NotImplementedError("coverage not implemented")
         peptides = self.series[index]
 
         cmap = fig_kwargs.get('cmap', 'jet')
