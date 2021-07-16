@@ -1,6 +1,8 @@
 import pyhdx
-from pyhdx.fileIO import read_dynamx, csv_to_dataframe, csv_to_protein, dataframe_to_stringio, dataframe_to_file
-from pyhdx.models import Protein
+from pyhdx.fileIO import read_dynamx, csv_to_dataframe, csv_to_protein, dataframe_to_stringio, dataframe_to_file, \
+    save_fitresult, load_fitresult
+from pyhdx.models import Protein, PeptideMasterTable, HDXMeasurement
+from pyhdx.fitting import fit_gibbs_global
 from pathlib import Path
 from io import StringIO
 import numpy as np
@@ -16,6 +18,21 @@ class TestFileIO(object):
     @classmethod
     def setup_class(cls):
         cls.fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+
+        fpath_apo = directory / 'test_data' / 'ecSecB_apo.csv'
+        data = read_dynamx(fpath_apo)
+        control = ('Full deuteration control', 0.167)
+
+        cls.temperature, cls.pH = 273.15 + 30, 8.
+
+        pf = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
+        pf.set_control(control)
+        cls.hdxm = HDXMeasurement(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH)
+
+        initial_rates = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
+
+        gibbs_guess = cls.hdxm.guess_deltaG(initial_rates['rate']).to_numpy()
+        cls.fit_result = fit_gibbs_global(cls.hdxm, gibbs_guess, epochs=100, r1=2)
 
     def test_read_dynamx(self):
         data = read_dynamx(self.fpath)
@@ -94,4 +111,37 @@ class TestFileIO(object):
             lines = Path(fpath).read_text().split('\n')
             assert len(lines) == 38
             assert lines[0].strip() == pyhdx.VERSION_STRING
+
+
+    # def test_load_save_hdxm(self):
+    #     .. add tests
+
+    def test_load_save_fitresult(self):
+
+        with tempfile.TemporaryDirectory() as tempdir:
+            fpath = Path(tempdir) / 'fit_result_single.csv'
+            self.fit_result.to_file(fpath)
+            df = csv_to_dataframe(fpath)
+            assert df.attrs['metadata'] ==  self.fit_result.metadata
+            fit_result_dir = Path(tempdir) / 'fit_result'
+
+
+            save_fitresult(fit_result_dir, self.fit_result, log_lines=['test123'])
+
+            log_lines = Path(fit_result_dir / 'log.txt').read_text().split('\n')
+            assert log_lines[-1] == 'test123'
+
+            fit_result_loaded = load_fitresult(fit_result_dir)
+            assert isinstance(fit_result_loaded.losses, pd.DataFrame)
+            assert isinstance(fit_result_loaded.data_obj, HDXMeasurement)
+
+            timepoints = np.linspace(0, 30, num=100)
+            d_calc = fit_result_loaded(timepoints)
+            assert d_calc.shape == (self.hdxm.Np, len(timepoints))
+
+            fr_load_with_hdxm = load_fitresult(fit_result_dir / 'fit_result.csv', hdxm=self.hdxm)
+
+            timepoints = np.linspace(0, 30, num=100)
+            d_calc = fit_result_loaded(timepoints)
+            assert d_calc.shape == (self.hdxm.Np, len(timepoints))
 

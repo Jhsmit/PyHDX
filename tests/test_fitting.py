@@ -69,24 +69,9 @@ class TestSecBDataFit(object):
         assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
 
         #These should perhaps be moved to fileIO tests
-        with tempfile.TemporaryDirectory() as tempdir:
-            fpath = Path(tempdir) / 'fit_result_single.csv'
-            fr_global.to_file(fpath)
-            df = csv_to_dataframe(fpath)
-            assert df.attrs['metadata'] == fr_global.metadata
 
-            fit_result_dir = Path(tempdir) / 'fit_result'
-            save_fitresult(fit_result_dir, fr_global, log_lines=['test123'])
 
-            log_lines = Path(fit_result_dir / 'log.txt').read_text().split('\n')
-            assert log_lines[-1] == 'test123'
 
-            fit_result_loaded = load_fitresult(fit_result_dir)
-            assert isinstance(fit_result_loaded.losses, pd.DataFrame)
-            assert isinstance(fit_result_loaded.data_obj, HDXMeasurement)
-
-            timepoints = np.linspace(0, 30, num=100)
-            d_calc = fit_result_loaded(timepoints)
 
 
     def test_batch_fit(self):
