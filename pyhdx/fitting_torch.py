@@ -12,7 +12,8 @@ from pyhdx.fileIO import dataframe_to_file
 class DeltaGFit(nn.Module):
     def __init__(self, deltaG):
         super(DeltaGFit, self).__init__()
-        self.deltaG = deltaG
+        #self.deltaG = deltaG
+        self.register_parameter(name='deltaG', param=nn.Parameter(deltaG))
 
     def forward(self, temperature, X, k_int, timepoints):
         """

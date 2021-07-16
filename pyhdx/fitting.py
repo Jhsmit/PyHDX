@@ -318,6 +318,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
     optimizer_obj = optimizer_klass(model.parameters(), **optimizer_kwargs)
 
+    #todo these seeds should be temporary
     np.random.seed(43)
     torch.manual_seed(43)
 
@@ -330,7 +331,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         mse_loss_list.append(loss.detach())
         reg_loss = regularizer(model.deltaG)
         total_loss = loss + reg_loss
-        total_loss_list.append(total_loss.detach())
+        total_loss_list.append(total_loss.detach())  # total_loss.item()
         total_loss.backward()
         return total_loss
 
