@@ -3,7 +3,7 @@ import param
 import panel as pn
 
 from pyhdx.models import PeptideMasterTable, HDXMeasurement
-from pyhdx import VERSION_STRING_SHORT
+from pyhdx import VERSION_STRING
 from pyhdx.models import HDXMeasurementSet
 from panel.template import BaseTemplate
 
@@ -135,7 +135,7 @@ class PyHDXController(MainController):
 
     @param.depends('sample_name', watch=True)
     def _update_name(self):
-        self.template.header[0].title = VERSION_STRING_SHORT + ': ' + self.sample_name
+        self.template.header[0].title = VERSION_STRING + ': ' + self.sample_name
 
     @property
     def hdx_set(self):

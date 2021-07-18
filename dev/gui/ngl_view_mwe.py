@@ -1,4 +1,4 @@
-from pyhdx.panel.widgets import NGLView_factory
+from pyhdx.web.widgets import NGLView_factory
 import param
 from pathlib import Path
 import panel as pn

@@ -12,7 +12,7 @@ import panel as pn
 from panel.widgets.base import Widget
 import param
 from pathlib import Path
-from pyhdx.panel.base import STATIC_DIR
+from pyhdx.web.base import STATIC_DIR
 
 
 TS_CODE = """

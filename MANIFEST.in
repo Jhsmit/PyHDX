@@ -1,11 +1,18 @@
 include AUTHORS.rst
 include CONTRIBUTING.rst
 include HISTORY.rst
-include LICENSE
+include LICENSE.txt
 include README.rst
 
 recursive-include tests *
 recursive-exclude * __pycache__
 recursive-exclude * *.py[co]
-
 recursive-include docs *.rst conf.py Makefile make.bat *.jpg *.png *.gif
+
+include versioneer.py
+include pyhdx/_version.py
+include pyhdx/web/*.html
+include pyhdx/web/*.ts
+include pyhdx/web/bokeh_extensions/*.ts
+graft pyhdx/web/dist
+graft pyhdx/web/static

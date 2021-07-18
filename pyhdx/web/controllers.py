@@ -21,10 +21,10 @@ from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, datafram
 from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
     fit_gibbs_global_batch
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
-from pyhdx.panel.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
-from pyhdx.panel.sources import DataSource, DataFrameSource
-from pyhdx.panel.transforms import ApplyCmapTransform
-from pyhdx.panel.widgets import ASyncProgressBar
+from pyhdx.web.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
+from pyhdx.web.sources import DataSource, DataFrameSource
+from pyhdx.web.transforms import ApplyCmapTransform
+from pyhdx.web.widgets import ASyncProgressBar
 from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])

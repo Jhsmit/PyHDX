@@ -5,8 +5,8 @@ Installation
 ============
 
 
-Stable release
---------------
+Stable release (v0.3.2)
+-----------------------
 
 Installation with `conda`:
 
@@ -16,8 +16,31 @@ Installation with `conda`:
 Installation with `pip`:
 
 .. code-block::
-    $ pip install pyhdx
+    $ pip install pyhdx==0.3.2
 
+
+Beta release (v0.4.0bx)
+-----------------------
+
+(coming soon)
+To install base PyHDX:
+.. code-block::
+    $ pip install pyhdx==0.4.0b1
+
+To install with web application:
+
+.. code-block::
+    $ pip install pyhdx==0.4.0b1[web]
+
+Currently custom bokeh extensions are not packaged, therefore to run the web application Node.js is required
+
+.. code-block::
+    $ conda install nodejs
+
+To install with pdf output:
+
+.. code-block::
+    $ pip install pyhdx==0.4.0b1[pdf]
 
 
 From sources
@@ -44,6 +67,13 @@ From sources
 6. Installing the wheels (should be generated in the dist folder)
 
     ``pip install dist/PyHDX-version.whl``
+
+
+Running the web server
+----------------------
+
+
+
 
 7. After successful installation, PyHDX web application can be launched from the command line using ``pyhdx`` command with below options,
 
