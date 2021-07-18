@@ -5,7 +5,7 @@ import versioneer
 
 setup(
     version=versioneer.get_version(),
-    #version='v0.4.0-rc3',
+    cmdclass=versioneer.get_cmdclass(),
     packages=find_packages(),
     include_package_data=True
 )
