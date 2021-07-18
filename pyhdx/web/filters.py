@@ -2,7 +2,7 @@ from lumen.filters import Filter
 from lumen.sources import Source
 from param.parameterized import default_label_formatter
 import param
-from pyhdx.panel.widgets import ColoredStaticText
+from pyhdx.web.widgets import ColoredStaticText
 import panel as pn
 
 

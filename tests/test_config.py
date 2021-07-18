@@ -1,5 +1,5 @@
 from pathlib import Path
-from pyhdx.panel.config import ConfigurationSettings, read_config, config_file_path, reset_config
+from pyhdx.web.config import ConfigurationSettings, read_config, config_file_path, reset_config
 import pytest
 
 directory = Path(__file__).parent

@@ -1,4 +1,3 @@
-
 import {LayoutDOM, LayoutDOMView} from "models/layouts/layout_dom"
 import {LayoutItem} from "core/layout"
 import * as p from "core/properties"

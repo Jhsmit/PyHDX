@@ -2,7 +2,7 @@ from dask.distributed import LocalCluster, Client
 import time
 import os
 from pathlib import Path
-from pyhdx.panel.config import ConfigurationSettings
+from pyhdx.web.config import ConfigurationSettings
 import argparse
 
 cfg = ConfigurationSettings()

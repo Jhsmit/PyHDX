@@ -2,7 +2,7 @@ import param
 import panel as pn
 import pathlib
 
-from pyhdx.panel.template import ExtendedGoldenTemplate
+from pyhdx.web.template import ExtendedGoldenTemplate
 
 
 class ExtendedGoldenDefaultTheme(pn.template.golden.GoldenDefaultTheme):

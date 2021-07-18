@@ -1,7 +1,7 @@
 import argparse
 from ipaddress import ip_address
-from pyhdx.panel import serve
-from pyhdx.panel.config import ConfigurationSettings
+from pyhdx.web import serve
+from pyhdx.web.config import ConfigurationSettings
 from dask.distributed import LocalCluster
 from pyhdx.support import verify_cluster
 

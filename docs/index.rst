@@ -5,9 +5,9 @@ Welcome to PyHDX's documentation!
    :maxdepth: 2
    :caption: Contents:
 
-   readme
+   introduction
    installation
-   using_the_GUI
+   using_the_web_app
    examples
    modules
    web_app_autodoc

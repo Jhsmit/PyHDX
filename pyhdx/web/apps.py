@@ -1,22 +1,22 @@
-from pyhdx.panel.template import GoldenElvis, ExtendedGoldenTemplate
-from pyhdx.panel.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
-from pyhdx.panel.controllers import *
-from pyhdx.panel.main_controllers import ComparisonController, PyHDXController
-from pyhdx.panel.views import *
-from pyhdx.panel.log import get_default_handler
+from pyhdx.web.template import GoldenElvis, ExtendedGoldenTemplate
+from pyhdx.web.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
+from pyhdx.web.controllers import *
+from pyhdx.web.main_controllers import ComparisonController, PyHDXController
+from pyhdx.web.views import *
+from pyhdx.web.log import get_default_handler
 import sys
-from pyhdx import VERSION_STRING_SHORT
-from pyhdx.panel.base import BokehFigurePanel, STATIC_DIR
+from pyhdx import VERSION_STRING
+from pyhdx.web.base import BokehFigurePanel, STATIC_DIR
 from pyhdx.fileIO import csv_to_dataframe
-from pyhdx.panel.sources import DataFrameSource
-from pyhdx.panel.transforms import RescaleTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
-from pyhdx.panel.opts import CmapOpts
-from pyhdx.panel.filters import UniqueValuesFilter, MultiIndexSelectFilter
-from pyhdx.panel.log import StreamToLogger
+from pyhdx.web.sources import DataFrameSource
+from pyhdx.web.transforms import RescaleTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
+from pyhdx.web.opts import CmapOpts
+from pyhdx.web.filters import UniqueValuesFilter, MultiIndexSelectFilter
+from pyhdx.web.log import StreamToLogger
 import logging
 import panel as pn
-from pyhdx.panel.log import logger
-from pyhdx.panel.config import ConfigurationSettings
+from pyhdx.web.log import logger
+from pyhdx.web.config import ConfigurationSettings
 from pyhdx.local_cluster import default_client
 from panel import pane
 from lumen.views import PerspectiveView, hvPlotView
@@ -219,7 +219,7 @@ def main_app(client='default'):
                            logger=logger)
 
     elvis = GoldenElvis(ExtendedGoldenTemplate, ExtendedGoldenDarkTheme,
-                        title=VERSION_STRING_SHORT)
+                        title=VERSION_STRING)
 
     ctrl.logger.addHandler(get_default_handler(sys.stdout))
 

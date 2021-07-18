@@ -39,7 +39,7 @@ needs_sphinx = '3.2.1'
 
 
 def setup(app):
-    from pyhdx.panel.paramdoc import param_format_basic
+    from pyhdx.web.paramdoc import param_format_basic
     app.connect("autodoc-process-docstring", param_format_basic, priority=-100)
 
 

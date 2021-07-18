@@ -1,6 +1,7 @@
-Using the web application
-=========================
+PyHDX web application
+=====================
 
+This section currently describes the web app for v0.3.2
 
 This section will describe a typical workflow of using the main web interface application. Detailed information on each
 parameter can be found in the web application reference docs :ref:`web-application-autodoc`. The web application consists of

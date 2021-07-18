@@ -5,8 +5,8 @@ import pandas as pd
 import numpy as np
 
 
-from pyhdx.panel.sources import DataFrameSource
-from pyhdx.panel.filters import MultiIndexSelectFilter
+from pyhdx.web.sources import DataFrameSource
+from pyhdx.web.filters import MultiIndexSelectFilter
 
 from lumen.sources import DerivedSource
 

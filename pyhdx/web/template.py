@@ -1,8 +1,8 @@
 import pathlib
 from panel.util import url_path
 from panel.template import GoldenTemplate
-from pyhdx.panel.base import STATIC_DIR
-from pyhdx.panel.widgets import HTMLTitle
+from pyhdx.web.base import STATIC_DIR
+from pyhdx.web.widgets import HTMLTitle
 import panel as pn
 import string
 import os
