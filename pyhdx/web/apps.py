@@ -50,6 +50,10 @@ def main_app(client='default'):
     df_peptides_mse = pd.DataFrame(columns=col_index)
     #df_peptides_mse.index.name = 'peptide index'
 
+    # Very annoying and hopefully temporary long-form dataframe
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
+    df_d_calc = pd.DataFrame(columns=col_index)
+
     col_index = pd.MultiIndex.from_tuples([], names=('state_name', 'exposure'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_rfu = pd.DataFrame(columns=col_index, index=row_index)
@@ -72,6 +76,7 @@ def main_app(client='default'):
     # more tables can be added later by the gui
     tables = {'peptides': df_peptides,
               'peptides_mse': df_peptides_mse,
+              'd_calc': df_d_calc,
               'rfu': df_rfu,
               'rates': df_rates,
               'global_fit': df_global_fit,
@@ -175,6 +180,31 @@ def main_app(client='default'):
                                  x='exposure', y='uptake_corrected', responsive=True, opts=opts,
                                  filters=[multiindex_select_peptides_filter, peptide_select_filter])
     view_list.append(peptide_view)
+
+
+    # PEPTIDES VIEW vs time
+    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', **global_opts}
+    #
+    multiindex_select_d_calc_filter_1 = MultiIndexSelectFilter(
+        field='fit_ID', name='d_calc_multiindex_select_1', table='d_calc', source=source)
+
+    multiindex_select_d_calc_filter_2 = MultiIndexSelectFilter(
+        field='state_name', name='d_calc_multiindex_select_2', table='d_calc', source=source,
+        filters=[multiindex_select_d_calc_filter_1])
+
+    d_calc_select_filter = UniqueValuesFilter(
+        field='start_end', name='d_calc_select', show_index=True, table='d_calc',
+        filters=[multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2], source=source)
+
+    filter_list += [multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2, d_calc_select_filter]
+
+    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', 'color': 'r', **global_opts}
+
+    d_calc_view = hvPlotAppView(source=source, name='d_calc_view', table='d_calc', streaming=True, kind='line',
+                                 x='timepoints', y='d_calc', responsive=True, opts=opts,
+                                 filters=[multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2, d_calc_select_filter])
+    view_list.append(d_calc_view)
+
 
     # DELTA G VIEW
     rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
@@ -282,7 +312,8 @@ def main_app(client='default'):
             elvis.stack(
                 elvis.view(ctrl.views['rates']),
                 elvis.view(ctrl.views['gibbs']),
-                elvis.view(ctrl.views['peptide_view'])
+                elvis.view([ctrl.views['peptide_view'], ctrl.views['d_calc_view']], title='peptide'),
+                #elvis.view(ctrl.views['d_calc_view']),
             ),
             elvis.stack(
                 elvis.view(ctrl.views['Info log']),

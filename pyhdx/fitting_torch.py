@@ -214,12 +214,12 @@ class TorchBatchFitResult(TorchFitResult):
         output: Ns x Np x Nt array"""
         #todo fix and tests
         dtype = t.float64
-
+        assert timepoints.shape[0] == self.data_obj.Ns, 'Invalid shape of timepoints'
         with t.no_grad():
             tensors = self.data_obj.get_tensors()
             inputs = [tensors[key] for key in ['temperature', 'X', 'k_int']]
 
-            time_tensor = t.tensor(timepoints.reshape(self.data_obj.Ns, 1, self.data_obj.Nt), dtype=dtype)
+            time_tensor = t.tensor(timepoints.reshape(self.data_obj.Ns, 1, timepoints.shape[1]), dtype=dtype)
             inputs.append(time_tensor)
 
             output = self.model(*inputs)

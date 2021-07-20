@@ -7,7 +7,7 @@ import panel as pn
 import string
 import os
 from param.parameterized import default_label_formatter
-
+import holoviews as hv
 
 dist_path = '/pyhdx/'
 
@@ -142,9 +142,20 @@ class GoldenElvis(object):
         panel_ID = 'ID' + str(id(fig_panel))
         title = default_label_formatter(title or getattr(fig_panel, 'name', None))
 
+        if isinstance(fig_panel, list):
+            items = []
+            for p in fig_panel:
+                p.update()
+                params = p._get_params()
+                #print('keys', params.keys())
+                items.append(params['object'])
 
-        fig_panel.update() # intialize
-        item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
+            olay = items[0] * items[1]
+
+            item = pn.Row(olay, sizing_mode='stretch_both')
+        else:
+            fig_panel.update() # intialize
+            item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
         self.panels[panel_ID] = item
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""

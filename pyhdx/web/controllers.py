@@ -659,6 +659,7 @@ class FitControl(ControlPanel):
             output_dfs = {fit_result.data_obj.name: fit_result.output.df for fit_result in result}
             df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
 
+            # create mse losses dataframe
             dfs = {}
             for single_result in result:
             # Determine mean squared errors per peptide, summed over timepoints
@@ -667,8 +668,9 @@ class FitControl(ControlPanel):
                 peptide_data = single_result.data_obj[0].data
                 data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum}
                 dfs[single_result.data_obj.name] = pd.DataFrame(data_dict)
-
             mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
+
+        #todo d calc for single fits
 
         else:  # one batchfit result
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
@@ -689,6 +691,26 @@ class FitControl(ControlPanel):
 
             self.parent.logger.info('Finished PyTorch fit')
 
+            # create d_calc dataframe
+            tp_flat = result.data_obj.timepoints.flatten()
+            elem = tp_flat[np.nonzero(tp_flat)]
+            elem.min(), elem.max()
+
+            time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
+            stacked = np.stack([time_vec for i in range(result.data_obj.Ns)])
+            d_calc = result(stacked)
+
+            state_dfs = {}
+            for hdxm, d_calc_state in zip(result.data_obj, d_calc):
+                peptide_dfs = []
+                pm_data = hdxm[0].data
+                for d_peptide, pm_row in zip(d_calc_state, pm_data):
+                    peptide_id = f"{pm_row['start']}_{pm_row['end']}"
+                    data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
+                    peptide_dfs.append(pd.DataFrame(data_dict))
+                state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
+            d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
+
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
             self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
@@ -696,6 +718,8 @@ class FitControl(ControlPanel):
 
         self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
         self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
+        self.parent.sources['dataframe'].add_df(d_calc_df, 'd_calc', names=[name])
+
 
         self.parent.param.trigger('fit_results')
 
