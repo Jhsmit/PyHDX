@@ -78,6 +78,7 @@ class UniqueValuesFilter(WebAppWidgetFilter):
     """
 
     filter_type = 'unique_values'
+    show_index = param.Boolean(False, doc='Set True to display the index of the unique values rather than their value')
     #_widget = pn.widgets.DiscreteSlider  #todo change back to DiscreteSlider, deal with initial value
     # see perhaps: https://github.com/holoviz/panel/pull/1837 ?
     _widget = pn.widgets.Select
@@ -85,20 +86,34 @@ class UniqueValuesFilter(WebAppWidgetFilter):
     def __init__(self, **params):
         super().__init__(**params)
 
+        self.unique_vals = []
+
     def update(self, *events):
         data = self.get_data()
         data = data.dropna(how='all') #todo perhaps add this line in get_data method of DataFrameSource
 
-        try:
-            options = list(data[self.field].unique())
-        except KeyError:  # KeyError when no data is loaded yet
+        if self.field not in data: # no data loaded
             options = []
+        else:
+            self.unique_vals = list(data[self.field].unique())
+
+            if self.show_index:
+                options = list(range(len(self.unique_vals)))
+            else:
+                options = self.unique_vals
 
         self.param['value'].objects = options
         if not self.value and options:
             self.value = options[0]
 
         self.updated = True
+
+    @property
+    def query(self):
+        if self.show_index:
+            return self.unique_vals[self.widget.value]
+        else:
+            return self.widget.value
 
 
 class MultiIndexSelectFilter(WebAppWidgetFilter):
@@ -127,6 +142,7 @@ class MultiIndexSelectFilter(WebAppWidgetFilter):
 
     def __init__(self, **params):
         super().__init__(**params)
+        #todo this is already done in superclass
         for filter in self.filters:
             filter.param.watch(self.update, 'updated')
 
