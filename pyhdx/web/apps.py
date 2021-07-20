@@ -46,9 +46,9 @@ def main_app(client='default'):
     col_index = pd.MultiIndex.from_tuples([], names=('state', 'quantity'))
     df_peptides = pd.DataFrame(columns=col_index)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('state', 'fit_ID', 'quantity'))
-    df_mse_peptides = pd.DataFrame(columns=col_index)
-    df_mse_peptides.index.name = 'peptide index'
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
+    df_peptides_mse = pd.DataFrame(columns=col_index)
+    #df_peptides_mse.index.name = 'peptide index'
 
     col_index = pd.MultiIndex.from_tuples([], names=('state', 'exposure'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
@@ -71,7 +71,7 @@ def main_app(client='default'):
     # this way GUI methods can add to them as multiindex subset
     # more tables can be added later by the gui
     tables = {'peptides': df_peptides,
-              'mse_peptides': df_mse_peptides,
+              'peptides_mse': df_peptides_mse,
               'rfu': df_rfu,
               'rates': df_rates,
               'global_fit': df_global_fit,
@@ -93,11 +93,11 @@ def main_app(client='default'):
     # norm = mpl.colors.Normalize(vmin=0, vmax=20)
     # cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
 
-    peptides_transform = PeptideLayoutTransform(value='rfu')
+    peptides_transform = PeptideLayoutTransform(value='rfu', name='trs_peptides')
+    peptides_mse_transform = PeptideLayoutTransform(value='total_mse', name='trs_peptides_mse')
+    reset_index_transform = ResetIndexTransform(name='reset_index_trs')
 
-    reset_index_transform = ResetIndexTransform()
-
-    trs_list = [peptides_transform, reset_index_transform]
+    trs_list = [peptides_transform, peptides_mse_transform, reset_index_transform]
 
     # ---------------------------------------------------------------------- #
     #                                FILTERS
@@ -117,11 +117,7 @@ def main_app(client='default'):
     #                                OPTS
     # ---------------------------------------------------------------------- #
 
-    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 1), 'framewise': True,
-                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, **global_opts}
-    cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
 
-    opts_list = [cmap_opts]
 
     # ---------------------------------------------------------------------- #
     #                                VIEWS
@@ -129,6 +125,42 @@ def main_app(client='default'):
 
     view_list = []
 
+    # COVERAGE PEPTIDES VIEW
+    hover = HoverTool(tooltips=[("index", "@index")])
+    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 1), 'framewise': True,
+                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': [hover], **global_opts}
+    cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
+
+    opts_list = [cmap_opts]
+
+    coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
+                                  streaming=True,
+                                  transforms=[peptides_transform],
+                                  filters=[multiindex_select_filter, slider_exposure_filter])
+    view_list.append(coverage)
+
+
+    # # COVERAGE PEPTIDES MSE VIEW
+    multiindex_select_filter_peptides_mse_1 = MultiIndexSelectFilter(
+        field='fit_ID', name='multiindex_select_filter_peptides_mse_1', table='peptides_mse', source=source)
+    multiindex_select_filter_peptides_mse_2 = MultiIndexSelectFilter(
+        field='state', name='multiindex_select_filter_peptides_mse_2', table='peptides_mse', source=source,
+        filters=[multiindex_select_filter_peptides_mse_1])
+
+    filter_list += [multiindex_select_filter_peptides_mse_1, multiindex_select_filter_peptides_mse_2]
+
+    additional_opts_mse = {'color': 'value', 'colorbar': True, 'responsive': True, 'framewise': True,
+                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': ['hover'], **global_opts}
+    cmap_mse_opts = CmapOpts(opts=additional_opts_mse, name='cmap_peptides_mse')
+    coverage_mse = hvRectangleAppView(source=source, name='coverage_mse', table='peptides_mse', opts=cmap_mse_opts.opts,
+                                  streaming=True,
+                                  transforms=[peptides_mse_transform],
+                                  filters=[multiindex_select_filter_peptides_mse_1, multiindex_select_filter_peptides_mse_2])
+    view_list.append(coverage_mse)
+
+
+
+    # DELTA G VIEW
     rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
 
     cmap = mpl.cm.get_cmap('viridis')
@@ -144,7 +176,6 @@ def main_app(client='default'):
                                                        source=source, filters=[multiindex_select_global_fit_1])
 
     filter_list += [multiindex_select_global_fit_1, multiindex_select_global_fit_2]
-
     opts = {'xlabel': 'Residue Number', 'ylabel': 'ΔG (kJ mol⁻¹)', 'colorbar': False,  **global_opts}
     deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
                            table='global_fit', transforms=[cmap_transform, rescale_transform], streaming=True,
@@ -153,12 +184,8 @@ def main_app(client='default'):
 
     view_list.append(deltaG)
 
-    coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
-                                  streaming=True,
-                                  transforms=[peptides_transform],
-                                  filters=[multiindex_select_filter, slider_exposure_filter])
-    view_list.append(coverage)
 
+    # RATES VIEW
     multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_rates_lv1', table='rates',
                                                        source=source)
     multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates_lv2', table='rates',
@@ -175,7 +202,7 @@ def main_app(client='default'):
                            )
     view_list.append(rates)
 
-
+    # PROTEIN NGL VIEW
     multiindex_select_colors_1 = MultiIndexSelectFilter(field='color_ID', name='select_index_colors_lv1', table='colors',
                                                        source=source)
     multiindex_select_colors_2 = MultiIndexSelectFilter(field='state', name='select_index_colors_lv2', table='colors',
@@ -186,6 +213,7 @@ def main_app(client='default'):
                                )
     view_list.append(protein_view)
 
+    # LOGGING VIEWS
     log_view = LoggingView(logger=logger, level=logging.INFO, name='Info log')
     debug_log_view = LoggingView(logger=logger, level=logging.DEBUG, name='Debug log')
     view_list.append(log_view)
@@ -232,6 +260,7 @@ def main_app(client='default'):
         elvis.stack(
             elvis.view(ctrl.views['coverage']),
             elvis.view(ctrl.views['protein']),
+            elvis.view(ctrl.views['coverage_mse'])
         ),
         elvis.row(
             elvis.stack(

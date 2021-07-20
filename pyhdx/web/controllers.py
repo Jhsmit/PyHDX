@@ -695,7 +695,7 @@ class FitControl(ControlPanel):
                                     f"({result.regularization_percentage:.1f}%)")
 
         self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
-        self.parent.sources['dataframe'].add_df(mse_df, 'mse_peptides', names=[name])
+        self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
 
         self.parent.param.trigger('fit_results')
 
@@ -1197,6 +1197,7 @@ class GraphControl(ControlPanel):
             'coverage': pn.pane.Markdown('### Coverage'),
             'rates': pn.pane.Markdown('### Rates'),
             'gibbs': pn.pane.Markdown('### Gibbs'),
+            'coverage_mse': pn.pane.Markdown('### Coverage MSE'),
             'protein': pn.pane.Markdown('### Protein')
         }
 
@@ -1215,6 +1216,9 @@ class GraphControl(ControlPanel):
             ('self', ['gibbs']),
             ('filters.select_index_global_fit_lv1', None),
             ('filters.select_index_global_fit_lv2', None),
+            ('self', ['coverage_mse']),
+            ('filters.multiindex_select_filter_peptides_mse_1', None),
+            ('filters.multiindex_select_filter_peptides_mse_2', None),
             ('self', ['protein', 'spin'])
 
         ]
@@ -1907,6 +1911,17 @@ class DeveloperControl(ControlPanel):
         control_panels = main_ctrl.control_panels
         views = main_ctrl.views
         sources = main_ctrl.sources
+
+        mse_view = views['coverage_mse']
+        data = mse_view.get_data()
+        print('mse')
+        print(data)
+
+        coverage_view = views['coverage']
+        data = coverage_view.get_data()
+        print('coverage')
+        print(data)
+
 
         print('Time for a break')
 
