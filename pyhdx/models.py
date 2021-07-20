@@ -640,14 +640,13 @@ class HDXMeasurement(object):
     Main HDX data object. This object has peptide data of a single state but with multiple timepoints.
 
     Timepoint data is split into :class:`~pyhdx.models.PeptideMeasurements` objects for each timepoint
+    Supplied data is made 'uniform' such that all timepoints have the same peptides
 
     Parameters
     ----------
     data : :class:`~numpy.ndarray` or :obj:`list`
         Numpy structured array with peptide entries corresponding to a single state,
         or list of :class:`~pyhdx.models.PeptideMeasurements`
-    make_uniform : :obj:`bool`
-        If `True` the :class:`~pyhdx.models.HDXMeasurement` instance is made uniform
     **metadata
         Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
 
@@ -949,6 +948,7 @@ class PeptideMeasurements(Coverage):
 
 
 class CoverageSet(object):
+    #todo perhaps this object should have X
     def __init__(self, hdxm_list):
         self.hdxm_list = hdxm_list
 
@@ -1003,7 +1003,19 @@ class CoverageSet(object):
 
 class HDXMeasurementSet(object):
     """
-    multiple HDX Measurements
+    Set of multiple :class:`~pyhdx.models.HDXMeasurement`
+
+    Parameters
+    ----------
+    hdxm_list :  :obj:`list`
+        or list of :class:`~pyhdx.models.HDXMeasurement`
+
+    Attributes
+    ----------
+    timepoints : :class:`~numpy.ndarray`
+        Ns x Nt array of zero-padded timepoints
+    d_exp : :class:`~numpy.ndarray`
+        Ns x Np x Nt array with zero-padded measured D-uptake values
     """
 
     def __init__(self, hdxm_list):
@@ -1011,6 +1023,21 @@ class HDXMeasurementSet(object):
 
         self.coverage = CoverageSet(hdxm_list)
         self.masks = self.coverage.get_masks()
+
+        timepoints_values = np.concatenate([hdxm.timepoints for hdxm in self.hdxm_list])
+        self.timepoints = np.zeros((self.Ns, self.Nt))
+        self.timepoints[self.masks['st']] = timepoints_values
+        #
+        # d_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
+        # self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
+        # self.d_exp = self.d_exp[self.masks['spt']] = d_values
+
+        D_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
+        D = np.zeros((self.Ns, self.Np, self.Nt))
+        D[self.masks['spt']] = D_values
+
+        self.d_exp = D
+
 
         # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
         self.aligned_indices = None
@@ -1110,7 +1137,7 @@ class HDXMeasurementSet(object):
         timepoints = np.zeros((self.Ns, self.Nt))
         timepoints[self.masks['st']] = timepoints_values
 
-        D_values = np.concatenate([hdxm.uptake_corrected.T.flatten() for hdxm in self.hdxm_list])
+        D_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
         D = np.zeros((self.Ns, self.Np, self.Nt))
         D[self.masks['spt']] = D_values
 
@@ -1121,7 +1148,7 @@ class HDXMeasurementSet(object):
             'X': torch.tensor(X, dtype=dtype),
             'k_int': torch.tensor(k_int, dtype=dtype).reshape(self.Ns, self.Nr, 1),
             'timepoints': torch.tensor(timepoints, dtype=dtype).reshape(self.Ns, 1, self.Nt),
-            'uptake': torch.tensor(D, dtype=dtype)  #todo this is called uptake_corrected/D/uptake
+            'uptake': torch.tensor(self.d_exp, dtype=dtype)  #todo this is called uptake_corrected/D/uptake
         }
 
         return tensors

@@ -653,13 +653,39 @@ class FitControl(ControlPanel):
 
         self.parent.logger.info(f'Finished PyTorch fit: {name}')
 
+        # List of single fit results
         if isinstance(result, list):
             self.parent.fit_results[name] = list(result)
             output_dfs = {fit_result.data_obj.name: fit_result.output.df for fit_result in result}
             df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
-        else:
+
+            dfs = {}
+            for single_result in result:
+            # Determine mean squared errors per peptide, summed over timepoints
+                mse = single_result.get_mse()
+                mse_sum = np.sum(mse, axis=1)
+                peptide_data = single_result.data_obj[0].data
+                data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum}
+                dfs[single_result.data_obj.name] = pd.DataFrame(data_dict)
+
+            mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
+
+        else:  # one batchfit result
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
             df = result.output.df
+            # df.index.name = 'peptide index'
+
+            # Determine mean squared errors per peptide, summed over timepoints
+            mse = result.get_mse()
+            dfs = {}
+            for mse_sample, hdxm in zip(mse, result.data_obj):
+                peptide_data = hdxm[0].data
+                mse_sum = np.sum(mse_sample, axis=1)
+                # Indexing of mse_sum with Np to account for zero-padding
+                data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum[:hdxm.Np]}
+                dfs[hdxm.name] = pd.DataFrame(data_dict)
+
+            mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
 
             self.parent.logger.info('Finished PyTorch fit')
 
@@ -669,6 +695,8 @@ class FitControl(ControlPanel):
                                     f"({result.regularization_percentage:.1f}%)")
 
         self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
+        self.parent.sources['dataframe'].add_df(mse_df, 'mse_peptides', names=[name])
+
         self.parent.param.trigger('fit_results')
 
     def _action_fit(self):

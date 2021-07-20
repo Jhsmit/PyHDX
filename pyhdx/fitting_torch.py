@@ -163,8 +163,30 @@ class TorchFitResult(object):
 
         return df
 
+    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+        metadata = self.metadata if include_metadata else include_metadata
+        dataframe_to_file(file_path, self.output.df, include_version=include_version, include_metadata=metadata,
+                          fmt=fmt, **kwargs)
+
+    def get_mse(self):
+        """np.ndarray: Returns the mean squared error per peptide per timepoint. Output shape is Np x Nt"""
+
+        d_calc = self(self.data_obj.timepoints)
+        mse = (d_calc - self.data_obj.d_exp) ** 2
+
+        return mse
+
+
+class TorchSingleFitResult(TorchFitResult):
+    def __init__(self, *args, **kwargs):
+        super(TorchSingleFitResult, self).__init__(*args, **kwargs)
+
+        df = self.generate_output(self.data_obj, self.deltaG)
+        self.output = Protein(df)
+
     def __call__(self, timepoints):
-        """output: Np x Nt array"""
+        """ timepoints: Nt array (will be unsqueezed to 1 x Nt)
+        output: Np x Nt array"""
         #todo fix and tests
         dtype = t.float64
 
@@ -176,26 +198,6 @@ class TorchFitResult(object):
             output = self.model(*inputs)
         return output.detach().numpy()
 
-    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
-        metadata = self.metadata if include_metadata else include_metadata
-        dataframe_to_file(file_path, self.output.df, include_version=include_version, include_metadata=metadata,
-                          fmt=fmt, **kwargs)
-
-
-class TorchSingleFitResult(TorchFitResult):
-    def __init__(self, *args, **kwargs):
-        super(TorchSingleFitResult, self).__init__(*args, **kwargs)
-
-        df = self.generate_output(self.data_obj, self.deltaG)
-        self.output = Protein(df)
-
-    def get_mse(self):
-        """np.ndarray: Returns the mean squared error per peptide per timepoint. Output shape is Np x Nt"""
-
-        d_calc = self(self.data_obj.timepoints)
-        mse = (d_calc - self.data_obj.d_exp) ** 2
-
-        return mse
 
 class TorchBatchFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
@@ -206,6 +208,23 @@ class TorchBatchFitResult(TorchFitResult):
         df = pd.concat(dfs, keys=names, axis=1)
 
         self.output = Protein(df)
+
+    def __call__(self, timepoints):
+        """timepoints: must be Ns x Nt, will be reshaped to Ns x 1 x Nt
+        output: Ns x Np x Nt array"""
+        #todo fix and tests
+        dtype = t.float64
+
+        with t.no_grad():
+            tensors = self.data_obj.get_tensors()
+            inputs = [tensors[key] for key in ['temperature', 'X', 'k_int']]
+
+            time_tensor = t.tensor(timepoints.reshape(self.data_obj.Ns, 1, self.data_obj.Nt), dtype=dtype)
+            inputs.append(time_tensor)
+
+            output = self.model(*inputs)
+        return output.detach().numpy()
+
 
 
 if __name__ == '__main__':
