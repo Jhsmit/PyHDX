@@ -68,10 +68,8 @@ class TestSecBDataFit(object):
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
         assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
 
-        #These should perhaps be moved to fileIO tests
-
-
-
+        mse = fr_global.get_mse()
+        assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
 
     def test_batch_fit(self):

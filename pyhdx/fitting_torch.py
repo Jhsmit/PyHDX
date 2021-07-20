@@ -189,6 +189,13 @@ class TorchSingleFitResult(TorchFitResult):
         df = self.generate_output(self.data_obj, self.deltaG)
         self.output = Protein(df)
 
+    def get_mse(self):
+        """np.ndarray: Returns the mean squared error per peptide per timepoint. Output shape is Np x Nt"""
+
+        d_calc = self(self.data_obj.timepoints)
+        mse = (d_calc - self.data_obj.d_exp) ** 2
+
+        return mse
 
 class TorchBatchFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
