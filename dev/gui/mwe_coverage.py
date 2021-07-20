@@ -8,6 +8,8 @@ from pyhdx.web.opts import CmapOpts
 from bokeh.models.tools import HoverTool
 import panel as pn
 
+pn.extension(sizing_mode='stretch_both')
+
 
 current_dir = Path(__file__).parent
 data_dir = current_dir / 'test_data'
@@ -34,15 +36,21 @@ multiindex_select_filter = MultiIndexSelectFilter(field='state', name='select_in
 
 slider_exposure_filter = UniqueValuesFilter(field='exposure', name='exposure_slider',
                                             table='peptides', filters=[multiindex_select_filter], source=source)
+filters = [multiindex_select_filter, slider_exposure_filter]
 
 coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
                               streaming=True,
                               transforms=[peptides_transform],
                               filters=[multiindex_select_filter, slider_exposure_filter])
 
-
-
-
 coverage.update()
 
-pn.serve(coverage.panel)
+def update(*events):
+    coverage.update()
+
+for f in filters:
+    f.param.watch(update, 'value')
+
+buttons = pn.Column(*[f.panel for f in filters])
+row = pn.Row(*[buttons, coverage.panel])
+pn.serve(row)
