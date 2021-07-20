@@ -111,7 +111,9 @@ class hvRectangleAppView(View):
         return plot
 
     def _get_params(self):
-        df = self.get_data() or self.empty_df
+        df = self.get_data()
+        if df is None:
+            df = self.empty_df
 
         if self.streaming:
             from holoviews.streams import Pipe
