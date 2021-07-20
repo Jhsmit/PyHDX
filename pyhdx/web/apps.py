@@ -192,14 +192,18 @@ def main_app(client='default'):
         field='state_name', name='d_calc_multiindex_select_2', table='d_calc', source=source,
         filters=[multiindex_select_d_calc_filter_1])
 
+    # link to the other
+   # multiindex_select_peptides_filter.widget.link(multiindex_select_d_calc_filter_2, value='value')
+
     d_calc_select_filter = UniqueValuesFilter(
         field='start_end', name='d_calc_select', show_index=True, table='d_calc',
         filters=[multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2], source=source)
 
+    #peptide_select_filter.widget.link(d_calc_select_filter, value='value')
+
     filter_list += [multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2, d_calc_select_filter]
 
     opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', 'color': 'r', **global_opts}
-
     d_calc_view = hvPlotAppView(source=source, name='d_calc_view', table='d_calc', streaming=True, kind='line',
                                  x='timepoints', y='d_calc', responsive=True, opts=opts,
                                  filters=[multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2, d_calc_select_filter])

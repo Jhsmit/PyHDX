@@ -1246,6 +1246,10 @@ class GraphControl(ControlPanel):
             ('filters.multiindex_select_filter_peptides_mse_2', None),
             ('self', ['peptide']),
             ('filters.peptide_select', None),
+            ('filters.peptide_multiindex_select', None),
+            ('filters.d_calc_multiindex_select_1', None),
+            ('filters.d_calc_multiindex_select_2', None),
+            ('filters.d_calc_select', None),
             ('self', ['protein', 'spin'])
 
         ]
