@@ -203,7 +203,7 @@ def dataframe_to_stringio(df, sio=None, fmt='csv', include_metadata=True, includ
     sio: `io.StringIO`, optional
         The `io.StringIO` object to write to. If `None`, a new `io.StringIO` object is created.
     fmt: :obj:`str`
-        Specify the formatting of the output. Options are '.csv' (machine readable) or 'pprint' (human readable)
+        Specify the formatting of the output. Options are 'csv' (machine readable) or 'pprint' (human readable)
     include_metadata: :obj:`bool` or :obj:`dict`
         If `True`, the metadata in df.attrs['metadata'] is included. If :obj:`dict`, this dictionary is used as the
         metadata. If `False`, no metadata is included.

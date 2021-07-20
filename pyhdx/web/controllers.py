@@ -1210,6 +1210,9 @@ class FileExportControl(ControlPanel):
 
     header = "File Export"
     table = param.Selector(label='Target dataset', doc='Name of the dataset to export')
+    export_format = param.Selector(default='csv', objects=['csv', 'pprint'],
+                                   doc="Format of the exported tables."
+                                       "'csv' is machine-readable, 'pprint' is human-readable format")
     #todo add color param an dlink with protein viewer color
 
     def __init__(self, parent, **param):
@@ -1246,7 +1249,8 @@ class FileExportControl(ControlPanel):
     def _table_updated(self):
         self.df = self.sources['dataframe'].get(self.table)
 
-        self.widgets['export_tables'].filename = self.table + '.txt'
+        ext = '.csv' if self.export_format == 'csv' else '.txt'
+        self.widgets['export_tables'].filename = self.table + ext
 
         if self.table == 'colors':
             self.widgets['export_pml'].disabled = False
@@ -1274,7 +1278,7 @@ class FileExportControl(ControlPanel):
     @pn.depends('table')  # param.depends?
     def table_export_callback(self):
         if self.table:
-            io = dataframe_to_stringio(self.df)
+            io = dataframe_to_stringio(self.df, fmt=self.export_format)
             return io
         else:
             return None
