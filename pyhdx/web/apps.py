@@ -167,12 +167,12 @@ def main_app(client='default'):
     #
     multiindex_select_peptides_filter = MultiIndexSelectFilter(
         field='state_name', name='peptide_multiindex_select', table='peptides', source=source)
-    peptide_select_filter = UniqueValuesFilter(field='start_end', name='peptide_select', show_index=True, opts=opts,
+    peptide_select_filter = UniqueValuesFilter(field='start_end', name='peptide_select', show_index=True,
                                                table='peptides', filters=[multiindex_select_peptides_filter], source=source)
     filter_list += [multiindex_select_peptides_filter, peptide_select_filter]
 
     peptide_view = hvPlotAppView(source=source, name='peptide_view', table='peptides', streaming=True, kind='scatter',
-                                 x='exposure', y='uptake_corrected',
+                                 x='exposure', y='uptake_corrected', responsive=True, opts=opts,
                                  filters=[multiindex_select_peptides_filter, peptide_select_filter])
     view_list.append(peptide_view)
 
