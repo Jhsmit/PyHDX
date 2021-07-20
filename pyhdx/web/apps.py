@@ -93,7 +93,10 @@ def main_app(client='default'):
     # norm = mpl.colors.Normalize(vmin=0, vmax=20)
     # cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
 
-    peptides_transform = PeptideLayoutTransform(value='rfu', name='trs_peptides')
+    peptides_transform = PeptideLayoutTransform(
+        value='rfu', name='trs_peptides',
+        passthrough=['uptake', 'uptake_corrected', 'sequence', 'uptake_corrected', 'ex_residues']
+    )
     peptides_mse_transform = PeptideLayoutTransform(value='total_mse', name='trs_peptides_mse')
     reset_index_transform = ResetIndexTransform(name='reset_index_trs')
 
@@ -126,7 +129,8 @@ def main_app(client='default'):
     view_list = []
 
     # COVERAGE PEPTIDES VIEW
-    hover = HoverTool(tooltips=[("index", "@index")])
+    hover = HoverTool(tooltips=[("index", "@index"), ('rfu', '@value (@uptake_corrected D)'),
+                                ('sequence', '@sequence')])
     additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 1), 'framewise': True,
                        'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': [hover], **global_opts}
     cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
@@ -149,8 +153,9 @@ def main_app(client='default'):
 
     filter_list += [multiindex_select_filter_peptides_mse_1, multiindex_select_filter_peptides_mse_2]
 
+    hover = HoverTool(tooltips=[("index", "@index"), ('mse', '@value')])
     additional_opts_mse = {'color': 'value', 'colorbar': True, 'responsive': True, 'framewise': True,
-                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': ['hover'], **global_opts}
+                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': [hover], **global_opts}
     cmap_mse_opts = CmapOpts(opts=additional_opts_mse, name='cmap_peptides_mse')
     coverage_mse = hvRectangleAppView(source=source, name='coverage_mse', table='peptides_mse', opts=cmap_mse_opts.opts,
                                   streaming=True,
