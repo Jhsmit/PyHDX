@@ -2,7 +2,7 @@
 # 2021/07/20 14:28:17 (1626784097) 
 # <pandas_kwargs>{"comment": "#", "header": [0, 1, 2], "index_col": 0}</pandas_kwargs>
 color_ID,otsu_colors,otsu_colors
-state,testname_123,SecB his dimer apo
+state_name,testname_123,SecB his dimer apo
 quantity,deltaG,deltaG
 r_number,,
 1,#8C8C8C,#8C8C8C

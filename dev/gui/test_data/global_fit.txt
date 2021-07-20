@@ -2,7 +2,7 @@
 # 2021/07/20 14:28:13 (1626784093) 
 # <pandas_kwargs>{"comment": "#", "header": [0, 1, 2], "index_col": 0}</pandas_kwargs>
 fit_ID,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1,Gibbs_fit_1
-state,testname_123,testname_123,testname_123,testname_123,testname_123,testname_123,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo
+state_name,testname_123,testname_123,testname_123,testname_123,testname_123,testname_123,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo
 quantity,sequence,_deltaG,deltaG,pfact,k_obs,covariance,sequence,_deltaG,deltaG,pfact,k_obs,covariance
 r_number,,,,,,,,,,,,
 10,T,14373.4260078163,14373.4260078163,363.96913267667577,3.2677255536253975,1644.7875091974195,T,13738.019153122654,13738.019153122654,280.4448237391884,4.237487637140761,1283.9670593630485

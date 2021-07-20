@@ -542,7 +542,7 @@ class InitialGuessControl(ControlPanel):
         dfs = [result.output.df for result in results]
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(self.parent.data_objects.keys()),
-                                     names=['state', 'quantity'])
+                                     names=['state_name', 'quantity'])
 
         self.sources['dataframe'].add_df(combined_results, 'rates', name)
         self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}

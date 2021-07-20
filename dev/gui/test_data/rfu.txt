@@ -1,7 +1,7 @@
 # PyHDX v0.4.0b1+4.gc71d4cd.dirty 
 # 2021/07/20 14:28:05 (1626784085) 
 # <pandas_kwargs>{"comment": "#", "header": [0, 1], "index_col": 0}</pandas_kwargs>
-state,testname_123,testname_123,testname_123,testname_123,testname_123,testname_123,testname_123,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo
+state_name,testname_123,testname_123,testname_123,testname_123,testname_123,testname_123,testname_123,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo
 exposure,0.0,0.167,0.5,1.0,5.0,10.0,100.000008,0.0,0.167,0.5,1.0,5.0,10.0,100.000008
 r_number,,,,,,,,,,,,,,
 10,0.0,0.49009421689596716,0.5631609965703472,0.6200453344896913,0.7462226514763275,0.8047758899357433,0.9442632159892774,0.0,0.5105572200102495,0.6205745653802184,0.6853309417747467,0.8628799227342611,0.9099459928253243,0.9956545906098474

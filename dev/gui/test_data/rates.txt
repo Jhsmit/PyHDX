@@ -2,7 +2,7 @@
 # 2021/07/20 14:28:10 (1626784090) 
 # <pandas_kwargs>{"comment": "#", "header": [0, 1, 2], "index_col": 0}</pandas_kwargs>
 fit_ID,Guess_1,Guess_1
-state,testname_123,SecB his dimer apo
+state_name,testname_123,SecB his dimer apo
 quantity,rate,rate
 r_number,,
 10,3.267321962268031,4.238219132510516

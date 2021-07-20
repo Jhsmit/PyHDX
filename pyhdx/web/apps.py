@@ -43,27 +43,27 @@ def main_app(client='default'):
     #                                SOURCES
     # ---------------------------------------------------------------------- #
 
-    col_index = pd.MultiIndex.from_tuples([], names=('state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('state_name', 'quantity'))
     df_peptides = pd.DataFrame(columns=col_index)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
     df_peptides_mse = pd.DataFrame(columns=col_index)
     #df_peptides_mse.index.name = 'peptide index'
 
-    col_index = pd.MultiIndex.from_tuples([], names=('state', 'exposure'))
+    col_index = pd.MultiIndex.from_tuples([], names=('state_name', 'exposure'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_rfu = pd.DataFrame(columns=col_index, index=row_index)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_rates = pd.DataFrame(columns=col_index, index=row_index)
     # todo make sure that proper-shaped df is used to initiate stream (and generalize for rectangles plot)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
 
-    col_index = pd.MultiIndex.from_tuples([], names=('color_ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('color_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df_colors = pd.DataFrame(columns=col_index, index=row_index)
 
@@ -107,7 +107,7 @@ def main_app(client='default'):
     # ---------------------------------------------------------------------- #
 
     # unique_vals = list(np.sort(peptides_source.get_unique(table='peptides', field='exposure')))
-    multiindex_select_filter = MultiIndexSelectFilter(field='state', name='select_index', table='peptides',
+    multiindex_select_filter = MultiIndexSelectFilter(field='state_name', name='select_index', table='peptides',
                                                       source=source)
 
     # unique_vals = list(np.sort(source.get_unique(table='peptides', field='exposure', state='ecSecB_apo')))
@@ -148,7 +148,7 @@ def main_app(client='default'):
     multiindex_select_filter_peptides_mse_1 = MultiIndexSelectFilter(
         field='fit_ID', name='multiindex_select_filter_peptides_mse_1', table='peptides_mse', source=source)
     multiindex_select_filter_peptides_mse_2 = MultiIndexSelectFilter(
-        field='state', name='multiindex_select_filter_peptides_mse_2', table='peptides_mse', source=source,
+        field='state_name', name='multiindex_select_filter_peptides_mse_2', table='peptides_mse', source=source,
         filters=[multiindex_select_filter_peptides_mse_1])
 
     filter_list += [multiindex_select_filter_peptides_mse_1, multiindex_select_filter_peptides_mse_2]
@@ -177,7 +177,7 @@ def main_app(client='default'):
 
     multiindex_select_global_fit_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_global_fit_lv1', table='global_fit',
                                                        source=source)
-    multiindex_select_global_fit_2 = MultiIndexSelectFilter(field='state', name='select_index_global_fit_lv2', table='global_fit',
+    multiindex_select_global_fit_2 = MultiIndexSelectFilter(field='state_name', name='select_index_global_fit_lv2', table='global_fit',
                                                        source=source, filters=[multiindex_select_global_fit_1])
 
     filter_list += [multiindex_select_global_fit_1, multiindex_select_global_fit_2]
@@ -193,7 +193,7 @@ def main_app(client='default'):
     # RATES VIEW
     multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_rates_lv1', table='rates',
                                                        source=source)
-    multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates_lv2', table='rates',
+    multiindex_select_rates_2 = MultiIndexSelectFilter(field='state_name', name='select_index_rates_lv2', table='rates',
                                                        source=source, filters=[multiindex_select_rates_1])
 
     filter_list += [multiindex_select_rates_1, multiindex_select_rates_2]
@@ -210,7 +210,7 @@ def main_app(client='default'):
     # PROTEIN NGL VIEW
     multiindex_select_colors_1 = MultiIndexSelectFilter(field='color_ID', name='select_index_colors_lv1', table='colors',
                                                        source=source)
-    multiindex_select_colors_2 = MultiIndexSelectFilter(field='state', name='select_index_colors_lv2', table='colors',
+    multiindex_select_colors_2 = MultiIndexSelectFilter(field='state_name', name='select_index_colors_lv2', table='colors',
                                                        source=source, filters=[multiindex_select_colors_1])
     filter_list += [multiindex_select_colors_1, multiindex_select_colors_2]
     protein_view = NGLView(source=source, name='protein', table='colors',
