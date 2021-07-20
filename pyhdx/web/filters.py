@@ -111,7 +111,10 @@ class UniqueValuesFilter(WebAppWidgetFilter):
     @property
     def query(self):
         if self.show_index:
-            return self.unique_vals[self.widget.value]
+            try:  # try/except to handle initation with empty data
+                return self.unique_vals[self.widget.value]
+            except TypeError:
+                return None
         else:
             return self.widget.value
 

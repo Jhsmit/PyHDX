@@ -143,7 +143,6 @@ def main_app(client='default'):
                                   filters=[multiindex_select_filter, slider_exposure_filter])
     view_list.append(coverage)
 
-
     # # COVERAGE PEPTIDES MSE VIEW
     multiindex_select_filter_peptides_mse_1 = MultiIndexSelectFilter(
         field='fit_ID', name='multiindex_select_filter_peptides_mse_1', table='peptides_mse', source=source)
@@ -163,7 +162,19 @@ def main_app(client='default'):
                                   filters=[multiindex_select_filter_peptides_mse_1, multiindex_select_filter_peptides_mse_2])
     view_list.append(coverage_mse)
 
+    # PEPTIDES VIEW vs time
+    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', **global_opts}
+    #
+    multiindex_select_peptides_filter = MultiIndexSelectFilter(
+        field='state_name', name='peptide_multiindex_select', table='peptides', source=source)
+    peptide_select_filter = UniqueValuesFilter(field='start_end', name='peptide_select', show_index=True, opts=opts,
+                                               table='peptides', filters=[multiindex_select_peptides_filter], source=source)
+    filter_list += [multiindex_select_peptides_filter, peptide_select_filter]
 
+    peptide_view = hvPlotAppView(source=source, name='peptide_view', table='peptides', streaming=True, kind='scatter',
+                                 x='exposure', y='uptake_corrected',
+                                 filters=[multiindex_select_peptides_filter, peptide_select_filter])
+    view_list.append(peptide_view)
 
     # DELTA G VIEW
     rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
@@ -271,6 +282,7 @@ def main_app(client='default'):
             elvis.stack(
                 elvis.view(ctrl.views['rates']),
                 elvis.view(ctrl.views['gibbs']),
+                elvis.view(ctrl.views['peptide_view'])
             ),
             elvis.stack(
                 elvis.view(ctrl.views['Info log']),

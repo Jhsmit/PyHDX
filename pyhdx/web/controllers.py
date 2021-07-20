@@ -397,6 +397,7 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.param.trigger('data_objects')  # Trigger update
 
         df = pd.DataFrame(hdxm.full_data)
+        df['start_end'] = [str(s) + '_' + str(e) for s, e in zip(df['start'], df['end'])]
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'peptides', self.dataset_name)
 
@@ -404,7 +405,6 @@ class PeptideFileInputControl(ControlPanel):
         df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'rfu', self.dataset_name)
-
 
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')
@@ -1198,6 +1198,7 @@ class GraphControl(ControlPanel):
             'rates': pn.pane.Markdown('### Rates'),
             'gibbs': pn.pane.Markdown('### Gibbs'),
             'coverage_mse': pn.pane.Markdown('### Coverage MSE'),
+            'peptide': pn.pane.Markdown('### Peptide'),
             'protein': pn.pane.Markdown('### Protein')
         }
 
@@ -1219,6 +1220,8 @@ class GraphControl(ControlPanel):
             ('self', ['coverage_mse']),
             ('filters.multiindex_select_filter_peptides_mse_1', None),
             ('filters.multiindex_select_filter_peptides_mse_2', None),
+            ('self', ['peptide']),
+            ('filters.peptide_select', None),
             ('self', ['protein', 'spin'])
 
         ]
