@@ -1027,17 +1027,10 @@ class HDXMeasurementSet(object):
         timepoints_values = np.concatenate([hdxm.timepoints for hdxm in self.hdxm_list])
         self.timepoints = np.zeros((self.Ns, self.Nt))
         self.timepoints[self.masks['st']] = timepoints_values
-        #
-        # d_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
-        # self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
-        # self.d_exp = self.d_exp[self.masks['spt']] = d_values
 
-        D_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
-        D = np.zeros((self.Ns, self.Np, self.Nt))
-        D[self.masks['spt']] = D_values
-
-        self.d_exp = D
-
+        d_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
+        self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
+        self.d_exp[self.masks['spt']] = d_values
 
         # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
         self.aligned_indices = None
@@ -1133,21 +1126,13 @@ class HDXMeasurementSet(object):
         k_int = np.zeros((self.Ns, self.Nr))
         k_int[self.masks['sr']] = k_int_values
 
-        timepoints_values = np.concatenate([hdxm.timepoints for hdxm in self.hdxm_list])
-        timepoints = np.zeros((self.Ns, self.Nt))
-        timepoints[self.masks['st']] = timepoints_values
-
-        D_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
-        D = np.zeros((self.Ns, self.Np, self.Nt))
-        D[self.masks['spt']] = D_values
-
         dtype = torch.float64
 
         tensors = {
             'temperature': torch.tensor(temperature, dtype=dtype).reshape(self.Ns, 1, 1),
             'X': torch.tensor(X, dtype=dtype),
             'k_int': torch.tensor(k_int, dtype=dtype).reshape(self.Ns, self.Nr, 1),
-            'timepoints': torch.tensor(timepoints, dtype=dtype).reshape(self.Ns, 1, self.Nt),
+            'timepoints': torch.tensor(self.timepoints, dtype=dtype).reshape(self.Ns, 1, self.Nt),
             'uptake': torch.tensor(self.d_exp, dtype=dtype)  #todo this is called uptake_corrected/D/uptake
         }
 
