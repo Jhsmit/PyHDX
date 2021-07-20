@@ -225,8 +225,8 @@ def main_app(client='default'):
 
     elvis.compose(ctrl, elvis.column(
         elvis.stack(
-            elvis.view(ctrl.views['protein']),
             elvis.view(ctrl.views['coverage']),
+            elvis.view(ctrl.views['protein']),
         ),
         elvis.row(
             elvis.stack(
