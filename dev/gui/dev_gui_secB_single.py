@@ -1,6 +1,6 @@
 """
 Reload SecB and fitted data and launch single GUI
-
+Very much outdated
 """
 from pyhdx.fileIO import read_dynamx, txt_to_np
 from pyhdx import PeptideMasterTable
