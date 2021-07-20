@@ -131,7 +131,7 @@ def fit_rates_half_time_interpolate(hdxm):
     return result
 
 
-def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=20, model_type='association', client=None, pbar=None):
+def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=0.20, model_type='association', client=None, pbar=None):
     """
     Fit a model specified by 'model_type' to D-uptake kinetics. D-uptake is weighted averaged across peptides per
     timepoint to obtain residue-level D-uptake.
