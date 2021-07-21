@@ -671,13 +671,15 @@ class FitControl(ControlPanel):
             mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
 
         #todo d calc for single fits
+        #todo losses for single fits
 
         else:  # one batchfit result
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
             df = result.output.df
             # df.index.name = 'peptide index'
 
-            # Determine mean squared errors per peptide, summed over timepoints
+            # Create MSE losses df (per peptide, summed over timepoints)
+            # -----------------------
             mse = result.get_mse()
             dfs = {}
             for mse_sample, hdxm in zip(mse, result.data_obj):
@@ -691,7 +693,8 @@ class FitControl(ControlPanel):
 
             self.parent.logger.info('Finished PyTorch fit')
 
-            # create d_calc dataframe
+            # Create d_calc dataframe
+            # -----------------------
             tp_flat = result.data_obj.timepoints.flatten()
             elem = tp_flat[np.nonzero(tp_flat)]
             elem.min(), elem.max()
@@ -711,6 +714,11 @@ class FitControl(ControlPanel):
                 state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
             d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
 
+            # Create losses/epoch dataframe
+            # -----------------------------
+
+            losses_df = result.losses
+
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
             self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
@@ -719,6 +727,8 @@ class FitControl(ControlPanel):
         self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
         self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
         self.parent.sources['dataframe'].add_df(d_calc_df, 'd_calc', names=[name])
+        self.parent.sources['dataframe'].add_df(losses_df, 'losses', names=[name])
+
 
 
         self.parent.param.trigger('fit_results')

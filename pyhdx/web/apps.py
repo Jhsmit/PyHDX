@@ -73,6 +73,11 @@ def main_app(client='default'):
     df = pd.DataFrame(columns=col_index, index=row_index)
     tables['global_fit'] = df
 
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'loss_type'))
+    row_index = pd.RangeIndex(0, 1, name='epochs')
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['losses'] = df
+
     col_index = pd.MultiIndex.from_tuples([], names=('color_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
     df = pd.DataFrame(columns=col_index, index=row_index)
@@ -154,7 +159,6 @@ def main_app(client='default'):
         filters=[filters['coverage_mse_fit_id']])
     filters[f.name] = f
 
-
     hover = HoverTool(tooltips=[("index", "@index"), ('mse', '@value')])
     additional_opts_mse = {'color': 'value', 'colorbar': True, 'responsive': True, 'framewise': True,
                        'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': [hover], **global_opts}
@@ -195,9 +199,6 @@ def main_app(client='default'):
         field='state_name', name='peptide_d_calc_state_name', table='d_calc', source=source,
         filters=[filters['peptide_d_calc_fit_id']])
     filters[f.name] = f
-
-    # link to the other
-    #multiindex_select_peptides_filter.widget.link(multiindex_select_d_calc_filter_2, value='value', bidirectional=True)
 
     f = UniqueValuesFilter(
         field='start_end', name='peptide_d_calc_select', show_index=True, table='d_calc', source=source,
@@ -260,6 +261,24 @@ def main_app(client='default'):
         filters=[filters['rates_fit_id'], filters['rates_state_name']]
                            )
     view_list.append(rates)
+
+
+    # LOSSES VIEW
+
+    f = MultiIndexSelectFilter(
+        field='fit_ID', name='losses_fit_id', table='losses', source=source
+    )
+    filters[f.name] = f
+    reset_index_transform_loss = ResetIndexTransform(name='reset_index_losses')
+    trs_list.append(reset_index_transform_loss)
+    opts = {'xlabel': "Epochs", 'ylabel': "Loss", **global_opts}
+    losses = hvPlotAppView(
+        source=source, name='losses', x='index', y='mse_loss', kind='line', # c='color'
+        table='losses', streaming=True, responsive=True, opts=opts,
+        transforms=[reset_index_transform_loss],
+        filters=[filters['losses_fit_id']]
+    )
+    view_list.append(losses)
 
     # PROTEIN NGL VIEW
     f = MultiIndexSelectFilter(
@@ -337,7 +356,8 @@ def main_app(client='default'):
             ),
             elvis.stack(
                 elvis.view(ctrl.views['Info log']),
-                elvis.view(ctrl.views['Debug log'])
+                elvis.view(ctrl.views['Debug log']),
+                elvis.view(ctrl.views['losses'])
             )
         )
         )
