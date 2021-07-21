@@ -39,50 +39,54 @@ def main_app(client='default'):
     client = default_client() if client == 'default' else client
     logger = main_app.logger
 
-    print('sup')
-
     # ---------------------------------------------------------------------- #
     #                                SOURCES
     # ---------------------------------------------------------------------- #
 
+    tables = {}
     col_index = pd.MultiIndex.from_tuples([], names=('state_name', 'quantity'))
-    df_peptides = pd.DataFrame(columns=col_index)
+    df = pd.DataFrame(columns=col_index)
+    tables['peptides'] = df
 
     col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
-    df_peptides_mse = pd.DataFrame(columns=col_index)
+    df = pd.DataFrame(columns=col_index)
     #df_peptides_mse.index.name = 'peptide index'
+    tables['peptides_mse'] = df
 
     # Very annoying and hopefully temporary long-form dataframe
     col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
-    df_d_calc = pd.DataFrame(columns=col_index)
+    df = pd.DataFrame(columns=col_index)
+    tables['d_calc'] = df
 
     col_index = pd.MultiIndex.from_tuples([], names=('state_name', 'exposure'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_rfu = pd.DataFrame(columns=col_index, index=row_index)
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['rfu'] = df
 
     col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_rates = pd.DataFrame(columns=col_index, index=row_index)
-    # todo make sure that proper-shaped df is used to initiate stream (and generalize for rectangles plot)
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['rates'] = df
 
     col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['global_fit'] = df
 
     col_index = pd.MultiIndex.from_tuples([], names=('color_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_colors = pd.DataFrame(columns=col_index, index=row_index)
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['colors'] = df
 
     # Availble tables are predefined at launch, but are empty
     # this way GUI methods can add to them as multiindex subset
-    # more tables can be added later by the gui
-    tables = {'peptides': df_peptides,
-              'peptides_mse': df_peptides_mse,
-              'd_calc': df_d_calc,
-              'rfu': df_rfu,
-              'rates': df_rates,
-              'global_fit': df_global_fit,
-              'colors': df_colors}
+    # tables = {'peptides': df_peptides,
+    #           'peptides_mse': df_peptides_mse,
+    #           'd_calc': df_d_calc,
+    #           'rfu': df_rfu,
+    #           'rates': df_rates,
+    #           'global_fit': df_global_fit,
+    #           'colors': df_colors}
     source = DataFrameSource(tables=tables, name='dataframe')
 
     #df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
