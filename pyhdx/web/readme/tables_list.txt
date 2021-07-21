@@ -1,0 +1,16 @@
+peptides: state_name, quantity
+
+peptides_mse: fit_ID, state_name, quantity
+
+d_calc: fit_ID, state_name, quantity
+
+rfu: state_name, exposure
+
+rates: fit_ID, state_name, quantity  # rename!
+
+global_fit: fit_ID, state_name, quantity
+
+losses: fit_ID, loss_type
+
+colors: color_ID, state_name, quantity
+
