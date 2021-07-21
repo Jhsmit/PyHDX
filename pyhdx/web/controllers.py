@@ -1277,7 +1277,6 @@ class GraphControl(ControlPanel):
     @param.depends('fit_id', watch=True)
     def _update_fit_id(self):
         elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id']  # coincidence?
-        print(self.fit_id)
         for elf in elves:
             filt = self.filters[elf]
             filt.value = self.fit_id
@@ -1285,7 +1284,6 @@ class GraphControl(ControlPanel):
     @param.depends('peptide_index', watch=True)
     def _update_peptide_index(self):
         hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
-        print(self.peptide_index)
         for hobbit in hobbits:
             filt = self.filters[hobbit]
             filt.value = self.peptide_index
@@ -1305,7 +1303,6 @@ class GraphControl(ControlPanel):
             ('self', ['debugging']),
             ('filters.deltaG_fit_id', None),
             ('filters.coverage_mse_fit_id', None),
-
         ]
 
     @param.depends('spin', watch=True)
