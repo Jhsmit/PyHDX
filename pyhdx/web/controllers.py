@@ -435,8 +435,8 @@ class CoverageControl(ControlPanel):
     @property
     def _layout(self):
         return [
-            ('filters.select_index', None),
-            ('filters.exposure_slider', None),
+            # ('filters.coverage_state_name', None),
+            # ('filters.coverage_exposure', None),
             ('opts.cmap', None),
             #('self', None)
         ]
@@ -1178,8 +1178,8 @@ class ProteinControl(ControlPanel):
     @property
     def _layout(self):
         return [('self', self.own_widget_names),
-                ('filters.select_index_colors_lv1', None),
-                ('filters.select_index_colors_lv2', None),
+                ('filters.ngl_color_id', None),
+                ('filters.ngl_state_name', None),
                 ]
 
     def make_dict(self):
@@ -1216,17 +1216,79 @@ class GraphControl(ControlPanel):
 
     spin = param.Boolean(default=False, doc='Spin the protein object')
 
+    state_name = param.Selector(doc="Name of the currently selected state")
+    fit_id = param.Selector(doc="Name of the currently selected fit ID")
+    peptide_index = param.Selector(doc="Index of the currently selected peptide")
+
+    def __init__(self, parent, **params):
+        super(GraphControl, self).__init__(parent, **params)
+        source = self.sources['dataframe']
+        source.param.watch(self._source_updated, 'updated')
+
     def make_dict(self):
         widgets = {
             'coverage': pn.pane.Markdown('### Coverage'),
             'rates': pn.pane.Markdown('### Rates'),
-            'gibbs': pn.pane.Markdown('### Gibbs'),
+            'general': pn.pane.Markdown('### General'),
             'coverage_mse': pn.pane.Markdown('### Coverage MSE'),
             'peptide': pn.pane.Markdown('### Peptide'),
-            'protein': pn.pane.Markdown('### Protein')
+            'debugging': pn.pane.Markdown('### Debugging'),
+            'd_calc': pn.pane.Markdown('### D calc')
         }
 
         return {**widgets, **self.generate_widgets()}
+
+    def _source_updated(self, *events):
+        source = self.sources['dataframe']
+        table = source.get('global_fit')
+        fit_id_options = list(table.columns.get_level_values(0).unique())
+        self.param['fit_id'].objects = fit_id_options
+        if not self.fit_id and fit_id_options:
+            self.fit_id = fit_id_options[0]
+
+        table = source.get('peptides')
+        state_name_options = list(table.columns.get_level_values(0).unique())
+
+        self.param['state_name'].objects = state_name_options
+        if not self.state_name and state_name_options:
+            self.state_name = state_name_options[0]
+
+    @param.depends('state_name', watch=True)
+    def _update_state_name(self):
+        dwarfs = ['coverage_state_name', 'coverage_mse_state_name', 'peptide_d_exp_state_name', 'peptide_d_calc_state_name',
+                  'deltaG_state_name', 'rates_state_name', 'ngl_state_name']  # there really are 7
+
+        # one filter to rule them all, one filter to find them,
+        # one filter to bring them all, and in the darkness bind them;
+        # in the Land of Mordor where the shadows lie.
+
+        for dwarf in dwarfs:
+            filt = self.filters[dwarf]
+            filt.value = self.state_name
+
+        source = self.sources['dataframe']
+        table = source.get('peptides')
+        unique_vals = table[self.state_name]['start_end'].unique()
+        peptide_options = list(range(len(unique_vals)))
+        self.param['peptide_index'].objects = peptide_options
+        if self.peptide_index is not None and peptide_options:
+            self.peptide_index = peptide_options[0]
+
+    @param.depends('fit_id', watch=True)
+    def _update_fit_id(self):
+        elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id']  # coincidence?
+        print(self.fit_id)
+        for elf in elves:
+            filt = self.filters[elf]
+            filt.value = self.fit_id
+
+    @param.depends('peptide_index', watch=True)
+    def _update_peptide_index(self):
+        hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
+        print(self.peptide_index)
+        for hobbit in hobbits:
+            filt = self.filters[hobbit]
+            filt.value = self.peptide_index
 
     @property
     def _layout(self):
@@ -1235,22 +1297,14 @@ class GraphControl(ControlPanel):
             # ('filters.select_index', None),
             # ('filters.exposure_slider', None),
             # ('opts.cmap', None),
-            ('self', ['rates']),
-            ('filters.select_index_rates_lv1', None),
-            ('filters.select_index_rates_lv2', None),
-            ('self', ['gibbs']),
-            ('filters.select_index_global_fit_lv1', None),
-            ('filters.select_index_global_fit_lv2', None),
-            ('self', ['coverage_mse']),
-            ('filters.multiindex_select_filter_peptides_mse_1', None),
-            ('filters.multiindex_select_filter_peptides_mse_2', None),
-            ('self', ['peptide']),
-            ('filters.peptide_select', None),
-            ('filters.peptide_multiindex_select', None),
-            ('filters.d_calc_multiindex_select_1', None),
-            ('filters.d_calc_multiindex_select_2', None),
-            ('filters.d_calc_select', None),
-            ('self', ['protein', 'spin'])
+            ('self', ['general']),
+            ('self', ['fit_id', 'state_name']),
+            ('self', ['coverage']),
+            ('filters.coverage_exposure', None),
+            ('self', ['peptide', 'peptide_index']),
+            ('self', ['debugging']),
+            ('filters.deltaG_fit_id', None),
+            ('filters.coverage_mse_fit_id', None),
 
         ]
 
