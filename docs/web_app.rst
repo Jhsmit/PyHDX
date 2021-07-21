@@ -1,8 +1,6 @@
 PyHDX web application
 =====================
 
-This section currently describes the web app for v0.3.2
-
 This section will describe a typical workflow of using the main web interface application. Detailed information on each
 parameter can be found in the web application reference docs :ref:`web-application-autodoc`. The web application consists of
 a sidebar with controls and input, divided into sections, and a main view area with graphs and visualization. We will
@@ -21,37 +19,54 @@ where each entry should at least have the entries of:
  - uptake (amount/mass (g/mol) of deuterium taken up by the peptide)
  - state (identifier to which 'state' the peptide/protein is in (ie ligands, experimental conditions)
 
-Currently the only data format accepted is exported 'state data' from Waters DynamX, which is .csv format. DynamX exposure
+Currently the only data format accepted is exported 'state data' from Waters DynamX, which is .csv format. Exposure
 time units is assumed to be minutes. Other data format support can be added on request (eg HDExaminer).
 
-Multiple files can be uploaded by using the 'Add File' button after which these files will be combined. Make sure there
-are no overlaps/clashes between 'state' entries when combining multiple files.
+Multiple files can be selected after which these files will be combined. Make sure there are no overlaps/clashes
+between 'state' entries when combining multiple files.
+
+Choose which method of back-exchange correction to use. Options are either to use using a fully deuterated sample or
+to set a fixed back-exchange percentage for all peptides. The latter method should only be used if no FD sample is
+available. A percentage to set here can be obtained by running a back-exchange control once on your setup.
+
+When selecting 'FD Sample', use the fields 'FD State' and 'FD Exposure' to choose which peptides from the input should be
+used as FD control. Note that these peptides will be matched to the ones in the experiment and peptides without control
+will not be included.
+
+Use the fields 'Experiment State' to choose the 'state' of your experiment. In 'Experiment Exposures' you can select
+which exposure times to add include the dataset.
 
 In the 'Drop first' entry the number of N-terminal residues for each peptides can be chosen which should be ignored when
 calculating the maximum uptake for each peptide as they are considered to fully exchange back. Prolines are ignored by
-default as they do not have exchangeable amide hydrogens. Next, specify the percentage of deuterium in the labelling
-solution. Then press 'Load Files'.
+default as they do not have exchangeable amide hydrogens.
 
-Next we need to specify how to correct for back-exchange. The recommended procedure is to use a fully deuterated (FD)
-sample prepared by incubation in the deuterated solution for extended time periods or under denaturating conditions.
-To do so, select the 'state' and 'exposure' fields of your FD sample under 'FD State' and 'FD Exposure'. Alternatively,
-it is possible to set a fixed percentage of back-exchange by switching from experimental (Exp) to theoretical (Theory).
+Next, specify the percentage of deuterium in the labelling solution as well as in the FD control labelling solution. There
+percentages should be as close as possible to eachother and as high as possible, typically >85%.
+Add the temperature (in Kelvin) and the pH at which the D-labelling was done. This is the pH as read from the pH meter
+without any correction.
 
-Now under 'Experiment State' and 'Experiment Exposures' choose which state and timepoints to process.
+The next two fields specify the residue number indices of the N-terminal and C-terminal residues, respectively. For the
+N-terminal this value is typically equal to 1, but if N-terminal affinity tags are used for purification this might be a
+negative number. The value specified should match with the residue indices used in in the input .csv file. The C-term value
+tells the software at which index the C-terminal of the protein is, as it is possible that the protein extends beyond the
+last residue included in any peptide and as the C-term exhibits different intrinsic rates of exchanges this needs to be
+taken into account.
 
-As the C-terminal residue in the protein experiences different intrinsic uptake kinetics, it is important to indicate which
-residue index is the C-terminal residue. This should be the C-terminal index of the protein as used in the experiment, so
-if C-terminal pufification tags are used this should be included.
-
-Press 'Parse' to load the data and apply back-exchange corrections.
+Finally, specify a name of the dataset, by default equal to the 'state' value and press 'Add dataset' to add the dataset.
+Datasets currently cannot be removed, if you want to remove datasets, press the browser 'refresh' button to start over.
 
 Coverage
 ````````
+
 In the 'Coverage' figure in the main application area rectangles should show corresponding to the peptides of a single
 timepoint. Peptides are only included if they are in both all the timepoints as well as in the fully deuterated control
-sample. Under 'Coverage' in the sidebar the coverage graph can be controlled by specifying how many peptides to plot
-vertically, which color map to use, which timepoint to show (using the slider) and which timepoint (Exposure) is
-currently shown.
+sample. Under 'Coverage' in the sidebar, part of the coverage graph can be controlled, by specifying which color map to use.
+Controls for choosing which 'state' to display and which exposure time can be found under Graph Cont
+
+..
+    #how many peptides to plot
+    vertically, which color map to use, which timepoint to show (using the slider) and which timepoint (Exposure) is
+    currently shown.
 
 By hovering the mouse over the peptides in the graph, more information is shown about each peptide:
 
