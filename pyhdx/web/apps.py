@@ -193,13 +193,13 @@ def main_app(client='default'):
         filters=[multiindex_select_d_calc_filter_1])
 
     # link to the other
-   # multiindex_select_peptides_filter.widget.link(multiindex_select_d_calc_filter_2, value='value')
+    multiindex_select_peptides_filter.widget.link(multiindex_select_d_calc_filter_2, value='value', bidirectional=True)
 
     d_calc_select_filter = UniqueValuesFilter(
         field='start_end', name='d_calc_select', show_index=True, table='d_calc',
         filters=[multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2], source=source)
 
-    #peptide_select_filter.widget.link(d_calc_select_filter, value='value')
+    peptide_select_filter.widget.link(d_calc_select_filter, value='value', bidirectional=True)
 
     filter_list += [multiindex_select_d_calc_filter_1, multiindex_select_d_calc_filter_2, d_calc_select_filter]
 
