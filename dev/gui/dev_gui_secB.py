@@ -97,14 +97,14 @@ def init_dashboard():
     file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
     file_input._action_add_dataset()
 
-#     initial_guess = ctrl.control_panels['InitialGuessControl']
-#     #initial_guess.fitting_model = 'Association'
-# #
-#     initial_guess._action_fit()
+    initial_guess = ctrl.control_panels['InitialGuessControl']
+    #initial_guess.fitting_model = 'Association'
+#
+    initial_guess._action_fit()
 #
     fit_control = ctrl.control_panels['FitControl']
     fit_control.epochs = 10
-#
+# #
 #     fit_control.fit_mode = 'Batch'
 #     fit_control._action_fit()
 #     fit_control._do_fitting()
@@ -125,7 +125,7 @@ def init_dashboard():
 
 #if __name__ == '__main__':
 #pn.state.onload(reload_dashboard)
-#pn.state.onload(init_dashboard)
+pn.state.onload(init_dashboard)
 
 pn.serve(ctrl.template, show=True
          , static_dirs={'pyhdx': STATIC_DIR})
