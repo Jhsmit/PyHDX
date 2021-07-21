@@ -35,8 +35,8 @@ def estimate_errors(hdxm, deltaG):
 
     Parameters
     ----------
-    hdxm: HDXMeasurement
-    deltaG: numpy array
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
+    deltaG : :class:`~numpy.ndarray`
         Array with deltaG values.
 
     Returns
@@ -72,7 +72,7 @@ class TorchFitResult(object):
     Parameters
     ----------
 
-    data_obj: HDXMeasurement or HDXMeasurementSet
+    data_obj : :class:`~pyhdx.models.HDXMeasurement` or :class:`~pyhdx.models.HDXMeasurementSet`
     model
     **metdata
 
@@ -105,17 +105,17 @@ class TorchFitResult(object):
 
     @property
     def reg_loss(self):
-        """obj:`float`: Losses from regularization part of Lagrangian"""
+        """:obj:`float`: Losses from regularization part of Lagrangian"""
         return self.total_loss - self.mse_loss
 
     @property
     def regularization_percentage(self):
-        """obj:`float`: Percentage part of the total loss that is regularization loss"""
+        """:obj:`float`: Percentage part of the total loss that is regularization loss"""
         return (self.reg_loss / self.total_loss) * 100
 
     @property
     def deltaG(self):
-        """output deltaG as pandas series or as pandas dataframe
+        """output deltaG as :class:`~pandas.Series` or as :class:`~pandas.DataFrame`
 
         index is residue numbers
         """
@@ -134,8 +134,8 @@ class TorchFitResult(object):
 
         Parameters
         ----------
-        hdxm HDXMeasreuement
-        deltaG pandas series with r_number as index
+        hdxm : :class:`~pyhdx.models.HDXMeasurement`
+        deltaG : :class:`~pandas.Series` with r_number as index
 
         Returns
         -------
@@ -224,21 +224,3 @@ class TorchBatchFitResult(TorchFitResult):
 
             output = self.model(*inputs)
         return output.detach().numpy()
-
-
-
-if __name__ == '__main__':
-    print('hoi')
-    import numpy as np
-    import pandas as pd
-    data = np.random.rand(100)
-    pd_s = pd.Series(data)
-    g = t.nn.Parameter(t.tensor(pd_s).unsqueeze(-1))
-    print(g.shape)
-    module = DeltaGFit(g)
-    print(module)
-    print(module.__class__)
-    print(type(module).__name__)
-
-    g_new = vars()['DeltaGFit'](g)
-    print(g_new)

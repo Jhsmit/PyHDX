@@ -22,7 +22,7 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
     Parameters
     ----------
     file_paths : :obj:`iterable`
-        File path of the .csv file or StringIO object
+        File path of the .csv file or :class:`~io.StringIO` object
     intervals : :obj:`tuple`
         Format of how start and end intervals are specified.
     time_unit : :obj:`str`
@@ -71,6 +71,7 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
 
 def read_header(file_obj, comment='#'):
     header = []
+
     while True:
         line = file_obj.readline()
         if line.startswith(comment):
