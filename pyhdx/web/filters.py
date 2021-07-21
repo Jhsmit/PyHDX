@@ -143,6 +143,8 @@ class MultiIndexSelectFilter(WebAppWidgetFilter):
 
     _widget = pn.widgets.Select
 
+    #todo allow for none/wildcard (for losses)
+
     def __init__(self, **params):
         super().__init__(**params)
         #todo this is already done in superclass

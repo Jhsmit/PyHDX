@@ -274,11 +274,20 @@ def main_app(client='default'):
     opts = {'xlabel': "Epochs", 'ylabel': "Loss", **global_opts}
     losses = hvPlotAppView(
         source=source, name='losses', x='index', y='mse_loss', kind='line', # c='color'
-        table='losses', streaming=True, responsive=True, opts=opts,
+        table='losses', streaming=True, responsive=True, opts=opts, label='mse',
         transforms=[reset_index_transform_loss],
         filters=[filters['losses_fit_id']]
     )
     view_list.append(losses)
+    opts = {'color': 'r', **opts}
+    reg_losses = hvPlotAppView(
+        source=source, name='reg_losses', x='index', y='reg_loss', kind='line',
+        table='losses', streaming=True, responsive=True, opts=opts, label='reg',
+        transforms=[reset_index_transform_loss],
+        filters=[filters['losses_fit_id']]
+    )
+    view_list.append(reg_losses)
+
 
     # PROTEIN NGL VIEW
     f = MultiIndexSelectFilter(
@@ -357,7 +366,8 @@ def main_app(client='default'):
             elvis.stack(
                 elvis.view(ctrl.views['Info log']),
                 elvis.view(ctrl.views['Debug log']),
-                elvis.view(ctrl.views['losses'])
+                elvis.view([ctrl.views['losses'], ctrl.views['reg_losses']], title='losses')
+                #elvis.view(ctrl.views['losses'])
             )
         )
         )

@@ -1286,7 +1286,7 @@ class GraphControl(ControlPanel):
 
     @param.depends('fit_id', watch=True)
     def _update_fit_id(self):
-        elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id']  # coincidence?
+        elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id', 'losses_fit_id']
         for elf in elves:
             filt = self.filters[elf]
             filt.value = self.fit_id
