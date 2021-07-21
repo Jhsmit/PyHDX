@@ -397,6 +397,7 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.param.trigger('data_objects')  # Trigger update
 
         df = pd.DataFrame(hdxm.full_data)
+        df['start_end'] = [str(s) + '_' + str(e) for s, e in zip(df['start'], df['end'])]
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'peptides', self.dataset_name)
 
@@ -404,7 +405,6 @@ class PeptideFileInputControl(ControlPanel):
         df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'rfu', self.dataset_name)
-
 
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')
@@ -435,8 +435,8 @@ class CoverageControl(ControlPanel):
     @property
     def _layout(self):
         return [
-            ('filters.select_index', None),
-            ('filters.exposure_slider', None),
+            # ('filters.coverage_state_name', None),
+            # ('filters.coverage_exposure', None),
             ('opts.cmap', None),
             #('self', None)
         ]
@@ -542,7 +542,7 @@ class InitialGuessControl(ControlPanel):
         dfs = [result.output.df for result in results]
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(self.parent.data_objects.keys()),
-                                     names=['state', 'quantity'])
+                                     names=['state_name', 'quantity'])
 
         self.sources['dataframe'].add_df(combined_results, 'rates', name)
         self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
@@ -653,15 +653,71 @@ class FitControl(ControlPanel):
 
         self.parent.logger.info(f'Finished PyTorch fit: {name}')
 
+        # List of single fit results
         if isinstance(result, list):
             self.parent.fit_results[name] = list(result)
             output_dfs = {fit_result.data_obj.name: fit_result.output.df for fit_result in result}
             df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
-        else:
+
+            # create mse losses dataframe
+            dfs = {}
+            for single_result in result:
+            # Determine mean squared errors per peptide, summed over timepoints
+                mse = single_result.get_mse()
+                mse_sum = np.sum(mse, axis=1)
+                peptide_data = single_result.data_obj[0].data
+                data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum}
+                dfs[single_result.data_obj.name] = pd.DataFrame(data_dict)
+            mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
+
+        #todo d calc for single fits
+        #todo losses for single fits
+
+        else:  # one batchfit result
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
             df = result.output.df
+            # df.index.name = 'peptide index'
+
+            # Create MSE losses df (per peptide, summed over timepoints)
+            # -----------------------
+            mse = result.get_mse()
+            dfs = {}
+            for mse_sample, hdxm in zip(mse, result.data_obj):
+                peptide_data = hdxm[0].data
+                mse_sum = np.sum(mse_sample, axis=1)
+                # Indexing of mse_sum with Np to account for zero-padding
+                data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum[:hdxm.Np]}
+                dfs[hdxm.name] = pd.DataFrame(data_dict)
+
+            mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
 
             self.parent.logger.info('Finished PyTorch fit')
+
+            # Create d_calc dataframe
+            # -----------------------
+            tp_flat = result.data_obj.timepoints.flatten()
+            elem = tp_flat[np.nonzero(tp_flat)]
+            elem.min(), elem.max()
+
+            time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
+            stacked = np.stack([time_vec for i in range(result.data_obj.Ns)])
+            d_calc = result(stacked)
+
+            state_dfs = {}
+            for hdxm, d_calc_state in zip(result.data_obj, d_calc):
+                peptide_dfs = []
+                pm_data = hdxm[0].data
+                for d_peptide, pm_row in zip(d_calc_state, pm_data):
+                    peptide_id = f"{pm_row['start']}_{pm_row['end']}"
+                    data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
+                    peptide_dfs.append(pd.DataFrame(data_dict))
+                state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
+            d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
+
+            # Create losses/epoch dataframe
+            # -----------------------------
+
+            losses_df = result.losses
 
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
@@ -669,6 +725,12 @@ class FitControl(ControlPanel):
                                     f"({result.regularization_percentage:.1f}%)")
 
         self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
+        self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
+        self.parent.sources['dataframe'].add_df(d_calc_df, 'd_calc', names=[name])
+        self.parent.sources['dataframe'].add_df(losses_df, 'losses', names=[name])
+
+
+
         self.parent.param.trigger('fit_results')
 
     def _action_fit(self):
@@ -1126,8 +1188,8 @@ class ProteinControl(ControlPanel):
     @property
     def _layout(self):
         return [('self', self.own_widget_names),
-                ('filters.select_index_colors_lv1', None),
-                ('filters.select_index_colors_lv2', None),
+                ('filters.ngl_color_id', None),
+                ('filters.ngl_state_name', None),
                 ]
 
     def make_dict(self):
@@ -1164,15 +1226,77 @@ class GraphControl(ControlPanel):
 
     spin = param.Boolean(default=False, doc='Spin the protein object')
 
+    state_name = param.Selector(doc="Name of the currently selected state")
+    fit_id = param.Selector(doc="Name of the currently selected fit ID")
+    peptide_index = param.Selector(doc="Index of the currently selected peptide")
+
+    def __init__(self, parent, **params):
+        super(GraphControl, self).__init__(parent, **params)
+        source = self.sources['dataframe']
+        source.param.watch(self._source_updated, 'updated')
+
     def make_dict(self):
         widgets = {
             'coverage': pn.pane.Markdown('### Coverage'),
             'rates': pn.pane.Markdown('### Rates'),
-            'gibbs': pn.pane.Markdown('### Gibbs'),
-            'protein': pn.pane.Markdown('### Protein')
+            'general': pn.pane.Markdown('### General'),
+            'coverage_mse': pn.pane.Markdown('### Coverage MSE'),
+            'peptide': pn.pane.Markdown('### Peptide'),
+            'debugging': pn.pane.Markdown('### Debugging'),
+            'd_calc': pn.pane.Markdown('### D calc')
         }
 
         return {**widgets, **self.generate_widgets()}
+
+    def _source_updated(self, *events):
+        source = self.sources['dataframe']
+        table = source.get('global_fit')
+        fit_id_options = list(table.columns.get_level_values(0).unique())
+        self.param['fit_id'].objects = fit_id_options
+        if not self.fit_id and fit_id_options:
+            self.fit_id = fit_id_options[0]
+
+        table = source.get('peptides')
+        state_name_options = list(table.columns.get_level_values(0).unique())
+
+        self.param['state_name'].objects = state_name_options
+        if not self.state_name and state_name_options:
+            self.state_name = state_name_options[0]
+
+    @param.depends('state_name', watch=True)
+    def _update_state_name(self):
+        dwarfs = ['coverage_state_name', 'coverage_mse_state_name', 'peptide_d_exp_state_name', 'peptide_d_calc_state_name',
+                  'deltaG_state_name', 'rates_state_name', 'ngl_state_name']  # there really are 7
+
+        # one filter to rule them all, one filter to find them,
+        # one filter to bring them all, and in the darkness bind them;
+        # in the Land of Mordor where the shadows lie.
+
+        for dwarf in dwarfs:
+            filt = self.filters[dwarf]
+            filt.value = self.state_name
+
+        source = self.sources['dataframe']
+        table = source.get('peptides')
+        unique_vals = table[self.state_name]['start_end'].unique()
+        peptide_options = list(range(len(unique_vals)))
+        self.param['peptide_index'].objects = peptide_options
+        if self.peptide_index is not None and peptide_options:
+            self.peptide_index = peptide_options[0]
+
+    @param.depends('fit_id', watch=True)
+    def _update_fit_id(self):
+        elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id', 'losses_fit_id']
+        for elf in elves:
+            filt = self.filters[elf]
+            filt.value = self.fit_id
+
+    @param.depends('peptide_index', watch=True)
+    def _update_peptide_index(self):
+        hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
+        for hobbit in hobbits:
+            filt = self.filters[hobbit]
+            filt.value = self.peptide_index
 
     @property
     def _layout(self):
@@ -1181,14 +1305,14 @@ class GraphControl(ControlPanel):
             # ('filters.select_index', None),
             # ('filters.exposure_slider', None),
             # ('opts.cmap', None),
-            ('self', ['rates']),
-            ('filters.select_index_rates_lv1', None),
-            ('filters.select_index_rates_lv2', None),
-            ('self', ['gibbs']),
-            ('filters.select_index_global_fit_lv1', None),
-            ('filters.select_index_global_fit_lv2', None),
-            ('self', ['protein', 'spin'])
-
+            ('self', ['general']),
+            ('self', ['fit_id', 'state_name']),
+            ('self', ['coverage']),
+            ('filters.coverage_exposure', None),
+            ('self', ['peptide', 'peptide_index']),
+            ('self', ['debugging']),
+            ('filters.deltaG_fit_id', None),
+            ('filters.coverage_mse_fit_id', None),
         ]
 
     @param.depends('spin', watch=True)
@@ -1210,6 +1334,9 @@ class FileExportControl(ControlPanel):
 
     header = "File Export"
     table = param.Selector(label='Target dataset', doc='Name of the dataset to export')
+    export_format = param.Selector(default='csv', objects=['csv', 'pprint'],
+                                   doc="Format of the exported tables."
+                                       "'csv' is machine-readable, 'pprint' is human-readable format")
     #todo add color param an dlink with protein viewer color
 
     def __init__(self, parent, **param):
@@ -1246,7 +1373,8 @@ class FileExportControl(ControlPanel):
     def _table_updated(self):
         self.df = self.sources['dataframe'].get(self.table)
 
-        self.widgets['export_tables'].filename = self.table + '.txt'
+        ext = '.csv' if self.export_format == 'csv' else '.txt'
+        self.widgets['export_tables'].filename = self.table + ext
 
         if self.table == 'colors':
             self.widgets['export_pml'].disabled = False
@@ -1274,7 +1402,7 @@ class FileExportControl(ControlPanel):
     @pn.depends('table')  # param.depends?
     def table_export_callback(self):
         if self.table:
-            io = dataframe_to_stringio(self.df)
+            io = dataframe_to_stringio(self.df, fmt=self.export_format)
             return io
         else:
             return None
@@ -1875,6 +2003,17 @@ class DeveloperControl(ControlPanel):
         control_panels = main_ctrl.control_panels
         views = main_ctrl.views
         sources = main_ctrl.sources
+
+        mse_view = views['coverage_mse']
+        data = mse_view.get_data()
+        print('mse')
+        print(data)
+
+        coverage_view = views['coverage']
+        data = coverage_view.get_data()
+        print('coverage')
+        print(data)
+
 
         print('Time for a break')
 

@@ -43,34 +43,55 @@ def main_app(client='default'):
     #                                SOURCES
     # ---------------------------------------------------------------------- #
 
-    col_index = pd.MultiIndex.from_tuples([], names=('state', 'quantity'))
-    df_peptides = pd.DataFrame(columns=col_index)
+    tables = {}
+    col_index = pd.MultiIndex.from_tuples([], names=('state_name', 'quantity'))
+    df = pd.DataFrame(columns=col_index)
+    tables['peptides'] = df
 
-    col_index = pd.MultiIndex.from_tuples([], names=('state', 'exposure'))
-    row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_rfu = pd.DataFrame(columns=col_index, index=row_index)
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
+    df = pd.DataFrame(columns=col_index)
+    #df_peptides_mse.index.name = 'peptide index'
+    tables['peptides_mse'] = df
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
-    row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_rates = pd.DataFrame(columns=col_index, index=row_index)
-    # todo make sure that proper-shaped df is used to initiate stream (and generalize for rectangles plot)
+    # Very annoying and hopefully temporary long-form dataframe
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
+    df = pd.DataFrame(columns=col_index)
+    tables['d_calc'] = df
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('state_name', 'exposure'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_global_fit = pd.DataFrame(columns=col_index, index=row_index)
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['rfu'] = df
 
-    col_index = pd.MultiIndex.from_tuples([], names=('color_ID', 'state', 'quantity'))
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
     row_index = pd.RangeIndex(0, 1, name='r_number')
-    df_colors = pd.DataFrame(columns=col_index, index=row_index)
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['rates'] = df
+
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'quantity'))
+    row_index = pd.RangeIndex(0, 1, name='r_number')
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['global_fit'] = df
+
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'loss_type'))
+    row_index = pd.RangeIndex(0, 1, name='epochs')
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['losses'] = df
+
+    col_index = pd.MultiIndex.from_tuples([], names=('color_ID', 'state_name', 'quantity'))
+    row_index = pd.RangeIndex(0, 1, name='r_number')
+    df = pd.DataFrame(columns=col_index, index=row_index)
+    tables['colors'] = df
 
     # Availble tables are predefined at launch, but are empty
     # this way GUI methods can add to them as multiindex subset
-    # more tables can be added later by the gui
-    tables = {'peptides': df_peptides,
-              'rfu': df_rfu,
-              'rates': df_rates,
-              'global_fit': df_global_fit,
-              'colors': df_colors}
+    # tables = {'peptides': df_peptides,
+    #           'peptides_mse': df_peptides_mse,
+    #           'd_calc': df_d_calc,
+    #           'rfu': df_rfu,
+    #           'rates': df_rates,
+    #           'global_fit': df_global_fit,
+    #           'colors': df_colors}
     source = DataFrameSource(tables=tables, name='dataframe')
 
     #df = csv_to_dataframe(data_dir / 'ecSecB_apo_peptides.csv')
@@ -88,42 +109,110 @@ def main_app(client='default'):
     # norm = mpl.colors.Normalize(vmin=0, vmax=20)
     # cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG')
 
-    peptides_transform = PeptideLayoutTransform(value='rfu')
+    peptides_transform = PeptideLayoutTransform(
+        value='rfu', name='trs_peptides',
+        passthrough=['uptake', 'uptake_corrected', 'sequence', 'uptake_corrected', 'ex_residues']
+    )
+    peptides_mse_transform = PeptideLayoutTransform(value='total_mse', name='trs_peptides_mse')
+    reset_index_transform = ResetIndexTransform(name='reset_index_trs')
 
-    reset_index_transform = ResetIndexTransform()
+    trs_list = [peptides_transform, peptides_mse_transform, reset_index_transform]
 
-    trs_list = [peptides_transform, reset_index_transform]
-
-    # ---------------------------------------------------------------------- #
-    #                                FILTERS
-    # ---------------------------------------------------------------------- #
-
-    # unique_vals = list(np.sort(peptides_source.get_unique(table='peptides', field='exposure')))
-    multiindex_select_filter = MultiIndexSelectFilter(field='state', name='select_index', table='peptides',
-                                                      source=source)
-
-    # unique_vals = list(np.sort(source.get_unique(table='peptides', field='exposure', state='ecSecB_apo')))
-    slider_exposure_filter = UniqueValuesFilter(field='exposure', name='exposure_slider',
-                                                table='peptides', filters=[multiindex_select_filter], source=source)
-
-    filter_list = [multiindex_select_filter, slider_exposure_filter]
-
-    # ---------------------------------------------------------------------- #
-    #                                OPTS
-    # ---------------------------------------------------------------------- #
-
-    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 1), 'framewise': True,
-                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, **global_opts}
-    cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
-
-    opts_list = [cmap_opts]
 
     # ---------------------------------------------------------------------- #
     #                                VIEWS
     # ---------------------------------------------------------------------- #
 
     view_list = []
+    filters = {}
+    # COVERAGE PEPTIDES VIEW
+    f = MultiIndexSelectFilter(
+        field='state_name', name='coverage_state_name', table='peptides', source=source)
+    filters[f.name] = f
 
+    f = UniqueValuesFilter(
+        field='exposure', name='coverage_exposure', table='peptides', source=source,
+        filters=[filters['coverage_state_name']])
+    filters[f.name] = f
+
+    hover = HoverTool(tooltips=[("index", "@index"), ('rfu', '@value (@uptake_corrected D)'),
+                                ('sequence', '@sequence')])
+    additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 1), 'framewise': True,
+                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': [hover], **global_opts}
+    cmap_opts = CmapOpts(opts=additional_opts, name='cmap')
+
+    opts_list = [cmap_opts]
+
+    coverage = hvRectangleAppView(
+        source=source, name='coverage', table='peptides', opts=cmap_opts.opts, streaming=True,
+        transforms=[peptides_transform],
+        filters=[filters['coverage_state_name'], filters['coverage_exposure']])
+    view_list.append(coverage)
+
+    # # COVERAGE PEPTIDES MSE VIEW
+    f = MultiIndexSelectFilter(
+        field='fit_ID', name='coverage_mse_fit_id', table='peptides_mse', source=source)
+    filters[f.name] = f
+
+    f = MultiIndexSelectFilter(
+        field='state_name', name='coverage_mse_state_name', table='peptides_mse', source=source,
+        filters=[filters['coverage_mse_fit_id']])
+    filters[f.name] = f
+
+    hover = HoverTool(tooltips=[("index", "@index"), ('mse', '@value')])
+    additional_opts_mse = {'color': 'value', 'colorbar': True, 'responsive': True, 'framewise': True,
+                       'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': [hover], **global_opts}
+    cmap_mse_opts = CmapOpts(opts=additional_opts_mse, name='cmap_peptides_mse')
+    coverage_mse = hvRectangleAppView(
+        source=source, name='coverage_mse', table='peptides_mse', opts=cmap_mse_opts.opts, streaming=True,
+        transforms=[peptides_mse_transform],
+        filters=[filters['coverage_mse_fit_id'], filters['coverage_mse_state_name']])
+    view_list.append(coverage_mse)
+
+    # PEPTIDES VIEW vs time D_EXP
+    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', **global_opts}
+
+    f = MultiIndexSelectFilter(
+        field='state_name', name='peptide_d_exp_state_name', table='peptides', source=source)
+    filters[f.name] = f
+
+    f = UniqueValuesFilter(
+        field='start_end', name='peptide_d_exp_select', show_index=True, table='peptides', source=source,
+        filters=[filters['peptide_d_exp_state_name']])
+    filters[f.name] = f
+
+    peptide_view = hvPlotAppView(
+        source=source, name='peptide_view', table='peptides', streaming=True, kind='scatter',
+        x='exposure', y='uptake_corrected', responsive=True, opts=opts,
+        filters=[filters['peptide_d_exp_state_name'], filters['peptide_d_exp_select']])
+    view_list.append(peptide_view)
+
+
+    # PEPTIDES VIEW vs time D_CALC
+    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', **global_opts}
+
+    f = MultiIndexSelectFilter(
+        field='fit_ID', name='peptide_d_calc_fit_id', table='d_calc', source=source)
+    filters[f.name] = f
+
+    f = MultiIndexSelectFilter(
+        field='state_name', name='peptide_d_calc_state_name', table='d_calc', source=source,
+        filters=[filters['peptide_d_calc_fit_id']])
+    filters[f.name] = f
+
+    f = UniqueValuesFilter(
+        field='start_end', name='peptide_d_calc_select', show_index=True, table='d_calc', source=source,
+        filters=[filters['peptide_d_calc_fit_id'], filters['peptide_d_calc_state_name']])
+    filters[f.name] = f
+
+    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', 'color': 'r', **global_opts}
+    d_calc_view = hvPlotAppView(
+        source=source, name='d_calc_view', table='d_calc', streaming=True, kind='line',
+        x='timepoints', y='d_calc', responsive=True, opts=opts,
+        filters=[filters['peptide_d_calc_fit_id'], filters['peptide_d_calc_state_name'], filters['peptide_d_calc_select']])
+    view_list.append(d_calc_view)
+
+    # DELTA G VIEW
     rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
 
     cmap = mpl.cm.get_cmap('viridis')
@@ -133,54 +222,92 @@ def main_app(client='default'):
     trs_list.append(rescale_transform)
     trs_list.append(cmap_transform)
 
-    multiindex_select_global_fit_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_global_fit_lv1', table='global_fit',
-                                                       source=source)
-    multiindex_select_global_fit_2 = MultiIndexSelectFilter(field='state', name='select_index_global_fit_lv2', table='global_fit',
-                                                       source=source, filters=[multiindex_select_global_fit_1])
+    f = MultiIndexSelectFilter(
+        field='fit_ID', name='deltaG_fit_id', table='global_fit', source=source)
+    filters[f.name] = f
 
-    filter_list += [multiindex_select_global_fit_1, multiindex_select_global_fit_2]
+    f = MultiIndexSelectFilter(
+        field='state_name', name='deltaG_state_name', table='global_fit', source=source,
+        filters=[filters['deltaG_fit_id']])
+    filters[f.name] = f
 
     opts = {'xlabel': 'Residue Number', 'ylabel': 'ΔG (kJ mol⁻¹)', 'colorbar': False,  **global_opts}
-    deltaG = hvPlotAppView(source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
-                           table='global_fit', transforms=[cmap_transform, rescale_transform], streaming=True,
-                           filters=[multiindex_select_global_fit_1, multiindex_select_global_fit_2],
-                           responsive=True, opts=opts) #issue 154: deltaG units
+    deltaG = hvPlotAppView(
+        source=source, name='gibbs', x='r_number', y='deltaG', kind='scatter', c='color',
+        table='global_fit', streaming=True, responsive=True, opts=opts,
+        transforms=[cmap_transform, rescale_transform],
+        filters=[filters['deltaG_fit_id'], filters['deltaG_state_name']],) #issue 154: deltaG units (Shady)
 
     view_list.append(deltaG)
 
-    coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
-                                  streaming=True,
-                                  transforms=[peptides_transform],
-                                  filters=[multiindex_select_filter, slider_exposure_filter])
-    view_list.append(coverage)
 
-    multiindex_select_rates_1 = MultiIndexSelectFilter(field='fit_ID', name='select_index_rates_lv1', table='rates',
-                                                       source=source)
-    multiindex_select_rates_2 = MultiIndexSelectFilter(field='state', name='select_index_rates_lv2', table='rates',
-                                                       source=source, filters=[multiindex_select_rates_1])
+    # RATES VIEW
+    f = MultiIndexSelectFilter(
+        field='fit_ID', name='rates_fit_id', table='rates', source=source)
+    filters[f.name] = f
 
-    filter_list += [multiindex_select_rates_1, multiindex_select_rates_2]
+    f = MultiIndexSelectFilter(
+        field='state_name', name='rates_state_name', table='rates', source=source,
+        filters=[filters['rates_fit_id']])
+    filters[f.name] = f
+
     # perhaps consider derivedsource for the views
 
     opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)", 'colorbar': False, **global_opts}
-    rates = hvPlotAppView(source=source, name='rates', x='r_number', y='rate', kind='scatter', # c='color'
-                           table='rates', streaming=True, responsive=True, opts=opts,
-                          transforms=[reset_index_transform],
-                          filters=[multiindex_select_rates_1, multiindex_select_rates_2]
+    rates = hvPlotAppView(
+        source=source, name='rates', x='r_number', y='rate', kind='scatter', # c='color'
+        table='rates', streaming=True, responsive=True, opts=opts,
+        transforms=[reset_index_transform],
+        filters=[filters['rates_fit_id'], filters['rates_state_name']]
                            )
     view_list.append(rates)
 
 
-    multiindex_select_colors_1 = MultiIndexSelectFilter(field='color_ID', name='select_index_colors_lv1', table='colors',
-                                                       source=source)
-    multiindex_select_colors_2 = MultiIndexSelectFilter(field='state', name='select_index_colors_lv2', table='colors',
-                                                       source=source, filters=[multiindex_select_colors_1])
-    filter_list += [multiindex_select_colors_1, multiindex_select_colors_2]
-    protein_view = NGLView(source=source, name='protein', table='colors',
-                               filters=[multiindex_select_colors_1, multiindex_select_colors_2]
-                               )
+    # LOSSES VIEW
+
+    f = MultiIndexSelectFilter(
+        field='fit_ID', name='losses_fit_id', table='losses', source=source
+    )
+    filters[f.name] = f
+    reset_index_transform_loss = ResetIndexTransform(name='reset_index_losses')
+    trs_list.append(reset_index_transform_loss)
+    opts = {'xlabel': "Epochs", 'ylabel': "Loss", **global_opts}
+    losses = hvPlotAppView(
+        source=source, name='losses', x='index', y='mse_loss', kind='line', # c='color'
+        table='losses', streaming=True, responsive=True, opts=opts, label='mse',
+        transforms=[reset_index_transform_loss],
+        filters=[filters['losses_fit_id']]
+    )
+    view_list.append(losses)
+    opts = {'color': 'r', **opts}
+    reg_losses = hvPlotAppView(
+        source=source, name='reg_losses', x='index', y='reg_loss', kind='line',
+        table='losses', streaming=True, responsive=True, opts=opts, label='reg',
+        transforms=[reset_index_transform_loss],
+        filters=[filters['losses_fit_id']]
+    )
+    view_list.append(reg_losses)
+
+
+    # PROTEIN NGL VIEW
+    f = MultiIndexSelectFilter(
+        field='color_ID', name='ngl_color_id', table='colors', source=source
+    )
+    filters[f.name] = f
+
+    f = MultiIndexSelectFilter(
+        field='state_name', name='ngl_state_name', table='colors', source=source,
+        filters=[filters['ngl_color_id']]
+    )
+    filters[f.name] = f
+
+    protein_view = NGLView(
+        source=source, name='protein', table='colors',
+        filters=[filters['ngl_color_id'], filters['ngl_state_name']]
+    )
     view_list.append(protein_view)
 
+    # LOGGING VIEWS
     log_view = LoggingView(logger=logger, level=logging.INFO, name='Info log')
     debug_log_view = LoggingView(logger=logger, level=logging.DEBUG, name='Debug log')
     view_list.append(log_view)
@@ -188,7 +315,7 @@ def main_app(client='default'):
 
     sources = {src.name: src for src in src_list}
     transforms = {trs.name: trs for trs in trs_list}
-    filters = {filt.name: filt for filt in filter_list}
+    #filters = {filt.name: filt for filt in filter_list}
     views = {view.name: view for view in view_list}
     opts = {opt.name: opt for opt in opts_list}
 
@@ -197,9 +324,9 @@ def main_app(client='default'):
         CoverageControl,
         InitialGuessControl,
         FitControl,
-        ClassificationControl,
-        ProteinControl,
         GraphControl,
+        ProteinControl,
+        ClassificationControl,
         # FitResultControl,
         FileExportControl,
         # ProteinViewControl,
@@ -225,17 +352,22 @@ def main_app(client='default'):
 
     elvis.compose(ctrl, elvis.column(
         elvis.stack(
-            elvis.view(ctrl.views['protein']),
             elvis.view(ctrl.views['coverage']),
+            elvis.view(ctrl.views['protein']),
+            elvis.view(ctrl.views['coverage_mse'])
         ),
         elvis.row(
             elvis.stack(
                 elvis.view(ctrl.views['rates']),
                 elvis.view(ctrl.views['gibbs']),
+                elvis.view([ctrl.views['peptide_view'], ctrl.views['d_calc_view']], title='peptide'),
+                #elvis.view(ctrl.views['d_calc_view']),
             ),
             elvis.stack(
                 elvis.view(ctrl.views['Info log']),
-                elvis.view(ctrl.views['Debug log'])
+                elvis.view(ctrl.views['Debug log']),
+                elvis.view([ctrl.views['losses'], ctrl.views['reg_losses']], title='losses')
+                #elvis.view(ctrl.views['losses'])
             )
         )
         )
@@ -437,5 +569,31 @@ def main_app(client='default'):
 
 
 if __name__ == '__main__':
+    print('joe')
+
+    sys._excepthook = sys.excepthook
+
+    import traceback as tb
+    def my_exception_hook(exctype, value, traceback):
+        # Print the error and traceback
+
+        tb.print_tb(traceback, file=sys.stdout)
+        print(exctype, value, traceback)
+        print('whooo')
+
+        tb.print_stack()
+        print(traceback.format_exc())
+
+        print('whooo2')
+        # or
+        print(sys.exc_info()[2])
+        # Call the normal Exception hook after
+        sys._excepthook(exctype, value, traceback)
+        sys.exit(1)
+
+
+    # Set the exception hook to our wrapping function
+    sys.excepthook = my_exception_hook
+
     ctrl = main_app()
     pn.serve(ctrl.template, static_dirs={'pyhdx': STATIC_DIR})

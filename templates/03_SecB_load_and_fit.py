@@ -1,11 +1,12 @@
 """Load SecB HDX-MS data and guesses, perform global fit of gibbs free energy, save results to directory"""
 
+#%%
+
 from pathlib import Path
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
 from pyhdx.fileIO import csv_to_protein, save_fitresult
 from pyhdx.local_cluster import default_client
-from pyhdx.support import pprint_df_to_file
 
 guess = False
 
@@ -16,6 +17,7 @@ fit_kwargs = {
 }
 
 current_dir = Path(__file__).parent
+#current_dir = Path().cwd() / 'templates'  # pycharm scientific compat
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
 test_data_dir = current_dir.parent / 'tests' / 'test_data'

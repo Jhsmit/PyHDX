@@ -48,6 +48,8 @@ class DataFrameSource(Source):
         """
 
         # todo check if df already present, update?
+        # Todo check for name collisions between level and column names
+
 
         target_df = self.tables[table]
         df = df.copy()
@@ -78,6 +80,7 @@ class DataFrameSource(Source):
         df = self.tables[table]
 
         # This means querying a field with the same name as higher-levels columns is not possible
+        # Todo check for name collisions between level and column names
         while df.columns.nlevels > 1:
             selected_col = query.pop(df.columns.names[0], False)
             if selected_col:

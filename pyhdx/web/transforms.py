@@ -145,6 +145,7 @@ class PeptideLayoutTransform(Transform):
 
     height = param.Integer(1, doc="Height of the rectangles", constant=True)
     value = param.String('', doc="Optional field name to pass through as value column")
+    passthrough = param.List([], doc="Optional field names to pass through (for hovertools)")
 
     wrap = param.Integer(doc="Amount of peptides to plot on the y axis before wrapping around to y axis top")
     step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
@@ -168,5 +169,11 @@ class PeptideLayoutTransform(Transform):
 
         if self.value:
             output_table['value'] = table[self.value]
+
+        if self.passthrough:
+            for item in self.passthrough:
+                assert item not in ['value', 'index'], "Invalid field name, 'index' and 'value' names are reserved"
+                output_table[item] = table[item]
+        output_table['index'] = table.index
 
         return output_table

@@ -68,11 +68,8 @@ class TestSecBDataFit(object):
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
         assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
 
-        #These should perhaps be moved to fileIO tests
-
-
-
-
+        mse = fr_global.get_mse()
+        assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
     def test_batch_fit(self):
         hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
@@ -80,15 +77,15 @@ class TestSecBDataFit(object):
         guess = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
 
         gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
-        result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
+        fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
 
         with tempfile.TemporaryDirectory() as tempdir:
             fpath = Path(tempdir) / 'fit_result_batch.csv'
-            result.to_file(fpath)
+            fr_global.to_file(fpath)
             df = csv_to_dataframe(fpath)
-            assert df.attrs['metadata'] == result.metadata
+            assert df.attrs['metadata'] == fr_global.metadata
 
-        output = result.output
+        output = fr_global.output
 
         check_protein = csv_to_protein(directory / 'test_data' / 'ecSecB_batch.csv')
         states = ['SecB WT apo', 'SecB his dimer apo']
@@ -100,6 +97,9 @@ class TestSecBDataFit(object):
             test = check_protein[state]['deltaG']
 
             assert_series_equal(result, test, rtol=0.1)
+
+        mse = fr_global.get_mse()
+        assert mse.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
 
         mock_alignment = {
             'apo':   'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
@@ -120,3 +120,4 @@ class TestSecBDataFit(object):
             test = check_protein[state]['deltaG']
 
             assert_series_equal(result, test, rtol=0.1)
+

@@ -112,6 +112,8 @@ class hvRectangleAppView(View):
 
     def _get_params(self):
         df = self.get_data()
+        if df is None:
+            df = self.empty_df
 
         if self.streaming:
             from holoviews.streams import Pipe
@@ -124,7 +126,8 @@ class hvRectangleAppView(View):
             return super().get_data()
         except (KeyError, ValueError) as e:
             print(f'Empty data in {self.__class__}: {e}')
-            return self.empty_df
+            return None
+            #return self.empty_df
 
     def update(self, *events, invalidate_cache=True):
         """
@@ -158,7 +161,8 @@ class hvRectangleAppView(View):
         if not self.streaming or self._stream is None:
             upd = self._update_panel()
             return upd
-        self._stream.send(self.get_data())
+        if self.get_data() is not None:
+            self._stream.send(self.get_data())
         return False
 
 
