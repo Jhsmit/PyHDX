@@ -432,12 +432,12 @@ def series_to_pymol(pd_series):
 
     Parameters
     ----------
-    pd_series : pandas series
+    pd_series : :class:`~pandas.Series`
 
     Returns
     -------
 
-    s_out: :obj:`string`
+    s_out : :obj:`str`
 
     """
 
@@ -538,8 +538,8 @@ def pprint_df_to_file(df, file_path_or_obj):
 
     Parameters
     ----------
-    df: pandas dataframe
-    file_path_or_obj: string, Path or StringIO
+    df : :class:`~pandas.DataFrame`
+    file_path_or_obj : :obj:`str`, Path or :class:`~io.StringIO`
 
     """
     with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):  # more options can be specified also

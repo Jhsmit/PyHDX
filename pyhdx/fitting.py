@@ -33,11 +33,11 @@ def get_bounds(times):
 
     Parameters
     ----------
-    times: array_like
+    times : array_like
 
     Returns
     -------
-    bounds: :obj:`tuple`
+    bounds : :obj:`tuple`
         lower and upper bounds
 
     """
@@ -57,7 +57,7 @@ def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
 
     Parameters
     ----------
-    hdxm : HDXMeasurement
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
     model_type
     bounds tuple
 
@@ -106,13 +106,13 @@ def fit_rates_half_time_interpolate(hdxm):
     Parameters
     ----------
 
-    hdxm: HDXMeasurement
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
 
 
     Returns
     -------
 
-    output: :class:`~np.ndarray`
+    output: :class:`~numpy.ndarray`
         array with fields r_number, rate
 
     """
@@ -138,14 +138,14 @@ def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=0.20, model_type='as
 
     Parameters
     ----------
-    hdxm: HDXMeasurement
-    bounds: :obj:`tuple`, optional
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
+    bounds : :obj:`tuple`, optional
         Tuple of lower and upper bounds of rate constants in the model used.
-    chisq_thd: :obj:`float`
+    chisq_thd : :obj:`float`
         Threshold of chi squared result, values above will trigger a second round of fitting using DifferentialEvolution
-    model_type: :obj:`str`
+    model_type : :obj:`str`
         Missing docstring
-    client: : ??
+    client : : ??
         Controls delegation of fitting tasks to Dask clusters. Options are: `None`: Do not use task, fitting is done
         in the local thread in a for loop. :class: Dask Client : Uses the supplied Dask client to schedule fitting task.
         `worker_client`: The function was ran by a Dask worker and the additional fitting tasks created are scheduled
@@ -156,7 +156,7 @@ def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=0.20, model_type='as
     Returns
     -------
 
-    fit_result: KineticsFitResult
+    fit_result : :class:`~pyhdx.fitting.KineticsFitResult`
 
     """
     d_list, intervals, models = _prepare_wt_avg_fit(hdxm, model_type=model_type, bounds=bounds)
@@ -193,8 +193,8 @@ def fit_rates(hdxm, method='wt_avg', **kwargs):
 
     Parameters
     ----------
-    hdxm: HDXMeasurement
-    method: :obj:`str`
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
+    method : :obj:`str`
         Method to use to determine rates of exchange
     kwargs
         Additional kwargs passed to fitting
@@ -202,7 +202,7 @@ def fit_rates(hdxm, method='wt_avg', **kwargs):
     Returns
     -------
 
-    fit_result : class;KinetcisFitresult
+    fit_result : :class:`~pyhdx.fitting.KineticsFitResult`
 
     """
 
@@ -224,7 +224,7 @@ def fit_kinetics(t, d, model, chisq_thd=100):
         Array of time points
     d : :class:`~numpy.ndarray`
         Array of uptake values
-    model: fit_models.KineticsModel
+    model : :class:`~pyhdx.fit_models.KineticsModel`
     chisq_thd : :obj:`float`
         Threshold chi squared above which the fitting is repeated with the Differential Evolution algorithm.
 
@@ -291,24 +291,24 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
     Parameters
     ----------
-    inputs: :obj:`list`
+    inputs : :obj:`list`
         List of input Tensors
-    output_data: :class pytorch Tensor
+    output_data : :class:`~torch.Tensor`
         comparison data to model output
-    optimizer_klass: :class: pytorch optimizer
-    optimizer_kwargs : dict
+    optimizer_klass : :mod:`~torch.optim`
+    optimizer_kwargs : :obj:`dict`
         kwargs to pass to pytorch optimizer
-    model: torch.nn.Module
-        pytoch model
+    model : :class:`~torch.nn.Module`
+        pytorch model
     criterion: callable
         loss function
     regularizer callable
         regularizer function
-    epochs: :obj:`int`
+    epochs : :obj:`int`
         Max number of epochs
-    patience: :obj:`int`
+    patience : :obj:`int`
         Number of epochs with less progress than `stop_loss` before terminating optimization
-    stop_loss: :obj:`float`
+    stop_loss : :obj:`float`
         Threshold of optimization value below which no progress is made
 
     Returns
@@ -404,14 +404,14 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
 
     Parameters
     ----------
-    hdxm: HDXMeasurement
-    initial_guess: pd series or numpy array
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
+    initial_guess : :class:`~pandas.Series` or :class:`~numpy.ndarray`
         Gibbs free energy initial guesses (shape Nr)
-    r1: :obj:`float`
+    r1 : :obj:`float`
     epochs
     patience
     stop_loss
-    optimizer: :obj:`str`
+    optimizer : :obj:`str`
     optimizer_kwargs
 
     Returns
@@ -464,7 +464,7 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
 
     Parameters
     ----------
-    hdx_set: HDXMeasurementSet
+    hdx_set : :class:`~pyhdx.models.HDXMeasurementSet`
     initial_guess
     r1
     r2
@@ -503,7 +503,7 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=10
 
     Parameters
     ----------
-    hdx_set
+    hdx_set : :class:`~pyhdx.models.HDXMeasurement`
     initial_guess
     r1
     r2
@@ -591,7 +591,7 @@ class KineticsFitResult(object):
     Parameters
     ----------
 
-    hdxm: HDXMeasurement
+    hdxm : :class:`~pyhdx.models.HDXMeasurement`
     intervals:
     results:
     models:

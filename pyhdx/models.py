@@ -35,7 +35,7 @@ class Protein(object):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray` or dict or dataframe
+    data : :class:`~numpy.ndarray` or :obj:`dict` or :class:`~pandas.DataFrame`
         data object to initiate the protein object from
     index : :obj:`str`, optional
         Name of the column with the residue number (index column)
@@ -103,7 +103,7 @@ class Protein(object):
             File path to create and write to.
         include_version : :obj:`bool`
             Set ``True`` to include PyHDX version and current time/date
-        fmt: :obj: `str`
+        fmt : :obj:`str`
             Formatting to use, options are 'csv' or 'pprint'
         include_metadata : :obj:`bool`
             If `True`, the objects' metadata is included
@@ -292,7 +292,7 @@ class PeptideMasterTable(object):
 
         Parameters
         ----------
-        state: :obj:`str`
+        state : :obj:`str`
 
 
         Returns
@@ -456,10 +456,10 @@ class Coverage(object):
         Numpy structured array with input peptides
     c_term : :obj:`int`
         Residue index number of the C-terminal residue (where first residue in index number 1)
-    n_term: :obj`int`
+    n_term : :obj:`int`
         Residue index of the N-terminal residue. Default value is 1, can be negative to accomodate for N-terminal
         purification tags
-    sequence: :ob:`str`
+    sequence : :obj:`str`
         Amino acid sequence of the protein in one-letter FASTA encoding. Optional, if not specified the amino acid sequence
         from the peptide data is used to (partially) reconstruct the sequence. Supplied amino acid sequence must be
         compatible with sequence information in the peptides.
@@ -587,7 +587,7 @@ class Coverage(object):
 
     @property
     def index(self):
-        """pd index: """
+        """:class:`~pandas.RangeIndex` """
         return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
         #return pd.Index(self.r_number, name='r_number')
 
@@ -765,13 +765,13 @@ class HDXMeasurement(object):
 
         Parameters
         ----------
-        exchanges: : bool:
+        exchanges : :obj:`bool`
             if True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
 
         Returns
         -------
 
-        tensors : dict
+        tensors : :obj:`dict`
 
         """
         dtype = torch.float64
@@ -802,7 +802,7 @@ class HDXMeasurement(object):
 
         Parameters
         ----------
-        rates : :class:pd series
+        rates : :class:`~pandas.Series`
             pandas series of estimated hdx exchangs rates. Index is protein residue number
         return_type
 
@@ -1069,13 +1069,13 @@ class HDXMeasurementSet(object):
 
         Parameters
         ----------
-        rates_list: iterable
+        rates_list : :obj:`iterable`
             list of pandas series with k_obs esimates
 
         Returns
         -------
 
-        deltaG_array: numpy array
+        deltaG_array: :class:`~numpy.ndarray`
             deltaG guesses Ns x Nr shape
 
         """
@@ -1211,7 +1211,7 @@ def array_intersection(arrays_list, fields):
     ----------
     arrays_list : :obj:`iterable`
         Iterable of input structured arrays
-    fields : :obj:`iterable'
+    fields : :obj:`iterable` 
         Iterable of fields to use to decide if entires are intersecting
 
     Returns
