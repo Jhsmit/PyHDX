@@ -1,23 +1,18 @@
-from pyhdx.support import get_reduced_blocks, temporary_seed
-from pyhdx.models import Protein, HDXMeasurementSet
-from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
-from pyhdx.fit_models import SingleKineticModel, OneComponentAssociationModel, TwoComponentAssociationModel, OneComponentDissociationModel, \
-    TwoComponentDissociationModel
-from scipy import constants
-from scipy.optimize import fsolve
-import torch
-import numpy as np
-from symfit import Fit, Variable, Parameter, exp, Model, CallableModel
-from symfit.core.minimizers import DifferentialEvolution, Powell
 from collections import namedtuple
-from functools import reduce, partial
-from operator import add
-from dask.distributed import Client, worker_client
-import dask
-import warnings
-import pandas as pd
-from itertools import repeat
+from functools import partial
 
+import numpy as np
+import pandas as pd
+import torch
+from dask.distributed import Client, worker_client
+from symfit import Fit
+from symfit.core.minimizers import DifferentialEvolution, Powell
+from tqdm import trange
+
+from pyhdx.fit_models import SingleKineticModel, TwoComponentAssociationModel, TwoComponentDissociationModel
+from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
+from pyhdx.models import Protein
+from pyhdx.support import temporary_seed
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
 er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
@@ -284,7 +279,7 @@ optimizer_defaults = {
 
 
 def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
-                  epochs=100000, patience=50, stop_loss=0.05):
+                  epochs=100000, patience=50, stop_loss=0.05, tqdm=True):
     """
 
     Runs optimization/fitting of PyTorch model.
@@ -336,7 +331,8 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         return total_loss
 
     stop = 0
-    for epoch in range(epochs):
+    iter = trange(epochs) if tqdm else range(epochs)
+    for epoch in iter:
         optimizer_obj.zero_grad()
         loss = optimizer_obj.step(closure)
 

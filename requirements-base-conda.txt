@@ -8,3 +8,4 @@ symfit
 pytorch
 dask
 distributed
+tqdm
