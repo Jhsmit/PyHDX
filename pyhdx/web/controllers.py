@@ -238,7 +238,7 @@ class PeptideFileInputControl(ControlPanel):
     c_term = param.Integer(0, bounds=(0, None),
                            doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
                                'and determination of intrinsic rate of exchange for the C-terminal residue')
-#    sequence = param.String('', doc='Optional FASTA protein sequence')
+    sequence = param.String('', doc='Optional FASTA protein sequence')
     dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')

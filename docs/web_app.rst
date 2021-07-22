@@ -50,7 +50,8 @@ N-terminal this value is typically equal to 1, but if N-terminal affinity tags a
 negative number. The value specified should match with the residue indices used in in the input .csv file. The C-term value
 tells the software at which index the C-terminal of the protein is, as it is possible that the protein extends beyond the
 last residue included in any peptide and as the C-term exhibits different intrinsic rates of exchanges this needs to be
-taken into account.
+taken into account. A sequence for the full protein (in the N-term to C-term range as specified) can be added to provide
+additional sequence information, but this is optional.
 
 Finally, specify a name of the dataset, by default equal to the 'state' value and press 'Add dataset' to add the dataset.
 Datasets currently cannot be removed, if you want to remove datasets, press the browser 'refresh' button to start over.
