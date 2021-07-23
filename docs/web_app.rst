@@ -109,7 +109,7 @@ In 'Batch' mode all data enters the fitting process at the same time. This allow
 between datasets. Note that when using 'Batch' mode, the relative magnitudes of the Mean Squared error losses and
 regularizer might be different, such that 'Batch' fitting with ``r2`` at zero is not identical to 'Single' fits.
 
-The fields :guilabel:`Stop loss` and :guillabel:`Stop patience` control the fitting termination. If the loss improvement
+The fields :guilabel:`Stop loss` and :guilabel:`Stop patience` control the fitting termination. If the loss improvement
 is less than `Stop loss` for `Stop patience` epochs (fit iterations), the fitting will terminate.
 :guilabel:`Learning rate` controls the step size per epoch. For typical a dataset with 62 peptides over 6 timepoints, the
 learning rate should be 50-100. Smaller datasets require larger learning rates and vice versa.
