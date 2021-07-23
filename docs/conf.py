@@ -49,7 +49,8 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'numpydoc',
-    'nbsphinx'
+    'nbsphinx',
+    'sphinx_copybutton'
   #  'sphinxcontrib.bibtex'
 ]
 numpydoc_show_inherited_class_members = False
