@@ -225,8 +225,8 @@ class PeptideFileInputControl(ControlPanel):
     ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
     d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
                                 label='Deuterium percentage')
-    fd_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the FD control sample buffer',
-                                 label='FD Deuterium percentage')
+    #fd_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the FD control sample buffer',
+    #                             label='FD Deuterium percentage')
     temperature = param.Number(293.15, bounds=(0, 373.15), doc='Temperature of the D-labelling reaction',
                                label='Temperature (K)')
     pH = param.Number(7.5, doc='pH of the D-labelling reaction, as read from pH meter',
@@ -267,7 +267,7 @@ class PeptideFileInputControl(ControlPanel):
             #be_mode=pn.widgets.RadioButtonGroup,
             be_percent=pn.widgets.FloatInput,
             d_percentage=pn.widgets.FloatInput,
-            fd_percentage=pn.widgets.FloatInput,
+            #fd_percentage=pn.widgets.FloatInput,
             sequence=text_area)
 
     def make_list(self):
@@ -391,7 +391,7 @@ class PeptideFileInputControl(ControlPanel):
 
         #todo temperature ph kwarg for series
         hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
-                                name=self.dataset_name, temperature=self.temperature, pH=self.pH)
+                              name=self.dataset_name, temperature=self.temperature, pH=self.pH)
 
         self.parent.data_objects[self.dataset_name] = hdxm
         self.parent.param.trigger('data_objects')  # Trigger update
