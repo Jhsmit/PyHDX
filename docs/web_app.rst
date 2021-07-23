@@ -139,6 +139,8 @@ intensive and currently if multiple users submit too many jobs it might overwhel
 
 The output ΔG values are shown in the 'Gibbs' graph (bottom left).
 
+See also the :doc:`Fitting example <../examples/03_fitting>` section for more details on fitting and the effect of regualizers.
+
 Graph Control
 `````````````
 
