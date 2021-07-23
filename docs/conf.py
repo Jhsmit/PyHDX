@@ -50,7 +50,8 @@ extensions = [
     'sphinx.ext.viewcode',
     'numpydoc',
     'nbsphinx',
-    'sphinx_copybutton'
+    'sphinx_copybutton',
+    'IPython.sphinxext.ipython_console_highlighting'
   #  'sphinxcontrib.bibtex'
 ]
 numpydoc_show_inherited_class_members = False
