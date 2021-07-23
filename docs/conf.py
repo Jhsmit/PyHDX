@@ -27,7 +27,7 @@ import pyhdx
 
 # JHS modifications
 numfig = True
-latex_engine = 'xelatex'
+latex_engine = 'pdflatex'
 nbsphinx_allow_errors = True
 nbsphinx_execute = 'never'
 
