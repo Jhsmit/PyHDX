@@ -49,8 +49,6 @@ To install with pdf output:
     $ pip install pyhdx==0.4.0b1[pdf]
 
 ..
-
-
     From sources
     ------------
 
@@ -84,38 +82,34 @@ To install with pdf output:
 Running the web server
 ----------------------
 
-test
-
-#. Step 1.
-#. Step 2.
-#. Step 3.
-
-testtest
-
-* This is a bulleted list.
-* It has two items, the second
-  item uses two lines.
-
-testset
-
--  This is a bulleted list.
--  It has two items, the second
-   item uses two lines.
-
 PyHDX web application can be launched from the command line using ``pyhdx`` command with below options,
 
-* To run PyHDX server using default settings on your local server,
+To run PyHDX server using default settings on your local server:
 
-        ``pyhdx serve``
+.. code-block:: rst
 
-* To run PyHDX server using the IP address and port number of your dask cluster,
+    $ pyhdx serve
 
-        ``pyhdx --cluster <ip> <port>``
+To run PyHDX server using the IP address and port number of your dask cluster:
+
+.. code-block:: rst
+
+    $ pyhdx --cluster <ip> <port>
+
+
+To start a dask cluster separately, open another terminal tab and run:
+
+.. code-block:: rst
+
+    python local_cluster.py
+
+This will start a Dask cluster on the scheduler address as specified in the PyHDX config.
+(user dir / .pyhdx folder)
 
 
 Dependencies
 ------------
 
-The requirements for PyHDX are listed in requirements.txt
+The requirements for PyHDX are listed in setup.cfg
 
 .. _Github repo: https://github.com/Jhsmit/pyhdx
