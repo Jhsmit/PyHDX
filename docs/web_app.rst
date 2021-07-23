@@ -89,12 +89,12 @@ through two options: 'Half-life' (fast but less accurate), or 'Association' (slo
 each residue. A upper and lower bound of these rate constants can be specified but in most cases the autosuggested bounds
 are sufficient.
 Rarely issues might arise when the initial guess rates are close to the specified bounds at which point the bounds should be
-moved. This can be checked by comparing the fitted rates *k1* and *k2* (File Export > export 'fit1') to the specified bounds.
-Both rates are and associated amplitudes are converted to a single rate value used for initial guesses.
-Select the model in the drop-down menu and the press 'Do fitting' to start fitting.
-The fitting is done in the background a progress bar will show time until completion. When the fitting is done, the
-obtained rate is shown in the main area in the tab 'Rates'. Currently the graph does not autoscale correctly so in order
-to view the full data please use the navigation/zoom buttons on the right side of the graph.
+moved. This can be checked by comparing the fitted rates *k1* and *k2* (:menuselection:`File Export --> Target dataset --> rates`)
+Both rates are associated amplitudes are converted to a single rate value used for initial guesses.
+Select the model in the drop-down menu, assign a name to these initial guesses and the press 'Calculate Guesses'.
+The fitting is done in the background. When the fitting is done, the obtained rate is shown in the main area in the
+tab 'Rates'. Note that these rates are merely an guesstimate of HDX rates and these rates should not be used for any
+interpretation whatsoever but should only function to provide the global fit with initial guesses.
 
 Fitting
 ```````
@@ -102,21 +102,22 @@ Fitting
 After the initial guesses are calculated we can move on the the global fit of the data. Details of the fitting equation
 can be found the PyHDX publication (currently `bioRxiv`_).
 
-At 'Initial guess', select which dataset to use for initial guesses (typically 'fit1'). Then enter the temperature (in Kelvin)
-of the labelling reaction and the pH of the labelling reaction (uncorrected pH read value).
+At 'Initial guess', select which dataset to use for initial guesses (typically 'Guess_1').
+At 'Fit mode', users can choose either 'Batch' or 'Single' fitting. If only one datasets is loaded, only 'Single' is
+available. If 'Single' is selected, PyHDX will fit ΔG values for each datasets individually using the specified settings.
+In 'Batch' mode all data enters the fitting process at the same time. This allows for the use of a second regularizer
+between datasets. Note that when using 'Batch' mode, the relative magnitudes of the Mean Squared error losses and
+regularizer might be different, such that 'Batch' fitting with ``r2`` at zero is not identical to 'Single' fits
 
-The value of the regalizer control the degree of 'smoothing' which prevents overfitting. Typical values are 0.5 to 2, depending
-on the input data, where lower values give more detail but should only be selected if the degree of peptide coverage and
+The value of the regualizer control the degree of 'smoothing' which prevents overfitting. Typical values range from 0.01 to 0.5,
+depending on the input data,
+
+where lower values give more detail but should only be selected if the degree of peptide coverage and
 overlap is high. For the other fitting hyperparameters, see the reference docs :ref:`web-application-autodoc`.
 
 The output of the fit is ΔG, protection factor (PF), covariance (for ΔG) for each residue. All values can be exported in .txt
 format and the ΔG and PF values are plotted in their respective graph windows.
 
-Fit Results
-```````````
-
-The fit results panel controls the fit results graph where each peptide can be selected and measured (and corrected)
-deuterium uptake values are plotted (with the fitted result, currently broken)
 
 Classification
 ``````````````
