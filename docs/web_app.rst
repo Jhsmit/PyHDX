@@ -9,7 +9,8 @@ go through the functionality of the web interface per section.
 Peptide Input
 `````````````
 
-Use the `Browse` button to select peptide data files to upload. These should be 'peptide master tables' which is **long format** data
+Use the :guilabel:`Browse` button to select peptide data files to upload. These should be 'peptide master tables' which
+is **long format** data
 where each entry should at least have the entries of:
 
  - start (inclusive residue number at which the detected peptide starts, first residue = 1)
