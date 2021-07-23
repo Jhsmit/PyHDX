@@ -11,8 +11,6 @@ Welcome to PyHDX's documentation!
    examples
    modules
    web_app_autodoc
-   contributing
-   authors
    history
 
 Indices and tables

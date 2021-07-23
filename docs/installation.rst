@@ -25,6 +25,7 @@ Beta release (v0.4.0bx)
 (coming soon)
 To install base PyHDX:
 .. code-block::
+
     $ pip install pyhdx==0.4.0b1
 
 To install with web application:
