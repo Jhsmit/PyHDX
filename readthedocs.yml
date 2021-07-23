@@ -26,6 +26,6 @@ python:
       extra_requirements:
         - web
         - pdf
-      - method: setuptools
-        path: pyhdx
+    - method: setuptools
+      path: pyhdx
 
