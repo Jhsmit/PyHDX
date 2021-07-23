@@ -41,10 +41,11 @@ In the :guilabel:`Drop first`'` entry the number of N-terminal residues for each
 calculating the maximum uptake for each peptide as they are considered to fully exchange back. Prolines are ignored by
 default as they do not have exchangeable amide hydrogens.
 
-Next, specify the percentage of deuterium in the labelling solution as well as in the FD control labelling solution. There
-percentages should be as close as possible to eachother and as high as possible, typically >85%.
-Add the temperature (in Kelvin) and the pH at which the D-labelling was done. This is the pH as read from the pH meter
-without any correction.
+Next, specify the percentage of deuterium in the labelling solution in the field :guilabel:`Deuterium percentage`. This
+percentage should be as high as possible, typically >90%.
+
+Use the fields :guilabel:`Temperature (K)` and :guilabel:`pH read` to specify the temperature and pH at which the D-labelling
+was done. The pH is the value as read from the pH meter without any correction.
 
 The next fields :guilabel:`N term` and :guilabel:`C term` specify the residue number indices of the N-terminal and C-terminal residues, respectively. For the
 N-terminal this value is typically equal to 1, but if N-terminal affinity tags are used for purification this might be a
@@ -118,7 +119,7 @@ learning rate should be 50-100. Smaller datasets require larger learning rates a
 
 The maximum number of epochs or fit iterations is set in the field :guilabel:`Epochs`.
 
-Finally, the fields :guilabel:`Regualizer 1` and :guilabel:`Regulizer 2` control the magnitude of the regualizers. Please refer
+Finally, the fields :guilabel:`Regualizer 1` and :guilabel:`Regualizer 2` control the magnitude of the regualizers. Please refer
 to our `bioRxiv`_ manuscript for more details. In short, ``r1`` acts along consecutive residues and affects as a 'smoothing'
 along the primary structure. Higher values give a more smoothed result. This prevents overfitting or helps avoid problems
 in the 'non-identifiability' issue where in unresolved (no residue-level overlap) regions the correct kinetic components
