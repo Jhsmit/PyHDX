@@ -30,11 +30,11 @@ Choose which method of back-exchange correction to use. Options are either to us
 to set a fixed back-exchange percentage for all peptides. The latter method should only be used if no FD sample is
 available. A percentage to set here can be obtained by running a back-exchange control once on your setup.
 
-When selecting 'FD Sample', use the fields 'FD State' and 'FD Exposure' to choose which peptides from the input should be
-used as FD control. Note that these peptides will be matched to the ones in the experiment and peptides without control
-will not be included.
+When selecting :guilabel:`FD Sample`, use the fields :guilabel:`FD State` and :guilabel:`FD Exposure` to choose which
+peptides from the input should be used as FD control. Note that these peptides will be matched to the ones in the
+experiment and peptides without control will not be included.
 
-Use the fields 'Experiment State' to choose the 'state' of your experiment. In 'Experiment Exposures' you can select
+Use the fields :guilabel:`Experiment State` to choose the 'state' of your experiment. In 'Experiment Exposures' you can select
 which exposure times to add include the dataset.
 
 In the 'Drop first' entry the number of N-terminal residues for each peptides can be chosen which should be ignored when
