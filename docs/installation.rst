@@ -10,61 +10,71 @@ Stable release (v0.3.2)
 
 Installation with `conda`:
 
-.. code-block::
-    $ conda install -c conda-forge pyhdx
+.. code-block:: rst
+
+   $ conda install -c conda-forge pyhdx
 
 Installation with `pip`:
 
-.. code-block::
-    $ pip install pyhdx==0.3.2
+.. code-block:: rst
+
+   $ pip install pyhdx==0.3.2
 
 
-Beta release (v0.4.0bx)
+Beta release (v0.4.0b1)
 -----------------------
 
-(coming soon)
 To install base PyHDX:
-.. code-block::
-    $ pip install pyhdx==0.4.0b1
+
+.. code-block:: rst
+
+   $ pip install pyhdx==0.4.0b1
 
 To install with web application:
 
-.. code-block::
+.. code-block:: rst
+
     $ pip install pyhdx==0.4.0b1[web]
 
-Currently custom bokeh extensions are not packaged, therefore to run the web application Node.js is required
+Currently custom bokeh extensions are not packaged, therefore to run the web application Node.js is required:
 
-.. code-block::
+.. code-block:: rst
+
     $ conda install nodejs
 
 To install with pdf output:
 
-.. code-block::
+.. code-block:: rst
+
     $ pip install pyhdx==0.4.0b1[pdf]
 
+..
+    From sources
+    ------------
 
-From sources
-------------
+    1. Download or ``git clone`` the master branch of the PyHDX repository
 
-1. Download or ``git clone`` the master branch of the PyHDX repository
+    2. Create a ``conda`` environment
 
-2. Create a ``conda`` environment
+    .. code-block:: rst
 
-    ``conda create --name <name> python=3.8``
+        conda create --name <name> python=3.8
 
-3. Activate conda environment
+    3. Activate conda environment
 
-    ``conda activate <name>``
+    .. code-block:: rst
 
-4. Install the dependencies
+        conda activate <name>
 
-    ``conda install -c conda-forge pyhdx --only-deps``
+    4. Install the dependencies
 
-5. Building wheels for the project
+        ``conda install -c conda-forge pyhdx --only-deps``
 
-    ``python setup.py sdist bdist_wheel``
+    5. Building wheels for the project
 
-6. Installing the wheels (should be generated in the dist folder)
+        ``python setup.py sdist bdist_wheel``
+
+    6. Installing the wheels (should be generated in the dist folder)
 
     ``pip install dist/PyHDX-version.whl``
 
@@ -72,23 +82,34 @@ From sources
 Running the web server
 ----------------------
 
+PyHDX web application can be launched from the command line using ``pyhdx`` command with below options,
+
+To run PyHDX server using default settings on your local server:
+
+.. code-block:: rst
+
+    $ pyhdx serve
+
+To run PyHDX server using the IP address and port number of your dask cluster:
+
+.. code-block:: rst
+
+    $ pyhdx --cluster <ip> <port>
 
 
+To start a dask cluster separately, open another terminal tab and run:
 
-7. After successful installation, PyHDX web application can be launched from the command line using ``pyhdx`` command with below options,
+.. code-block:: rst
 
-    - To run PyHDX server using default settings on your local server,
+    python local_cluster.py
 
-        ``pyhdx serve``
-
-    - To run PyHDX server using the IP address and port number of your dask cluster,
-
-        ``pyhdx --cluster <ip> <port>``
+This will start a Dask cluster on the scheduler address as specified in the PyHDX config.
+(user dir / .pyhdx folder)
 
 
 Dependencies
 ------------
 
-The requirements for PyHDX are listed in requirements.txt
+The requirements for PyHDX are listed in setup.cfg
 
 .. _Github repo: https://github.com/Jhsmit/pyhdx

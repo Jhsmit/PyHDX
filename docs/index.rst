@@ -7,12 +7,10 @@ Welcome to PyHDX's documentation!
 
    introduction
    installation
-   using_the_web_app
+   web_app
    examples
    modules
    web_app_autodoc
-   contributing
-   authors
    history
 
 Indices and tables

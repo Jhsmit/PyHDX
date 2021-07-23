@@ -233,11 +233,11 @@ class PeptideFileInputControl(ControlPanel):
                       label='pH read')
     #load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
 
+    n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
+                                  'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
     c_term = param.Integer(0, bounds=(0, None),
                            doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
                                'and determination of intrinsic rate of exchange for the C-terminal residue')
-    n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
-                                  'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
     sequence = param.String('', doc='Optional FASTA protein sequence')
     dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
@@ -1265,13 +1265,14 @@ class GraphControl(ControlPanel):
 
     @param.depends('state_name', watch=True)
     def _update_state_name(self):
+        #https://param.holoviz.org/reference.html#param.parameterized.batch_watch
+
         dwarfs = ['coverage_state_name', 'coverage_mse_state_name', 'peptide_d_exp_state_name', 'peptide_d_calc_state_name',
                   'deltaG_state_name', 'rates_state_name', 'ngl_state_name']  # there really are 7
 
         # one filter to rule them all, one filter to find them,
         # one filter to bring them all, and in the darkness bind them;
         # in the Land of Mordor where the shadows lie.
-
         for dwarf in dwarfs:
             filt = self.filters[dwarf]
             filt.value = self.state_name
