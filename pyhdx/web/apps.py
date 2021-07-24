@@ -325,12 +325,12 @@ def main_app(client='default'):
         InitialGuessControl,
         FitControl,
         GraphControl,
-        ProteinControl,
         ClassificationControl,
+        ProteinControl,
         # FitResultControl,
         FileExportControl,
         # ProteinViewControl,
-        # OptionsControl
+        # OptionsControlasdfasdf
     ]
 
     if DEBUG:

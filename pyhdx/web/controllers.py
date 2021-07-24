@@ -225,19 +225,19 @@ class PeptideFileInputControl(ControlPanel):
     ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
     d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
                                 label='Deuterium percentage')
-    fd_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the FD control sample buffer',
-                                 label='FD Deuterium percentage')
+    #fd_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the FD control sample buffer',
+    #                             label='FD Deuterium percentage')
     temperature = param.Number(293.15, bounds=(0, 373.15), doc='Temperature of the D-labelling reaction',
                                label='Temperature (K)')
     pH = param.Number(7.5, doc='pH of the D-labelling reaction, as read from pH meter',
                       label='pH read')
     #load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
 
+    n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
+                                  'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
     c_term = param.Integer(0, bounds=(0, None),
                            doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
                                'and determination of intrinsic rate of exchange for the C-terminal residue')
-    n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
-                                  'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
     sequence = param.String('', doc='Optional FASTA protein sequence')
     dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
@@ -267,7 +267,7 @@ class PeptideFileInputControl(ControlPanel):
             #be_mode=pn.widgets.RadioButtonGroup,
             be_percent=pn.widgets.FloatInput,
             d_percentage=pn.widgets.FloatInput,
-            fd_percentage=pn.widgets.FloatInput,
+            #fd_percentage=pn.widgets.FloatInput,
             sequence=text_area)
 
     def make_list(self):
@@ -391,7 +391,7 @@ class PeptideFileInputControl(ControlPanel):
 
         #todo temperature ph kwarg for series
         hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
-                                name=self.dataset_name, temperature=self.temperature, pH=self.pH)
+                              name=self.dataset_name, temperature=self.temperature, pH=self.pH)
 
         self.parent.data_objects[self.dataset_name] = hdxm
         self.parent.param.trigger('data_objects')  # Trigger update
@@ -1265,13 +1265,14 @@ class GraphControl(ControlPanel):
 
     @param.depends('state_name', watch=True)
     def _update_state_name(self):
+        #https://param.holoviz.org/reference.html#param.parameterized.batch_watch
+
         dwarfs = ['coverage_state_name', 'coverage_mse_state_name', 'peptide_d_exp_state_name', 'peptide_d_calc_state_name',
                   'deltaG_state_name', 'rates_state_name', 'ngl_state_name']  # there really are 7
 
         # one filter to rule them all, one filter to find them,
         # one filter to bring them all, and in the darkness bind them;
         # in the Land of Mordor where the shadows lie.
-
         for dwarf in dwarfs:
             filt = self.filters[dwarf]
             filt.value = self.state_name

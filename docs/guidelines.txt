@@ -1,0 +1,19 @@
+Guidelines for writing docs:
+
+GUI labels:
+    :guilabel:`Experiment State`
+
+Refer to sections (explicit):
+        :ref:`web-application-autodoc`
+    and target:
+        .. _web-application-autodoc:
+
+Refer to sections (implicit):
+:doc:`Fitting example <../examples/03_fitting>`
+
+
+https://www.sphinx-doc.org/en/master/usage/restructuredtext/basics.html
+https://thomas-cokelaer.info/tutorials/sphinx/rest_syntax.html#inline-markup-and-special-characters-e-g-bold-italic-verbatim
+
+RTD config:
+https://docs.readthedocs.io/en/stable/config-file/v2.html

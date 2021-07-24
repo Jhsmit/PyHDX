@@ -23,42 +23,35 @@ PyHDX
       :target: https://codecov.io/gh/Jhsmit/PyHDX
     
 
-`Documentation <https://pyhdx.readthedocs.io>`_
+`PyHDX stable documentation <https://pyhdx.readthedocs.io/en/stable/>`_
 
 .. raw:: html
 
     <img src="images/PyHDX_rgb.png" width="1000" />
 
 PyHDX is python project which can be used to derive Gibbs free energy from HDX-MS data.
-Currently the project is functional but in beta, future versions will likely subject to changes in API and analysis.
+Currently version 0.3.2 is the stable release. Version 0.4.0 is released as beta.
 
 Installation 
 ============
 
-Installation with `conda`:
-
-(Currently PyHDX 0.3.2 is unavailable on conda-forge due to issues with python 3.9 please use 0.3.0 or install from source/pip)
-
-.. code-block::
-
-    $ conda install -c conda-forge pyhdx
-
-Installation with `pip`:
+Installation of the latest stable version with `pip`:
 
 .. code-block::
 
     $ pip install pyhdx
 
-Development install instructures in docs/installation.rst
+Development install instructions in docs/installation.rst
 
 Run PyHDX
 =========
+(only for version 0.4.0 beta)
 
 .. code-block::
 
     $ pyhdx serve
     
-Please refer to the `docs <https://pyhdx.readthedocs.io>`_ for more details on how to run PyHDX.
+Please refer to the `docs <https://pyhdx.readthedocs.io/en/stable/>`_ for more details on how to run PyHDX.
 
 
 Web Application
@@ -76,6 +69,8 @@ http://pyhdx.jhsmit.org/single
 To upload multiple fitting result datasets and compare and visualize:
 http://pyhdx.jhsmit.org/diff
 
-The 0.4.0 beta version of PyHDX (featuring batch fitting / multiple states) is hosted at:
+The 0.4.0b1 version of PyHDX (featuring batch fitting / multiple states) is hosted at:
 http://pyhdx-beta.jhsmit.org/main
+
+The latest beta docs are found `here <https://pyhdx.readthedocs.io/en/latest/>`_
 

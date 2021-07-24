@@ -27,7 +27,7 @@ import pyhdx
 
 # JHS modifications
 numfig = True
-latex_engine = 'xelatex'
+latex_engine = 'pdflatex'
 nbsphinx_allow_errors = True
 nbsphinx_execute = 'never'
 
@@ -49,7 +49,9 @@ extensions = [
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
     'numpydoc',
-    'nbsphinx'
+    'nbsphinx',
+    'sphinx_copybutton',
+    'IPython.sphinxext.ipython_console_highlighting'
   #  'sphinxcontrib.bibtex'
 ]
 numpydoc_show_inherited_class_members = False
@@ -91,7 +93,7 @@ language = None
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store', '**.ipynb_checkpoints']
 
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
