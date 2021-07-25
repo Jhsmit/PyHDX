@@ -647,6 +647,7 @@ class FitControl(ControlPanel):
             self.param['r2'].constant = True
 
     def add_fit_result(self, future):
+        #todo perhaps all these dfs should be in the future?
         name = self._fit_names.pop(future.key)
         result = future.result()
         self._current_jobs -= 1
@@ -673,6 +674,35 @@ class FitControl(ControlPanel):
         #todo d calc for single fits
         #todo losses for single fits
 
+            # Create d_calc dataframe
+            # -----------------------
+            # todo needs cleaning up
+            state_dfs = {}
+            for single_result in result:
+                tp_flat = single_result.data_obj.timepoints
+                elem = tp_flat[np.nonzero(tp_flat)]
+
+                time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
+                d_calc_state = single_result(time_vec)  #shape Np x Nt
+                hdxm = single_result.data_obj
+
+                peptide_dfs = []
+                pm_data = hdxm[0].data
+                for d_peptide, pm_row in zip(d_calc_state, pm_data):
+                    peptide_id = f"{pm_row['start']}_{pm_row['end']}"
+                    data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
+                    peptide_dfs.append(pd.DataFrame(data_dict))
+                state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
+
+            d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
+
+
+            # Create losses/epoch dataframe
+            # -----------------------------
+            losses_dfs = {fit_result.data_obj.name: fit_result.losses for fit_result in result}
+            losses_df = pd.concat(losses_dfs.values(), keys=losses_dfs.keys(), axis=1)
+
+
         else:  # one batchfit result
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
             df = result.output.df
@@ -697,7 +727,6 @@ class FitControl(ControlPanel):
             # -----------------------
             tp_flat = result.data_obj.timepoints.flatten()
             elem = tp_flat[np.nonzero(tp_flat)]
-            elem.min(), elem.max()
 
             time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
             stacked = np.stack([time_vec for i in range(result.data_obj.Ns)])
@@ -716,8 +745,11 @@ class FitControl(ControlPanel):
 
             # Create losses/epoch dataframe
             # -----------------------------
-
-            losses_df = result.losses
+            losses_df = result.losses.copy()
+            losses_df.columns = pd.MultiIndex.from_product(
+                [['All states'], losses_df.columns],
+                names=['state_name', 'quantity']
+            )
 
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
@@ -1237,13 +1269,12 @@ class GraphControl(ControlPanel):
 
     def make_dict(self):
         widgets = {
-            'coverage': pn.pane.Markdown('### Coverage'),
-            'rates': pn.pane.Markdown('### Rates'),
             'general': pn.pane.Markdown('### General'),
-            'coverage_mse': pn.pane.Markdown('### Coverage MSE'),
+            'coverage': pn.pane.Markdown('### Coverage'),
             'peptide': pn.pane.Markdown('### Peptide'),
+            'losses': pn.pane.Markdown('### Losses'),
             'debugging': pn.pane.Markdown('### Debugging'),
-            'd_calc': pn.pane.Markdown('### D calc')
+
         }
 
         return {**widgets, **self.generate_widgets()}
@@ -1277,6 +1308,13 @@ class GraphControl(ControlPanel):
             filt = self.filters[dwarf]
             filt.value = self.state_name
 
+        # If current fit result was done as single, also update the state for the losses graph
+        losses_filt = self.filters['losses_state_name']
+        if self.state_name in losses_filt.param['value'].objects:
+            losses_filt.value = self.state_name
+
+
+        # Update possible choices for peptide selection depending on selected state
         source = self.sources['dataframe']
         table = source.get('peptides')
         unique_vals = table[self.state_name]['start_end'].unique()
@@ -1311,6 +1349,8 @@ class GraphControl(ControlPanel):
             ('self', ['coverage']),
             ('filters.coverage_exposure', None),
             ('self', ['peptide', 'peptide_index']),
+            ('self', ['losses']),
+            ('filters.losses_state_name', None),
             ('self', ['debugging']),
             ('filters.deltaG_fit_id', None),
             ('filters.coverage_mse_fit_id', None),
@@ -1352,8 +1392,8 @@ class FileExportControl(ControlPanel):
         widgets = self.generate_widgets()
         widgets['export_tables'] = pn.widgets.FileDownload(
             label='Download table',
-            callback=self.table_export_callback,
-            filename='table.txt')
+            callback=self.table_export_callback
+        )
         widgets['export_pml'] = pn.widgets.FileDownload(label='Download pml scripts',
                                                         callback=self.pml_export_callback,
                                                         )
@@ -1370,7 +1410,7 @@ class FileExportControl(ControlPanel):
         self.param['table'].objects = list(self.sources['dataframe'].tables.keys())
         self._table_updated()
 
-    @param.depends('table', watch=True)
+    @param.depends('table', 'export_format', watch=True)
     def _table_updated(self):
         self.df = self.sources['dataframe'].get(self.table)
 

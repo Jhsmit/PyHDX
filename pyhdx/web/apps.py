@@ -73,7 +73,7 @@ def main_app(client='default'):
     df = pd.DataFrame(columns=col_index, index=row_index)
     tables['global_fit'] = df
 
-    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'loss_type'))
+    col_index = pd.MultiIndex.from_tuples([], names=('fit_ID', 'state_name', 'loss_type'))
     row_index = pd.RangeIndex(0, 1, name='epochs')
     df = pd.DataFrame(columns=col_index, index=row_index)
     tables['losses'] = df
@@ -216,7 +216,8 @@ def main_app(client='default'):
     rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
 
     cmap = mpl.cm.get_cmap('viridis')
-    norm = mpl.colors.Normalize(vmin=0, vmax=20)
+    cmap = mpl.colors.ListedColormap(["lawngreen"])
+    norm = mpl.colors.Normalize(vmin=-1e6, vmax=1e6)
     cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG', name='cmap_transform')
 
     trs_list.append(rescale_transform)
@@ -269,6 +270,13 @@ def main_app(client='default'):
         field='fit_ID', name='losses_fit_id', table='losses', source=source
     )
     filters[f.name] = f
+
+    f = MultiIndexSelectFilter(
+        field='state_name', name='losses_state_name', table='losses', source=source,
+        filters=[filters['losses_fit_id']]
+    )
+    filters[f.name] = f
+
     reset_index_transform_loss = ResetIndexTransform(name='reset_index_losses')
     trs_list.append(reset_index_transform_loss)
     opts = {'xlabel': "Epochs", 'ylabel': "Loss", **global_opts}
@@ -276,7 +284,7 @@ def main_app(client='default'):
         source=source, name='losses', x='index', y='mse_loss', kind='line', # c='color'
         table='losses', streaming=True, responsive=True, opts=opts, label='mse',
         transforms=[reset_index_transform_loss],
-        filters=[filters['losses_fit_id']]
+        filters=[filters['losses_fit_id'], filters['losses_state_name']]
     )
     view_list.append(losses)
     opts = {'color': 'r', **opts}
@@ -284,7 +292,7 @@ def main_app(client='default'):
         source=source, name='reg_losses', x='index', y='reg_loss', kind='line',
         table='losses', streaming=True, responsive=True, opts=opts, label='reg',
         transforms=[reset_index_transform_loss],
-        filters=[filters['losses_fit_id']]
+        filters=[filters['losses_fit_id'], filters['losses_state_name']]
     )
     view_list.append(reg_losses)
 

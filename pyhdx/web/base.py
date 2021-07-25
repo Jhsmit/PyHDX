@@ -9,8 +9,8 @@ DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', '
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
                   'uptake_corrected': '#000000', 'fr_pfact': '#ba0912'}
 #DEFAULT_CLASS_COLORS = ['#0e1875', '#fdaf61', '#d73027']  # rigid to flexible
-DEFAULT_CLASS_COLORS = ['#0a0ac2', '#0ac20a', '#c20a0a'][::-1]  #  (HSL xxx, 90, 40)
-
+#DEFAULT_CLASS_COLORS = ['#0a0ac2', '#0ac20a', '#c20a0a'][::-1]  #  (HSL xxx, 90, 40)
+DEFAULT_CLASS_COLORS = ['#3d3df5', '#3df53d', '#f53d3d'][::-1] #  (HSL xxx, 90, 60)
 
 MIN_BORDER_LEFT = 65
 STATIC_DIR = Path(__file__).parent / 'static'

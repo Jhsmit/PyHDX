@@ -10,7 +10,7 @@ rates: fit_ID, state_name, quantity  # rename!
 
 global_fit: fit_ID, state_name, quantity
 
-losses: fit_ID, loss_type
+losses: fit_ID, state_name, loss_type
 
 colors: color_ID, state_name, quantity
 

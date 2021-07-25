@@ -141,6 +141,8 @@ class MultiIndexSelectFilter(WebAppWidgetFilter):
 
     filter_type = 'select column'
 
+    # wildcard = param.Boolean(False, doc="Add a wildcard entry (*) to this filter's options")
+
     _widget = pn.widgets.Select
 
     #todo allow for none/wildcard (for losses)
