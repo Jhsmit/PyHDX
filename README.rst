@@ -30,7 +30,7 @@ PyHDX
     <img src="images/PyHDX_rgb.png" width="1000" />
 
 PyHDX is python project which can be used to derive Gibbs free energy from HDX-MS data.
-Currently the project is functional but in beta, future versions will likely subject to changes in API and analysis.
+Currently version 0.3.2 is the stable release. Version 0.4.0 is released as beta.
 
 Installation 
 ============
@@ -45,6 +45,7 @@ Development install instructions in docs/installation.rst
 
 Run PyHDX
 =========
+(only for version 0.4.0 beta)
 
 .. code-block::
 

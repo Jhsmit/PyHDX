@@ -85,15 +85,16 @@ Initial Guesses
 ```````````````
 
 As a first step in the fitting procedure, initial guesses for the exchange kinetics need to be derived. This can be done
-through two options: 'Half-life' (fast but less accurate), or 'Association' (slower but more accurate). Using the
-'Association' procedure is recommended. This model fit two time constants the the weighted-averaged uptake kinetics of
-each residue. A upper and lower bound of these rate constants can be specified but in most cases the autosuggested bounds
-are sufficient.
+through two options (:guilabel:`Fitting model`): 'Half-life' (fast but less accurate), or 'Association' (slower but more accurate). Using the
+'Association' procedure is recommended. This model fits two time constants the the weighted-averaged uptake kinetics of
+each residue. At :guilabel:`Lower bound` and :guilabel:`Upper bound` the bounds of these rate constants can be specified
+but in most cases the autosuggested bounds are sufficient. The bounds can be changed per dataset by using the :guilabel:`Dataset`
+field or for all datasets at the same time by ticking the :guilabel:`Global bounds` checkbox.
 Rarely issues might arise when the initial guess rates are close to the specified bounds at which point the bounds should be
-moved. This can be checked by comparing the fitted rates *k1* and *k2* (:menuselection:`File Export --> Target dataset --> rates`)
-Both rates are associated amplitudes are converted to a single rate value used for initial guesses.
-Select the model in the drop-down menu, assign a name to these initial guesses and the press 'Calculate Guesses'.
-The fitting is done in the background. When the fitting is done, the obtained rate is shown in the main area in the
+moved to contain a larger interval. This can be checked by comparing the fitted rates *k1* and *k2* (:menuselection:`File Export --> Target dataset --> rates`)
+Both rates and associated amplitudes are converted to a single rate value used for initial guesses.
+To calcualte guesses, select the model in the drop-down menu, assign a name to these initial guesses and the press
+'Calculate Guesses'. The fitting is done in the background. When the fitting is done, the obtained rate is shown in the main area in the
 tab 'Rates'. Note that these rates are merely an guesstimate of HDX rates and these rates should not be used for any
 interpretation whatsoever but should only function to provide the global fit with initial guesses.
 

@@ -451,7 +451,7 @@ class InitialGuessControl(ControlPanel):
     header = 'Initial Guesses'
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
                                    doc='Choose method for determining initial guesses.')
-    dataset = param.Selector(default='', doc='Dataset to apply bounds to')
+    dataset = param.Selector(default='', doc='Dataset to apply bounds to', label='Dataset (for bounds)')
     global_bounds = param.Boolean(default=False, doc='Set bounds globally across all datasets')
     lower_bound = param.Number(0., doc='Lower bound for association model fitting')
     upper_bound = param.Number(0., doc='Upper bound for association model fitting')
