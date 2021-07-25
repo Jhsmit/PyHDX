@@ -55,6 +55,7 @@ Rates
 losses
     Filters:
         losses_fit_id
+        losses_state_name [losses_fit_id]
 
 NGL protein view
     ngl_color_id

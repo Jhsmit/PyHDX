@@ -717,7 +717,11 @@ class FitControl(ControlPanel):
             # Create losses/epoch dataframe
             # -----------------------------
 
-            losses_df = result.losses
+            losses_df = result.losses.copy()
+            losses_df.columns = pd.MultiIndex.from_product(
+                [['All states'], losses_df.columns],
+                names=['state_name', 'quantity']
+            )
 
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
@@ -1237,13 +1241,12 @@ class GraphControl(ControlPanel):
 
     def make_dict(self):
         widgets = {
-            'coverage': pn.pane.Markdown('### Coverage'),
-            'rates': pn.pane.Markdown('### Rates'),
             'general': pn.pane.Markdown('### General'),
-            'coverage_mse': pn.pane.Markdown('### Coverage MSE'),
+            'coverage': pn.pane.Markdown('### Coverage'),
             'peptide': pn.pane.Markdown('### Peptide'),
+            'losses': pn.pane.Markdown('### Losses'),
             'debugging': pn.pane.Markdown('### Debugging'),
-            'd_calc': pn.pane.Markdown('### D calc')
+
         }
 
         return {**widgets, **self.generate_widgets()}
@@ -1311,6 +1314,8 @@ class GraphControl(ControlPanel):
             ('self', ['coverage']),
             ('filters.coverage_exposure', None),
             ('self', ['peptide', 'peptide_index']),
+            ('self', ['losses']),
+            ('filters.losses_state_name', None),
             ('self', ['debugging']),
             ('filters.deltaG_fit_id', None),
             ('filters.coverage_mse_fit_id', None),
