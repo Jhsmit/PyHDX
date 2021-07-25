@@ -7,7 +7,6 @@ from pyhdx.fileIO import read_dynamx, csv_to_dataframe
 from pyhdx import PeptideMasterTable
 import pickle
 from pyhdx.web.apps import main_app
-from pyhdx.web.utils import reload_previous
 from pyhdx.web.base import DEFAULT_COLORS, STATIC_DIR
 from pyhdx.web.sources import DataSource
 from pyhdx.batch_processing import load_from_yaml
@@ -60,17 +59,17 @@ def reload_dashboard():
         v.metadata['name'] = k
     ctrl.data_objects = data_objs
 
-    rates = csv_to_protein(test_dir / 'rates.txt', column_depth=3).df
+    rates = csv_to_protein(test_dir / 'rates.txt').df
 
-    fit = csv_to_protein(test_dir / 'global_fit.txt', column_depth=3).df
-    colors = csv_to_protein(test_dir / 'colors.txt', column_depth=3).df
+    fit = csv_to_protein(test_dir / 'global_fit.txt').df
+    colors = csv_to_protein(test_dir / 'colors.txt').df
+    peptides = csv_to_dataframe(test_dir / 'peptides.txt')
 
-    peptides = csv_to_dataframe(test_dir / 'peptides.txt', column_depth=2, index_col=0)
     source = ctrl.sources['dataframe']
     source.add_df(rates, 'rates')
     source.add_df(peptides, 'peptides')
     #source.add_df(fit, 'global_fit')
-    source.add_df(colors, 'colors')
+    #source.add_df(colors, 'colors')
 
     ctrl.sources['dataframe'].updated = True
 
@@ -88,23 +87,36 @@ def init_dashboard():
     file_input.input_files = files
     file_input.fd_state = 'Full deuteration control'
     file_input.fd_exposure = 0.167
+    file_input.pH = 8
+    file_input.temperature = 273.15 + 30
+    file_input.d_percentage = 90.
+
 
     file_input.exp_state = 'SecB WT apo'
-    file_input.dataset_name = 'testname_123'
+    file_input.dataset_name = 'SecB_tetramer'
     file_input._action_add_dataset()
 
     file_input.exp_state = 'SecB his dimer apo'
-    file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
+    file_input.dataset_name = 'SecB_dimer'  # todo catch error duplicate name
     file_input._action_add_dataset()
 
-    initial_guess = ctrl.control_panels['InitialGuessControl']
-    #initial_guess.fitting_model = 'Association'
-#
-    initial_guess._action_fit()
+    # initial_guess = ctrl.control_panels['InitialGuessControl']
+    # initial_guess._action_fit()
 #
     fit_control = ctrl.control_panels['FitControl']
     fit_control.epochs = 10
-# #
+
+    fit_control.r1 = 0.05
+    fit_control.r2 = 0.1
+    fit_control.epochs = 200000
+    fit_control.stop_loss = 0.001
+    fit_control.patience = 100
+    fit_control.learning_rate = 100
+
+
+    ngl = ctrl.views['protein']
+    ngl.ngl_view.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
+
 #     fit_control.fit_mode = 'Batch'
 #     fit_control._action_fit()
 #     fit_control._do_fitting()
