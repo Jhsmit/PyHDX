@@ -1308,6 +1308,13 @@ class GraphControl(ControlPanel):
             filt = self.filters[dwarf]
             filt.value = self.state_name
 
+        # If current fit result was done as single, also update the state for the losses graph
+        losses_filt = self.filters['losses_state_name']
+        if self.state_name in losses_filt.param['value'].objects:
+            losses_filt.value = self.state_name
+
+
+        # Update possible choices for peptide selection depending on selected state
         source = self.sources['dataframe']
         table = source.get('peptides')
         unique_vals = table[self.state_name]['start_end'].unique()
