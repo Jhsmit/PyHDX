@@ -59,16 +59,16 @@ def reload_dashboard():
         v.metadata['name'] = k
     ctrl.data_objects = data_objs
 
-    rates = csv_to_protein(test_dir / 'rates.txt').df
+    rates = csv_to_protein(test_dir / 'rates.csv').df
 
-    fit = csv_to_protein(test_dir / 'global_fit.txt').df
+    fit = csv_to_protein(test_dir / 'global_fit.csv').df
     colors = csv_to_protein(test_dir / 'colors.txt').df
     peptides = csv_to_dataframe(test_dir / 'peptides.txt')
 
     source = ctrl.sources['dataframe']
     source.add_df(rates, 'rates')
     source.add_df(peptides, 'peptides')
-    #source.add_df(fit, 'global_fit')
+    source.add_df(fit, 'global_fit')
     #source.add_df(colors, 'colors')
 
     ctrl.sources['dataframe'].updated = True
