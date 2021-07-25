@@ -1392,8 +1392,8 @@ class FileExportControl(ControlPanel):
         widgets = self.generate_widgets()
         widgets['export_tables'] = pn.widgets.FileDownload(
             label='Download table',
-            callback=self.table_export_callback,
-            filename='table.txt')
+            callback=self.table_export_callback
+        )
         widgets['export_pml'] = pn.widgets.FileDownload(label='Download pml scripts',
                                                         callback=self.pml_export_callback,
                                                         )
@@ -1410,7 +1410,7 @@ class FileExportControl(ControlPanel):
         self.param['table'].objects = list(self.sources['dataframe'].tables.keys())
         self._table_updated()
 
-    @param.depends('table', watch=True)
+    @param.depends('table', 'export_format', watch=True)
     def _table_updated(self):
         self.df = self.sources['dataframe'].get(self.table)
 
