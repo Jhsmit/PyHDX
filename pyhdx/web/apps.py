@@ -216,7 +216,8 @@ def main_app(client='default'):
     rescale_transform = RescaleTransform(field='deltaG', scale_factor=1e-3)
 
     cmap = mpl.cm.get_cmap('viridis')
-    norm = mpl.colors.Normalize(vmin=0, vmax=20)
+    cmap = mpl.colors.ListedColormap(["lawngreen"])
+    norm = mpl.colors.Normalize(vmin=-1e6, vmax=1e6)
     cmap_transform = ApplyCmapTransform(cmap=cmap, norm=norm, field='deltaG', name='cmap_transform')
 
     trs_list.append(rescale_transform)
