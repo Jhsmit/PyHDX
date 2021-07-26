@@ -15,6 +15,7 @@ from pyhdx.fileIO import csv_to_protein
 import panel as pn
 import numpy as np
 from pathlib import Path
+import pandas as pd
 
 ctrl = main_app()
 directory = Path(__file__).parent
@@ -61,9 +62,15 @@ def reload_dashboard():
     ctrl.data_objects = data_objs
 
     source = ctrl.sources['dataframe']
-    for ds in ['peptides', 'peptides_mse', 'd_calc', 'rfu', 'rates', 'global_fit', 'losses', 'colors']:
+    for ds in ['peptides', 'peptides_mse', 'd_calc', 'rfu', 'rates', 'global_fit', 'losses']:
         df = csv_to_protein(test_dir / f'{ds}.csv')
         source.add_df(df, ds)
+
+    #Temporary workaround for comment characters in csv files
+    ds = 'colors'
+    df = pd.read_csv(test_dir / f'{ds}.csv', header=[0, 1, 2], index_col=0,
+                     skiprows=3)
+    source.add_df(df, ds)
 
     # rates = csv_to_protein(test_dir / 'rates.csv').df
     #
@@ -83,9 +90,9 @@ def reload_dashboard():
     # fit_control.epochs = 100
     # fit_control.fit_mode = 'Single'
     # fit_control.fit_name = 'new_global_fit_test_123'
-
-    ngl = ctrl.views['protein']
-    ngl.ngl_view.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
+    #
+    # ngl = ctrl.views['protein']
+    # ngl.ngl_view.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
 
 
 def init_dashboard():
@@ -96,7 +103,6 @@ def init_dashboard():
     file_input.pH = 8
     file_input.temperature = 273.15 + 30
     file_input.d_percentage = 90.
-
 
     file_input.exp_state = 'SecB WT apo'
     file_input.dataset_name = 'SecB_tetramer'
@@ -142,8 +148,8 @@ def init_dashboard():
 
 
 #if __name__ == '__main__':
-pn.state.onload(reload_dashboard)
-#pn.state.onload(init_dashboard)
+#pn.state.onload(reload_dashboard)
+pn.state.onload(init_dashboard)
 
 pn.serve(ctrl.template, show=True
          , static_dirs={'pyhdx': STATIC_DIR})
