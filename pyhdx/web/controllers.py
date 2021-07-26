@@ -1330,6 +1330,10 @@ class GraphControl(ControlPanel):
             filt = self.filters[elf]
             filt.value = self.fit_id
 
+        # perhaps this is faster?
+        # widget = self.widget.clone()
+        # self.widget.link(widget, value='value', bidirectional=True)
+
     @param.depends('peptide_index', watch=True)
     def _update_peptide_index(self):
         hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
