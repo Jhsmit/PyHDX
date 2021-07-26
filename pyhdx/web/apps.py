@@ -9,7 +9,7 @@ from pyhdx import VERSION_STRING
 from pyhdx.web.base import BokehFigurePanel, STATIC_DIR
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.web.sources import DataFrameSource
-from pyhdx.web.transforms import RescaleTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
+from pyhdx.web.transforms import RescaleTransform, RemoveValueTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.filters import UniqueValuesFilter, MultiIndexSelectFilter
 from pyhdx.web.log import StreamToLogger
@@ -170,7 +170,9 @@ def main_app(client='default'):
     view_list.append(coverage_mse)
 
     # PEPTIDES VIEW vs time D_EXP
+    logx = True
     opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', **global_opts}
+    opts['logx'] = logx
 
     f = MultiIndexSelectFilter(
         field='state_name', name='peptide_d_exp_state_name', table='peptides', source=source)
@@ -181,16 +183,18 @@ def main_app(client='default'):
         filters=[filters['peptide_d_exp_state_name']])
     filters[f.name] = f
 
+    removezero_trans = RemoveValueTransform(value=0., field='exposure')
+    trs_list.append(removezero_trans)
+
     peptide_view = hvPlotAppView(
         source=source, name='peptide_view', table='peptides', streaming=True, kind='scatter',
         x='exposure', y='uptake_corrected', responsive=True, opts=opts,
-        filters=[filters['peptide_d_exp_state_name'], filters['peptide_d_exp_select']])
+        filters=[filters['peptide_d_exp_state_name'], filters['peptide_d_exp_select']],
+        transforms=[removezero_trans])
     view_list.append(peptide_view)
 
 
     # PEPTIDES VIEW vs time D_CALC
-    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', **global_opts}
-
     f = MultiIndexSelectFilter(
         field='fit_ID', name='peptide_d_calc_fit_id', table='d_calc', source=source)
     filters[f.name] = f
@@ -206,6 +210,7 @@ def main_app(client='default'):
     filters[f.name] = f
 
     opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', 'color': 'r', **global_opts}
+    opts['logx'] = logx
     d_calc_view = hvPlotAppView(
         source=source, name='d_calc_view', table='d_calc', streaming=True, kind='line',
         x='timepoints', y='d_calc', responsive=True, opts=opts,
