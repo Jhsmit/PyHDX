@@ -1,5 +1,6 @@
 """
 Reload SecB and fitted data and launch  GUI
+Run local_cluster.py in anothor thread
 
 """
 
@@ -59,24 +60,29 @@ def reload_dashboard():
         v.metadata['name'] = k
     ctrl.data_objects = data_objs
 
-    rates = csv_to_protein(test_dir / 'rates.csv').df
-
-    fit = csv_to_protein(test_dir / 'global_fit.csv').df
-    colors = csv_to_protein(test_dir / 'colors.txt').df
-    peptides = csv_to_dataframe(test_dir / 'peptides.txt')
-
     source = ctrl.sources['dataframe']
-    source.add_df(rates, 'rates')
-    source.add_df(peptides, 'peptides')
-    source.add_df(fit, 'global_fit')
-    #source.add_df(colors, 'colors')
+    for ds in ['peptides', 'peptides_mse', 'd_calc', 'rfu', 'rates', 'global_fit', 'losses', 'colors']:
+        df = csv_to_protein(test_dir / f'{ds}.csv')
+        source.add_df(df, ds)
 
-    ctrl.sources['dataframe'].updated = True
+    # rates = csv_to_protein(test_dir / 'rates.csv').df
+    #
+    # fit = csv_to_protein(test_dir / 'global_fit.csv').df
+    # colors = csv_to_protein(test_dir / 'colors.txt').df
+    # peptides = csv_to_dataframe(test_dir / 'peptides.txt')
+    #
+    # source = ctrl.sources['dataframe']
+    # source.add_df(rates, 'rates')
+    # source.add_df(peptides, 'peptides')
+    # source.add_df(fit, 'global_fit')
+    # #source.add_df(colors, 'colors')
 
-    fit_control = ctrl.control_panels['FitControl']
-    fit_control.epochs = 100
-    fit_control.fit_mode = 'Single'
-    fit_control.fit_name = 'new_global_fit_test_123'
+    #ctrl.sources['dataframe'].updated = True
+
+    # fit_control = ctrl.control_panels['FitControl']
+    # fit_control.epochs = 100
+    # fit_control.fit_mode = 'Single'
+    # fit_control.fit_name = 'new_global_fit_test_123'
 
     ngl = ctrl.views['protein']
     ngl.ngl_view.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
@@ -136,8 +142,8 @@ def init_dashboard():
 
 
 #if __name__ == '__main__':
-#pn.state.onload(reload_dashboard)
-pn.state.onload(init_dashboard)
+pn.state.onload(reload_dashboard)
+#pn.state.onload(init_dashboard)
 
 pn.serve(ctrl.template, show=True
          , static_dirs={'pyhdx': STATIC_DIR})
