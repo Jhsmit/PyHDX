@@ -1355,9 +1355,9 @@ class GraphControl(ControlPanel):
             ('self', ['peptide', 'peptide_index']),
             ('self', ['losses']),
             ('filters.losses_state_name', None),
-            ('self', ['debugging']),
-            ('filters.deltaG_fit_id', None),
-            ('filters.coverage_mse_fit_id', None),
+            # ('self', ['debugging']),
+            # ('filters.deltaG_fit_id', None),
+            # ('filters.coverage_mse_fit_id', None),
         ]
 
     @param.depends('spin', watch=True)
