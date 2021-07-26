@@ -176,3 +176,20 @@ class PeptideLayoutTransform(Transform):
         output_table['index'] = table.index
 
         return output_table
+
+
+class RemoveValueTransform(Transform):
+    """Removes entires where values in specified field match specified value"""
+
+    field = param.String(doc='Target field')
+    value = param.Number(doc='Rows with this value to remove')
+
+    @property
+    def query(self):
+        return f'{self.field} != {self.value}'
+
+    def apply(self, table):
+        try:
+            return table.query(self.query)
+        except pd.core.computation.ops.UndefinedVariableError:
+            return table
