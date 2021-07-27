@@ -17,6 +17,7 @@ pmt.set_control(('Full deuteration control', 0.167))
 
 sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
-hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence)
+temperature, pH = 273.15 + 30, 8.
+hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence, pH=pH, temperature=temperature)
 
 hdxm.coverage.protein.to_file(output_dir / 'SecB_info.txt', fmt='pprint')
