@@ -1,7 +1,7 @@
 """
 This module allows users to generate a .pdf output report from their HDX measurement
 
-(Currently outdated/not working)
+(Currently partially out of date)
 """
 
 
@@ -17,12 +17,8 @@ from pyhdx.plot import plot_peptides
 from pyhdx.fitting_torch import TorchSingleFitResult
 from tqdm.auto import tqdm
 
-
-try:
-    import pylatex as pyl
-
-except ModuleNotFoundError:
-    pyl = None
+import pylatex as pyl
+import proplot as pplt
 import tempfile
 
 
@@ -32,18 +28,20 @@ geometry_options = {
     }
 
 
+# plot_defaults = {
+#     ''}
+
+
 class Report(object):
     """
 
     .pdf output document
     """
 
-    def __init__(self, output, name=None, doc=None, add_date=True):
-        if not pyl:
-            raise ModuleNotFoundError('pylatex module not installed')
-        name = name or output.fit_result.data_obj.name
+    def __init__(self, output, title=None, doc=None, add_date=True):
+        self.title = title or f'Fit report for {output.fit_result.data_obj.name}'
         self.output = output
-        self.doc = doc or self._init_doc(name, add_date=add_date)
+        self.doc = doc or self._init_doc(add_date=add_date)
         self._temp_dir = self.make_temp_dir()
 
     def make_temp_dir(self):
@@ -53,10 +51,10 @@ class Report(object):
             os.makedirs(_tmp_path)
         return _tmp_path
 
-    def _init_doc(self, name, add_date=True):
-        doc = pyl.Document(name, geometry_options=geometry_options)
+    def _init_doc(self, add_date=True):
+        doc = pyl.Document(geometry_options=geometry_options)
         doc.packages.append(pyl.Package('hyperref'))
-        doc.preamble.append(pyl.Command('title', f'Supplementary Figures for {name}'))
+        doc.preamble.append(pyl.Command('title', self.title))
         if add_date:
             doc.preamble.append(pyl.Command('date', pyl.NoEscape(r'\today')))
         else:
@@ -78,19 +76,31 @@ class Report(object):
 
         file_path = self._save_fig(fig)
 
-
         with self.doc.create(pyl.Figure(position='htbp')) as plot:
             plot.add_image(pyl.NoEscape(file_path), width=pyl.NoEscape(r'1\textwidth'))
             plot.add_caption('I am a caption.')
 
     def add_coverage_figures(self, layout=(6, 2), close=True, **kwargs):
+        raise NotImplementedError()
         funcs = [partial(self.output._make_coverage_graph, i, **kwargs) for i in range(len(self.output.series))]
         self.make_subfigure(funcs, layout=layout, close=close)
 
-    def add_peptide_figures(self, layout=(5, 4), close=True, **kwargs):
+    def add_peptide_figures(self, ncols=4, nrows=5, **kwargs):
+
         Np = self.output.fit_result.data_obj.Np
-        funcs = [partial(self.output._make_peptide_graph, i, **kwargs) for i in range(Np)]
-        self.make_subfigure(funcs, layout=layout, close=close)
+        indices = range(Np)
+        n = ncols*nrows
+        chunks = [indices[i:i + n] for i in range(0, len(indices), n)]
+        for chunk in tqdm(chunks):
+            with self.doc.create(pyl.Figure(position='ht')) as tex_fig:
+                fig = self.output._make_peptide_subplots(chunk, ncols=ncols, nrows=nrows, **kwargs)
+                file_path = self._save_fig(fig)
+                plt.savefig('test.pdf')
+                plt.close(fig)
+
+                tex_fig.add_image(file_path, width=pyl.NoEscape(r'\textwidth'))
+
+        #self.make_subfigure(funcs, layout=layout, close=close)
 
     def make_subfigure(self, fig_funcs, layout=(5, 4), close=True):
         #todo figure out how to iterate properly
@@ -160,10 +170,13 @@ class Output(object):
     def get_fit_timepoints(self):
         timepoints = self.fit_result.data_obj.timepoints
         x_axis_type = self.settings.get('fit_time_axis', 'Log')
+        num = 100
         if x_axis_type == 'Linear':
-            time = np.linspace(0, timepoints.max(), num=250)
+            time = np.linspace(0, timepoints.max(), num=num)
         elif x_axis_type == 'Log':
-            time = np.logspace(-2, np.log10(timepoints.max()), num=250)
+            elem = timepoints[np.nonzero(timepoints)]
+            time = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=num, endpoint=True)
+
         return time
 
     def add_peptide_fits(self, ax_scale='log', fit_names=None):
@@ -173,12 +186,45 @@ class Output(object):
         for i in range(len(self.series.coverage)):
             yield from self._make_peptide_graph(i, **kwargs)
 
+    def _make_peptide_subplots(self, indices, **fig_kwargs):
+        """yield single peptide grpahs"""
+        nrows = fig_kwargs.pop('nrows', int(np.floor(np.sqrt(len(indices)))))
+        ncols = fig_kwargs.pop('ncols', int(np.ceil(len(indices) / nrows)))
+
+        default_kwargs = {'sharex': 1, 'sharey': 1, 'ncols': ncols, 'nrows': nrows}
+        default_kwargs.update(fig_kwargs)
+
+        fig, axes = pplt.subplots(**default_kwargs)
+        axes_iter = iter(axes)
+        for i, ax in zip(indices, axes_iter):
+            ax.plot(self.fit_timepoints, self.d_calc[i], color='r')
+            ax.scatter(self.fit_result.data_obj.timepoints, self.fit_result.data_obj.d_exp[i], color='k')
+
+            start = self.fit_result.data_obj.coverage.data['_start'][i]
+            end = self.fit_result.data_obj.coverage.data['_end'][i]
+            ax.set_title(f'Peptide_{i}: {start} - {end}')
+
+        t_unit = fig_kwargs.get('time_unit', 'min')
+        t_unit = f'({t_unit})' if t_unit else t_unit
+
+        # turn off remaining axes
+        #todo proplot issue
+        axes.format(xscale='log', xlabel=f'Time' + t_unit, ylabel='Corrected D-uptake', xformatter='log')
+        xlim = axes[0].get_xlim()
+        for ax in axes_iter:
+            #ax.axis('off')
+            ax.set_axis_off()
+        axes.format(xlim=xlim)
+
+        return fig
+
     def _make_peptide_graph(self, index, figsize=(4,4), ax_scale='log', **fig_kwargs):
         """yield single peptide grpahs"""
 
         fig, ax = plt.subplots(figsize=figsize)
         if ax_scale == 'log':
             ax.set_xscale('log')
+            ax.get_xaxis().get_major_formatter().set_scientific(True)
 
         ax.plot(self.fit_timepoints, self.d_calc[index], color='r')
         ax.scatter(self.fit_result.data_obj.timepoints, self.fit_result.data_obj.d_exp[index], color='k')
@@ -190,6 +236,8 @@ class Output(object):
         start = self.fit_result.data_obj.coverage.data['_start'][index]
         end = self.fit_result.data_obj.coverage.data['_end'][index]
         ax.set_title(f'peptide_{start}_{end}')
+
+
         #ax.legend()
         plt.tight_layout()
 
