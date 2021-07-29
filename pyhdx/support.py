@@ -343,6 +343,8 @@ def rgb_to_hex(rgb_a):
             rgba_array = rgb_a
         else:
             rgba_array = np.array(rgb_a)
+    else:
+        raise TypeError(f"Invalid type for 'rgb_a': {rgb_a}")
 
     ints = rgba_array.astype(np.uint8).view(dtype=np.uint32).byteswap()
     a = base_v(ints // 2**8, 16)
