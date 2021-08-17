@@ -96,6 +96,8 @@ To run PyHDX server using the IP address and port number of your dask cluster:
 
     $ pyhdx --cluster <ip> <port>
 
+If no dask cluster is found at the specified address, a LocalCluster will be started (on localhost) using the
+specified port number.
 
 To start a dask cluster separately, open another terminal tab and run:
 
