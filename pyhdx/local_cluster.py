@@ -7,18 +7,27 @@ cfg = ConfigurationSettings()
 
 #todo refactor cluster
 def default_client(timeout='2s'):
-    cluster = cfg.cluster
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
     try:
-        client = Client(cluster, timeout=timeout)
+        client = Client(scheduler_address, timeout=timeout)
         return client
     except (TimeoutError, IOError):
-        print(f"No valid Dask scheduler found at specified address: '{cluster}'")
+        print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")
         return False
 
 
 def default_cluster(**kwargs):
+    """Start a dask LocalCluster at the scheduler port given by the config
+
+    kwargs: override defaults
+
+    """
+
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
+    port = int(scheduler_address.split(':')[-1])
+
     settings = {
-        'scheduler_port': int(cfg.get('cluster', 'port')),
+        'scheduler_port': port,
         'n_workers': int(cfg.get('cluster', 'n_workers'))}
     settings.update(kwargs)
     cluster = LocalCluster(**settings)
@@ -26,14 +35,17 @@ def default_cluster(**kwargs):
     return cluster
 
 
-def verify_cluster(cluster, timeout='2s'):
+def verify_cluster(scheduler_address, timeout='2s'):
+    """Check if a valid dask scheduler is running at the provided scheduler_address"""
     try:
-        client = Client(cluster, timeout=timeout)
+        client = Client(scheduler_address, timeout=timeout)
         return True
     except (TimeoutError, IOError):
         return False
 
+
 def blocking_cluster():
+    """Start a dask LocalCluster and block until iterrupted"""
     parser = argparse.ArgumentParser(description='Start a new Dask local cluster')
     parser.add_argument('-p', '--port', help="Port to use for the Dask local cluster", dest='port')
 
@@ -42,7 +54,8 @@ def blocking_cluster():
     if args.port:
         port = int(args.port)
     else:
-        port = int(cfg.get('cluster', 'port'))
+        scheduler_address = cfg.get('cluster', 'scheduler_address')
+        port = int(scheduler_address.split(':')[-1])
     try:
         n_workers = int(cfg.get('cluster', 'n_workers'))
         local_cluster = LocalCluster(scheduler_port=port, n_workers=n_workers)

@@ -73,18 +73,6 @@ class ConfigurationSettings(metaclass=Singleton):
         """configparser set"""
         self._config.set(*args, **kwargs)
 
-    @property
-    def cluster(self):
-        """Returns cluster address"""
-
-        return f"{self.get('cluster', 'ip')}:{self.get('cluster', 'port')}"
-
-    @cluster.setter
-    def cluster(self, address):
-        ip, port = address.split(':')
-        self.set('cluster', 'ip', ip)
-        self.set('cluster', 'port', port)
-
     def write_config(self, path=None):
         """
         This method is used to update the configuration file.

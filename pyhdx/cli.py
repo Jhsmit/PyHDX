@@ -12,40 +12,38 @@ def main():
                                      description='PyHDX Launcher')
  
     parser.add_argument('serve', help="Runs PyHDX Dashboard")
-
-    parser.add_argument('--cluster', help="Run with local cluster <ip> <port>", dest='cluster', nargs=2,
-                        metavar=('IP', 'PORT'))
+    parser.add_argument('--scheduler_address', help="Run with local cluster <ip>:<port>")
     args = parser.parse_args()
 
     cfg = ConfigurationSettings()
 
-    if args.cluster:
-        if not ip_address(args.cluster[0]):
+    if args.scheduler_address:
+        ip, port = args.scheduler_address.split(':')
+        if not ip_address(ip):
             print('Invalid IP Address')
             return
-        elif not 0 < int(args.cluster[1]) < 2**16:
+        elif not 0 <= int(port) < 2**16:
             print('Invalid port, must be 0-65535')
             return
-        cfg.cluster = ':'.join(args.cluster)
+        cfg.set('cluster', 'scheduler_address', args.scheduler_address)
 
-    cluster = cfg.cluster
-    if not verify_cluster(cluster):
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
+    if not verify_cluster(scheduler_address):
         # Start a new local cluster if none is found
         client = default_cluster()
         _, ip, port = client.scheduler_address.split(':')
         ip = ip.strip('/')
-        cluster = f"{ip}:{port}"
-        print(f"Started new Dask LocalCluster at {cluster}")
-        cfg.cluster = cluster
+        scheduler_address = f"{ip}:{port}"
+        print(f"Started new Dask LocalCluster at {scheduler_address}")
 
     if args.serve:
         serve.run_main()
             
 
 if __name__ == '__main__':
-    # import sys
-    # sys.argv.append('serve')
-    # sys.argv.append('--cluster')
-    # sys.argv.append('127.0.0.1')
-    # sys.argv.append('53270')
+    import sys
+    sys.argv.append('serve')
+    sys.argv.append('--scheduler_address')
+    sys.argv.append('127.0.0.1:53270')
+
     main()

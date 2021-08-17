@@ -24,9 +24,9 @@ def run_main():
     np.random.seed(43)
     torch.manual_seed(43)
 
-    cluster = ConfigurationSettings().cluster
-    if not verify_cluster(cluster):
-        print(f"No valid Dask scheduler found at specified address: '{cluster}'")
+    scheduler_address = ConfigurationSettings().get('cluster', 'scheduler_address')
+    if not verify_cluster(scheduler_address):
+        print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")
         return
 
     log_root_dir = Path.home() / '.pyhdx' / 'logs'
