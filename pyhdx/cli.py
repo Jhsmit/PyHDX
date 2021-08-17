@@ -2,9 +2,10 @@ import argparse
 from ipaddress import ip_address
 from pyhdx.web import serve
 from pyhdx.config import ConfigurationSettings
-from dask.distributed import LocalCluster
-from pyhdx.support import verify_cluster
+from pyhdx.local_cluster import verify_cluster, default_cluster
 
+
+# todo add check to see if the web module requirements are installed
 
 def main():
     parser = argparse.ArgumentParser(prog='pyhdx',
@@ -25,27 +26,26 @@ def main():
         elif not 0 < int(args.cluster[1]) < 2**16:
             print('Invalid port, must be 0-65535')
             return
-        elif not verify_cluster(':'.join(args.cluster)):
-            print("No Dask scheduler found at given address")
-            return
         cfg.cluster = ':'.join(args.cluster)
 
-    else:
-        cluster = ConfigurationSettings().cluster
-        if not verify_cluster(cluster):
-            # Start a new local cluster if none is specified
-            local_cluster = LocalCluster()  #todo cluster config in configuration file
-            _, ip, port = local_cluster.scheduler_address.split(':')
-            ip = ip.strip('/')
-            cluster = f"{ip}:{port}"
-            print(f"Started new Dask LocalCluster at {cluster}")
-            cfg.cluster = cluster
+    cluster = cfg.cluster
+    if not verify_cluster(cluster):
+        # Start a new local cluster if none is found
+        client = default_cluster()
+        _, ip, port = client.scheduler_address.split(':')
+        ip = ip.strip('/')
+        cluster = f"{ip}:{port}"
+        print(f"Started new Dask LocalCluster at {cluster}")
+        cfg.cluster = cluster
 
     if args.serve:
         serve.run_main()
             
 
 if __name__ == '__main__':
-    import sys
-    sys.argv.append('serve')
+    # import sys
+    # sys.argv.append('serve')
+    # sys.argv.append('--cluster')
+    # sys.argv.append('127.0.0.1')
+    # sys.argv.append('53270')
     main()

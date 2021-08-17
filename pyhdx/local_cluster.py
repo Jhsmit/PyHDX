@@ -26,6 +26,13 @@ def default_cluster(**kwargs):
     return cluster
 
 
+def verify_cluster(cluster, timeout='2s'):
+    try:
+        client = Client(cluster, timeout=timeout)
+        return True
+    except (TimeoutError, IOError):
+        return False
+
 def blocking_cluster():
     parser = argparse.ArgumentParser(description='Start a new Dask local cluster')
     parser.add_argument('-p', '--port', help="Port to use for the Dask local cluster", dest='port')
