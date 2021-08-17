@@ -1,45 +1,40 @@
 import argparse
 from ipaddress import ip_address
 from pyhdx.web import serve
-from pyhdx.web.config import ConfigurationSettings
-from dask.distributed import LocalCluster
-from pyhdx.support import verify_cluster
+from pyhdx.config import ConfigurationSettings
+from pyhdx.local_cluster import verify_cluster, default_cluster
 
+
+# todo add check to see if the web module requirements are installed
 
 def main():
     parser = argparse.ArgumentParser(prog='pyhdx',
                                      description='PyHDX Launcher')
  
     parser.add_argument('serve', help="Runs PyHDX Dashboard")
-
-    parser.add_argument('--cluster', help="Run with local cluster <ip> <port>", dest='cluster', nargs=2,
-                        metavar=('IP', 'PORT'))
+    parser.add_argument('--scheduler_address', help="Run with local cluster <ip>:<port>")
     args = parser.parse_args()
 
     cfg = ConfigurationSettings()
 
-    if args.cluster:
-        if not ip_address(args.cluster[0]):
+    if args.scheduler_address:
+        ip, port = args.scheduler_address.split(':')
+        if not ip_address(ip):
             print('Invalid IP Address')
             return
-        elif not 0 < int(args.cluster[1]) < 2**16:
+        elif not 0 <= int(port) < 2**16:
             print('Invalid port, must be 0-65535')
             return
-        elif not verify_cluster(':'.join(args.cluster)):
-            print("No Dask scheduler found at given address")
-            return
-        cfg.cluster = ':'.join(args.cluster)
+        cfg.set('cluster', 'scheduler_address', args.scheduler_address)
 
-    else:
-        cluster = ConfigurationSettings().cluster
-        if not verify_cluster(cluster):
-            # Start a new local cluster if none is specified
-            local_cluster = LocalCluster()  #todo cluster config in configuration file
-            _, ip, port = local_cluster.scheduler_address.split(':')
-            ip = ip.strip('/')
-            cluster = f"{ip}:{port}"
-            print(f"Started new Dask LocalCluster at {cluster}")
-            cfg.cluster = cluster
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
+    if not verify_cluster(scheduler_address):
+        # Start a new local cluster if none is found
+        client = default_cluster()
+        _, ip, port = client.scheduler_address.split(':')
+        ip = ip.strip('/')
+        scheduler_address = f"{ip}:{port}"
+        print(f"Started new Dask LocalCluster at {scheduler_address}")
 
     if args.serve:
         serve.run_main()
@@ -48,4 +43,7 @@ def main():
 if __name__ == '__main__':
     import sys
     sys.argv.append('serve')
+    sys.argv.append('--scheduler_address')
+    sys.argv.append('127.0.0.1:53270')
+
     main()

@@ -4,11 +4,10 @@ from pyhdx.web.base import STATIC_DIR
 import numpy as np
 import torch
 
-from pyhdx.web.config import ConfigurationSettings
-from pyhdx.support import verify_cluster
+from pyhdx.config import ConfigurationSettings
+from pyhdx.local_cluster import verify_cluster
 
 import logging
-from functools import partial
 from pathlib import Path
 import datetime
 
@@ -25,9 +24,10 @@ def run_main():
     np.random.seed(43)
     torch.manual_seed(43)
 
-    cluster = ConfigurationSettings().cluster
-    if verify_cluster(cluster):
-        print("Welcome to the PyHDX server!")
+    scheduler_address = ConfigurationSettings().get('cluster', 'scheduler_address')
+    if not verify_cluster(scheduler_address):
+        print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")
+        return
 
     log_root_dir = Path.home() / '.pyhdx' / 'logs'
     log_dir = log_root_dir / datetime.datetime.now().strftime('%Y%m%d')
@@ -49,11 +49,11 @@ def run_main():
     fh.setLevel(10)
     tornado_logger.addHandler(fh)
 
+    print("Welcome to the PyHDX server!")
     pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
 
 
 if __name__ == '__main__':
-    root_log = logging.getLogger('pyhdx')
     run_main()
 
 

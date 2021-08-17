@@ -1,31 +1,51 @@
 from dask.distributed import LocalCluster, Client
 import time
-import os
-from pathlib import Path
-from pyhdx.web.config import ConfigurationSettings
+from pyhdx.config import ConfigurationSettings
 import argparse
 
 cfg = ConfigurationSettings()
 
 #todo refactor cluster
 def default_client(timeout='2s'):
-    cluster = cfg.cluster
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
     try:
-        client = Client(cluster, timeout=timeout)
+        client = Client(scheduler_address, timeout=timeout)
         return client
     except (TimeoutError, IOError):
-        print(f"No valid Dask scheduler found at specified address: '{cluster}'")
+        print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")
         return False
 
 
-def default_cluster():
-    port = int(cfg.get('cluster', 'port'))
-    cluster = LocalCluster(scheduler_port=port, n_workers=10)  # todo default settings local cluster from config
+def default_cluster(**kwargs):
+    """Start a dask LocalCluster at the scheduler port given by the config
+
+    kwargs: override defaults
+
+    """
+
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
+    port = int(scheduler_address.split(':')[-1])
+
+    settings = {
+        'scheduler_port': port,
+        'n_workers': int(cfg.get('cluster', 'n_workers'))}
+    settings.update(kwargs)
+    cluster = LocalCluster(**settings)
 
     return cluster
 
 
+def verify_cluster(scheduler_address, timeout='2s'):
+    """Check if a valid dask scheduler is running at the provided scheduler_address"""
+    try:
+        client = Client(scheduler_address, timeout=timeout)
+        return True
+    except (TimeoutError, IOError):
+        return False
+
+
 def blocking_cluster():
+    """Start a dask LocalCluster and block until iterrupted"""
     parser = argparse.ArgumentParser(description='Start a new Dask local cluster')
     parser.add_argument('-p', '--port', help="Port to use for the Dask local cluster", dest='port')
 
@@ -34,9 +54,11 @@ def blocking_cluster():
     if args.port:
         port = int(args.port)
     else:
-        port = int(cfg.get('cluster', 'port'))
+        scheduler_address = cfg.get('cluster', 'scheduler_address')
+        port = int(scheduler_address.split(':')[-1])
     try:
-        local_cluster = LocalCluster(scheduler_port=port, n_workers=10)  # todo default settings local cluster from config
+        n_workers = int(cfg.get('cluster', 'n_workers'))
+        local_cluster = LocalCluster(scheduler_port=port, n_workers=n_workers)
         print(f"Started local cluster at {local_cluster.scheduler_address}")
     except OSError as e:
         print(f"Could not start local cluster with at port: {port}")
