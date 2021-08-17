@@ -1,8 +1,7 @@
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import main_app#, diff_app
-from pyhdx.web.config import ConfigurationSettings
-from pyhdx.local_cluster import default_cluster
+from pyhdx.config import ConfigurationSettings
 from pathlib import Path
 import torch
 import numpy as np

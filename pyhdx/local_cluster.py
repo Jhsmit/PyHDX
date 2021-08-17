@@ -1,8 +1,6 @@
 from dask.distributed import LocalCluster, Client
 import time
-import os
-from pathlib import Path
-from pyhdx.web.config import ConfigurationSettings
+from pyhdx.config import ConfigurationSettings
 import argparse
 
 cfg = ConfigurationSettings()
@@ -18,9 +16,12 @@ def default_client(timeout='2s'):
         return False
 
 
-def default_cluster():
-    port = int(cfg.get('cluster', 'port'))
-    cluster = LocalCluster(scheduler_port=port, n_workers=10)  # todo default settings local cluster from config
+def default_cluster(**kwargs):
+    settings = {
+        'scheduler_port': int(cfg.get('cluster', 'port')),
+        'n_workers': int(cfg.get('cluster', 'n_workers'))}
+    settings.update(kwargs)
+    cluster = LocalCluster(**settings)
 
     return cluster
 
@@ -36,7 +37,8 @@ def blocking_cluster():
     else:
         port = int(cfg.get('cluster', 'port'))
     try:
-        local_cluster = LocalCluster(scheduler_port=port, n_workers=10)  # todo default settings local cluster from config
+        n_workers = int(cfg.get('cluster', 'n_workers'))
+        local_cluster = LocalCluster(scheduler_port=port, n_workers=n_workers)
         print(f"Started local cluster at {local_cluster.scheduler_address}")
     except OSError as e:
         print(f"Could not start local cluster with at port: {port}")

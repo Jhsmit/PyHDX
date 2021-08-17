@@ -4,11 +4,10 @@ from pyhdx.web.base import STATIC_DIR
 import numpy as np
 import torch
 
-from pyhdx.web.config import ConfigurationSettings
+from pyhdx.config import ConfigurationSettings
 from pyhdx.support import verify_cluster
 
 import logging
-from functools import partial
 from pathlib import Path
 import datetime
 

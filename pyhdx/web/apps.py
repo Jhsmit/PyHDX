@@ -1,31 +1,25 @@
 from pyhdx.web.template import GoldenElvis, ExtendedGoldenTemplate
-from pyhdx.web.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
+from pyhdx.web.theme import ExtendedGoldenDarkTheme
 from pyhdx.web.controllers import *
-from pyhdx.web.main_controllers import ComparisonController, PyHDXController
+from pyhdx.web.main_controllers import PyHDXController
 from pyhdx.web.views import *
 from pyhdx.web.log import get_default_handler
 import sys
 from pyhdx import VERSION_STRING
-from pyhdx.web.base import BokehFigurePanel, STATIC_DIR
-from pyhdx.fileIO import csv_to_dataframe
+from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.sources import DataFrameSource
 from pyhdx.web.transforms import RescaleTransform, RemoveValueTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.filters import UniqueValuesFilter, MultiIndexSelectFilter
-from pyhdx.web.log import StreamToLogger
 import logging
 import panel as pn
 from pyhdx.web.log import logger
-from pyhdx.web.config import ConfigurationSettings
+from pyhdx.config import ConfigurationSettings
 from pyhdx.local_cluster import default_client
-from panel import pane
-from lumen.views import PerspectiveView, hvPlotView
-from lumen.filters import WidgetFilter, ParamFilter
 
 from pathlib import Path
 import pandas as pd
 import matplotlib as mpl
-import datetime
 
 DEBUG = True
 
