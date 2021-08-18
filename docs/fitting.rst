@@ -2,7 +2,7 @@
 Fitting
 =======
 
-Section under construction
+Section under construction. Please see examples/fitting.
 
 
 
