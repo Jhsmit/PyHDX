@@ -19,7 +19,7 @@ from skimage.filters import threshold_multiotsu
 from pyhdx import VERSION_STRING
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
-    fit_gibbs_global_batch
+    fit_gibbs_global_batch, PATIENCE, STOP_LOSS, EPOCHS, R1, R2, optimizer_defaults
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
 from pyhdx.web.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.web.sources import DataSource, DataFrameSource
@@ -592,22 +592,22 @@ class FitControl(ControlPanel):
 
     fit_mode = param.Selector(default='Batch', objects=['Batch', 'Single'])
 
-    stop_loss = param.Number(0.01, bounds=(0, None),
+    stop_loss = param.Number(STOP_LOSS, bounds=(0, None),
                              doc='Threshold loss difference below which to stop fitting.')
-    stop_patience = param.Integer(100, bounds=(1, None),
+    stop_patience = param.Integer(PATIENCE, bounds=(1, None),
                                   doc='Number of epochs where stop loss should be satisfied before stopping.')
-    learning_rate = param.Number(10, bounds=(0, None),
+    learning_rate = param.Number(optimizer_defaults['SGD']['lr'], bounds=(0, None),
                                  doc='Learning rate parameter for optimization.')
-    momentum = param.Number(0.5, bounds=(0, None),
+    momentum = param.Number(optimizer_defaults['SGD']['momentum'], bounds=(0, None),
                             doc='Stochastic Gradient Descent momentum')
-    nesterov = param.Boolean(True,
+    nesterov = param.Boolean(optimizer_defaults['SGD']['nesterov'],
                              doc='Use Nesterov type of momentum for SGD')
-    epochs = param.Integer(100000, bounds=(1, None),
-                          doc='Maximum number of epochs (iterations.')
-    r1 = param.Number(0.05, bounds=(0, None), label='Regularizer 1 (peptide axis)',
+    epochs = param.Integer(EPOCHS, bounds=(1, None),
+                           doc='Maximum number of epochs (iterations.')
+    r1 = param.Number(R1, bounds=(0, None), label='Regularizer 1 (peptide axis)',
                       doc='Value of the regularizer along residue axis.')
 
-    r2 = param.Number(0.5, bounds=(0, None), label='Regularizer 2 (sample axis)',
+    r2 = param.Number(R2, bounds=(0, None), label='Regularizer 2 (sample axis)',
                       doc='Value of the regularizer along sample axis.', constant=True)
 
     fit_name = param.String("Gibbs_fit_1", doc="Name for for the fit result")
