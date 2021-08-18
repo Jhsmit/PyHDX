@@ -50,7 +50,7 @@ def estimate_errors(hdxm, deltaG):
     tensors = hdxm.get_tensors(exchanges=True)
 
     def calc_loss(deltaG_input):
-        criterion = t.nn.MSELoss(reduction='sum')
+        criterion = t.nn.MSELoss(reduction='mean')
         pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
         uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
         output = t.matmul(tensors['X'], uptake)
