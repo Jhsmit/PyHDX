@@ -1,5 +1,5 @@
-pyHDX version 0.4.0, development version 04b7676 
-2021/07/12 19:08:55 (1626109735) 
+PyHDX v0.4.0b2+12.gd759e4d.dirty 
+2021/08/18 17:54:14 (1629302054) 
 
               rate         k1        k2         r
 r_number                                         

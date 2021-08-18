@@ -1,5 +1,5 @@
-pyHDX version 0.4.0, development version 04b7676 
-2021/07/12 19:08:59 (1626109739) 
+PyHDX v0.4.0b2+12.gd759e4d.dirty 
+2021/08/18 17:54:18 (1629302058) 
 
          sequence  coverage  exchanges         k_int
 r_number                                            
