@@ -18,6 +18,25 @@ EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
 er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
 
 
+# Reguarlizers act on ΔG values, which are in kJ/mol and range typically from 0 to 40000 J/mol.
+# Therefore they are scaled by a factor 10000 such that they are near one (as D values are also near one)
+REGULARIZATION_SCALING = 1e-4
+
+
+# default values
+
+PATIENCE = 50
+STOP_LOSS = 1e-6
+EPOCHS = 100000
+
+optimizer_defaults = {
+    'SGD': {
+        'lr': 10,
+        'momentum': 0.5,
+        'nesterov': True
+    },
+}
+
 # ------------------------------------- #
 # Rates fitting
 # ------------------------------------- #
