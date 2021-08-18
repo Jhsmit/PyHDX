@@ -28,10 +28,12 @@ REGULARIZATION_SCALING = 1e-4
 PATIENCE = 50
 STOP_LOSS = 1e-6
 EPOCHS = 100000
+R1 = 1
+R2 = 1
 
 optimizer_defaults = {
     'SGD': {
-        'lr': 10,
+        'lr': 1e4,
         'momentum': 0.5,
         'nesterov': True
     },
@@ -398,7 +400,7 @@ def _loss_df(total_loss, mse_loss):
     return loss_df
 
 
-def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
+def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
                      optimizer='SGD', **optimizer_kwargs):
     """
     Fit Gibbs free energies globally to all D-uptake data in the supplied hdxm
@@ -458,7 +460,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=EPOCHS, patience=PATIEN
     return result
 
 
-def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=False, epochs=EPOCHS, patience=50, stop_loss=STOP_LOSS,
+def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=False, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
                optimizer='SGD', **optimizer_kwargs):
     """
     Batch fit gibbs free energies to multiple HDX measurements
@@ -495,7 +497,7 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
     return _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs)
 
 
-def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
+def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
                optimizer='SGD', **optimizer_kwargs):
     """
     Batch fit gibbs free energies to two HDX measurements. The supplied HDXMeasurementSet must have alignment information
