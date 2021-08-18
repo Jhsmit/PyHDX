@@ -276,29 +276,14 @@ def check_bounds(fit_result):
             return False
     return True
 
-#
-# def fit_global(data, model):
-#     fit = Fit(model.sf_model, **data)
-#     res = fit.execute()
-#     return res
-
 
 # ------------------------------------- #
 # Gibbs fitting
 # ------------------------------------- #
 
-# Defaults for PyTorch optimizations
-optimizer_defaults = {
-    'SGD': {
-        'lr': 10,
-        'momentum': 0.5,
-        'nesterov': True
-    },
-}
-
 
 def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
-                  epochs=100000, patience=50, stop_loss=0.05, tqdm=True):
+                  epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS, tqdm=True):
     """
 
     Runs optimization/fitting of PyTorch model.
@@ -368,7 +353,8 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
 
 def regularizer_1d(r1, param):
-    return r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
+    reg_loss = r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
+    return reg_loss * REGULARIZATION_SCALING
 
 
 def regularizer_2d_mean(r1, r2, param):
@@ -377,7 +363,7 @@ def regularizer_2d_mean(r1, r2, param):
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - torch.mean(param, axis=0))
     reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
-    return reg_loss
+    return reg_loss * REGULARIZATION_SCALING
 
 
 def regularizer_2d_reference(r1, r2, param):
@@ -385,7 +371,7 @@ def regularizer_2d_reference(r1, r2, param):
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - param[0])[1:]
     reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
-    return reg_loss
+    return reg_loss * REGULARIZATION_SCALING
 
 
 def regularizer_2d_aligned(r1, r2, indices, param):
@@ -395,7 +381,7 @@ def regularizer_2d_aligned(r1, r2, indices, param):
     d_ax2 = torch.abs(param[0][i0] - param[1][i1])
 
     reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
-    return reg_loss
+    return reg_loss * REGULARIZATION_SCALING
 
 
 def _loss_df(total_loss, mse_loss):
@@ -412,7 +398,7 @@ def _loss_df(total_loss, mse_loss):
     return loss_df
 
 
-def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, stop_loss=0.05,
+def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
                      optimizer='SGD', **optimizer_kwargs):
     """
     Fit Gibbs free energies globally to all D-uptake data in the supplied hdxm
@@ -453,7 +439,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
     deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).unsqueeze(-1))  #reshape (nr, 1)
 
     model = DeltaGFit(deltaG_par)
-    criterion = torch.nn.MSELoss(reduction='sum')
+    criterion = torch.nn.MSELoss(reduction='mean')
 
     # Take default optimizer kwargs and update them with supplied kwargs
     optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
@@ -472,7 +458,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=0.1, epochs=100000, patience=50, st
     return result
 
 
-def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=False, epochs=100000, patience=50, stop_loss=0.05,
+def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=False, epochs=EPOCHS, patience=50, stop_loss=STOP_LOSS,
                optimizer='SGD', **optimizer_kwargs):
     """
     Batch fit gibbs free energies to multiple HDX measurements
@@ -509,7 +495,7 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=2, r2=5, r2_reference=Fals
     return _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs)
 
 
-def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=100000, patience=50, stop_loss=0.05,
+def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=2, r2=5, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
                optimizer='SGD', **optimizer_kwargs):
     """
     Batch fit gibbs free energies to two HDX measurements. The supplied HDXMeasurementSet must have alignment information
@@ -559,7 +545,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 
     model = DeltaGFit(deltaG_par)
-    criterion = torch.nn.MSELoss(reduction='sum')
+    criterion = torch.nn.MSELoss(reduction='mean')
 
     # Take default optimizer kwargs and update them with supplied kwargs
     optimizer_kwargs = {**optimizer_defaults.get(fit_kwargs['optimizer'], {}), **optimizer_kwargs}  # Take defaults and override with user-specified
