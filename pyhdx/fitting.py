@@ -323,18 +323,20 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
     np.random.seed(43)
     torch.manual_seed(43)
 
-    mse_loss_list = [np.inf]
-    total_loss_list = [np.inf]
+    losses_list = [[np.inf]]
 
     def closure():
         output = model(*inputs)
         loss = criterion(output, output_data)
-        mse_loss_list.append(loss.detach())
-        reg_loss = regularizer(model.deltaG)
-        total_loss = loss + reg_loss
-        total_loss_list.append(total_loss.detach())  # total_loss.item()
-        total_loss.backward()
-        return total_loss
+        losses_list.append([loss.item()])  # store mse loss
+        reg_loss_tuple = regularizer(model.deltaG)
+        for r in reg_loss_tuple:
+            loss += r
+
+        losses_list[-1] += [r.item() for r in reg_loss_tuple]  # store reg losses
+
+        loss.backward()
+        return loss
 
     stop = 0
     iter = trange(epochs) if tqdm else range(epochs)
@@ -342,7 +344,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         optimizer_obj.zero_grad()
         loss = optimizer_obj.step(closure)
 
-        diff = total_loss_list[-2] - total_loss_list[-1]
+        diff = sum(losses_list[-2]) - sum(losses_list[-1])
         if diff < stop_loss:
             stop += 1
             if stop > patience:
@@ -350,13 +352,12 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         else:
             stop = 0
 
-    #par = model.deltaG.detach().numpy()
-    return np.array(mse_loss_list[1:]), np.array(total_loss_list[1:]), model
+    return np.array(losses_list[1:]), model
 
 
 def regularizer_1d(r1, param):
     reg_loss = r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
-    return reg_loss * REGULARIZATION_SCALING
+    return reg_loss * REGULARIZATION_SCALING,
 
 
 def regularizer_2d_mean(r1, r2, param):
@@ -364,16 +365,15 @@ def regularizer_2d_mean(r1, r2, param):
     #param shape: Ns x Nr x 1
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - torch.mean(param, axis=0))
-    reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
-    return reg_loss * REGULARIZATION_SCALING
+
+    return r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING, r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING
 
 
 def regularizer_2d_reference(r1, r2, param):
-    #todo allow regularization wrt reference rather than mean
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - param[0])[1:]
-    reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
-    return reg_loss * REGULARIZATION_SCALING
+
+    return r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING, r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING
 
 
 def regularizer_2d_aligned(r1, r2, indices, param):
@@ -382,18 +382,19 @@ def regularizer_2d_aligned(r1, r2, indices, param):
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param[0][i0] - param[1][i1])
 
-    reg_loss = r1 * torch.mean(d_ax1) + r2 * torch.mean(d_ax2)
-    return reg_loss * REGULARIZATION_SCALING
+    return r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING, r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING
 
 
-def _loss_df(total_loss, mse_loss):
-    loss_dict = {
-        'total_loss': total_loss,
-        'mse_loss': mse_loss}
-    loss_dict['reg_loss'] = loss_dict['total_loss'] - loss_dict['mse_loss']
-    loss_dict['reg_percentage'] = loss_dict['reg_loss'] / loss_dict['total_loss'] * 100
+def _loss_df(losses_array):
 
-    loss_df = pd.DataFrame(loss_dict)
+    loss_df = pd.DataFrame(losses_array, columns=['mse_loss'] + [f'reg_{i + 1}' for i in range(losses_array.shape[1] - 1)])
+
+    #loss_dict = {
+    #     'total_loss': total_loss,
+    #     'mse_loss': mse_loss}
+    # #loss_dict['reg_loss'] = loss_dict['total_loss'] - loss_dict['mse_loss']
+    #loss_dict['reg_percentage'] = loss_dict['reg_loss'] / loss_dict['total_loss'] * 100
+    # loss_df = pd.DataFrame(loss_dict)
     loss_df.index.name = 'epoch'
     loss_df.index += 1
 
@@ -450,10 +451,10 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     reg_func = partial(regularizer_1d, r1)
 
     # returned_model is the same object as model
-    mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
+    losses_array, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, epochs=epochs,
                                                          patience=patience, stop_loss=stop_loss)
-    losses = _loss_df(total_loss, mse_loss)
+    losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
     result = TorchSingleFitResult(hdxm, model, losses=losses, **fit_kwargs)
 
@@ -554,9 +555,9 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     optimizer_klass = getattr(torch.optim, fit_kwargs['optimizer'])
 
     loop_kwargs = {k: fit_kwargs[k] for k in ['epochs', 'patience', 'stop_loss']}
-    mse_loss, total_loss, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
+    losses_array, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, **loop_kwargs)
-    losses = _loss_df(total_loss, mse_loss)
+    losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
     result = TorchBatchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
 

@@ -100,7 +100,7 @@ class TorchFitResult(object):
     @property
     def total_loss(self):
         """obj:`float`: Total loss value of the Lagrangian"""
-        total_loss = self.losses['total_loss'].iloc[-1]
+        total_loss = self.losses.iloc[-1].sum()
         return float(total_loss)
 
     @property
