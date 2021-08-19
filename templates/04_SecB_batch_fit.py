@@ -27,8 +27,7 @@ guess = csv_to_protein(data_dir / 'ecSecB_guess.txt', header=[2], index_col=0)
 
 gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
 
-# Example fit with only 1000 epochs and high regularizers
-# For real data start with parameters r1=0.05, r2=0.5, epochs=100000
+# Example fit with only 1000 epochs
 result = fit_gibbs_global_batch(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
 print(f"MSE loss: {result.mse_loss:.2f}, "
       f"Reg loss: {result.reg_loss:.2f}, "
