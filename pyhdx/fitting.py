@@ -311,6 +311,8 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         Number of epochs with less progress than `stop_loss` before terminating optimization
     stop_loss : :obj:`float`
         Threshold of optimization value below which no progress is made
+    tqdm : :obj:`bool`
+        Toggle tqdm progress bar
 
     Returns
     -------
