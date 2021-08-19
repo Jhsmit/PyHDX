@@ -242,3 +242,25 @@ class CheckPoint(Callback):
     def __call__(self, epoch, model, optimizer):
         if epoch % self.epoch_step == 0:
             self.model_history[epoch] = deepcopy(model.state_dict())
+
+    def to_dataframe(self, names=None, field='deltaG'):
+        """convert history of `field` into dataframe.
+         names must be given for batch fits with length equal to number of states
+
+         """
+        entry = next(iter(self.model_history.values()))
+        g = entry[field]
+        if g.ndim == 3:
+            num_states = entry[field].shape[0]  # G shape is Ns x Nr x 1
+            if not len(names) == num_states:
+                raise ValueError(f"Number of names provided must be equal to number of states ({num_states})")
+
+            dfs = []
+            for i in range(num_states):
+                df = pd.DataFrame({k: v[field].numpy()[i].squeeze() for k, v in self.model_history.items()})
+                dfs.append(df)
+                full_df = pd.concat(dfs, keys=names, axis=1)
+        else:
+            full_df = pd.DataFrame({k: v[field].numpy().squeeze() for k, v in self.model_history.items()})
+
+        return full_df

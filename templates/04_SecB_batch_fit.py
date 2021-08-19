@@ -12,8 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
 
-from pyhdx.fileIO import csv_to_protein
-from pyhdx.fileIO import read_dynamx
+from pyhdx.fileIO import csv_to_protein, read_dynamx, dataframe_to_file
 from pyhdx.fitting import fit_gibbs_global_batch
 from pyhdx.fitting_torch import CheckPoint
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
@@ -41,11 +40,17 @@ gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
 
 # Example fit with only 5000 epochs and high learning rate
 # Checkpoint stores model history every `epoch_step` epochs
-checkpoint = CheckPoint(epoch_step=1000)
+checkpoint = CheckPoint(epoch_step=250)
 result = fit_gibbs_global_batch(hdx_set, gibbs_guess, r1=0.5, r2=0.1, epochs=5000, lr=1e5, callbacks=[checkpoint])
 print(f"MSE loss: {result.mse_loss:.2f}, "
       f"Reg loss: {result.reg_loss:.2f}, "
       f"Reg percent: {result.regularization_percentage:.0f}%")
+
+
+df = checkpoint.to_dataframe(hdx_set.names)
+dataframe_to_file(output_dir / 'model_history.csv', df)
+dataframe_to_file(output_dir / 'model_history.txt', df, fmt='pprint')
+
 
 # Checkpoint history scatter plot
 # Note that these are raw deltaG values including interplated values in regions of no coverage
