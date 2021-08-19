@@ -285,7 +285,7 @@ def check_bounds(fit_result):
 
 
 def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
-                  epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS, tqdm=True):
+                  epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS, callbacks=None, tqdm=True):
     """
 
     Runs optimization/fitting of PyTorch model.
@@ -311,6 +311,8 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         Number of epochs with less progress than `stop_loss` before terminating optimization
     stop_loss : :obj:`float`
         Threshold of optimization value below which no progress is made
+    callbacks: :obj:`list` or `None`
+        List of callback functions
     tqdm : :obj:`bool`
         Toggle tqdm progress bar
 
@@ -325,6 +327,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
     np.random.seed(43)
     torch.manual_seed(43)
 
+    callbacks = callbacks or []
     losses_list = [[np.inf]]
 
     def closure():
@@ -345,6 +348,9 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
     for epoch in iter:
         optimizer_obj.zero_grad()
         loss = optimizer_obj.step(closure)
+
+        for cb in callbacks:
+            cb(epoch, model, optimizer_obj)
 
         diff = sum(losses_list[-2]) - sum(losses_list[-1])
         if diff < stop_loss:
@@ -400,7 +406,7 @@ def _loss_df(losses_array):
 
 
 def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
-                     optimizer='SGD', **optimizer_kwargs):
+                     optimizer='SGD', callbacks=None, **optimizer_kwargs):
     """
     Fit Gibbs free energies globally to all D-uptake data in the supplied hdxm
 
@@ -414,6 +420,8 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     patience
     stop_loss
     optimizer : :obj:`str`
+    callbacks: :obj:`list` or None
+        List of callback objects. call signature is cb(epoch, model, optimizer)
     optimizer_kwargs
 
     Returns
@@ -451,7 +459,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     # returned_model is the same object as model
     losses_array, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, epochs=epochs,
-                                                         patience=patience, stop_loss=stop_loss)
+                                                         patience=patience, stop_loss=stop_loss, callbacks=callbacks)
     losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
     result = TorchSingleFitResult(hdxm, model, losses=losses, **fit_kwargs)
@@ -460,7 +468,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
 
 
 def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=False, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
-               optimizer='SGD', **optimizer_kwargs):
+               optimizer='SGD', callbacks=None, **optimizer_kwargs):
     """
     Batch fit gibbs free energies to multiple HDX measurements
 
@@ -476,6 +484,8 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=Fa
     patience
     stop_loss
     optimizer
+    callbacks: :obj:`list` or None
+        List of callback objects. call signature is cb(epoch, model, optimizer)
     optimizer_kwargs
 
     Returns
@@ -484,7 +494,7 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=Fa
     """
     # todo still some repeated code with fit_gibbs single
 
-    fit_keys = ['r1', 'r2', 'r2_reference', 'epochs', 'patience', 'stop_loss', 'optimizer']
+    fit_keys = ['r1', 'r2', 'r2_reference', 'epochs', 'patience', 'stop_loss', 'optimizer', 'callbacks']
     locals_dict = locals()
     fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
@@ -496,8 +506,8 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=Fa
     return _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs)
 
 
-def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
-               optimizer='SGD', **optimizer_kwargs):
+def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=EPOCHS, patience=PATIENCE,
+                                   stop_loss=STOP_LOSS, optimizer='SGD', callbacks=None, **optimizer_kwargs):
     """
     Batch fit gibbs free energies to two HDX measurements. The supplied HDXMeasurementSet must have alignment information
     (supplied by HDXMeasurementSet.add_alignment)
@@ -512,6 +522,8 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=
     epochs
     patience
     stop_loss
+    callbacks: :obj:`list` or None
+        List of callback objects. call signature is cb(epoch, model, optimizer)
     optimizer
     optimizer_kwargs
 
@@ -527,7 +539,7 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=
     indices = [torch.tensor(i, dtype=torch.long) for i in hdx_set.aligned_indices]
     reg_func = partial(regularizer_2d_aligned, r1, r2, indices)
 
-    fit_keys = ['r1', 'r2', 'epochs', 'patience', 'stop_loss', 'optimizer']
+    fit_keys = ['r1', 'r2', 'epochs', 'patience', 'stop_loss', 'optimizer', 'callbacks']
     locals_dict = locals()
     fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
@@ -553,6 +565,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     optimizer_klass = getattr(torch.optim, fit_kwargs['optimizer'])
 
     loop_kwargs = {k: fit_kwargs[k] for k in ['epochs', 'patience', 'stop_loss']}
+    loop_kwargs['callbacks'] = fit_kwargs.pop('callbacks')
     losses_array, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
                                                          model, criterion, reg_func, **loop_kwargs)
     losses = _loss_df(losses_array)

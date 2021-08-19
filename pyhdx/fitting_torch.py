@@ -1,12 +1,13 @@
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import SGD
-import torch as t
-from scipy import constants
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
-from pyhdx.models import Protein
+import torch as t
+import torch.nn as nn
+from scipy import constants
+
 from pyhdx.fileIO import dataframe_to_file
+from pyhdx.models import Protein
 
 
 class DeltaGFit(nn.Module):
@@ -224,3 +225,20 @@ class TorchBatchFitResult(TorchFitResult):
 
             output = self.model(*inputs)
         return output.detach().numpy()
+
+
+class Callback(object):
+
+    def __call__(self, epoch, model, optimizer):
+        pass
+
+
+class CheckPoint(Callback):
+
+    def __init__(self, epoch_step=1000):
+        self.epoch_step = epoch_step
+        self.model_history = {}
+
+    def __call__(self, epoch, model, optimizer):
+        if epoch % self.epoch_step == 0:
+            self.model_history[epoch] = deepcopy(model.state_dict())
