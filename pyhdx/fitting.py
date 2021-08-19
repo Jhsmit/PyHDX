@@ -388,15 +388,11 @@ def regularizer_2d_aligned(r1, r2, indices, param):
 
 
 def _loss_df(losses_array):
+    """transforms losses array to losses dataframe
+    first column in losses array is mse loss, rest are regularzation losses
+    """
 
     loss_df = pd.DataFrame(losses_array, columns=['mse_loss'] + [f'reg_{i + 1}' for i in range(losses_array.shape[1] - 1)])
-
-    #loss_dict = {
-    #     'total_loss': total_loss,
-    #     'mse_loss': mse_loss}
-    # #loss_dict['reg_loss'] = loss_dict['total_loss'] - loss_dict['mse_loss']
-    #loss_dict['reg_percentage'] = loss_dict['reg_loss'] / loss_dict['total_loss'] * 100
-    # loss_df = pd.DataFrame(loss_dict)
     loss_df.index.name = 'epoch'
     loss_df.index += 1
 
