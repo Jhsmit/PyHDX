@@ -150,4 +150,5 @@ class TestFileIO(object):
             fr_load_with_hdxm_and_losses = load_fitresult(fit_result_dir / 'fit_result.csv',
                                                           hdxm=self.hdxm, losses=losses)
             assert len(fr_load_with_hdxm_and_losses.losses) == 100
-            assert fr_load_with_hdxm_and_losses.metadata['total_loss'] == losses['total_loss'].iloc[-1]
+
+            assert fr_load_with_hdxm_and_losses.metadata['total_loss'] == losses.iloc[-1].sum()

@@ -1,6 +1,7 @@
 import os
 import tempfile
 
+import pytest
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, save_fitresult, load_fitresult
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
@@ -52,8 +53,7 @@ class TestSecBDataFit(object):
         #  result = fit_rates_half_time_interpolate()
 
     def test_global_fit(self):
-        # initial_rates = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
-        initial_rates = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
+        initial_rates = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
 
         t0 = time.time()  # Very crude benchmarks
         gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
@@ -71,10 +71,29 @@ class TestSecBDataFit(object):
         mse = fr_global.get_mse()
         assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
+    @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
+    def test_global_fit_extended(self):
+        initial_rates = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
+
+        t0 = time.time()  # Very crude benchmarks
+        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
+        fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=20000, r1=2)
+        t1 = time.time()
+
+        assert t1 - t0 < 20
+        out_deltaG = fr_global.output
+        check_deltaG = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit_epochs_20000.csv')
+
+        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
+        assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
+        assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
+
+        mse = fr_global.get_mse()
+        assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
+
     def test_batch_fit(self):
         hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
-        #guess = csv_to_protein(os.path.join(directory, 'test_data', 'ecSecB_guess.txt'))
-        guess = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
+        guess = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
 
         gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
         fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)

@@ -18,7 +18,7 @@ from pyhdx.web.widgets import LoggingMarkdown, NGL
 class hvPlotAppView(hvPlotView):
 
     def get_data(self):
-
+        # get data filter using pandas query syntax?
         try:
             data = super().get_data()
         except (KeyError, ValueError) as e:

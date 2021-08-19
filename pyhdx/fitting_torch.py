@@ -1,12 +1,13 @@
-import torch.nn as nn
-import torch.nn.functional as F
-from torch.optim import SGD
-import torch as t
-from scipy import constants
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
-from pyhdx.models import Protein
+import torch as t
+import torch.nn as nn
+from scipy import constants
+
 from pyhdx.fileIO import dataframe_to_file
+from pyhdx.models import Protein
 
 
 class DeltaGFit(nn.Module):
@@ -100,7 +101,7 @@ class TorchFitResult(object):
     @property
     def total_loss(self):
         """obj:`float`: Total loss value of the Lagrangian"""
-        total_loss = self.losses['total_loss'].iloc[-1]
+        total_loss = self.losses.iloc[-1].sum()
         return float(total_loss)
 
     @property
@@ -224,3 +225,42 @@ class TorchBatchFitResult(TorchFitResult):
 
             output = self.model(*inputs)
         return output.detach().numpy()
+
+
+class Callback(object):
+
+    def __call__(self, epoch, model, optimizer):
+        pass
+
+
+class CheckPoint(Callback):
+
+    def __init__(self, epoch_step=1000):
+        self.epoch_step = epoch_step
+        self.model_history = {}
+
+    def __call__(self, epoch, model, optimizer):
+        if epoch % self.epoch_step == 0:
+            self.model_history[epoch] = deepcopy(model.state_dict())
+
+    def to_dataframe(self, names=None, field='deltaG'):
+        """convert history of `field` into dataframe.
+         names must be given for batch fits with length equal to number of states
+
+         """
+        entry = next(iter(self.model_history.values()))
+        g = entry[field]
+        if g.ndim == 3:
+            num_states = entry[field].shape[0]  # G shape is Ns x Nr x 1
+            if not len(names) == num_states:
+                raise ValueError(f"Number of names provided must be equal to number of states ({num_states})")
+
+            dfs = []
+            for i in range(num_states):
+                df = pd.DataFrame({k: v[field].numpy()[i].squeeze() for k, v in self.model_history.items()})
+                dfs.append(df)
+                full_df = pd.concat(dfs, keys=names, axis=1)
+        else:
+            full_df = pd.DataFrame({k: v[field].numpy().squeeze() for k, v in self.model_history.items()})
+
+        return full_df
