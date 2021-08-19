@@ -49,6 +49,23 @@ class RescaleTransform(Transform):
         return table
 
 
+class AccumulateRegularizersTransform(Transform):
+    """
+    Very niche and temporary transform to accumulate reg losses to one column
+    """
+
+    transform_type = 'accumulate_regularizers'
+
+    def apply(self, table):
+        # first two columns are index and mse_loss?
+        reg_total = table.iloc[:, 2:].sum(axis=1)
+        reg_total.name = 'reg_loss'
+
+        result = pd.concat([table.iloc[:, :2], reg_total], axis=1)
+
+        return result
+
+
 class ResetIndexTransform(Transform):
 
     level = param.ClassSelector(class_=(int, list, str), doc="""

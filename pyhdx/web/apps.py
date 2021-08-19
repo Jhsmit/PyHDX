@@ -8,7 +8,8 @@ import sys
 from pyhdx import VERSION_STRING
 from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.sources import DataFrameSource
-from pyhdx.web.transforms import RescaleTransform, RemoveValueTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform
+from pyhdx.web.transforms import RescaleTransform, RemoveValueTransform, ApplyCmapTransform, PeptideLayoutTransform, ResetIndexTransform, \
+    AccumulateRegularizersTransform
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.filters import UniqueValuesFilter, MultiIndexSelectFilter
 import logging
@@ -286,11 +287,15 @@ def main_app(client='default'):
         filters=[filters['losses_fit_id'], filters['losses_state_name']]
     )
     view_list.append(losses)
+
+    accumulate_reg_trnsform = AccumulateRegularizersTransform(name='accumulate_regularizers')
+    trs_list.append(accumulate_reg_trnsform)
+
     opts = {'color': 'r', **opts}
     reg_losses = hvPlotAppView(
         source=source, name='reg_losses', x='index', y='reg_loss', kind='line',
         table='losses', streaming=True, responsive=True, opts=opts, label='reg',
-        transforms=[reset_index_transform_loss],
+        transforms=[reset_index_transform_loss, accumulate_reg_trnsform],
         filters=[filters['losses_fit_id'], filters['losses_state_name']]
     )
     view_list.append(reg_losses)
