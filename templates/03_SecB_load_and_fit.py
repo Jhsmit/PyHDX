@@ -11,9 +11,9 @@ from pyhdx.local_cluster import default_client
 guess = False
 
 fit_kwargs = {
-    'epochs': 100000,
-    'lr': 1e2,
-    'stop_loss': 0.001
+    'epochs': 10000,
+    'lr': 1e4,
+    'stop_loss': 1e-6
 }
 
 current_dir = Path(__file__).parent
@@ -36,8 +36,7 @@ if guess:
     wt_avg_result = fit_rates_weighted_average(hdxm, client=client)
     init_guess = wt_avg_result.output
 else:
-    #todo initial guesse needs to be updated
-    init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.txt', header=[2], index_col=0)
+    init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.csv')
 
 gibbs_guess = hdxm.guess_deltaG(init_guess['rate'])
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, **fit_kwargs)
