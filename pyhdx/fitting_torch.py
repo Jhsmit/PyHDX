@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch as t
 import torch.nn as nn
-from scipy import constants
+from scipy import constants, linalg
 
 from pyhdx.fileIO import dataframe_to_file
 from pyhdx.models import Protein
@@ -32,7 +32,7 @@ class DeltaGFit(nn.Module):
 
 def estimate_errors(hdxm, deltaG):
     """
-    Calculate covariances
+    Calculate covariances and uncertainty (perr, experimental)
 
     Parameters
     ----------
@@ -50,8 +50,8 @@ def estimate_errors(hdxm, deltaG):
 
     tensors = hdxm.get_tensors(exchanges=True)
 
-    def calc_loss(deltaG_input):
-        criterion = t.nn.MSELoss(reduction='mean')
+    def hes_loss(deltaG_input):
+        criterion = t.nn.MSELoss(reduction='sum')
         pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
         uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
         output = t.matmul(tensors['X'], uptake)
@@ -59,11 +59,35 @@ def estimate_errors(hdxm, deltaG):
         loss = criterion(output, tensors['uptake'])
         return loss
 
-    hessian = t.autograd.functional.hessian(calc_loss, deltaG)
+    hessian = t.autograd.functional.hessian(hes_loss, deltaG)
     hessian_inverse = t.inverse(-hessian)
     covariance = np.sqrt(np.abs(np.diagonal(hessian_inverse)))
+    cov_series = pd.Series(covariance, index=dG.index, name='covariance')
 
-    return pd.Series(covariance, index=dG.index, name='covariance')
+    def jac_loss(deltaG_input):
+        pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
+        uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
+        output = t.matmul(tensors['X'], uptake)
+
+        residuals = (output - tensors['uptake'])
+
+        return residuals.flatten()
+
+    # https://stackoverflow.com/questions/42388139/how-to-compute-standard-deviation-errors-with-scipy-optimize-least-squares
+    jacobian = t.autograd.functional.jacobian(jac_loss, deltaG).numpy()
+
+    U, s, Vh = linalg.svd(jacobian, full_matrices=False)
+    tol = np.finfo(float).eps * s[0] * max(jacobian.shape)
+    w = s > tol
+    cov = (Vh[w].T / s[w] ** 2) @ Vh[w]  # robust covariance matrix
+    res = jac_loss(deltaG).numpy()
+
+    chi2dof = np.sum(res ** 2) / (res.size - deltaG.numpy().size)
+    cov *= chi2dof
+    perr = np.sqrt(np.diag(cov))
+    perr_series = pd.Series(perr, index=dG.index, name='perr')
+
+    return cov_series, perr_series
 
 
 class TorchFitResult(object):
@@ -156,11 +180,12 @@ class TorchFitResult(object):
         k_obs = k_int / (1 + pfact)
         out_dict['k_obs'] = k_obs
 
-        covariance = estimate_errors(hdxm, deltaG)
+        covariance, perr = estimate_errors(hdxm, deltaG)
 
         index = pd.Index(hdxm.coverage.r_number, name='r_number')
         df = pd.DataFrame(out_dict, index=index)
         df = df.join(covariance)
+        # df = df.join(perr)
 
         return df
 
