@@ -78,7 +78,7 @@ The latest beta docs are found `here <https://pyhdx.readthedocs.io/en/latest/>`_
 BioRxiv paper
 =============
 
-The latests version (v2) of our biorxiv paper can be found here: https://doi.org/10.1101/2020.09.30.320887 
+The latest version (v2) of our biorxiv paper can be found here: https://doi.org/10.1101/2020.09.30.320887 
 
 Python code for analysis and generation the figures in the paper are here: https://github.com/Jhsmit/PyHDX-paper
 
