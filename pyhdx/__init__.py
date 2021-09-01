@@ -1,6 +1,5 @@
-from .models import PeptideMasterTable, PeptideMeasurements, HDXMeasurement, Coverage
+from .models import PeptideMasterTable, PeptideMeasurements, HDXMeasurement, Coverage, HDXMeasurementSet
 from .fileIO import read_dynamx
-from pathlib import Path
 
 from ._version import get_versions
 

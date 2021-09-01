@@ -328,6 +328,8 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
 
     if isinstance(fit_result.data_obj, pyhdx.HDXMeasurement):
         fit_result.data_obj.to_file(output_dir / 'HDXMeasurement.csv')
+    if isinstance(fit_result.data_obj, pyhdx.HDXMeasurementSet):
+        fit_result.data_obj.to_file(output_dir / 'HDXMeasurements.csv')
 
     loss = f'Total_loss {fit_result.total_loss:.2f}, mse_loss {fit_result.mse_loss:.2f}, reg_loss {fit_result.reg_loss:.2f}' \
            f'({fit_result.regularization_percentage:.2f}%)'

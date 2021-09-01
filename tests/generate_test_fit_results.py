@@ -1,4 +1,4 @@
-from pyhdx.fileIO import read_dynamx, csv_to_protein
+from pyhdx.fileIO import read_dynamx, csv_to_protein, save_fitresult
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.models import HDXMeasurementSet
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
@@ -36,12 +36,16 @@ hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence, temperatu
 
 data = pmt.get_state('SecB WT apo')
 reduced_data = data[data['end'] < 40]
-reduced_hdxm = HDXMeasurement(reduced_data)
+hdxm_reduced = HDXMeasurement(reduced_data, temperature=temperature, pH=pH)
 
-result = fit_rates_weighted_average(reduced_hdxm)
-output = result.output
-output.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.csv')
-output.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.txt', fmt='pprint')
+result = fit_rates_weighted_average(hdxm_reduced)
+reduced_guess = result.output
+reduced_guess.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.csv')
+reduced_guess.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.txt', fmt='pprint')
+
+gibbs_guess = hdxm_reduced.guess_deltaG(reduced_guess['rate'])
+fr_torch = fit_gibbs_global(hdxm_reduced, gibbs_guess, epochs=epochs, r1=2)
+save_fitresult(directory / 'test_data' / 'ecsecb_reduced', fr_torch)
 
 if guess:
     # Initial guesses changed (by refactoring to rfu?)
@@ -65,8 +69,9 @@ fr_torch.output.to_file(directory / 'test_data' / f'ecSecB_torch_fit_epochs_{epo
 fr_torch.output.to_file(directory / 'test_data' / f'ecSecB_torch_fit_epochs_{epochs_long}.txt', fmt='pprint')
 
 
-# ---------------
+# ----------
 # Batch fits
+# ----------
 
 hdxm_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), sequence=sequence_dimer,
                             temperature=temperature, pH=pH)
@@ -94,3 +99,16 @@ aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.tx
 
 hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.csv')
 hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.txt', fmt='pprint')
+
+# ------------------
+# Reduced Batch fits
+# ------------------
+
+data = pmt.get_state('SecB his dimer apo')
+reduced_data = data[data['end'] < 40]
+hdxm_reduced_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), temperature=temperature, pH=pH)
+
+reduced_hdx_set = HDXMeasurementSet([hdxm_reduced, hdxm_reduced_dimer])
+gibbs_guess = reduced_hdx_set.guess_deltaG([reduced_guess['rate'], reduced_guess['rate']])
+batch_result = fit_gibbs_global_batch(reduced_hdx_set, gibbs_guess, epochs=epochs)
+save_fitresult(directory / 'test_data' / 'ecsecb_reduced_batch', batch_result)

@@ -666,7 +666,7 @@ class HDXMeasurement(object):
     def __init__(self, data, **metadata):
         self.metadata = metadata
         assert len(np.unique(data['state'])) == 1
-        self.state = data['state'][0]
+        self.state = str(data['state'][0])
         self.timepoints = np.sort(np.unique(data['exposure']))
 
         data_list = [(data[data['exposure'] == exposure]) for exposure in self.timepoints]
@@ -832,7 +832,7 @@ class HDXMeasurement(object):
 
     def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
         """
-        Write Protein data to file.
+        Write the data in this HDX measurement to file.
 
 
         Parameters
@@ -852,7 +852,10 @@ class HDXMeasurement(object):
         None
 
         """
+        #todo save full_data as pandas dataframe
 
+        # requires testing dont think this works as intended
+        # should use self.metadata if include_metadata is the bool True otherwise if its a dict use that
         metadata = self.metadata if include_metadata else include_metadata
         df = pd.DataFrame(self.full_data)
         df.index.name = 'peptide_index'
@@ -1145,6 +1148,40 @@ class HDXMeasurementSet(object):
         exchanges[self.masks['sr']] = values
 
         return exchanges
+
+    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+        """
+        Write the data in this HDX measurement set to file.
+
+        Parameters
+        ----------
+        file_path : :obj:`str`
+            File path to create and write to.
+        include_version : :obj:`bool`
+            Set ``True`` to include PyHDX version and current time/date
+        fmt: :obj: `str`
+            Formatting to use, options are 'csv' or 'pprint'
+        include_metadata : :obj:`bool`
+            If `True`, the objects' metadata is included
+        **kwargs : :obj:`dict`, optional
+            Optional additional keyword arguments passed to `df.to_csv`
+        Returns
+        -------
+        None
+
+        """
+
+        dfs = []
+        metadata = {}
+        for hdxm in self.hdxm_list:
+            metadata[hdxm.name] = hdxm.metadata if include_metadata else include_metadata
+            df = pd.DataFrame(hdxm.full_data)
+            df.index.name = 'peptide_index'
+            df.index += 1
+            dfs.append(df)
+
+        full_df = pd.concat(dfs, axis=1, keys=self.names)
+        dataframe_to_file(file_path, full_df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
 
 #https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
