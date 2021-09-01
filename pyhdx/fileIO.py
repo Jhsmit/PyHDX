@@ -361,33 +361,41 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     log_file_out.write_text('\n'.join(lines))
 
 
-def load_fitresult(fit_dir_or_file, hdxm=None, losses=None):
+def load_fitresult(fit_dir):
     """Load a fitresult into a fitting_torch.TorchSingleFitResult object
 
     Loading of TorchBatchFitResult is not implemented
 
     """
-    pth = Path(fit_dir_or_file)
+    pth = Path(fit_dir)
     if pth.is_dir():
-        fit_result = csv_to_dataframe(fit_dir_or_file / 'fit_result.csv')
-        losses = csv_to_dataframe(fit_dir_or_file / 'losses.csv')
-        hdxm = csv_to_hdxm(fit_dir_or_file / 'HDXMeasurement.csv')
+        fit_result = csv_to_dataframe(fit_dir / 'fit_result.csv')
+        losses = csv_to_dataframe(fit_dir / 'losses.csv')
+        try:
+            data_obj = csv_to_hdxm(fit_dir / 'HDXMeasurement.csv')
+            result_klass = pyhdx.fitting_torch.TorchSingleFitResult
+        except FileNotFoundError:
+            data_obj = csv_to_hdxm(fit_dir / 'HDXMeasurements.csv')
+            result_klass = pyhdx.fitting_torch.TorchBatchFitResult
     elif pth.is_file():
-        fit_result = csv_to_dataframe(fit_dir_or_file)
+        raise DeprecationWarning('`load_fitresult` only loads from fit result directories')
+        fit_result = csv_to_dataframe(fit_dir)
         assert isinstance(hdxm, pyhdx.HDXMeasurement), 'No valid HDXMeasurement data object supplied'
     else:
-        raise ValueError("Invalid fit result directory or file specified")
-
+        raise ValueError("Invalid fit result directory specified")
 
     fit_metadata = fit_result.attrs.pop('metadata')
-    #model_klass = getattr(pyhdx.fitting_torch, fit_metadata['model_name'])
     model_klass = getattr(import_module('pyhdx.fitting_torch'), fit_metadata['model_name'])
 
-    g_parameter = nn.Parameter(t.tensor(fit_result['_deltaG'].to_numpy())).unsqueeze(-1)  # todo record/generalize shapes
+    if isinstance(fit_result.columns, pd.MultiIndex):
+        g_arr = fit_result.xs('_deltaG', level=-1, axis=1).to_numpy().T
+    else:
+        g_arr = fit_result['_deltaG'].to_numpy().T
+    g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(-1)  # todo record/generalize shapes
+    print(g_parameter.shape)
     model = model_klass(g_parameter)
 
-    #todo pass metadata
-    fit_result_obj = pyhdx.fitting_torch.TorchSingleFitResult(hdxm, model, losses=losses, metadata=fit_metadata)
+    fit_result_obj = result_klass(data_obj, model, losses=losses, metadata=fit_metadata)
 
     return fit_result_obj
 
