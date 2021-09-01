@@ -95,7 +95,6 @@ class Report(object):
             with self.doc.create(pyl.Figure(position='ht')) as tex_fig:
                 fig = self.output._make_peptide_subplots(chunk, ncols=ncols, nrows=nrows, **kwargs)
                 file_path = self._save_fig(fig)
-                plt.savefig('test.pdf')
                 plt.close(fig)
 
                 tex_fig.add_image(file_path, width=pyl.NoEscape(r'\textwidth'))

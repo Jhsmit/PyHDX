@@ -392,7 +392,6 @@ def load_fitresult(fit_dir):
     else:
         g_arr = fit_result['_deltaG'].to_numpy().T
     g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(-1)  # todo record/generalize shapes
-    print(g_parameter.shape)
     model = model_klass(g_parameter)
 
     fit_result_obj = result_klass(data_obj, model, losses=losses, metadata=fit_metadata)
