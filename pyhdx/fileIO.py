@@ -14,6 +14,11 @@ from datetime import datetime
 
 from importlib import import_module
 
+# Dtype of fields in peptide table data
+PEPTIDE_DTYPES = {
+    'start': int,
+    'end': int,
+}
 
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
     """
@@ -165,10 +170,8 @@ def csv_to_protein(filepath_or_buffer, comment='#', **kwargs):
 
 def csv_to_hdxm(filepath_or_buffer, comment='#', **kwargs):
     """
-    Reads a .csv file or buffer into a  pyhdx.models.HDXMeasurement object.
-    Comment lines are parsed where json dictionaries marked by tags are read.
-    The <pandas_kwargs> marked json dict is used as kwargs for `pd.read_csv`
-    The <metadata> marked json dict is stored in the returned dataframe object as `df.attrs['metadata'].
+    Reads a pyhdx .csv file or buffer into a  pyhdx.models.HDXMeasurement or pyhdx.models.HDXMeasurementSet
+    object.
 
     Parameters
     ----------
@@ -186,9 +189,21 @@ def csv_to_hdxm(filepath_or_buffer, comment='#', **kwargs):
 
     df = csv_to_dataframe(filepath_or_buffer, comment=comment, **kwargs)
     metadata = df.attrs.pop('metadata', {})
-    data = df.to_records()
-    hdxm = pyhdx.models.HDXMeasurement(data, **metadata)
-    return hdxm
+    if df.columns.nlevels == 2:
+        hdxm_list = []
+        for state in df.columns.unique(level=0):
+            subdf = df[state].dropna(how='all')
+            data = subdf.to_records(column_dtypes=PEPTIDE_DTYPES)
+            m = metadata.get(state, {})
+            hdxm = pyhdx.models.HDXMeasurement(data, **m)
+            hdxm_list.append(hdxm)
+        data_obj = pyhdx.models.HDXMeasurementSet(hdxm_list)
+    elif df.columns.nlevels == 1:
+        data = df.to_records(column_dtypes=PEPTIDE_DTYPES)
+        data_obj = pyhdx.models.HDXMeasurement(data, **metadata)
+    else:
+        raise ValueError(f"Invalid number of column levels, found {df.columns.nlevels}, supported 1 or 2")
+    return data_obj
 
 
 def dataframe_to_stringio(df, sio=None, fmt='csv', include_metadata=True, include_version=True, **kwargs):
