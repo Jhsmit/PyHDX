@@ -1,0 +1,38 @@
+# YAML file for loading HDX-MS data; PyHDX v0.4.0b3
+
+SecB_tetramer:
+  filenames:
+    - ecSecB_apo.csv
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state_name: 'SecB WT apo'
+  pH: 8.
+  d_percentage: 90.
+  temperature: 30.
+  temperature_unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
+
+SecB_dimer:
+  filenames:
+    - ecSecB_apo.csv
+    - ecSecB_dimer.csv
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state_name: 'SecB his dimer apo'
+  pH: 8.
+  d_percentage: 90.
+  temperature: 30.
+  temperature_unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
