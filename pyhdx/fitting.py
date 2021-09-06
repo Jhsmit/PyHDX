@@ -128,8 +128,8 @@ def fit_rates_half_time_interpolate(hdxm):
     Returns
     -------
 
-    output: :class:`~numpy.ndarray`
-        array with fields r_number, rate
+    output: dataclass
+        dataclass with fit result
 
     """
     interpolated = np.array(
@@ -140,7 +140,7 @@ def fit_rates_half_time_interpolate(hdxm):
     output['rate'] = np.log(2) / interpolated
 
     protein = Protein(output, index='r_number')
-    t50FitResult = namedtuple('t50FitResult', ['output'])
+    t50FitResult = namedtuple('t50FitResult', ['output']) # todo dataclass?
 
     result = t50FitResult(output=protein)
 
