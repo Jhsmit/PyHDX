@@ -28,7 +28,7 @@ class TestMainGUISecB(object):
         cls.pmt = PeptideMasterTable(read_dynamx(cls.fpath))
 
         cls.state = 'SecB WT apo'
-        cls.control = ('Full deuteration control', 0.167)
+        cls.control = ('Full deuteration control', 0.167*60)
         cls.pmt.set_control(cls.control)
 
         state_data = cls.pmt.get_state(cls.state)
@@ -60,7 +60,8 @@ class TestMainGUISecB(object):
         file_input_control.fd_exposure = self.control[1]
 
         file_input_control.exp_state = self.state
-        assert file_input_control.exp_exposures == [0.0, 0.167, 0.5, 1.0, 5.0, 10.0, 100.000008]
+        timepoints = list(np.array([0.0, 0.167, 0.5, 1.0, 5.0, 10.0, 100.000008])*60)
+        assert file_input_control.exp_exposures == timepoints
         file_input_control._action_add_dataset()
 
         assert self.state in ctrl.data_objects
@@ -85,7 +86,7 @@ class TestMainGUISecB(object):
 
         file_input.input_files = files
         file_input.fd_state = 'Full deuteration control'
-        file_input.fd_exposure = 0.167
+        file_input.fd_exposure = 0.167*60
 
         file_input.exp_state = 'SecB WT apo'
         file_input.dataset_name = 'testname_123'

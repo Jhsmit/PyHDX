@@ -17,14 +17,13 @@ data_dir = directory / 'test_data'
 data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data)
-pmt.set_control(('Full deuteration control', 0.167))
-states = pmt.groupby_state()
+pmt.set_control(('Full deuteration control', 0.167*60))
 
-st1 = states['SecB his dimer apo']
-st2 = states['SecB WT apo']
+st1 = pmt.get_state('SecB his dimer apo')
+st2 = pmt.get_state('SecB WT apo')
 
-df1 = pd.DataFrame(st1.full_data)
-df2 = pd.DataFrame(st2.full_data)
+df1 = pd.DataFrame(st1)
+df2 = pd.DataFrame(st2)
 
 rates_df = pd.read_csv(data_dir / 'ecSecB_rates.txt', index_col=0, header=[0, 1])
 
@@ -57,7 +56,6 @@ class TestLumenSources(object):
 
         # Add nlvels == 1 dataframe
         df = pd.DataFrame({'rate': np.random.rand(100)})
-        df.columns.nlevels
 
         names = ['top_index', 'secb monomer']
         source.add_df(df, 'rates', names)

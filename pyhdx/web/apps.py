@@ -166,7 +166,7 @@ def main_app(client='default'):
 
     # PEPTIDES VIEW vs time D_EXP
     logx = True
-    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', **global_opts}
+    opts = {'xlabel': 'Time (s)', 'ylabel': 'D-uptake', **global_opts}
     opts['logx'] = logx
 
     f = MultiIndexSelectFilter(
@@ -204,7 +204,7 @@ def main_app(client='default'):
         filters=[filters['peptide_d_calc_fit_id'], filters['peptide_d_calc_state_name']])
     filters[f.name] = f
 
-    opts = {'xlabel': 'Time (min)', 'ylabel': 'D-uptake', 'color': 'r', **global_opts}
+    opts = {'xlabel': 'Time (s)', 'ylabel': 'D-uptake', 'color': 'r', **global_opts}
     opts['logx'] = logx
     d_calc_view = hvPlotAppView(
         source=source, name='d_calc_view', table='d_calc', streaming=True, kind='line',
@@ -254,7 +254,7 @@ def main_app(client='default'):
 
     # perhaps consider derivedsource for the views
 
-    opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (min⁻¹)", 'colorbar': False, **global_opts}
+    opts = {'logy': True, 'xlabel': "Residue Number", 'ylabel': "Rate (s⁻¹)", 'colorbar': False, **global_opts}
     rates = hvPlotAppView(
         source=source, name='rates', x='r_number', y='rate', kind='scatter', # c='color'
         table='rates', streaming=True, responsive=True, opts=opts,

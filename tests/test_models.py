@@ -32,11 +32,10 @@ class TestUptakeFileModels(object):
     def test_peptidemeasurement(self):
         assert isinstance(self.pf1, PeptideMasterTable)
 
-        self.pf1.set_control(('Full deuteration control', 0.167))
+        self.pf1.set_control(('Full deuteration control', 0.167*60))
 
-        states = self.pf1.groupby_state()
-        series = states['SecB WT apo']
-        assert isinstance(series, HDXMeasurement)
+        data = self.pf1.get_state('SecB WT apo')
+        assert isinstance(data, np.ndarray)
 
 
 class TestHDXMeasurement(object):
@@ -44,7 +43,7 @@ class TestHDXMeasurement(object):
     def setup_class(cls):
         fpath = directory / 'test_data' / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        cls.pmt.set_control(('Full deuteration control', 0.167))
+        cls.pmt.set_control(('Full deuteration control', 0.167*60))
         d = cls.pmt.get_state('SecB WT apo')
         cls.temperature, cls.pH = 273.15 + 30, 8.
         cls.hdxm = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)

@@ -144,7 +144,7 @@ class Protein(object):
             raise ValueError('No sequence data available to calculate intrinsic exchange rates.')
 
         sequence = list(self['sequence'])  # Includes 'X' padding at cterm if cterm > last peptide
-        k_int = k_int_from_sequence(sequence, temperature, pH) * 60  # convert to per minute from per second
+        k_int = k_int_from_sequence(sequence, temperature, pH)
 
         self.df['k_int'] = k_int
         return np.array(k_int)

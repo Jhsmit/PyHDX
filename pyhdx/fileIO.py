@@ -31,7 +31,7 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
     intervals : :obj:`tuple`
         Format of how start and end intervals are specified.
     time_unit : :obj:`str`
-        Not implemented
+        Time unit of the field 'exposure'. Options are 'h', 'min' or 's'
 
     Returns
     -------
@@ -70,6 +70,9 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
 
     full_data['start'] += start_correction
     full_data['end'] += end_correction
+
+    t_conversion = {'h': 3600, 'min': 60, 's': 1}
+    full_data['exposure'] *= t_conversion[time_unit]
 
     return full_data
 

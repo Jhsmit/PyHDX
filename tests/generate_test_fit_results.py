@@ -23,8 +23,8 @@ sequence_dimer = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRV
 directory = Path(__file__).parent
 test_data_dir = directory / 'test_data'
 
-guess = True  # guess true requires dask cluster at config defined ip/port
-control = ('Full deuteration control', 0.167)
+guess = True
+control = ('Full deuteration control', 0.167*60)
 
 data = read_dynamx(test_data_dir / 'ecSecB_apo.csv', test_data_dir / 'ecSecB_dimer.csv')
 
@@ -44,22 +44,24 @@ reduced_guess.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.csv')
 reduced_guess.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.txt', fmt='pprint')
 
 gibbs_guess = hdxm_reduced.guess_deltaG(reduced_guess['rate'])
+print(gibbs_guess)
 fr_torch = fit_gibbs_global(hdxm_reduced, gibbs_guess, epochs=epochs, r1=2)
 save_fitresult(directory / 'test_data' / 'ecsecb_reduced', fr_torch)
 
 if guess:
-    # Initial guesses changed (by refactoring to rfu?)
-    from dask.distributed import Client
-    client = Client('tcp://127.0.0.1:52348')
-    wt_avg_result = fit_rates_weighted_average(hdxm, bounds=(1e-2, 800))
+    wt_avg_result = fit_rates_weighted_average(hdxm, bounds=(1e-2/60., 800/60.))
     output = wt_avg_result.output
     output.to_file(directory / 'test_data' / 'ecSecB_guess.csv')
+    output.to_file(directory / 'test_data' / 'ecSecB_guess.txt', fmt='pprint')
+
 else:
     output = csv_to_protein(directory / 'test_data' / 'ecSecB_guess.csv')
-    # import pandas as pd
-    # output = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
+
+hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.csv')
+hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.txt', fmt='pprint')
 
 gibbs_guess = hdxm.guess_deltaG(output['rate'])
+print(gibbs_guess)
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs, r1=2)
 fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.csv')
 fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt', fmt='pprint')
@@ -97,8 +99,7 @@ aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5
 aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.csv')
 aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.txt', fmt='pprint')
 
-hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.csv')
-hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.txt', fmt='pprint')
+
 
 # ------------------
 # Reduced Batch fits

@@ -21,7 +21,7 @@ class TestFileIO(object):
 
         fpath_apo = directory / 'test_data' / 'ecSecB_apo.csv'
         data = read_dynamx(fpath_apo)
-        control = ('Full deuteration control', 0.167)
+        control = ('Full deuteration control', 0.167*60)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.
 
@@ -29,7 +29,7 @@ class TestFileIO(object):
         pf.set_control(control)
         cls.hdxm = HDXMeasurement(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH)
 
-        initial_rates = pd.read_csv(directory / 'test_data' / 'ecSecB_guess.txt', header=[0], comment='#', index_col=0)
+        initial_rates = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
 
         gibbs_guess = cls.hdxm.guess_deltaG(initial_rates['rate']).to_numpy()
         cls.fit_result = fit_gibbs_global(cls.hdxm, gibbs_guess, epochs=100, r1=2)
@@ -125,7 +125,6 @@ class TestFileIO(object):
             assert df.attrs['metadata'] ==  self.fit_result.metadata
             fit_result_dir = Path(tempdir) / 'fit_result'
 
-
             save_fitresult(fit_result_dir, self.fit_result, log_lines=['test123'])
 
             log_lines = Path(fit_result_dir / 'log.txt').read_text().split('\n')
@@ -135,20 +134,16 @@ class TestFileIO(object):
             assert isinstance(fit_result_loaded.losses, pd.DataFrame)
             assert isinstance(fit_result_loaded.data_obj, HDXMeasurement)
 
-            timepoints = np.linspace(0, 30, num=100)
+            timepoints = np.linspace(0, 30*60, num=100)
             d_calc = fit_result_loaded(timepoints)
             assert d_calc.shape == (self.hdxm.Np, len(timepoints))
 
-            fr_load_with_hdxm = load_fitresult(fit_result_dir / 'fit_result.csv', hdxm=self.hdxm)
-
-            timepoints = np.linspace(0, 30, num=100)
+            timepoints = np.linspace(0, 30*60, num=100)
             d_calc = fit_result_loaded(timepoints)
             assert d_calc.shape == (self.hdxm.Np, len(timepoints))
-            assert fr_load_with_hdxm.losses == None
 
             losses = csv_to_dataframe(fit_result_dir / 'losses.csv')
-            fr_load_with_hdxm_and_losses = load_fitresult(fit_result_dir / 'fit_result.csv',
-                                                          hdxm=self.hdxm, losses=losses)
+            fr_load_with_hdxm_and_losses = load_fitresult(fit_result_dir)
             assert len(fr_load_with_hdxm_and_losses.losses) == 100
 
             assert fr_load_with_hdxm_and_losses.metadata['total_loss'] == losses.iloc[-1].sum()

@@ -25,7 +25,7 @@ class TestSecBDataFit(object):
         fpath_apo = directory / 'test_data' / 'ecSecB_apo.csv'
         fpath_dimer = directory / 'test_data' / 'ecSecB_dimer.csv'
         data = read_dynamx(fpath_apo, fpath_dimer)
-        control = ('Full deuteration control', 0.167)
+        control = ('Full deuteration control', 0.167*60)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.
 

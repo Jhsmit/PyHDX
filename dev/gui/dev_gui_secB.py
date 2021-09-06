@@ -99,7 +99,7 @@ def init_dashboard():
     file_input = ctrl.control_panels['PeptideFileInputControl']
     file_input.input_files = files
     file_input.fd_state = 'Full deuteration control'
-    file_input.fd_exposure = 0.167
+    file_input.fd_exposure = 0.167*60
     file_input.pH = 8
     file_input.temperature = 273.15 + 30
     file_input.d_percentage = 90.
