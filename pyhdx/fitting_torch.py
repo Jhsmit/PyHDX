@@ -9,6 +9,8 @@ from scipy import constants, linalg
 from pyhdx.fileIO import dataframe_to_file
 from pyhdx.models import Protein
 
+TORCH_DTYPE = t.double
+TORCH_DEVICE = t.device('cpu')
 
 class DeltaGFit(nn.Module):
     def __init__(self, deltaG):
@@ -46,9 +48,9 @@ def estimate_errors(hdxm, deltaG):
     """
     joined = pd.concat([deltaG, hdxm.coverage['exchanges']], axis=1, keys=['dG', 'ex'])
     dG = joined.query('ex==True')['dG']
-    deltaG = t.tensor(dG.to_numpy(), dtype=t.float64)
+    deltaG = t.tensor(dG.to_numpy(), dtype=TORCH_DTYPE)
 
-    tensors = hdxm.get_tensors(exchanges=True)
+    tensors = {k: v.cpu() for k, v in hdxm.get_tensors(exchanges=True).items()}
 
     def hes_loss(deltaG_input):
         criterion = t.nn.MSELoss(reduction='sum')
@@ -145,7 +147,7 @@ class TorchFitResult(object):
         index is residue numbers
         """
 
-        g_values = self.model.deltaG.detach().numpy().squeeze()
+        g_values = self.model.deltaG.cpu().detach().numpy().squeeze()
         if g_values.ndim == 1:
             deltaG = pd.Series(g_values, index=self.data_obj.coverage.index)
         else:

@@ -10,7 +10,7 @@ from symfit.core.minimizers import DifferentialEvolution, Powell
 from tqdm import trange
 
 from pyhdx.fit_models import SingleKineticModel, TwoComponentAssociationModel, TwoComponentDissociationModel
-from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
+from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult, TORCH_DTYPE, TORCH_DEVICE
 from pyhdx.models import Protein
 from pyhdx.support import temporary_seed
 
