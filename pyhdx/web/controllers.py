@@ -398,6 +398,7 @@ class PeptideFileInputControl(ControlPanel):
 
         df = pd.DataFrame(hdxm.full_data)
         df['start_end'] = [str(s) + '_' + str(e) for s, e in zip(df['start'], df['end'])]
+        df['id'] = df.index % hdxm.Np
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'peptides', self.dataset_name)
 

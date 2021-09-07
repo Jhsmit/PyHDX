@@ -106,7 +106,7 @@ def main_app(client='default'):
 
     peptides_transform = PeptideLayoutTransform(
         value='rfu', name='trs_peptides',
-        passthrough=['uptake', 'uptake_corrected', 'sequence', 'uptake_corrected', 'ex_residues']
+        passthrough=['uptake', 'uptake_corrected', 'sequence', 'uptake_corrected', 'ex_residues', 'id']
     )
     peptides_mse_transform = PeptideLayoutTransform(value='total_mse', name='trs_peptides_mse')
     reset_index_transform = ResetIndexTransform(name='reset_index_trs')
@@ -130,7 +130,7 @@ def main_app(client='default'):
         filters=[filters['coverage_state_name']])
     filters[f.name] = f
 
-    hover = HoverTool(tooltips=[("index", "@index"), ('rfu', '@value (@uptake_corrected D)'),
+    hover = HoverTool(tooltips=[("index", "@id (@index)"), ('rfu', '@value (@uptake_corrected D)'),
                                 ('sequence', '@sequence')])
     additional_opts = {'color': 'value', 'colorbar': True, 'responsive': True, 'clim': (0, 1), 'framewise': True,
                        'xlabel': "Residue Number", 'ylabel': '', 'yticks': 0, 'tools': [hover], **global_opts}
