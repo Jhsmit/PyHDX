@@ -774,7 +774,7 @@ class HDXMeasurement(object):
         tensors : :obj:`dict`
 
         """
-        dtype = torch.float64
+
         if 'k_int' not in self.coverage.protein:
             raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
         try:
@@ -788,12 +788,15 @@ class HDXMeasurement(object):
         else:
             bools = np.ones(self.Nr, dtype=bool)
 
+        dtype = pyhdx.fitting_torch.TORCH_DTYPE
+        device = pyhdx.fitting_torch.TORCH_DEVICE
+
         tensors = {
-            'temperature': torch.tensor([self.temperature], dtype=dtype).unsqueeze(-1),
-            'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype),
-            'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype).unsqueeze(-1),
-            'timepoints': torch.tensor(self.timepoints, dtype=dtype).unsqueeze(0),
-            'uptake': torch.tensor(self.uptake_corrected.T, dtype=dtype)}
+            'temperature': torch.tensor([self.temperature], dtype=dtype, device=device).unsqueeze(-1),
+            'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype, device=device),
+            'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype, device=device).unsqueeze(-1),
+            'timepoints': torch.tensor(self.timepoints, dtype=dtype, device=device).unsqueeze(0),
+            'uptake': torch.tensor(self.uptake_corrected.T, dtype=dtype, device=device)}
 
         return tensors
 
@@ -1129,14 +1132,15 @@ class HDXMeasurementSet(object):
         k_int = np.zeros((self.Ns, self.Nr))
         k_int[self.masks['sr']] = k_int_values
 
-        dtype = torch.float64
+        dtype = pyhdx.fitting_torch.TORCH_DTYPE
+        device = pyhdx.fitting_torch.TORCH_DEVICE
 
         tensors = {
-            'temperature': torch.tensor(temperature, dtype=dtype).reshape(self.Ns, 1, 1),
-            'X': torch.tensor(X, dtype=dtype),
-            'k_int': torch.tensor(k_int, dtype=dtype).reshape(self.Ns, self.Nr, 1),
-            'timepoints': torch.tensor(self.timepoints, dtype=dtype).reshape(self.Ns, 1, self.Nt),
-            'uptake': torch.tensor(self.d_exp, dtype=dtype)  #todo this is called uptake_corrected/D/uptake
+            'temperature': torch.tensor(temperature, dtype=dtype, device=device).reshape(self.Ns, 1, 1),
+            'X': torch.tensor(X, dtype=dtype, device=device),
+            'k_int': torch.tensor(k_int, dtype=dtype, device=device).reshape(self.Ns, self.Nr, 1),
+            'timepoints': torch.tensor(self.timepoints, dtype=dtype, device=device).reshape(self.Ns, 1, self.Nt),
+            'uptake': torch.tensor(self.d_exp, dtype=dtype, device=device)  #todo this is called uptake_corrected/D/uptake
         }
 
         return tensors

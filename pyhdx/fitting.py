@@ -445,7 +445,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
 
     dtype = torch.float64
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).unsqueeze(-1))  #reshape (nr, 1)
+    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=TORCH_DTYPE, device=TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
 
     model = DeltaGFit(deltaG_par)
     criterion = torch.nn.MSELoss(reduction='mean')
@@ -554,8 +554,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
 
     assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
 
-    dtype = torch.float64
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=dtype).reshape(hdx_set.Ns, hdx_set.Nr, 1))
+    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=TORCH_DTYPE, device=TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 
     model = DeltaGFit(deltaG_par)
     criterion = torch.nn.MSELoss(reduction='mean')
