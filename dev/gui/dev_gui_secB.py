@@ -56,7 +56,7 @@ yaml_dicts = {'testname_123': d1, 'SecB his dimer apo': d2}
 
 
 def reload_dashboard():
-    data_objs = {k: load_from_yaml(v, data_dir=data_dir) for k, v in yaml_dicts.items()}
+    data_objs = {k: yaml_to_hdxm(v, data_dir=data_dir) for k, v in yaml_dicts.items()}
     for k, v in data_objs.items():
         v.metadata['name'] = k
     ctrl.data_objects = data_objs
