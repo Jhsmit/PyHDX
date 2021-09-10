@@ -1,9 +1,10 @@
-from pyhdx.fileIO import read_dynamx, csv_to_protein, save_fitresult
+from pyhdx.fileIO import read_dynamx, csv_to_protein, save_fitresult, dataframe_to_file
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.models import HDXMeasurementSet
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.local_cluster import default_client
 import numpy as np
+import pandas as pd
 from pathlib import Path
 import torch
 
@@ -44,7 +45,6 @@ reduced_guess.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.csv')
 reduced_guess.to_file(directory / 'test_data' / 'ecSecB_reduced_guess.txt', fmt='pprint')
 
 gibbs_guess = hdxm_reduced.guess_deltaG(reduced_guess['rate'])
-print(gibbs_guess)
 fr_torch = fit_gibbs_global(hdxm_reduced, gibbs_guess, epochs=epochs, r1=2)
 save_fitresult(directory / 'test_data' / 'ecsecb_reduced', fr_torch)
 
@@ -57,11 +57,20 @@ if guess:
 else:
     output = csv_to_protein(directory / 'test_data' / 'ecSecB_guess.csv')
 
+
+# Export protein sequence and intrinsic rate of exchange
 hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.csv')
 hdxm.coverage.protein.to_file(directory / 'test_data' / 'ecSecB_info.txt', fmt='pprint')
 
+rfu_exposure = {time: rfu for time, rfu in zip(hdxm.timepoints, hdxm.rfu_residues.T)}  # Nr x Nt array
+rfu_df = pd.DataFrame(rfu_exposure, index=hdxm.coverage.r_number)
+rfu_df.index.name = 'r_number'
+rfu_df.columns.name = 'exposure'
+
+dataframe_to_file(directory / 'test_data' / 'ecSecB_rfu_per_exposure.csv', rfu_df)
+dataframe_to_file(directory / 'test_data' / 'ecSecB_rfu_per_exposure.txt', rfu_df, fmt='pprint')
+
 gibbs_guess = hdxm.guess_deltaG(output['rate'])
-print(gibbs_guess)
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs, r1=2)
 fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.csv')
 fr_torch.output.to_file(directory / 'test_data' / 'ecSecB_torch_fit.txt', fmt='pprint')
@@ -98,8 +107,6 @@ aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5
 
 aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.csv')
 aligned_result.output.to_file(directory / 'test_data' / 'ecSecB_batch_aligned.txt', fmt='pprint')
-
-
 
 # ------------------
 # Reduced Batch fits

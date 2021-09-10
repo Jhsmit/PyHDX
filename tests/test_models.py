@@ -2,7 +2,7 @@ import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, HDXMeasurement
 from pyhdx.models import Protein, Coverage
-from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_hdxm
+from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_hdxm, csv_to_dataframe
 import numpy as np
 from functools import reduce
 from operator import add
@@ -58,6 +58,14 @@ class TestHDXMeasurement(object):
         tensors = self.hdxm.get_tensors()
 
         # assert ...
+
+    def test_rfu(self):
+        rfu_residues = self.hdxm.rfu_residues
+        compare = csv_to_dataframe(directory / 'test_data' / 'ecSecB_rfu_per_exposure.csv')
+        compare_array = compare.to_numpy()
+
+        np.testing.assert_allclose(rfu_residues, compare_array)
+
 
     def test_to_file(self):
         with tempfile.TemporaryDirectory() as tempdir:
