@@ -4,7 +4,7 @@ from pyhdx.fileIO import read_dynamx
 
 
 time_factors = {"s": 1, "m": 60., "min": 60., "h": 3600, "d": 86400}
-
+temperature_offsets = {'C': 273.15, 'celsius': 273.15, 'K': 0, 'kelvin': 0}
 
 def yaml_to_hdxmset(yaml_dict, data_dir=None, **kwargs):
     """reads files according to `yaml_dict` spec from `data_dir into HDXMEasurementSet"""
@@ -56,12 +56,13 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, **kwargs):
     else:
         raise ValueError('No valid back exchange control method specified')
 
-    if yaml_dict['temperature_unit'].lower() == 'celsius':
-        temperature = yaml_dict['temperature'] + 273.15
-    elif yaml_dict['temperature_unit'].lower() == 'kelvin':
-        temperature = yaml_dict['temperature']
-    else:
-        raise ValueError("Invalid option for 'temperature_unit', must be 'Celsius' or 'Kelvin'")
+    temperature = yaml_dict['temperature']['value']
+    try:
+        t_offset = temperature_offsets[yaml_dict['temperature']['unit']]
+    except KeyError:
+        t_offset = temperature_offsets[yaml_dict['temperature']['unit'].lower()]
+
+    temperature += t_offset
 
     sequence = yaml_dict.get('sequence', '')
     c_term = yaml_dict.get('c_term', 0)
@@ -70,7 +71,7 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, **kwargs):
     if not (c_term or sequence):
         raise ValueError("Must specify either 'c_term' or 'sequence'")
 
-    state_data = pmt.get_state([yaml_dict['state_name']])
+    state_data = pmt.get_state([yaml_dict['state']])
     hdxm = HDXMeasurement(state_data, temperature=temperature, pH=yaml_dict['pH'],
                           sequence=sequence, n_term=n_term, c_term=c_term, **kwargs)
 
