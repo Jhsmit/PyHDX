@@ -10,7 +10,7 @@ import pickle
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import DEFAULT_COLORS, STATIC_DIR
 from pyhdx.web.sources import DataSource
-from pyhdx.batch_processing import load_from_yaml
+from pyhdx.batch_processing import yaml_to_hdxm
 from pyhdx.fileIO import csv_to_protein
 import panel as pn
 import numpy as np
