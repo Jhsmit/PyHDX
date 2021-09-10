@@ -11,10 +11,11 @@ from pyhdx.web.filters import MultiIndexSelectFilter
 from lumen.sources import DerivedSource
 
 
-directory = Path(__file__).parent
+cwd = Path(__file__).parent
+input_dir = cwd / 'test_data' / 'input'
+output_dir = cwd / 'test_data' / 'output'
 
-data_dir = directory / 'test_data'
-data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
+data = read_dynamx(input_dir / 'ecSecB_apo.csv', input_dir / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data)
 pmt.set_control(('Full deuteration control', 0.167*60))
@@ -25,7 +26,7 @@ st2 = pmt.get_state('SecB WT apo')
 df1 = pd.DataFrame(st1)
 df2 = pd.DataFrame(st2)
 
-rates_df = pd.read_csv(data_dir / 'ecSecB_rates.txt', index_col=0, header=[0, 1])
+rates_df = pd.read_csv(output_dir / 'ecSecB_rates.txt', index_col=0, header=[0, 1])
 
 
 class TestLumenSources(object):
@@ -42,7 +43,6 @@ class TestLumenSources(object):
 
         tables = {'rates': df_rates}  # rates is nlevels == 3 dataframe
         source = DataFrameSource(tables=tables, name='dataframe', dropna=False)
-
 
         source.add_df(rates_df, 'rates', 'rates_fit')
         output_df = source.get('rates')

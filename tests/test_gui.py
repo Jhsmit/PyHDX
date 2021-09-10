@@ -8,7 +8,10 @@ import numpy as np
 import pytest
 import time
 
-directory = Path(__file__).parent
+cwd = Path(__file__).parent
+input_dir = cwd / 'test_data' / 'input'
+output_dir = cwd / 'test_data' / 'output'
+
 
 TEST_PML = """set_color color_#0a0ac2, [10,10,194]
 set_color color_#8c8c8c, [140,140,140]
@@ -24,7 +27,7 @@ torch.manual_seed(43)
 class TestMainGUISecB(object):
     @classmethod
     def setup_class(cls):
-        cls.fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        cls.fpath =input_dir / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(cls.fpath))
 
         cls.state = 'SecB WT apo'
@@ -34,16 +37,10 @@ class TestMainGUISecB(object):
         state_data = cls.pmt.get_state(cls.state)
         cls.temperature, cls.pH = 273.15 + 30, 8.
         cls.series = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
-        cls.prot_fit_result = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.csv')
+        cls.prot_fit_result = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
         cfg = ConfigurationSettings()
         cfg.set('cluster', 'port', str(test_port))
-        #local_cluster = default_cluster()
-
-        #print(local_cluster)
-
-        # cls.ds_fit = DataSource(cls.prot_fit_result, name='global_fit', x='r_number', tags=['mapping', 'pfact', 'deltaG'],
-        #                         renderer='circle', size=10)
 
     def test_load_single_file(self):
         with open(self.fpath, 'rb') as f:
@@ -75,8 +72,8 @@ class TestMainGUISecB(object):
         assert abs(np.nanmean(series.rfu_residues) - 0.540548732585749) < 1e-6
 
     def test_batch_mode(self):
-        fpath_1 = directory / 'test_data' / 'ecSecB_apo.csv'
-        fpath_2 = directory / 'test_data' / 'ecSecB_dimer.csv'
+        fpath_1 = input_dir / 'ecSecB_apo.csv'
+        fpath_2 = input_dir / 'ecSecB_dimer.csv'
 
         fpaths = [fpath_1, fpath_2]
         files = [p.read_bytes() for p in fpaths]
@@ -205,92 +202,6 @@ class TestMainGUISecB(object):
         # val = io.getvalue()
         #
         # assert val.count('\n') == 148
-
-@pytest.mark.skip(reason="Simulated data was removed")
-class TestMainGUISimulated(object):
-    @classmethod
-    def setup_class(cls):
-        cls.fpath = directory / 'test_data' / 'simulated_data_uptake.csv'
-        cls.pmt = PeptideMasterTable(read_dynamx(cls.fpath))
-
-        cls.state = 'state1'
-        cls.pmt.set_backexchange(0.)
-
-        states = cls.pmt.groupby_state()
-        cls.series = states[cls.state]
-
-    def test_load_files(self):
-        with open(self.fpath, 'rb') as f:
-            binary = f.read()
-
-        ctrl = main_app()
-        file_input_control = ctrl.control_panels['PeptideFileInputControl']
-
-        file_input_control.input_files = [binary]
-        file_input_control.norm_mode = 'Theory'
-        file_input_control.be_percent = 0.
-
-        file_input_control.exp_state = self.state
-        assert file_input_control.exp_exposures == [0.167, 0.5, 1.0, 5.0, 10.0, 30., 100.]
-        file_input_control._action_add_dataset()
-
-        assert self.state in ctrl.fit_objects
-        fit_object = ctrl.fit_objects[self.state]
-        series = fit_object.series
-
-        assert series.Nt == 7
-        assert series.Np == 7
-        assert series.Nr == 38
-
-    def test_coverage(self):
-        ctrl = main_app()
-        # todo Add tests
-
-    def test_initial_guesses(self):
-        ctrl = main_app()
-
-        # todo Add tests
-        # ctrl.cluster = None
-        # ctrl.series = self.series
-        #
-        # initial_guess = ctrl.control_panels['InitialGuessControl']
-        # initial_guess._action_fit()
-        # assert 'half-life' in ctrl.sources.keys()
-        #
-        # initial_guess.fitting_model = 'Association'
-        # initial_guess._action_fit()
-        # assert 'fit1' in ctrl.sources.keys()
-
-    def test_classification(self):
-        ctrl = main_app()
-
-        # todo Add tests
-        # ctrl.cluster = None
-        # ctrl.series = self.series
-        #
-        # initial_guess = ctrl.control_panels['InitialGuessControl']
-        # initial_guess._action_fit()
-        # assert 'half-life' in ctrl.sources.keys()
-        #
-        # classification = ctrl.control_panels['ClassificationControl']
-        # classification.target = 'half-life'
-        # classification.quantity = 'rate'
-        # classification._action_otsu()
-
-    def test_global_fit(self):
-        ctrl = main_app()
-
-        # todo Add tests
-        # ctrl.cluster = None
-        # ctrl.series = self.series
-        #
-        # initial_guess = ctrl.control_panels['InitialGuessControl']
-        # initial_guess._action_fit()
-        #
-        # fit = ctrl.control_panels['FitControl']
-        # fit.epochs = 20
-        # fit._do_fitting()
-        # assert 'global_fit' in ctrl.sources.keys()
 
 
 @pytest.mark.skip(reason="Diff app needs overhaul to lumen framework")

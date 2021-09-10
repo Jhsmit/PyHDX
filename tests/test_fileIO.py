@@ -10,17 +10,16 @@ import pandas as pd
 import pytest
 import tempfile
 
-directory = Path(__file__).parent
-
+cwd = Path(__file__).parent
+input_dir = cwd / 'test_data' / 'input'
+output_dir = cwd / 'test_data' / 'output'
 
 class TestFileIO(object):
 
     @classmethod
     def setup_class(cls):
-        cls.fpath = directory / 'test_data' / 'ecSecB_apo.csv'
-
-        fpath_apo = directory / 'test_data' / 'ecSecB_apo.csv'
-        data = read_dynamx(fpath_apo)
+        cls.fpath = input_dir / 'ecSecB_apo.csv'
+        data = read_dynamx(cls.fpath)
         control = ('Full deuteration control', 0.167*60)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.
@@ -29,7 +28,7 @@ class TestFileIO(object):
         pf.set_control(control)
         cls.hdxm = HDXMeasurement(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH)
 
-        initial_rates = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
+        initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
         gibbs_guess = cls.hdxm.guess_deltaG(initial_rates['rate']).to_numpy()
         cls.fit_result = fit_gibbs_global(cls.hdxm, gibbs_guess, epochs=100, r1=2)

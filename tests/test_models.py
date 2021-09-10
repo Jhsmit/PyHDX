@@ -13,14 +13,16 @@ import pickle
 import pytest
 
 
-directory = Path(__file__).parent
+cwd = Path(__file__).parent
+input_dir = cwd / 'test_data' / 'input'
+output_dir = cwd / 'test_data' / 'output'
 
 
 class TestUptakeFileModels(object):
 
     @classmethod
     def setup_class(cls):
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath = input_dir / 'ecSecB_apo.csv'
         cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
 
     def test_peptidemastertable(self):
@@ -41,7 +43,7 @@ class TestUptakeFileModels(object):
 class TestHDXMeasurement(object):
     @classmethod
     def setup_class(cls):
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath = input_dir / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(fpath))
         cls.pmt.set_control(('Full deuteration control', 0.167*60))
         d = cls.pmt.get_state('SecB WT apo')
@@ -61,7 +63,7 @@ class TestHDXMeasurement(object):
 
     def test_rfu(self):
         rfu_residues = self.hdxm.rfu_residues
-        compare = csv_to_dataframe(directory / 'test_data' / 'ecSecB_rfu_per_exposure.csv')
+        compare = csv_to_dataframe(output_dir / 'ecSecB_rfu_per_exposure.csv')
         compare_array = compare.to_numpy()
 
         np.testing.assert_allclose(rfu_residues, compare_array)
@@ -153,15 +155,15 @@ class TestSimulatedData(object):
 class TestCoverage(object):
     @classmethod
     def setup_class(cls):
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath =input_dir / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        d = cls.pmt.groupby_state()
-        cls.series = d['SecB WT apo']
+        data = cls.pmt.get_state('SecB WT apo')
+        cls.hdxm = HDXMeasurement(data)
         cls.sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQM' \
                        'AHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
     def test_sequence(self):
-        data = self.series[0].data
+        data = self.hdxm[0].data
         cov = Coverage(data)
 
         for r, s in zip(cov.r_number, cov['sequence']):
@@ -176,7 +178,7 @@ class TestCoverage(object):
             assert self.sequence[r - 1] == s
 
     def test_dim(self):
-        cov = self.series.coverage
+        cov = self.hdxm.coverage
         assert cov.Np == len(np.unique(cov.data['sequence']))
         assert cov.Nr == len(cov.r_number)
 
@@ -204,10 +206,10 @@ class TestProtein(object):
         array3['banana'] = -(np.random.rand(10) + 20)
         cls.array3 = array3
         metadata = {'temperature': 273.15, 'pH': 7.5, 'mutations': ['V123S', 'P234S']}
-        cls.protein = csv_to_protein(directory / 'test_data' / 'ecSecB_info.csv')
+        cls.protein = csv_to_protein(output_dir / 'ecSecB_info.csv')
         cls.protein.metadata = metadata
 
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath = input_dir / 'ecSecB_apo.csv'
         pf1 = PeptideMasterTable(read_dynamx(fpath))
         #states = pf1.groupby_state(c_term=200)
         cls.series = HDXMeasurement(pf1.get_state('SecB WT apo'), c_term=200)
