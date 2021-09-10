@@ -11,8 +11,9 @@ SecB_tetramer:
   state_name: 'SecB WT apo'
   pH: 8.
   d_percentage: 90.
-  temperature: 30.
-  temperature_unit: Celsius
+  temperature:
+    value: 30.
+    unit: Celsius
   sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
   n_term: 1
   c_term: 155
