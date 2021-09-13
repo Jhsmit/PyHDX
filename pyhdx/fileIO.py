@@ -20,6 +20,7 @@ PEPTIDE_DTYPES = {
     'end': int,
 }
 
+
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
     """
     Reads a dynamX .csv file and returns the data as a numpy structured array

@@ -184,7 +184,7 @@ class Protein(object):
 
 class PeptideMasterTable(object):
     """
-    Main peptide input object. The input numpy structured array `data` must have the following entires for each peptide:
+    Main peptide input object. The input pandas DataFrame `data` must have the following entires for each peptide:
 
     start: Residue number of the first amino acid in the peptide
     end: Residue number of the last amino acid in the peptide (inclusive)
@@ -212,8 +212,8 @@ class PeptideMasterTable(object):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray`
-        Numpy recarray with peptide entries.
+    data : :class:`~pandas.DataFrame`
+        Pandas DataFrame with peptide entries.
     drop_first : :obj:`int`
         Number of N-terminal amino acids to ignore. Default is 1.
     d_percentage : :obj:`float`
@@ -235,18 +235,29 @@ class PeptideMasterTable(object):
 
         self.data = data.copy()
         if remove_nan:
-            self.data = self.data[~np.isnan(self.data['uptake'])]
+            self.data = self.data.dropna(subset=['uptake'])
+            #self.data = self.data[~np.isnan(self.data['uptake'])]
         if sort:
-            self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
+            self.data = self.data.sort_values(['start', 'end', 'sequence', 'exposure', 'state'])
+            #self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
         # Make backup copies of unmodified start, end and sequence fields before taking prolines and n terminal residues into account
-        if not np.any(np.isin(['_start', '_end', '_sequence'], self.data.dtype.names)):
-            self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
-            self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
-            self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
+        # if not np.any(np.isin(['_start', '_end', '_sequence'], self.data.dtype.names)):
+        #     self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
+        #     self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
+        #     self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
+
+        # Make backup copies of unmodified start, end and sequence fields before taking prolines and n terminal residues into account
+        for col in ['start', 'end', 'sequence']:
+            target = '_' + col
+            if target in self.data:
+                continue
+            else:
+                self.data[target] = self.data[col]
 
         # Convert sequence to upper case if not so already
-        self.data['sequence'] = [s.upper() for s in self.data['sequence']]
+        #self.data['sequence'] = [s.upper() for s in self.data['sequence']]
+        self.data['sequence'] = self.data['sequence'].str.upper()
         # Mark ignored prolines with lower case letters
         if ignore_prolines:
             self.data['sequence'] = [s.replace('P', 'p') for s in self.data['sequence']]
@@ -262,29 +273,11 @@ class PeptideMasterTable(object):
         self.data['end'] -= c_term
 
         ex_residues = np.array([len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]) * d_percentage
-        if 'ex_residues' not in self.data.dtype.names:
-            self.data = append_fields(self.data, ['ex_residues'], [ex_residues], usemask=False)
+        if 'ex_residues' not in self.data:
+            self.data['ex_residues'] = ex_residues
 
     def __len__(self):
-        return len(self.data)
-
-    def groupby_state(self, **kwargs):
-        """
-        Groups measurements in the dataset by state and returns them in a dictionary as a
-        :class:`~pyhdx.models.HDXMeasurement`.
-
-        Returns
-        -------
-        out : :obj:`dict`
-            Dictionary where keys are state names and values are :class:`~pyhdx.models.HDXMeasurement`.
-        **kwargs
-            Additional keyword arguments to be passed to the :class:`~pyhdx.models.HDXMeasurement`.
-        """
-
-        warnings.warn("Likely to be removed in future versions, use `get_state` instead", PendingDeprecationWarning)
-
-        states = np.unique(self.data['state'])
-        return {state: HDXMeasurement(self.data[self.data['state'] == state], **kwargs) for state in states}
+        return self.data.shape[0]
 
     def get_state(self, state):
         """
@@ -299,7 +292,8 @@ class PeptideMasterTable(object):
         -------
 
         """
-        return np.ascontiguousarray(self.data[self.data['state'] == state])
+        return self.data.query(f'state == "{state}"')
+        #return np.ascontiguousarray(self.data[self.data['state'] == state])
 
     @staticmethod
     def isin_by_idx(array, test_array):

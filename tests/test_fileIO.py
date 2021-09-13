@@ -14,6 +14,7 @@ cwd = Path(__file__).parent
 input_dir = cwd / 'test_data' / 'input'
 output_dir = cwd / 'test_data' / 'output'
 
+
 class TestFileIO(object):
 
     @classmethod
@@ -34,25 +35,27 @@ class TestFileIO(object):
         cls.fit_result = fit_gibbs_global(cls.hdxm, gibbs_guess, epochs=100, r1=2)
 
     def test_read_dynamx(self):
-        data = read_dynamx(self.fpath)
+        df = read_dynamx(self.fpath)
 
-        assert data.size == 567
-        assert data['start'][0] == 9
-        assert data['end'][0] == 18
-        data = read_dynamx(self.fpath, intervals=('exclusive', 'inclusive'))
-        assert data['start'][0] == 10
+        assert df.shape[0] == 567
+        assert df['start'][0] == 9
+        assert df['end'][0] == 18
+        df = read_dynamx(self.fpath, intervals=('exclusive', 'inclusive'))
+        assert df['start'][0] == 10
+        assert np.sum(df['exposure']) == 441632.55024
+        assert np.sum(df['uptake']) == 1910.589614
 
-        data = read_dynamx(self.fpath, intervals=('inclusive', 'exclusive'))
-        assert data['end'][0] == 17
+        df = read_dynamx(self.fpath, intervals=('inclusive', 'exclusive'))
+        assert df['end'][0] == 17
 
         with pytest.raises(ValueError):
-            data = read_dynamx(self.fpath, intervals=('foo', 'inclusive'))
+            df = read_dynamx(self.fpath, intervals=('foo', 'inclusive'))
         with pytest.raises(ValueError):
-            data = read_dynamx(self.fpath, intervals=('inclusive', 'bar'))
+            df = read_dynamx(self.fpath, intervals=('inclusive', 'bar'))
 
         with open(self.fpath, mode='r') as f:
-            data = read_dynamx(StringIO(f.read()))
-            assert data.size == 567
+            df = read_dynamx(StringIO(f.read()))
+            assert df.shape[0] == 567
 
     def test_read_write_tables(self):
         with tempfile.TemporaryDirectory() as tempdir:
