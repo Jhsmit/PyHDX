@@ -1000,6 +1000,23 @@ class CoverageSet(object):
         """pd index: """
         return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
 
+    def apply_interval(self, array_or_series):
+        """Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
+        region. Returned series length is equal to number of columns in the X matrix
+
+        """
+        #todo testing and 2d array support
+        if isinstance(array_or_series, np.ndarray):
+            series = pd.Series(array_or_series, index=self.index)
+            assert len(array_or_series) == len(self.index)
+        else:
+            series = array_or_series
+
+        # - 1 because interval is inclusive, exclusive and .loc slices inclusive, inclusive
+        covered_slice = series.loc[self.interval[0]:self.interval[1] - 1]
+
+        return covered_slice
+
     @property
     def s_r_mask(self):
         """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
