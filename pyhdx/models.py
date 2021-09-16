@@ -1,19 +1,18 @@
-import numpy as np
-from numpy.lib.recfunctions import append_fields
-import itertools
+import textwrap
 import warnings
-from datetime import datetime
-import pandas as pd
-from io import StringIO
 from functools import reduce, partial
-from operator import add
-from hdxrate import k_int_from_sequence
-from pyhdx.support import reduce_inter, make_view, fields_view, pprint_df_to_file
-from pyhdx.fileIO import fmt_export, dataframe_to_file, dataframe_to_stringio
-from pyhdx.alignment import align_dataframes
-from scipy import constants
-import pyhdx
+
+import numpy as np
+import pandas as pd
 import torch
+from hdxrate import k_int_from_sequence
+from numpy.lib.recfunctions import append_fields
+from scipy import constants
+
+import pyhdx
+from pyhdx.alignment import align_dataframes
+from pyhdx.fileIO import dataframe_to_file
+from pyhdx.support import reduce_inter, make_view, fields_view
 
 
 def protein_wrapper(func, *args, **kwargs):
