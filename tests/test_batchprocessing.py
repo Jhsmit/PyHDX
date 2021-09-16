@@ -17,7 +17,7 @@ class TestBatchProcessing(object):
         hdxm = yaml_to_hdxm(data_dict['SecB_tetramer'], data_dir=directory / 'test_data')
         assert isinstance(hdxm, HDXMeasurement)
 
-        assert hdxm.metadata['temperature'] == data_dict['SecB_tetramer']['temperature'] + 273.15
+        assert hdxm.metadata['temperature'] == data_dict['SecB_tetramer']['temperature']['value'] + 273.15
         assert hdxm.name == 'SecB WT apo'
 
         hdxm_set = yaml_to_hdxmset(data_dict, data_dir=directory / 'test_data')
