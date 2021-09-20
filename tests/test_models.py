@@ -29,8 +29,8 @@ class TestPeptideMasterTable(object):
         states = ['Full deuteration control', 'SecB WT apo']
         assert list(self.pmt.states) == states
 
-        exposures = [0.0, 10.020000000000001, 30.0, 60.0, 300.0, 600.0, 6000.00048]
-        assert list(self.pmt.exposures) == exposures
+        exposures = np.array([0.0, 10.020000000000001, 30.0, 60.0, 300.0, 600.0, 6000.00048])
+        assert np.allclose(exposures, self.pmt.exposures, atol=0.01)
 
     #def test_methods(self):
         # testing of PeptideMasterTable methods
