@@ -689,18 +689,26 @@ class HDXMeasurement(object):
 
     @property
     def rfu_residues(self):
-        """Relative fractional uptake per residue. Shape Nr x Nt"""
-        return np.stack([v.rfu_residues for v in self]).T
+        """:class:`~pandas.DataFrame`: Relative fractional uptake per residue. Shape Nr x Nt"""
+        df = pd.concat([v.rfu_residues for v in self], keys=self.timepoints, axis=1)
+        df.columns.name = 'exposure'
+
+        return df
 
     @property
     def rfu_peptides(self):
-        return np.stack([v.rfu_peptides for v in self])
+        df = pd.concat([v.rfu_peptides for v in self], keys=self.timepoints, axis=1)
+        df.columns.name = 'exposure'
+        return df
 
     @property
     def uptake_corrected(self):
         """matrix shape  N_t, N_p""" #(should be np nt)
         #todo refactor to D to match manuscript
         #todo deprecate
+
+        raise DeprecationWarning('uptake_corrected property depcrecated')
+
         uptake_corrected = np.stack([v.uptake_corrected for v in self])
         return uptake_corrected
 
@@ -708,7 +716,10 @@ class HDXMeasurement(object):
     def d_exp(self):
         """np.ndarray (shape Np x Nt)
             Experimentally measured D-uptake values, corrected for back-exchange """
-        return self.uptake_corrected.T
+
+        df = pd.concat([v.d_exp for v in self], keys=self.timepoints, axis=1)
+        df.columns.name = 'exposure'
+        return df
 
     def get_tensors(self, exchanges=False):
         """
@@ -754,7 +765,7 @@ class HDXMeasurement(object):
             'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype, device=device),
             'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype, device=device).unsqueeze(-1),
             'timepoints': torch.tensor(self.timepoints, dtype=dtype, device=device).unsqueeze(0),
-            'uptake': torch.tensor(self.uptake_corrected.T, dtype=dtype, device=device)}
+            'uptake': torch.tensor(self.d_exp.to_numpy(), dtype=dtype, device=device)}
 
         return tensors
 
@@ -765,7 +776,6 @@ class HDXMeasurement(object):
         ----------
         rates : :class:`~pandas.Series`
             pandas series of estimated hdx exchangs rates. Index is protein residue number
-        return_type
 
         Returns
         -------
@@ -866,10 +876,12 @@ class PeptideMeasurements(Coverage):
 
     @property
     def rfu_peptides(self):
+        """:class:`~pandas.Series`: Relative fractional uptake per peptide"""
         return self.data['rfu']
 
     @property
-    def uptake_corrected(self):
+    def d_exp(self):
+        """:class:`~pandas.Series`: Experimentally measured D-values (corrected)"""
         return self.data['uptake_corrected']
 
     @property
@@ -878,8 +890,10 @@ class PeptideMeasurements(Coverage):
 
     @property
     def rfu_residues(self):
-        """Weighted averaged relative fractional uptake"""
-        return self.Z_norm.T.dot(self.rfu_peptides)
+        """:class:`~pandas.Series`: Relative fractional uptake (RFU) per residue. Obtained by weighted averaging"""
+        array = self.Z_norm.T.dot(self.rfu_peptides)
+        series = pd.Series(array, index=self.index)
+        return series
 
     def calc_rfu(self, residue_rfu):
         """
@@ -893,17 +907,31 @@ class PeptideMeasurements(Coverage):
         Returns
         -------
 
-        scores : :class:`~numpy.ndarray`
+        rfu : :class:`~numpy.ndarray`
             Array of rfu per peptide
         """
 
-        scores = self.Z.dot(residue_rfu)
-        return scores
+        rfu = self.Z.dot(residue_rfu)
+        return rfu
 
     def weighted_average(self, field):
-        """Calculate per-residue weighted average of values in data column given by 'field'"""
+        """
+        Calculate per-residue weighted average of values in data column
 
-        return self.Z_norm.T.dot(self.data[field])
+        Parameters
+        ----------
+        field : :obj:`str`
+            Data field (column) to calculated weighted average of
+
+        Returns
+        -------
+
+
+        """
+
+        array = self.Z_norm.T.dot(self.data[field])
+        series = pd.Series(array, index=self.index)
+        return series
 
 
 class CoverageSet(object):
