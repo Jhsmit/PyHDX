@@ -197,14 +197,12 @@ def csv_to_hdxm(filepath_or_buffer, comment='#', **kwargs):
         hdxm_list = []
         for state in df.columns.unique(level=0):
             subdf = df[state].dropna(how='all')
-            data = subdf.to_records(column_dtypes=PEPTIDE_DTYPES)
             m = metadata.get(state, {})
-            hdxm = pyhdx.models.HDXMeasurement(data, **m)
+            hdxm = pyhdx.models.HDXMeasurement(subdf, **m)
             hdxm_list.append(hdxm)
         data_obj = pyhdx.models.HDXMeasurementSet(hdxm_list)
     elif df.columns.nlevels == 1:
-        data = df.to_records(column_dtypes=PEPTIDE_DTYPES)
-        data_obj = pyhdx.models.HDXMeasurement(data, **metadata)
+        data_obj = pyhdx.models.HDXMeasurement(df, **metadata)
     else:
         raise ValueError(f"Invalid number of column levels, found {df.columns.nlevels}, supported 1 or 2")
     return data_obj
