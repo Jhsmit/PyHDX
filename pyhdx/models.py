@@ -802,14 +802,11 @@ class HDXMeasurement(object):
         None
 
         """
-        #todo save full_data as pandas dataframe
 
         # requires testing dont think this works as intended
         # should use self.metadata if include_metadata is the bool True otherwise if its a dict use that
         metadata = self.metadata if include_metadata else include_metadata
-        df = pd.DataFrame(self.full_data)
-        df.index.name = 'peptide_index'
-        df.index += 1
+        df = self.data
         dataframe_to_file(file_path, df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
 
