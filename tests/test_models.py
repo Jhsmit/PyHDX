@@ -115,7 +115,8 @@ class TestCoverage(object):
         assert np.allclose(self.hdxm.coverage.X, test_X)
 
         test_Z = np.genfromtxt(output_dir / 'attributes' / 'Z.txt')
-        assert np.allclose(self.hdxm.coverage.X, test_Z)
+        assert np.allclose(self.hdxm.coverage.Z, test_Z)
+
 
 class TestProtein(object):
     @classmethod
