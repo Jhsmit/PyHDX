@@ -1,19 +1,16 @@
-import numpy as np
-from numpy.lib.recfunctions import append_fields
-import itertools
-import warnings
-from datetime import datetime
-import pandas as pd
-from io import StringIO
 from functools import reduce, partial
-from operator import add
-from hdxrate import k_int_from_sequence
-from pyhdx.support import reduce_inter, make_view, fields_view, pprint_df_to_file
-from pyhdx.fileIO import fmt_export, dataframe_to_file, dataframe_to_stringio
-from pyhdx.alignment import align_dataframes
-from scipy import constants
-import pyhdx
+
+import numpy as np
+import pandas as pd
 import torch
+from hdxrate import k_int_from_sequence
+from numpy.lib.recfunctions import append_fields
+from scipy import constants
+
+import pyhdx
+from pyhdx.alignment import align_dataframes
+from pyhdx.fileIO import dataframe_to_file
+from pyhdx.support import reduce_inter, make_view, fields_view
 
 
 def protein_wrapper(func, *args, **kwargs):
@@ -236,18 +233,9 @@ class PeptideMasterTable(object):
         self.data = data.copy()
         if remove_nan:
             self.data = self.data.dropna(subset=['uptake'])
-            #self.data = self.data[~np.isnan(self.data['uptake'])]
         if sort:
             self.data = self.data.sort_values(['start', 'end', 'sequence', 'exposure', 'state'])
-            #self.data = np.sort(self.data, order=['start', 'end', 'sequence', 'exposure', 'state'])
 
-        # Make backup copies of unmodified start, end and sequence fields before taking prolines and n terminal residues into account
-        # if not np.any(np.isin(['_start', '_end', '_sequence'], self.data.dtype.names)):
-        #     self.data = append_fields(self.data, ['_start'], [self.data['start'].copy()], usemask=False)
-        #     self.data = append_fields(self.data, ['_end'], [self.data['end'].copy()], usemask=False)
-        #     self.data = append_fields(self.data, ['_sequence'], [self.data['sequence'].copy()], usemask=False)
-
-        # Make backup copies of unmodified start, end and sequence fields before taking prolines and n terminal residues into account
         for col in ['start', 'end', 'sequence']:
             target = '_' + col
             if target in self.data:
@@ -256,7 +244,6 @@ class PeptideMasterTable(object):
                 self.data[target] = self.data[col]
 
         # Convert sequence to upper case if not so already
-        #self.data['sequence'] = [s.upper() for s in self.data['sequence']]
         self.data['sequence'] = self.data['sequence'].str.upper()
         # Mark ignored prolines with lower case letters
         if ignore_prolines:
@@ -293,33 +280,6 @@ class PeptideMasterTable(object):
 
         """
         return self.data.query(f'state == "{state}"')
-        #return np.ascontiguousarray(self.data[self.data['state'] == state])
-
-    @staticmethod
-    def isin_by_idx(array, test_array):
-        """
-        Checks if entries in `array` are in `test_array`, by `start` and `end` field values.
-
-        Parameters
-        ----------
-        array : :class:`~numpy.ndarray`
-            Numpy input structured array
-        test_array : :class:`~numpy.ndarray`
-            Numpy structured array to test againts
-
-        Returns
-        -------
-        isin : :obj:`ndarray`, :obj:`bool`
-            Boolean array of the same shape as `array` where entries are `True` if they are in `test_array`
-
-        """
-
-        test = make_view(test_array, ['start', 'end'], dtype=np.int32)
-        full = make_view(array, ['start', 'end'], dtype=np.int32)
-
-        # https://stackoverflow.com/questions/54828039/how-to-match-pairs-of-values-contained-in-two-numpy-arrays/54828333
-        isin = (full[:, None] == test).all(axis=2).any(axis=1)
-        return isin
 
     def set_backexchange(self, back_exchange):
         """
@@ -341,9 +301,8 @@ class PeptideMasterTable(object):
 
     def set_control(self, control_1, control_0=None):
         """
-        Apply a control dataset to this object. A `scores` attribute is added to the object by normalizing its uptake
-        value with respect to the control uptake value to 100%. Entries which are in the measurement and not in the
-        control or vice versa are deleted.
+        Apply a control dataset to this object. The column 'RFU' is added to the object by normalizing its uptake
+        value with respect to the control uptake value to one.
         Optionally, ``control_zero`` can be specified which is a dataset whose uptake value will be used to zero
         the uptake.
 
@@ -352,61 +311,52 @@ class PeptideMasterTable(object):
         Parameters
         ----------
         control_1 : :obj:`tuple`
-            tuple with (`state`, `exposure`) for peptides to use for normalization
+            tuple with (`state`, `exposure`) for peptides to use for normalization (FD control)
         control_0 : :obj:`tuple`, optional
-            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values
+            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values (ND control)
 
         """
 
-        control_1 = self.get_data(*control_1)
+        fd_df = self.get_data(*control_1)[['start', 'end', 'uptake']]
+        fd_df.rename(columns={'uptake': 'FD_uptake'}, inplace=True)
 
         if control_0 is None:
-            control_0 = np.copy(control_1)
-            control_0['uptake'] = 0
+            nd_df = self.get_data(*control_1).copy()[['start', 'end', 'uptake']]
+            nd_df['uptake'] = 0
         else:
-            control_0 = self.get_data(*control_0)
+            nd_df = self.get_data(*control_0)[['start', 'end', 'uptake']]
 
-        #todo this should probably go to the log (but atm there isnt any for running without GUI)
-        assert control_1.size > 0, f"No peptides found with state '{control_1[0]}' and exposure '{control_1[1]}'"
-        assert control_0.size > 0, f"No peptides found with state '{control_0[0]}' and exposure '{control_0[1]}'"
+        nd_df.rename(columns={'uptake': 'ND_uptake'}, inplace=True)
 
-        b_100 = self.isin_by_idx(self.data, control_1)
-        b_0 = self.isin_by_idx(self.data, control_0)
-        data_selected = self.data[np.logical_and(b_100, b_0)]
+        # this should probably go to the log (but atm there isnt any for running without GUI)
+        # assert control_1.size > 0, f"No peptides found with state '{control_1[0]}' and exposure '{control_1[1]}'"
+        # assert control_0.size > 0, f"No peptides found with state '{control_0[0]}' and exposure '{control_0[1]}'"
 
-        # Control peptides corresponding to those peptides in measurement
-        c_1_selected = control_1[self.isin_by_idx(control_1, data_selected)]
-        c_0_selected = control_0[self.isin_by_idx(control_0, data_selected)]
+        self.data = pd.merge(self.data, fd_df, on=['start', 'end'], how='left')
+        self.data = pd.merge(self.data, nd_df, on=['start', 'end'], how='left')
 
-        control_1_final = np.sort(c_1_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
-        control_0_final = np.sort(c_0_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
+        self.data['rfu'] = (self.data['uptake'] - self.data['ND_uptake']) / (self.data['FD_uptake'] - self.data['ND_uptake'])
+        self.data['uptake_corrected'] = (self.data['uptake'] / self.data['FD_uptake'] * self.data['ex_residues'])
 
-        # Sort both datasets by starting index and then by sequence to make sure they are both equal
-        data_final = np.sort(data_selected, order=['start', 'end', 'sequence', 'exposure', 'state'])
+    def select(self, **kwargs):
+        """
+        Select data based on column values.
 
-        #Apply controls for each sequence  (#todo there must be a better way to do this)
-        rfu = np.zeros(len(data_final), dtype=float)
-        uptake_corrected = np.zeros(len(data_final), dtype=float)
-        for c_1, c_0 in zip(control_1_final, control_0_final):
-            bs = data_final['start'] == c_1['start']
-            be = data_final['end'] == c_1['end']
-            b_all = np.logical_and(bs, be)
-            uptake = data_final[b_all]['uptake']
-            rfu[b_all] = (uptake - c_0['uptake']) / (c_1['uptake'] - c_0['uptake'])
+        Parameters
+        ----------
+        kwargs: :obj:`dict`
+            Column name, value pairs to select
 
-            uptake_corrected[b_all] = (uptake / c_1['uptake']) * data_final[b_all]['ex_residues']
+        Returns
+        -------
+        output_data : :class:`~pandas.DataFrame`
+            DataFrame with selected peptides
 
-        if 'rfu' in data_final.dtype.names:
-            data_final['rfu'] = rfu
-        else:
-            data_final = append_fields(data_final, 'rfu', data=rfu, usemask=False)
+        """
+        masks = [self.data[k] == v for k, v in kwargs.items()]
+        m = np.logical_and.reduce(masks)
 
-        if 'uptake_corrected' in data_final.dtype.names:
-            data_final['uptake_corrected'] = uptake_corrected
-        else:
-            data_final = append_fields(data_final, 'uptake_corrected', data=uptake_corrected, usemask=False)
-
-        self.data = data_final
+        return self.data[m]
 
     def get_data(self, state, exposure):
         """
@@ -421,12 +371,11 @@ class PeptideMasterTable(object):
 
         Returns
         -------
-        output_data : :class:`~numpy.ndarray`
-            Numpy structured array with selected peptides
+        output_data : :class:`~pandas.DataFrame`
+            DataFrame with selected peptides
         """
 
-        output_data = self.data[np.logical_and(self.data['state'] == state, self.data['exposure'] == exposure)]
-        return output_data
+        return self.select(state=state, exposure=exposure)
 
     @property
     def states(self):
@@ -446,8 +395,8 @@ class Coverage(object):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray`
-        Numpy structured array with input peptides
+    data : :class:`~pandas.DataFrame`
+        DataFrame with input peptides
     c_term : :obj:`int`
         Residue index number of the C-terminal residue (where first residue in index number 1)
     n_term : :obj:`int`
@@ -474,11 +423,10 @@ class Coverage(object):
     def __init__(self, data, c_term=0, n_term=1, sequence=''):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
+        self.data = data.sort_values(['start', 'end'], axis=0)
 
-        self.data = np.sort(data, order=['start', 'end'])
-
-        start = np.min(self.data['_start'])
-        end = np.max(self.data['_end'])  # exclusive end interval
+        start = self.data['_start'].min()
+        end = self.data['_end'].max()
 
         if n_term:
             start = min(start, n_term)
@@ -488,15 +436,17 @@ class Coverage(object):
             if c_term + 1 < end:
                 raise ValueError("HDX data extends beyond c_term number, check 'sequence' or 'c_term'")
             end = c_term + 1  # c_term is inclusive, therefore plus one
-        r_number = np.arange(start, end)  # r_number spanning the full protein range, not just the covered range
+
+        r_number = pd.RangeIndex(start, end, name='r_number')  # r_number spanning the full protein range, not just the covered range
         # Full sequence
-        _seq = np.full_like(r_number, fill_value='X', dtype='U')  # Full sequence
+        _seq = pd.Series(index=r_number, dtype='U').fillna('X')  # Full sequence
         # Sequence with lower case letters for no coverage due to n_terminal residues or prolines
-        seq = np.full_like(r_number, fill_value='X', dtype='U')
-        for d in self.data[::-1]:
-            i, j = np.searchsorted(r_number, [d['_start'], d['_end']])
-            _seq[i:j] = [s for s in d['_sequence']]
-            seq[i:j] = [s for s in d['sequence']]
+        seq = pd.Series(index=r_number, dtype='U').fillna('X')
+        for idx in self.data.index[::-1]:
+            start, end = self.data.loc[idx, '_start'], self.data.loc[idx, '_end']
+
+            _seq.loc[start: end-1] = list(self.data.loc[idx, '_sequence'])
+            seq.loc[start: end-1] = list(self.data.loc[idx, 'sequence'])# = list(d['sequence'])
 
         if sequence:
             for r, s1, s2 in zip(r_number, sequence, _seq):
@@ -510,22 +460,23 @@ class Coverage(object):
         #todo check if this is always correctly determined (n terminal residues usw)
         exchanges = [s.isupper() and (s != 'X') for s in seq]  # Boolean array True if residue exchanges, full length
         coverage = seq != 'X'  # Boolean array for coverage
-        dic = {'r_number': r_number, 'sequence': _seq, 'coverage': coverage, 'exchanges': exchanges}
+        protein_df = pd.DataFrame({'sequence': _seq, 'coverage': coverage, 'exchanges': exchanges}, index=r_number)
 
         # Inclusive, exclusive interval of peptides coverage across the whole protein
         self.interval = (np.min(self.data['start']), np.max(self.data['end']))
-        self.protein = Protein(dic, index='r_number')
+        self.protein = Protein(protein_df, index='r_number')
 
         # matrix dimensions N_peptides N_residues, dtype for TF compatibility
         _exchanges = self['exchanges']  # Array only on covered part
         self.X = np.zeros((len(self.data), self.interval[1] - self.interval[0]), dtype=int)
         self.Z = np.zeros_like(self.X, dtype=float)
-        for row, entry in enumerate(self.data):
-            i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
-            self.X[row][i0:i1] = 1
-            self.Z[row][i0:i1] = _exchanges[i0:i1]
-
-        self.Z = self.Z / self.data['ex_residues'][:, np.newaxis]
+        for row, idx in enumerate(self.data.index):
+            start, end = self.data.loc[idx, 'start'], self.data.loc[idx, 'end']
+            i0, i1 = self.r_number.get_loc(start), self.r_number.get_loc(end - 1)
+            #i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
+            self.X[row][i0:i1+1] = 1
+            self.Z[row][i0:i1+1] = _exchanges[i0:i1+1]
+        self.Z = self.Z / self.data['ex_residues'].to_numpy()[:, np.newaxis]
 
     def __len__(self):
         return len(self.data)
@@ -575,15 +526,14 @@ class Coverage(object):
 
     @property
     def r_number(self):
-        """:class:`~numpy.ndarray`: Array of residue numbers corresponding to the part of the protein covered by peptides"""
-        #todo perhaps obtain through apply_interval
-        return np.arange(*self.interval)
+        """:class:`~pandas.RangeIndex`: Pandas index numbers corresponding to the part of the protein covered by peptides"""
+
+        return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
 
     @property
     def index(self):
-        """:class:`~pandas.RangeIndex` """
-        return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
-        #return pd.Index(self.r_number, name='r_number')
+        """:class:`~pandas.RangeIndex`: Pandas index numbers corresponding to the part of the protein covered by peptides"""
+        return self.r_number
 
     @property
     def block_length(self):
@@ -653,29 +603,25 @@ class HDXMeasurement(object):
         Array with exposure times (sorted)
     peptides : :obj:`list`
         List of :class:`~pyhdx.models.PeptideMeasurements`, one list element per timepoint.
-    cov : :class:`~pyhdx.models.Coverage`
-        Coverage object describing peptide layout. When this `uniform` is `False`, this attribute is `None`
+    coverage : :class:`~pyhdx.models.Coverage`
+        Coverage object describing peptide layout.
 
     """
     def __init__(self, data, **metadata):
         self.metadata = metadata
-        assert len(np.unique(data['state'])) == 1
-        self.state = str(data['state'][0])
+        assert len(data['state'].unique()) == 1
+        self.state = str(data['state'].iloc[0])
         self.timepoints = np.sort(np.unique(data['exposure']))
 
-        data_list = [(data[data['exposure'] == exposure]) for exposure in self.timepoints]
-        sets = [{tuple(elem) for elem in fields_view(d, ['_start', '_end'])} for d in data_list]
-        intersection = set.intersection(*sets)
-        dtype = [('_start', data['_start'].dtype), ('_end', data['_end'].dtype)]
-        intersection_array = np.array([tup for tup in intersection], dtype=dtype)
+        # Obtain the intersection of peptides per timepoint
+        data_list = [(data[data['exposure'] == exposure]).set_index(['_start', '_end']) for exposure in self.timepoints]
+        index_intersection = reduce(pd.Index.intersection, [d.index for d in data_list])
 
-        # Select entries in data array which are in the intersection between all timepoints
-        selected = [elem[np.isin(fields_view(elem, ['_start', '_end']), intersection_array)] for elem in data_list]
         cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [0, 1, ''])}
-        self.peptides = [PeptideMeasurements(elem, **cov_kwargs) for elem in selected]
+        self.peptides = [PeptideMeasurements(df.loc[index_intersection].reset_index(), **cov_kwargs) for df in data_list]
 
         # Create coverage object from the first time point (as all are now equal)
-        self.coverage = Coverage(selected[0], **cov_kwargs)
+        self.coverage = Coverage(data_list[0].loc[index_intersection].reset_index(), **cov_kwargs)
 
         if self.temperature and self.pH:
             self.coverage.protein.set_k_int(self.temperature, self.pH)
@@ -866,10 +812,8 @@ class PeptideMeasurements(Coverage):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray`
+    data : :class:`~pandas.DataFrame`
         Numpy structured array with input data
-    scores : :class:`~numpy.ndarray`
-        Array with D/H uptake scores, typically in percentages or absolute uptake numbers.
 
     Attributes
     ----------

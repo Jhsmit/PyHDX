@@ -182,6 +182,15 @@ class TestCoverage(object):
         assert cov.Np == len(np.unique(cov.data['sequence']))
         assert cov.Nr == len(cov.r_number)
 
+        assert cov.Np == 63
+        assert cov.Nr == 146
+
+    def test_XZ(self):
+        test_X = np.genfromtxt(output_dir / 'attributes' / 'X.txt')
+        assert np.allclose(self.hdxm.coverage.X, test_X)
+
+        test_Z = np.genfromtxt(output_dir / 'attributes' / 'Z.txt')
+        assert np.allclose(self.hdxm.coverage.X, test_Z)
 
 class TestProtein(object):
     @classmethod
