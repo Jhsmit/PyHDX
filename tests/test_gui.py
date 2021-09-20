@@ -40,7 +40,8 @@ class TestMainGUISecB(object):
         cls.prot_fit_result = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
         cfg = ConfigurationSettings()
-        cfg.set('cluster', 'port', str(test_port))
+        cfg.set('cluster', 'scheduler_address', f'127.0.0.1:{test_port}')
+        #cfg.set('cluster', 'port', str(test_port))
 
     def test_load_single_file(self):
         with open(self.fpath, 'rb') as f:
@@ -129,6 +130,7 @@ class TestMainGUISecB(object):
 
 
         #assert ....
+        guesses = ctrl.sources['dataframe'].get('rates')
 
 
         fit_control = ctrl.control_panels['FitControl']

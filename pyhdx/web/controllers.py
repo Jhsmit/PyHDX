@@ -740,8 +740,8 @@ class FitControl(ControlPanel):
             for hdxm, d_calc_state in zip(result.data_obj, d_calc):
                 peptide_dfs = []
                 pm_data = hdxm[0].data
-                for d_peptide, pm_row in zip(d_calc_state, pm_data):
-                    peptide_id = f"{pm_row['start']}_{pm_row['end']}"
+                for d_peptide, idx in zip(d_calc_state, pm_data.index):
+                    peptide_id = f"{pm_data.loc[idx, 'start']}_{pm_data.loc[idx, 'end']}"
                     data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
                     peptide_dfs.append(pd.DataFrame(data_dict))
                 state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
