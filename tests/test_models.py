@@ -47,7 +47,7 @@ class TestHDXMeasurement(object):
         cls.hdxm = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
 
     def test_dim(self):
-        assert self.hdxm.Nt == len(np.unique(self.hdxm.full_data['exposure']))
+        assert self.hdxm.Nt == len(self.hdxm.data['exposure'].unique())
 
     def test_guess(self):
         pass
@@ -63,7 +63,6 @@ class TestHDXMeasurement(object):
         compare_array = compare.to_numpy()
 
         np.testing.assert_allclose(rfu_residues, compare_array)
-
 
     def test_to_file(self):
         with tempfile.TemporaryDirectory() as tempdir:

@@ -630,7 +630,7 @@ class HDXMeasurement(object):
         if self.temperature and self.pH:
             self.coverage.protein.set_k_int(self.temperature, self.pH)
 
-        self.data = pd.concat(intersected_data, axis=1)
+        self.data = pd.concat(intersected_data, axis=0, ignore_index=True)
         self.data.index.name = 'peptide_index'
 
     @property
