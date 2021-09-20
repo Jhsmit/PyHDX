@@ -269,6 +269,7 @@ class PeptideMasterTable(object):
     def get_state(self, state):
         """
         Returns entries in the table with state 'state'
+        Rows with NaN entries for 'uptake_corrected' are removed
 
         Parameters
         ----------
@@ -282,7 +283,10 @@ class PeptideMasterTable(object):
 
         if not isinstance(state, str):
             raise TypeError(f'State must be type `str`, got {type(state)}')
-        return self.data.query(f'state == "{state}"')
+        data = self.data.query(f'state == "{state}"')
+        data.dropna(subset=['uptake_corrected'], inplace=True)
+
+        return data
 
     def set_backexchange(self, back_exchange):
         """
@@ -308,6 +312,8 @@ class PeptideMasterTable(object):
         value with respect to the control uptake value to one.
         Optionally, ``control_zero`` can be specified which is a dataset whose uptake value will be used to zero
         the uptake.
+
+        Nonmatching peptides are set to NaN
 
         #todo insert math
 
