@@ -597,6 +597,8 @@ class HDXMeasurement(object):
 
     Attributes
     ----------
+    data: :class:`~pandas.DataFrame`
+        Pandas dataframe with all peptides
     state : :obj:`str`
         State of the HDX measurement
     timepoints : :class:`~numpy.ndarray`
@@ -616,15 +618,19 @@ class HDXMeasurement(object):
         # Obtain the intersection of peptides per timepoint
         data_list = [(data[data['exposure'] == exposure]).set_index(['_start', '_end']) for exposure in self.timepoints]
         index_intersection = reduce(pd.Index.intersection, [d.index for d in data_list])
+        intersected_data = [df.loc[index_intersection].reset_index() for df in data_list]
 
         cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [0, 1, ''])}
-        self.peptides = [PeptideMeasurements(df.loc[index_intersection].reset_index(), **cov_kwargs) for df in data_list]
+
+        self.peptides = [PeptideMeasurements(df, **cov_kwargs) for df in intersected_data]
 
         # Create coverage object from the first time point (as all are now equal)
-        self.coverage = Coverage(data_list[0].loc[index_intersection].reset_index(), **cov_kwargs)
+        self.coverage = Coverage(intersected_data[0], **cov_kwargs)
 
         if self.temperature and self.pH:
             self.coverage.protein.set_k_int(self.temperature, self.pH)
+
+        self.data = pd.concat(intersected_data, axis=1)
 
     @property
     def name(self):
