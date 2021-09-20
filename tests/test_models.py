@@ -18,26 +18,22 @@ input_dir = cwd / 'test_data' / 'input'
 output_dir = cwd / 'test_data' / 'output'
 
 
-class TestUptakeFileModels(object):
+class TestPeptideMasterTable(object):
 
     @classmethod
     def setup_class(cls):
         fpath = input_dir / 'ecSecB_apo.csv'
-        cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
+        cls.pmt = PeptideMasterTable(read_dynamx(fpath))
 
-    def test_peptidemastertable(self):
-        data = self.pf1.data[self.pf1.data['start'] < 50]
-        res = self.pf1.isin_by_idx(self.pf1.data, data)
-        assert res.shape == self.pf1.data.shape
-        assert len(data) == np.sum(res)
+    def test_properties(self):
+        states = ['Full deuteration control', 'SecB WT apo']
+        assert list(self.pmt.states) == states
 
-    def test_peptidemeasurement(self):
-        assert isinstance(self.pf1, PeptideMasterTable)
+        exposures = [0.0, 10.020000000000001, 30.0, 60.0, 300.0, 600.0, 6000.00048]
+        assert list(self.pmt.exposures) == exposures
 
-        self.pf1.set_control(('Full deuteration control', 0.167*60))
-
-        data = self.pf1.get_state('SecB WT apo')
-        assert isinstance(data, np.ndarray)
+    #def test_methods(self):
+        # testing of PeptideMasterTable methods
 
 
 class TestHDXMeasurement(object):
