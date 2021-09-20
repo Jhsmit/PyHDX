@@ -664,6 +664,7 @@ class HDXMeasurement(object):
     @property
     def full_data(self):
         """returns the full dataset of all timepoints"""
+        raise DeprecationWarning('full data is removed')
         full_data = np.concatenate([pm.data for pm in self])
         return full_data
 
