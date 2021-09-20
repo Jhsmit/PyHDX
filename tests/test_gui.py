@@ -62,14 +62,38 @@ class TestMainGUISecB(object):
         file_input_control._action_add_dataset()
 
         assert self.state in ctrl.data_objects
-        series = ctrl.data_objects[self.state]
+        hdxm = ctrl.data_objects[self.state]
 
-        assert series.Nt == 7
-        assert series.Np == 63
-        assert series.Nr == 146
-        # Py39 result:                              54.054873258574965
-        # assert np.nanmean(series.scores_stack) == 54.05487325857497
-        assert abs(np.nanmean(series.rfu_residues) - 0.540548732585749) < 1e-6
+        assert hdxm.Nt == 7
+        assert hdxm.Np == 63
+        assert hdxm.Nr == 146
+
+        file_input_control.input_files = [binary]
+        assert file_input_control.fd_state == 'Full deuteration control'
+        assert file_input_control.fd_state == self.control[0]
+        assert file_input_control.fd_exposure == self.control[1]
+
+        file_input_control.exp_state = self.state
+        timepoints = list(np.array([0.0, 0.5, 1.0, 5.0, 100.000008])*60)
+        file_input_control.exp_exposures = timepoints
+        print('second add')
+        #file_input_control.dataset_name = 'test123'
+        # Add dataset with the name name
+        file_input_control._action_add_dataset()
+        assert len(ctrl.data_objects) == 1
+
+        name = 'second_dataset'
+        file_input_control.dataset_name = name
+        file_input_control._action_add_dataset()
+
+        assert name in ctrl.data_objects
+        hdxm = ctrl.data_objects[name]
+
+        assert hdxm.Nt == 5
+        assert hdxm.Np == 63
+        assert hdxm.Nr == 146
+
+        assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.521232427211)
 
     def test_batch_mode(self):
         fpath_1 = input_dir / 'ecSecB_apo.csv'

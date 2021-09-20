@@ -242,7 +242,7 @@ class PeptideFileInputControl(ControlPanel):
     dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
-    dataset_list = param.ListSelector(label='Datasets', doc='Lists available datasets')
+    dataset_list = param.ObjectSelector(default=[], label='Datasets', doc='Lists available datasets')
 
     def __init__(self, parent, **params):
         super(PeptideFileInputControl, self).__init__(parent, **params)
@@ -386,8 +386,9 @@ class PeptideFileInputControl(ControlPanel):
             # todo @tejas: Add test
             peptides.set_backexchange(self.be_percent)
 
-        data_states = peptides.data[peptides.data['state'] == self.exp_state]
-        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
+        data = peptides.get_state(self.exp_state)
+        exp_bools = data['exposure'].isin(self.exp_exposures)
+        data = data[exp_bools]
 
         #todo temperature ph kwarg for series
         hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
@@ -406,6 +407,8 @@ class PeptideFileInputControl(ControlPanel):
         df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'rfu', self.dataset_name)
+
+        self.dataset_list.append(self.dataset_name)
 
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')

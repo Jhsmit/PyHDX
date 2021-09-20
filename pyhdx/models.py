@@ -283,7 +283,7 @@ class PeptideMasterTable(object):
 
         if not isinstance(state, str):
             raise TypeError(f'State must be type `str`, got {type(state)}')
-        data = self.data.query(f'state == "{state}"')
+        data = self.data.query(f'state == "{state}"').copy()
         if 'uptake_corrected' in data.columns:
             data.dropna(subset=['uptake_corrected'], inplace=True)
 
@@ -1029,7 +1029,7 @@ class HDXMeasurementSet(object):
         Parameters
         ----------
         rates_list : :obj:`iterable`
-            list of pandas series with k_obs esimates
+            list of pandas series with k_obs estimates
 
         Returns
         -------
