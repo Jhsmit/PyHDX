@@ -284,7 +284,8 @@ class PeptideMasterTable(object):
         if not isinstance(state, str):
             raise TypeError(f'State must be type `str`, got {type(state)}')
         data = self.data.query(f'state == "{state}"')
-        data.dropna(subset=['uptake_corrected'], inplace=True)
+        if 'uptake_corrected' in data.columns:
+            data.dropna(subset=['uptake_corrected'], inplace=True)
 
         return data
 
