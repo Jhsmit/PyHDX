@@ -730,7 +730,7 @@ class HDXMeasurement(object):
         X (Np x Nr)
         k_int (Nr x 1)
         timepoints (1 x Nt)
-        uptake (D) (Np x Nt)
+        d_exp (D) (Np x Nt)
 
         Parameters
         ----------
@@ -747,7 +747,7 @@ class HDXMeasurement(object):
         if 'k_int' not in self.coverage.protein:
             raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
         try:
-            upt = self.uptake_corrected
+            d_exp = self.d_exp
         except ValueError:
             raise ValueError("HDX data is not corrected for back exchange.")
 
@@ -765,7 +765,7 @@ class HDXMeasurement(object):
             'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype, device=device),
             'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype, device=device).unsqueeze(-1),
             'timepoints': torch.tensor(self.timepoints, dtype=dtype, device=device).unsqueeze(0),
-            'uptake': torch.tensor(self.d_exp.to_numpy(), dtype=dtype, device=device)}
+            'd_exp': torch.tensor(self.d_exp.to_numpy(), dtype=dtype, device=device)}
 
         return tensors
 
@@ -1015,7 +1015,7 @@ class HDXMeasurementSet(object):
         self.timepoints = np.zeros((self.Ns, self.Nt))
         self.timepoints[self.masks['st']] = timepoints_values
 
-        d_values = np.concatenate([hdxm.d_exp.flatten() for hdxm in self.hdxm_list])
+        d_values = np.concatenate([hdxm.d_exp.to_numpy().flatten() for hdxm in self.hdxm_list])
         self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
         self.d_exp[self.masks['spt']] = d_values
 
@@ -1121,7 +1121,7 @@ class HDXMeasurementSet(object):
             'X': torch.tensor(X, dtype=dtype, device=device),
             'k_int': torch.tensor(k_int, dtype=dtype, device=device).reshape(self.Ns, self.Nr, 1),
             'timepoints': torch.tensor(self.timepoints, dtype=dtype, device=device).reshape(self.Ns, 1, self.Nt),
-            'uptake': torch.tensor(self.d_exp, dtype=dtype, device=device)  #todo this is called uptake_corrected/D/uptake
+            'd_exp': torch.tensor(self.d_exp, dtype=dtype, device=device)  #todo this is called uptake_corrected/D/uptake
         }
 
         return tensors
