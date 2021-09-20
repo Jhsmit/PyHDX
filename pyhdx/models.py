@@ -279,6 +279,9 @@ class PeptideMasterTable(object):
         -------
 
         """
+
+        if not isinstance(state, str):
+            raise TypeError(f'State must be type `str`, got {type(state)}')
         return self.data.query(f'state == "{state}"')
 
     def set_backexchange(self, back_exchange):
