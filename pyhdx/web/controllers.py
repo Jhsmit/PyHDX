@@ -242,7 +242,7 @@ class PeptideFileInputControl(ControlPanel):
     dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
-    dataset_list = param.ListSelector(label='Datasets', doc='Lists available datasets')
+    dataset_list = param.ObjectSelector(default=[], label='Datasets', doc='Lists available datasets')
 
     def __init__(self, parent, **params):
         super(PeptideFileInputControl, self).__init__(parent, **params)
@@ -252,7 +252,7 @@ class PeptideFileInputControl(ControlPanel):
         self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
-        self._array = None  # Numpy array with raw input data
+        self._df = None  # Numpy array with raw input data
 
     @property
     def _layout(self):
@@ -292,15 +292,15 @@ class PeptideFileInputControl(ControlPanel):
     def _read_files(self):
         """"""
         if self.input_files:
-            combined_array = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
-            self._array = combined_array
+            combined_df = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
+            self._df = combined_df
 
             self.parent.logger.info(
                 f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
-                f'of {len(self._array)} peptides')
+                f'of {len(self._df)} peptides')
 
         else:
-            self._array = None
+            self._df = None
 
         self._update_fd_state()
         self._update_fd_exposure()
@@ -308,8 +308,8 @@ class PeptideFileInputControl(ControlPanel):
         self._update_exp_exposure()
 
     def _update_fd_state(self):
-        if self._array is not None:
-            states = list(np.unique(self._array['state']))
+        if self._df is not None:
+            states = list(self._df['state'].unique())
             self.param['fd_state'].objects = states
             self.fd_state = states[0]
         else:
@@ -317,8 +317,8 @@ class PeptideFileInputControl(ControlPanel):
 
     @param.depends('fd_state', watch=True)
     def _update_fd_exposure(self):
-        if self._array is not None:
-            fd_entries = self._array[self._array['state'] == self.fd_state]
+        if self._df is not None:
+            fd_entries = self._df[self._df['state'] == self.fd_state]
             exposures = list(np.unique(fd_entries['exposure']))
         else:
             exposures = []
@@ -328,12 +328,12 @@ class PeptideFileInputControl(ControlPanel):
 
     @param.depends('fd_state', 'fd_exposure', watch=True)
     def _update_exp_state(self):
-        if self._array is not None:
+        if self._df is not None:
             # Booleans of data entries which are in the selected control
-            control_bools = np.logical_and(self._array['state'] == self.fd_state, self._array['exposure'] == self.fd_exposure)
+            control_bools = np.logical_and(self._df['state'] == self.fd_state, self._df['exposure'] == self.fd_exposure)
 
-            control_data = self._array[control_bools]
-            other_data = self._array[~control_bools]
+            control_data = self._df[control_bools].to_records()
+            other_data = self._df[~control_bools].to_records()
 
             intersection = array_intersection([control_data, other_data], fields=['start', 'end'])  # sequence?
             states = list(np.unique(intersection[1]['state']))
@@ -346,8 +346,8 @@ class PeptideFileInputControl(ControlPanel):
 
     @param.depends('exp_state', watch=True)
     def _update_exp_exposure(self):
-        if self._array is not None:
-            exp_entries = self._array[self._array['state'] == self.exp_state]
+        if self._df is not None:
+            exp_entries = self._df[self._df['state'] == self.exp_state]
             exposures = list(np.unique(exp_entries['exposure']))
             exposures.sort()
         else:
@@ -370,14 +370,14 @@ class PeptideFileInputControl(ControlPanel):
     def _action_add_dataset(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
 
-        if self._array is None:
+        if self._df is None:
             self.parent.logger.info("No data loaded")
             return
         elif self.dataset_list and self.dataset_name in self.dataset_list:
             self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
             return
 
-        peptides = PeptideMasterTable(self._array, d_percentage=self.d_percentage,
+        peptides = PeptideMasterTable(self._df, d_percentage=self.d_percentage,
                                       drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
         if self.be_mode == 'FD Sample':
             control_0 = None # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
@@ -386,8 +386,9 @@ class PeptideFileInputControl(ControlPanel):
             # todo @tejas: Add test
             peptides.set_backexchange(self.be_percent)
 
-        data_states = peptides.data[peptides.data['state'] == self.exp_state]
-        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
+        data = peptides.get_state(self.exp_state)
+        exp_bools = data['exposure'].isin(self.exp_exposures)
+        data = data[exp_bools]
 
         #todo temperature ph kwarg for series
         hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
@@ -396,7 +397,7 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.data_objects[self.dataset_name] = hdxm
         self.parent.param.trigger('data_objects')  # Trigger update
 
-        df = pd.DataFrame(hdxm.full_data)
+        df = hdxm.data
         df['start_end'] = [str(s) + '_' + str(e) for s, e in zip(df['start'], df['end'])]
         df['id'] = df.index % hdxm.Np
         target_source = self.parent.sources['dataframe']
@@ -406,6 +407,8 @@ class PeptideFileInputControl(ControlPanel):
         df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'rfu', self.dataset_name)
+
+        self.dataset_list.append(self.dataset_name)
 
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')
@@ -737,8 +740,8 @@ class FitControl(ControlPanel):
             for hdxm, d_calc_state in zip(result.data_obj, d_calc):
                 peptide_dfs = []
                 pm_data = hdxm[0].data
-                for d_peptide, pm_row in zip(d_calc_state, pm_data):
-                    peptide_id = f"{pm_row['start']}_{pm_row['end']}"
+                for d_peptide, idx in zip(d_calc_state, pm_data.index):
+                    peptide_id = f"{pm_data.loc[idx, 'start']}_{pm_data.loc[idx, 'end']}"
                     data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
                     peptide_dfs.append(pd.DataFrame(data_dict))
                 state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)

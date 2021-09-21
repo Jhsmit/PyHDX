@@ -71,7 +71,7 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, **kwargs):
     if not (c_term or sequence):
         raise ValueError("Must specify either 'c_term' or 'sequence'")
 
-    state_data = pmt.get_state([yaml_dict['state']])
+    state_data = pmt.get_state(yaml_dict['state'])
     hdxm = HDXMeasurement(state_data, temperature=temperature, pH=yaml_dict['pH'],
                           sequence=sequence, n_term=n_term, c_term=c_term, **kwargs)
 

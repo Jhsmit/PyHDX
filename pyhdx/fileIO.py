@@ -20,6 +20,7 @@ PEPTIDE_DTYPES = {
     'end': int,
 }
 
+
 def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='min'):
     """
     Reads a dynamX .csv file and returns the data as a numpy structured array
@@ -35,12 +36,12 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
 
     Returns
     -------
-    data : :class:`~numpy.ndarray`
-        Peptides as a numpy structured array
+    full_df : :class:`~pandas.DataFrame`
+        Peptides as a pandas DataFrame
 
     """
 
-    data_list = []
+    dfs = []
     for fpath in file_paths:
         # names = [t[0] for t in CSV_DTYPE]
         if isinstance(fpath, StringIO):
@@ -51,10 +52,10 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
                 hdr = f.readline().strip('# \n\t')
 
         names = [name.lower() for name in hdr.split(',')]
-        data = np.genfromtxt(fpath, skip_header=1, delimiter=',', dtype=None, names=names, encoding='UTF-8')
-        data_list.append(data)
+        df = pd.read_csv(fpath, header=0, names=names)
+        dfs.append(df)
 
-    full_data = stack_arrays(data_list, usemask=True, autoconvert=True)
+    full_df = pd.concat(dfs, axis=0, ignore_index=True)
     if intervals[0] == 'inclusive':
         start_correction = 0
     elif intervals[0] == 'exclusive':
@@ -68,13 +69,13 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
     else:
         raise ValueError(f"Invalid start interval value {intervals[1]}, must be 'inclusive' or 'exclusive'")
 
-    full_data['start'] += start_correction
-    full_data['end'] += end_correction
+    full_df['start'] += start_correction
+    full_df['end'] += end_correction
 
     t_conversion = {'h': 3600, 'min': 60, 's': 1}
-    full_data['exposure'] *= t_conversion[time_unit]
+    full_df['exposure'] *= t_conversion[time_unit]
 
-    return full_data
+    return full_df
 
 
 def read_header(file_obj, comment='#'):
@@ -196,14 +197,12 @@ def csv_to_hdxm(filepath_or_buffer, comment='#', **kwargs):
         hdxm_list = []
         for state in df.columns.unique(level=0):
             subdf = df[state].dropna(how='all')
-            data = subdf.to_records(column_dtypes=PEPTIDE_DTYPES)
             m = metadata.get(state, {})
-            hdxm = pyhdx.models.HDXMeasurement(data, **m)
+            hdxm = pyhdx.models.HDXMeasurement(subdf, **m)
             hdxm_list.append(hdxm)
         data_obj = pyhdx.models.HDXMeasurementSet(hdxm_list)
     elif df.columns.nlevels == 1:
-        data = df.to_records(column_dtypes=PEPTIDE_DTYPES)
-        data_obj = pyhdx.models.HDXMeasurement(data, **metadata)
+        data_obj = pyhdx.models.HDXMeasurement(df, **metadata)
     else:
         raise ValueError(f"Invalid number of column levels, found {df.columns.nlevels}, supported 1 or 2")
     return data_obj

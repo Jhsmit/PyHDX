@@ -23,7 +23,7 @@ current_dir = Path(__file__).parent
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
 data_dir = current_dir.parent / 'tests' / 'test_data'
-data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
+data = read_dynamx(data_dir / 'input' / 'ecSecB_apo.csv', data_dir / 'input' / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data)
 pmt.set_control(('Full deuteration control', 0.167))
@@ -33,8 +33,7 @@ st2 = HDXMeasurement(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15 + 30
 
 hdx_set = HDXMeasurementSet([st1, st2])
 #todo update to new format
-guess = csv_to_protein(data_dir / 'ecSecB_guess.txt', header=[2], index_col=0)
-
+guess = csv_to_protein(data_dir / 'output' / 'ecSecB_guess.csv')
 gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
 
 
@@ -53,7 +52,7 @@ dataframe_to_file(output_dir / 'model_history.txt', df, fmt='pprint')
 
 
 # Checkpoint history scatter plot
-# Note that these are raw deltaG values including interplated values in regions of no coverage
+# Note that these are raw deltaG values including interpolated values in regions of no coverage
 history = checkpoint.model_history
 num = len(history)
 cmap = mpl.cm.get_cmap('winter')

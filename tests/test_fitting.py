@@ -1,5 +1,3 @@
-import tempfile
-
 import pytest
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, save_fitresult, load_fitresult
@@ -13,7 +11,10 @@ from pathlib import Path
 
 import pandas as pd
 
-directory = Path(__file__).parent
+cwd = Path(__file__).parent
+input_dir = cwd / 'test_data' / 'input'
+output_dir = cwd / 'test_data' / 'output'
+
 np.random.seed(43)
 torch.manual_seed(43)
 
@@ -21,8 +22,8 @@ torch.manual_seed(43)
 class TestSecBDataFit(object):
     @classmethod
     def setup_class(cls):
-        fpath_apo = directory / 'test_data' / 'ecSecB_apo.csv'
-        fpath_dimer = directory / 'test_data' / 'ecSecB_dimer.csv'
+        fpath_apo = input_dir / 'ecSecB_apo.csv'
+        fpath_dimer = input_dir / 'ecSecB_dimer.csv'
         data = read_dynamx(fpath_apo, fpath_dimer)
         control = ('Full deuteration control', 0.167*60)
 
@@ -45,14 +46,14 @@ class TestSecBDataFit(object):
         output = result.output
 
         assert output.size == 100
-        check_rates = csv_to_protein(directory / 'test_data' / 'ecSecB_reduced_guess.csv')
+        check_rates = csv_to_protein(output_dir / 'ecSecB_reduced_guess.csv')
         pd.testing.assert_series_equal(check_rates['rate'], output['rate'])
 
         # todo additional tests:
         #  result = fit_rates_half_time_interpolate()
 
     def test_global_fit(self):
-        initial_rates = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
+        initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
         t0 = time.time()  # Very crude benchmarks
         gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
@@ -61,7 +62,7 @@ class TestSecBDataFit(object):
 
         assert t1 - t0 < 5
         out_deltaG = fr_global.output
-        check_deltaG = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit.csv')
+        check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
         assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
@@ -72,7 +73,7 @@ class TestSecBDataFit(object):
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended(self):
-        initial_rates = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
+        initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
         t0 = time.time()  # Very crude benchmarks
         gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
@@ -81,7 +82,7 @@ class TestSecBDataFit(object):
 
         assert t1 - t0 < 20
         out_deltaG = fr_global.output
-        check_deltaG = csv_to_protein(directory / 'test_data' / 'ecSecB_torch_fit_epochs_20000.csv')
+        check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit_epochs_20000.csv')
 
         assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
         assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
@@ -90,22 +91,21 @@ class TestSecBDataFit(object):
         mse = fr_global.get_mse()
         assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
-    def test_batch_fit(self):
+    def test_batch_fit(self, tmp_path):
         hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
-        guess = csv_to_dataframe(directory / 'test_data' / 'ecSecB_guess.csv')
+        guess = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
         gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
         fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            fpath = Path(tempdir) / 'fit_result_batch.csv'
-            fr_global.to_file(fpath)
-            df = csv_to_dataframe(fpath)
-            assert df.attrs['metadata'] == fr_global.metadata
+        fpath = Path(tmp_path) / 'fit_result_batch.csv'
+        fr_global.to_file(fpath)
+        df = csv_to_dataframe(fpath)
+        assert df.attrs['metadata'] == fr_global.metadata
 
         output = fr_global.output
 
-        check_protein = csv_to_protein(directory / 'test_data' / 'ecSecB_batch.csv')
+        check_protein = csv_to_protein(output_dir / 'ecSecB_batch.csv')
         states = ['SecB WT apo', 'SecB his dimer apo']
 
         for state in states:
@@ -129,7 +129,7 @@ class TestSecBDataFit(object):
         gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
         aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
         output = aligned_result.output
-        check_protein = csv_to_protein(directory / 'test_data' / 'ecSecB_batch_aligned.csv')
+        check_protein = csv_to_protein(output_dir / 'ecSecB_batch_aligned.csv')
         states = ['SecB WT apo', 'SecB his dimer apo']
 
         for state in states:

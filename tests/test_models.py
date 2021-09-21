@@ -2,7 +2,7 @@ import pytest
 import os
 from pyhdx import PeptideMeasurements, PeptideMasterTable, HDXMeasurement
 from pyhdx.models import Protein, Coverage
-from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_hdxm
+from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_hdxm, csv_to_dataframe
 import numpy as np
 from functools import reduce
 from operator import add
@@ -13,35 +13,33 @@ import pickle
 import pytest
 
 
-directory = Path(__file__).parent
+cwd = Path(__file__).parent
+input_dir = cwd / 'test_data' / 'input'
+output_dir = cwd / 'test_data' / 'output'
 
 
-class TestUptakeFileModels(object):
+class TestPeptideMasterTable(object):
 
     @classmethod
     def setup_class(cls):
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
-        cls.pf1 = PeptideMasterTable(read_dynamx(fpath))
+        fpath = input_dir / 'ecSecB_apo.csv'
+        cls.pmt = PeptideMasterTable(read_dynamx(fpath))
 
-    def test_peptidemastertable(self):
-        data = self.pf1.data[self.pf1.data['start'] < 50]
-        res = self.pf1.isin_by_idx(self.pf1.data, data)
-        assert res.shape == self.pf1.data.shape
-        assert len(data) == np.sum(res)
+    def test_properties(self):
+        states = ['Full deuteration control', 'SecB WT apo']
+        assert list(self.pmt.states) == states
 
-    def test_peptidemeasurement(self):
-        assert isinstance(self.pf1, PeptideMasterTable)
+        exposures = np.array([0.0, 10.020000000000001, 30.0, 60.0, 300.0, 600.0, 6000.00048])
+        assert np.allclose(exposures, self.pmt.exposures, atol=0.01)
 
-        self.pf1.set_control(('Full deuteration control', 0.167*60))
-
-        data = self.pf1.get_state('SecB WT apo')
-        assert isinstance(data, np.ndarray)
+    #def test_methods(self):
+        # testing of PeptideMasterTable methods
 
 
 class TestHDXMeasurement(object):
     @classmethod
     def setup_class(cls):
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath = input_dir / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(fpath))
         cls.pmt.set_control(('Full deuteration control', 0.167*60))
         d = cls.pmt.get_state('SecB WT apo')
@@ -49,7 +47,7 @@ class TestHDXMeasurement(object):
         cls.hdxm = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
 
     def test_dim(self):
-        assert self.hdxm.Nt == len(np.unique(self.hdxm.full_data['exposure']))
+        assert self.hdxm.Nt == len(self.hdxm.data['exposure'].unique())
 
     def test_guess(self):
         pass
@@ -58,6 +56,13 @@ class TestHDXMeasurement(object):
         tensors = self.hdxm.get_tensors()
 
         # assert ...
+
+    def test_rfu(self):
+        rfu_residues = self.hdxm.rfu_residues
+        compare = csv_to_dataframe(output_dir / 'ecSecB_rfu_per_exposure.csv')
+        compare_array = compare.to_numpy()
+
+        np.testing.assert_allclose(rfu_residues, compare_array)
 
     def test_to_file(self):
         with tempfile.TemporaryDirectory() as tempdir:
@@ -70,90 +75,19 @@ class TestHDXMeasurement(object):
 
             assert self.hdxm.metadata == hdxm_read.metadata
 
-@pytest.mark.skip(reason="Simulated data was removed")
-class TestSimulatedData(object):
-    @classmethod
-    def setup_class(cls):
-        fpath = directory / 'test_data' / 'simulated_data.csv'
-        cls.data = txt_to_np(fpath, delimiter=',')
-        cls.data['end'] += 1 # because this simulated data is in old format of inclusive, inclusive
-        cls.sequence = 'XXXXTPPRILALSAPLTTMMFSASALAPKIXXXXLVIPWINGDKG'
-
-        cls.timepoints = [0.167, 0.5, 1, 5, 10, 30, 100]
-        cls.start, cls.end = 5, 46  # total span of protein (inc, excl)
-        cls.nc_start, cls.nc_end = 31, 35  # span of no coverage area (inc, inc)
-
-    def test_keep_prolines(self):
-        pcf = PeptideMasterTable(self.data, drop_first=0, ignore_prolines=False, remove_nan=False)
-        states = pcf.groupby_state()
-        assert len(states) == 1
-        series = states['state1']
-        assert len(series) == len(self.timepoints)
-        peptides = series[3]
-
-        assert len(peptides.r_number) == self.end - self.start
-        assert np.all(np.diff(peptides.r_number) == 1)
-
-        blocks = [1, 4, 2, 4, 3, 2, 10, 4, 2, 3, 3, 2, 1]
-        assert np.all(blocks == peptides.block_length)
-
-        lengths = peptides.data['end'] - peptides.data['start']
-        assert np.all(lengths == peptides.data['ex_residues'])
-
-        # for row in peptides.X:
-        #     assert np.sum(row) == 1
-
-        assert peptides.X.shape == (len(self.data) / len(self.timepoints), self.end - self.start)
-
-        #assert np.all(np.sum(peptides.X, axis=1) == 1)
-
-        for row, elem in zip(peptides.X, peptides.data):
-            assert np.nansum(row) == len(elem['sequence'])
-
-        assert np.sum(peptides.protein['coverage']) == self.nc_start - self.start + self.end - self.nc_end
-        assert peptides.exposure == self.timepoints[3]
-        assert peptides.state == 'state1'
-        assert ''.join(peptides.protein['sequence']) == self.sequence
-
-    def test_drop_first_prolines(self):
-        for i, df in enumerate([1, 2, 3]):
-            pcf = PeptideMasterTable(self.data, drop_first=df, ignore_prolines=True, remove_nan=False)
-            states = pcf.groupby_state()
-            assert len(states) == 1
-            series = states['state1']
-            assert len(series) == len(self.timepoints)
-
-            peptides = series[3]
-            #assert peptides.start == self.start + df + 2 # 2 prolines
-            #assert peptides.end == self.end
-
-            #take only the exchanging residues
-            # this only holds up to the first coverage break
-
-            assert np.sum(peptides.block_length) == len(peptides.r_number)
-            reductions = [
-                [4, 3, 2, 3, 2, 2, 1],
-                [4, 3, 3, 4, 3, 2, 2],
-                [4, 4, 4, 5, 4, 3, 3]
-            ][i]
-
-            #unmodified: [11 15  9 19  8  9  5]
-            lengths = np.array([len(seq) for seq in peptides.data['sequence']]) - np.array(reductions)
-            assert np.all(lengths == peptides.data['ex_residues'])
-
 
 class TestCoverage(object):
     @classmethod
     def setup_class(cls):
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath =input_dir / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        d = cls.pmt.groupby_state()
-        cls.series = d['SecB WT apo']
+        data = cls.pmt.get_state('SecB WT apo')
+        cls.hdxm = HDXMeasurement(data)
         cls.sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQM' \
                        'AHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 
     def test_sequence(self):
-        data = self.series[0].data
+        data = self.hdxm[0].data
         cov = Coverage(data)
 
         for r, s in zip(cov.r_number, cov['sequence']):
@@ -168,9 +102,19 @@ class TestCoverage(object):
             assert self.sequence[r - 1] == s
 
     def test_dim(self):
-        cov = self.series.coverage
+        cov = self.hdxm.coverage
         assert cov.Np == len(np.unique(cov.data['sequence']))
         assert cov.Nr == len(cov.r_number)
+
+        assert cov.Np == 63
+        assert cov.Nr == 146
+
+    def test_XZ(self):
+        test_X = np.genfromtxt(output_dir / 'attributes' / 'X.txt')
+        assert np.allclose(self.hdxm.coverage.X, test_X)
+
+        test_Z = np.genfromtxt(output_dir / 'attributes' / 'Z.txt')
+        assert np.allclose(self.hdxm.coverage.Z, test_Z)
 
 
 class TestProtein(object):
@@ -196,10 +140,10 @@ class TestProtein(object):
         array3['banana'] = -(np.random.rand(10) + 20)
         cls.array3 = array3
         metadata = {'temperature': 273.15, 'pH': 7.5, 'mutations': ['V123S', 'P234S']}
-        cls.protein = csv_to_protein(directory / 'test_data' / 'ecSecB_info.csv')
+        cls.protein = csv_to_protein(output_dir / 'ecSecB_info.csv')
         cls.protein.metadata = metadata
 
-        fpath = directory / 'test_data' / 'ecSecB_apo.csv'
+        fpath = input_dir / 'ecSecB_apo.csv'
         pf1 = PeptideMasterTable(read_dynamx(fpath))
         #states = pf1.groupby_state(c_term=200)
         cls.series = HDXMeasurement(pf1.get_state('SecB WT apo'), c_term=200)

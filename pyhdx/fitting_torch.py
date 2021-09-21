@@ -56,9 +56,9 @@ def estimate_errors(hdxm, deltaG):
         criterion = t.nn.MSELoss(reduction='sum')
         pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
         uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
-        output = t.matmul(tensors['X'], uptake)
+        d_calc = t.matmul(tensors['X'], uptake)
 
-        loss = criterion(output, tensors['uptake'])
+        loss = criterion(d_calc, tensors['d_exp'])
         return loss
 
     hessian = t.autograd.functional.hessian(hes_loss, deltaG)
@@ -69,9 +69,9 @@ def estimate_errors(hdxm, deltaG):
     def jac_loss(deltaG_input):
         pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
         uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
-        output = t.matmul(tensors['X'], uptake)
+        d_calc = t.matmul(tensors['X'], uptake)
 
-        residuals = (output - tensors['uptake'])
+        residuals = (d_calc - tensors['d_exp'])
 
         return residuals.flatten()
 

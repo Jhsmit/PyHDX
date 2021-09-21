@@ -85,7 +85,7 @@ def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
     """
     bounds = bounds or get_bounds(hdxm.timepoints)
 
-    arr = hdxm.rfu_residues  # Data array
+    arr = hdxm.rfu_residues.to_numpy()  # Data array
     i = 0
     # because intervals are inclusive, exclusive we need to add an extra entry to r_number for the final exclusive bound
     r_excl = np.append(hdxm.coverage.r_number, [hdxm.coverage.r_number[-1] + 1])
@@ -437,7 +437,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
 
     tensors = hdxm.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
-    output_data = tensors['uptake']
+    output_data = tensors['d_exp']
 
     if isinstance(initial_guess, pd.Series):
         initial_guess = initial_guess.to_numpy()
@@ -550,7 +550,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     # @tejas docstrings
     tensors = hdx_set.get_tensors()
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
-    output_data = tensors['uptake']
+    output_data = tensors['d_exp']
 
     assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
 
