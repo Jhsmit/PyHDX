@@ -1,3 +1,6 @@
+import textwrap
+import warnings
+
 from functools import reduce, partial
 
 import numpy as np
@@ -643,6 +646,33 @@ class HDXMeasurement(object):
         self.data = pd.concat(intersected_data, axis=0, ignore_index=True)
         self.data.index.name = 'peptide_index'
 
+    def __str__(self):
+        """
+
+        Returns
+        -------
+        s : `obj`:str:
+            Multiline string describing this HDX Measurement object
+
+        """
+
+        timepoints = ', '.join([f'{t:.2f}' for t in self.timepoints])
+
+        s = f"""
+        HDX Measurement: {self.name}
+        
+        Number of peptides:     {self.Np}
+        Number of residues:     {self.Nr} ({self.coverage.interval[0]} - {self.coverage.interval[1]})
+        Number of timepoints:   {self.Nt}
+        Timepoints:             {timepoints} seconds
+        Coverage Percentage:    {self.coverage.percent_coverage:.2f}
+        Average redundancy:     {self.coverage.redundancy:.2f}      
+        Temperature:            {self.temperature} K
+        pH:                     {self.pH}             
+        """
+
+        return textwrap.dedent(s)
+
     @property
     def name(self):
         return self.metadata.get('name', self.state)
@@ -953,6 +983,23 @@ class CoverageSet(object):
     def index(self):
         """pd index: """
         return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
+
+    def apply_interval(self, array_or_series):
+        """Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
+        region. Returned series length is equal to number of columns in the X matrix
+
+        """
+        #todo testing and 2d array support
+        if isinstance(array_or_series, np.ndarray):
+            series = pd.Series(array_or_series, index=self.index)
+            assert len(array_or_series) == len(self.index)
+        else:
+            series = array_or_series
+
+        # - 1 because interval is inclusive, exclusive and .loc slices inclusive, inclusive
+        covered_slice = series.loc[self.interval[0]:self.interval[1] - 1]
+
+        return covered_slice
 
     @property
     def s_r_mask(self):

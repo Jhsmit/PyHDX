@@ -515,7 +515,7 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=
 
     Parameters
     ----------
-    hdx_set : :class:`~pyhdx.models.HDXMeasurement`
+    hdx_set : :class:`~pyhdx.models.HDXMeasurementSet`
     initial_guess
     r1
     r2
