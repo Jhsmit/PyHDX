@@ -1,5 +1,3 @@
-import tempfile
-
 import pytest
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, save_fitresult, load_fitresult
@@ -100,9 +98,7 @@ class TestSecBDataFit(object):
         gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
         fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
 
-        #with tempfile.TemporaryDirectory() as tempdir:
-        tempdir = tmp_path
-        fpath = Path(tempdir) / 'fit_result_batch.csv'
+        fpath = Path(tmp_path) / 'fit_result_batch.csv'
         fr_global.to_file(fpath)
         df = csv_to_dataframe(fpath)
         assert df.attrs['metadata'] == fr_global.metadata
