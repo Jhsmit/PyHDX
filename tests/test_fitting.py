@@ -93,18 +93,19 @@ class TestSecBDataFit(object):
         mse = fr_global.get_mse()
         assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
-    def test_batch_fit(self):
+    def test_batch_fit(self, tmp_path):
         hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
         guess = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
         gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
         fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
 
-        with tempfile.TemporaryDirectory() as tempdir:
-            fpath = Path(tempdir) / 'fit_result_batch.csv'
-            fr_global.to_file(fpath)
-            df = csv_to_dataframe(fpath)
-            assert df.attrs['metadata'] == fr_global.metadata
+        #with tempfile.TemporaryDirectory() as tempdir:
+        tempdir = tmp_path
+        fpath = Path(tempdir) / 'fit_result_batch.csv'
+        fr_global.to_file(fpath)
+        df = csv_to_dataframe(fpath)
+        assert df.attrs['metadata'] == fr_global.metadata
 
         output = fr_global.output
 
