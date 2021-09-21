@@ -1,6 +1,4 @@
 import textwrap
-import warnings
-
 from functools import reduce, partial
 
 import numpy as np
@@ -13,7 +11,7 @@ from scipy import constants
 import pyhdx
 from pyhdx.alignment import align_dataframes
 from pyhdx.fileIO import dataframe_to_file
-from pyhdx.support import reduce_inter, make_view, fields_view
+from pyhdx.support import reduce_inter, fields_view
 
 
 def protein_wrapper(func, *args, **kwargs):
