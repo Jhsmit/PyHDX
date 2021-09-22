@@ -497,8 +497,13 @@ class Coverage(object):
         return self.apply_interval(pd_series)
 
     def apply_interval(self, array_or_series):
-        """Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
+        """
+        Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
         region. Returned series length is equal to number of columns in the X matrix
+
+        Parameters
+        ----------
+        np.narray or pd.series
 
         """
 
@@ -570,13 +575,17 @@ class Coverage(object):
         return self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
 
     def get_sections(self, gap_size=-1):
-        """get the intervals of sections of coverage
-        intervals are inclusive, exclusive
+        """Get the intervals of independent sections of coverage.
 
-            gap_size : :obj:`int`
-        Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
-        with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
-        and larger values tolerate larger gap sizes.
+        Intervals are inclusive, exclusive.
+        Gaps are defined with `gap_size`, adjacent peptides with distances bigger than this value are considered not to
+        overlap. Set to -1 to treat touching peptides as belonging to the same section.
+
+        Parameters
+        ----------
+        gap_size : :obj:`int`
+            The size which defines a gap
+
         """
         intervals = [(s, e) for s, e in zip(self.data['start'], self.data['end'])]
         sections = reduce_inter(intervals, gap_size=gap_size)
@@ -599,9 +608,8 @@ class HDXMeasurement(object):
 
     Parameters
     ----------
-    data : :class:`~numpy.ndarray` or :obj:`list`
-        Numpy structured array with peptide entries corresponding to a single state,
-        or list of :class:`~pyhdx.models.PeptideMeasurements`
+    data : :class:`~pandas.DataFrame`
+        Pandas dataframe with all peptides belonging to a single state.
     **metadata
         Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
 
@@ -646,6 +654,7 @@ class HDXMeasurement(object):
 
     def __str__(self):
         """
+        String representation of HDX measurement object.
 
         Returns
         -------
@@ -673,14 +682,17 @@ class HDXMeasurement(object):
 
     @property
     def name(self):
+        """:obj:`str`: HDX Measurement name"""
         return self.metadata.get('name', self.state)
 
     @property
     def temperature(self):
+        """:obj:`float`: Temperature of the H/D exchagne reaction (K)."""
         return self.metadata.get('temperature', None)
 
     @property
     def pH(self):
+        """pH of the H/D exchange reaction."""
         return self.metadata.get('pH', None)
 
     @property
@@ -691,20 +703,12 @@ class HDXMeasurement(object):
     @property
     def Nr(self):
         """:obj:`int`: Total number of residues spanned by the peptides."""
-
         return self.coverage.Nr
 
     @property
     def Nt(self):
         """:obj:`int`: Number of timepoints."""
         return len(self.timepoints)
-
-    @property
-    def full_data(self):
-        """returns the full dataset of all timepoints"""
-        raise DeprecationWarning('full data is removed')
-        full_data = np.concatenate([pm.data for pm in self])
-        return full_data
 
     def __len__(self):
         return len(self.timepoints)
@@ -725,26 +729,14 @@ class HDXMeasurement(object):
 
     @property
     def rfu_peptides(self):
+        """:class:`~pandas.DataFrame`: Relative fractional uptake per peptide. Shape Np x Nt"""
         df = pd.concat([v.rfu_peptides for v in self], keys=self.timepoints, axis=1)
         df.columns.name = 'exposure'
         return df
 
     @property
-    def uptake_corrected(self):
-        """matrix shape  N_t, N_p""" #(should be np nt)
-        #todo refactor to D to match manuscript
-        #todo deprecate
-
-        raise DeprecationWarning('uptake_corrected property depcrecated')
-
-        uptake_corrected = np.stack([v.uptake_corrected for v in self])
-        return uptake_corrected
-
-    @property
     def d_exp(self):
-        """np.ndarray (shape Np x Nt)
-            Experimentally measured D-uptake values, corrected for back-exchange """
-
+        """:class:`~pandas.DataFrame`: D-uptake values (corrected). Shape Np x Nt"""
         df = pd.concat([v.d_exp for v in self], keys=self.timepoints, axis=1)
         df.columns.name = 'exposure'
         return df
@@ -763,7 +755,7 @@ class HDXMeasurement(object):
         Parameters
         ----------
         exchanges : :obj:`bool`
-            if True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
+            If True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
 
         Returns
         -------
@@ -799,14 +791,20 @@ class HDXMeasurement(object):
 
     def guess_deltaG(self, rates, crop=True):
         """
+        Obtain ΔG initial guesses from apparent H/D exchange rates.
+        Units of input rates are per second.
 
         Parameters
         ----------
         rates : :class:`~pandas.Series`
-            pandas series of estimated hdx exchangs rates. Index is protein residue number
+           Apparent exchange rate rates. Series index is protein residue number
+        crop : :obj:`bool`
+            If `True` the resulting :class:`~pandas.Series` is cropped to the residue interval covered by peptides.
 
         Returns
         -------
+        deltaG : :class:`~pandas.Series`
+            ΔG guess values
 
         """
         if 'k_int' not in self.coverage.protein:
@@ -833,13 +831,12 @@ class HDXMeasurement(object):
         """
         Write the data in this HDX measurement to file.
 
-
         Parameters
         ----------
         file_path : :obj:`str`
             File path to create and write to.
         include_version : :obj:`bool`
-            Set ``True`` to include PyHDX version and current time/date
+            Set `True` to include PyHDX version and current time/date
         fmt: :obj: `str`
             Formatting to use, options are 'csv' or 'pprint'
         include_metadata : :obj:`bool`
@@ -868,29 +865,6 @@ class PeptideMeasurements(Coverage):
     data : :class:`~pandas.DataFrame`
         Numpy structured array with input data
 
-    Attributes
-    ----------
-    start : :obj:`int`
-        First peptide starts at this residue number (starting from 1)
-    stop : :obj:`int`
-        Last peptide ends at this residue number (incusive)
-    prot_len : :obj:`int`
-        Total number of residues in this set of peptides, not taking regions of no coverage into account.
-    exposure : :obj:`float`
-        Exposure time of this set of peptides (minutes)
-    state : :obj:`string`
-        State describing the experiment
-
-    bigX
-    X
-
-    properties:
-    big_x_norm
-    x_norm
-
-    scores nnls
-    scores lsq
-
     """
 
     def __init__(self, data, **kwargs):
@@ -914,6 +888,7 @@ class PeptideMeasurements(Coverage):
 
     @property
     def name(self):
+        """:obj:`str`: Name of this peptidemeasurement"""
         return self.state + '_' + str(self.exposure)
 
     @property
@@ -1097,7 +1072,7 @@ class HDXMeasurementSet(object):
 
     def guess_deltaG(self, rates_list):
         """
-        create deltaG guesses from rates
+        Create deltaG guesses from rates
 
         Parameters
         ----------
@@ -1108,7 +1083,7 @@ class HDXMeasurementSet(object):
         -------
 
         deltaG_array: :class:`~numpy.ndarray`
-            deltaG guesses Ns x Nr shape
+            ΔG guess values
 
         """
         assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
@@ -1205,10 +1180,7 @@ class HDXMeasurementSet(object):
         metadata = {}
         for hdxm in self.hdxm_list:
             metadata[hdxm.name] = hdxm.metadata if include_metadata else include_metadata
-            df = pd.DataFrame(hdxm.full_data)
-            df.index.name = 'peptide_index'
-            df.index += 1
-            dfs.append(df)
+            dfs.append(hdxm.data)
 
         full_df = pd.concat(dfs, axis=1, keys=self.names)
         dataframe_to_file(file_path, full_df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)

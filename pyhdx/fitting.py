@@ -413,23 +413,29 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     Parameters
     ----------
     hdxm : :class:`~pyhdx.models.HDXMeasurement`
+        Input HDX measurement
     initial_guess : :class:`~pandas.Series` or :class:`~numpy.ndarray`
-        Gibbs free energy initial guesses (shape Nr)
+        Gibbs free energy initial guesses (shape Nr, units J/mol)
     r1 : :obj:`float`
-    epochs
-    patience
-    stop_loss
+        Regularizer value r1 (along residues)
+    epochs: :obj:`int`
+        Maximum number of fitting iterations
+    patience: :obj:`int`
+        Number of epochs to wait until termination when progress between epochs is below `stop_loss`
+    stop_loss: :obj:`float`
+        Threshold for difference in loss between epochs when an epoch is considered to make no more progress.
     optimizer : :obj:`str`
+        Which optimizer to use. Default is Stochastic Gradient Descent. See PyTorch documentation for information.
     callbacks: :obj:`list` or None
-        List of callback objects. call signature is cb(epoch, model, optimizer)
-    optimizer_kwargs
+        List of callback objects. Call signature is callback(epoch, model, optimizer)
+    **optimizer_kwargs
+        Additional keyword arguments passed to the optimizer.
 
     Returns
     -------
+    result: :class:`~pyhdx.fitting_torch.TorchSingleFitResult`
 
     """
-    #todo @tejas: Missing docstring
-    """Pytorch global fitting"""
 
     fit_keys = ['r1', 'epochs', 'patience', 'stop_loss', 'optimizer']
     locals_dict = locals()
@@ -467,29 +473,39 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     return result
 
 
-def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=False, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
-               optimizer='SGD', callbacks=None, **optimizer_kwargs):
+def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=False, epochs=EPOCHS, patience=PATIENCE,
+                           stop_loss=STOP_LOSS, optimizer='SGD', callbacks=None, **optimizer_kwargs):
     """
-    Batch fit gibbs free energies to multiple HDX measurements
+    Fit Gibbs free energies globally to all D-uptake data in multiple HDX measurements
 
     Parameters
     ----------
     hdx_set : :class:`~pyhdx.models.HDXMeasurementSet`
-    initial_guess
-    r1
-    r2
-    r2_reference,
-        if true the first dataset is used as a reference to calculate r2 differences, otherwise the mean is used
-    epochs
-    patience
-    stop_loss
-    optimizer
+        Input HDX measurements
+    initial_guess : :class:`~pandas.Series` or :class:`~numpy.ndarray`
+        Gibbs free energy initial guesses (shape Nr, units J/mol)
+    r1 : :obj:`float`
+        Regularizer value r1 (along residues)
+    r2 : :obj:`float`
+        Regularizer value r2 (along protein states/samples)
+    r2_reference : :obj:`bool`:
+        If `True` the first dataset is used as a reference to calculate r2 differences, otherwise the mean is used
+    epochs: :obj:`int`
+        Maximum number of fitting iterations
+    patience: :obj:`int`
+        Number of epochs to wait until termination when progress between epochs is below `stop_loss`
+    stop_loss: :obj:`float`
+        Threshold for difference in loss between epochs when an epoch is considered to make no more progress.
+    optimizer : :obj:`str`
+        Which optimizer to use. Default is Stochastic Gradient Descent. See PyTorch documentation for information.
     callbacks: :obj:`list` or None
-        List of callback objects. call signature is cb(epoch, model, optimizer)
-    optimizer_kwargs
+        List of callback objects. Call signature is callback(epoch, model, optimizer)
+    **optimizer_kwargs
+        Additional keyword arguments passed to the optimizer.
 
     Returns
     -------
+    result: :class:`~pyhdx.fitting_torch.TorchBatchFitResult`
 
     """
     # todo still some repeated code with fit_gibbs single
@@ -512,25 +528,35 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=
     Batch fit gibbs free energies to two HDX measurements. The supplied HDXMeasurementSet must have alignment information
     (supplied by HDXMeasurementSet.add_alignment)
 
-
     Parameters
     ----------
     hdx_set : :class:`~pyhdx.models.HDXMeasurementSet`
-    initial_guess
-    r1
-    r2
-    epochs
-    patience
-    stop_loss
+        Input HDX measurements
+    initial_guess : :class:`~pandas.Series` or :class:`~numpy.ndarray`
+        Gibbs free energy initial guesses (shape Nr, units J/mol)
+    r1 : :obj:`float`
+        Regularizer value r1 (along residues)
+    r2 : :obj:`float`
+        Regularizer value r2 (along protein states/samples)
+    epochs: :obj:`int`
+        Maximum number of fitting iterations
+    patience: :obj:`int`
+        Number of epochs to wait until termination when progress between epochs is below `stop_loss`
+    stop_loss: :obj:`float`
+        Threshold for difference in loss between epochs when an epoch is considered to make no more progress.
+    optimizer : :obj:`str`
+        Which optimizer to use. Default is Stochastic Gradient Descent. See PyTorch documentation for information.
     callbacks: :obj:`list` or None
-        List of callback objects. call signature is cb(epoch, model, optimizer)
-    optimizer
-    optimizer_kwargs
+        List of callback objects. Call signature is callback(epoch, model, optimizer)
+    **optimizer_kwargs
+        Additional keyword arguments passed to the optimizer.
 
     Returns
     -------
+    result: :class:`~pyhdx.fitting_torch.TorchBatchFitResult`
 
     """
+    #todo expand to N proteins
 
     assert hdx_set.Ns == 2, 'Aligned batch fitting is limited to two states'
     if hdx_set.aligned_indices is None:
@@ -606,9 +632,13 @@ class KineticsFitResult(object):
     ----------
 
     hdxm : :class:`~pyhdx.models.HDXMeasurement`
-    intervals:
-    results:
-    models:
+        HDX measurement object to fit
+    intervals: :obj:`list`
+        List of tuples with intervals (inclusive, exclusive) describing which residues `results` and `models` refer to
+    results: :obj:`list`
+        List of :class:`~symfit.FitResults`
+    models: :obj:`list`
+        Lis of :class:`~pyhdx.fit_models.KineticsModel`
 
     """
     def __init__(self, hdxm, intervals, results, models):
@@ -738,6 +768,7 @@ class KineticsFitResult(object):
 
     @property
     def output(self):
+        """:class:`~pyhdx.Protein`: Protein object with fitted rates per residue"""
         array = self.get_output(['rate', 'k1', 'k2', 'r'])
         return Protein(array, index='r_number')
 

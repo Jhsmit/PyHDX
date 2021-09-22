@@ -78,9 +78,7 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, **kwargs):
     return hdxm
 
 
-
-
-def load_from_yaml_v040b2(yaml_dict, data_dir=None, **kwargs):  #name: load what from yaml?
+def load_from_yaml_v040b2(yaml_dict, data_dir=None, **kwargs): # pragma: no cover
     """
     This is the legacy version to load yaml files of PyHDX v0.4.0b2
 
