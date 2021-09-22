@@ -1180,10 +1180,7 @@ class HDXMeasurementSet(object):
         metadata = {}
         for hdxm in self.hdxm_list:
             metadata[hdxm.name] = hdxm.metadata if include_metadata else include_metadata
-            df = pd.DataFrame(hdxm.full_data)
-            df.index.name = 'peptide_index'
-            df.index += 1
-            dfs.append(df)
+            dfs.append(hdxm.data)
 
         full_df = pd.concat(dfs, axis=1, keys=self.names)
         dataframe_to_file(file_path, full_df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
