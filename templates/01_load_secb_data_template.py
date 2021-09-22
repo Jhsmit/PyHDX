@@ -9,11 +9,11 @@ output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
 np.random.seed(43)
 
-fpath = current_dir.parent / 'tests' / 'test_data' / 'ecSecB_apo.csv'
+fpath = current_dir.parent / 'tests' / 'test_data' / 'input' / 'ecSecB_apo.csv'
 data = read_dynamx(fpath)
 
 pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
-pmt.set_control(('Full deuteration control', 0.167))
+pmt.set_control(('Full deuteration control', 0.167*60))
 
 sequence = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
 

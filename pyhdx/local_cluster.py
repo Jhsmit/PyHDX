@@ -5,8 +5,8 @@ import argparse
 
 cfg = ConfigurationSettings()
 
-#todo refactor cluster
 def default_client(timeout='2s'):
+    """Return Dask client at scheduler adress as defined by the global config"""
     scheduler_address = cfg.get('cluster', 'scheduler_address')
     try:
         client = Client(scheduler_address, timeout=timeout)

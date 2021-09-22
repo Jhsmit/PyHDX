@@ -105,7 +105,11 @@ def make_kinetics_figure(pm_dict, cmap='cool'): # pragma: no cover
     return fig, (ax1, ax2, cbar_ax)
 
 
-def plot_peptides(pm, ax, wrap=None, color=True, labels=False, cbar=False, intervals='corrected', cmap='jet', **kwargs):
+
+
+def plot_peptides(pm, ax, wrap=None,
+                  color=True, labels=False, cbar=False,
+                  intervals='corrected', cmap='jet', **kwargs):
     """
 
     TODO: needs to be checked if intervals (start, end) are still accurately taking inclusive, exclusive into account
