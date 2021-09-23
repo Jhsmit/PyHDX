@@ -6,8 +6,45 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import numpy as np
-from pyhdx.support import autowrap
+import proplot as pplt
+import pyhdx
+from pyhdx.support import autowrap, rgb_to_hex
+from pyhdx.fileIO import load_fitresult
 import warnings
+
+
+no_coverage = '#8c8c8c'
+node_pos = [10, 25, 40]  # in kJ/mol
+linear_colors = ['#ff0000', '#00ff00', '#0000ff']  # red, green, blue
+rgb_norm = plt.Normalize(node_pos[0], node_pos[-1], clip=True)
+rgb_cmap = mpl.colors.LinearSegmentedColormap.from_list("rgb_cmap", list(zip(rgb_norm(node_pos), linear_colors)))
+rgb_cmap.set_bad(color=no_coverage)
+
+diff_colors = ['#54278e', '#ffffff', '#006d2c'][::-1]
+diff_node_pos = [-10, 0, 10]
+diff_norm = plt.Normalize(diff_node_pos[0], diff_node_pos[-1], clip=True)
+diff_cmap = mpl.colors.LinearSegmentedColormap.from_list("diff_cmap", list(zip(diff_norm(diff_node_pos), diff_colors)))
+diff_cmap.set_bad(color=no_coverage)
+
+cbar_width = 0.075
+
+dG_ylabel = 'ΔG (kJ/mol)'
+ddG_ylabel = 'ΔΔG (kJ/mol)'
+
+r_xlabel = 'Residue Number'
+
+
+errorbar_kwargs = {
+    'fmt': 'o',
+    'ecolor': 'k',
+    'elinewidth': 0.3,
+    'markersize': 0,
+    'alpha': 0.75
+}
+
+scatter_kwargs = {
+    's': 7
+}
 
 def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs): # pragma: no cover
     """
@@ -52,57 +89,7 @@ def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, *
     ax.set_ylabel('Peptide index')
 
 
-def make_kinetics_figure(pm_dict, cmap='cool'): # pragma: no cover
-    """
-    FUNCTION IS MOST LIKELY OUT OF DATE
 
-    :param pm_dict: dictionary of PeptideMeasuements
-    :param times: array_like of
-    :param cmap: optional string indicating which colormap to use
-    :return:
-    """
-
-    """returns matplotlib figure for visualization of kinetics"""
-
-    warnings.warn("This function will be removed", DeprecationWarning)
-
-    fig, (ax1, ax2) = plt.subplots(2, figsize=(8, 4), sharex=True, gridspec_kw={'hspace': 0})
-    times = [p.exposure for p in pm_dict.values()]
-    s = pm_dict[next(iter(pm_dict))]
-
-    norm = mpl.colors.Normalize(vmin=0, vmax=np.max(times))
-    normed_times = norm(times)
-    r_number = np.arange(s.start, s.stop + 1)
-
-    colors = mpl.cm.get_cmap(cmap, len(pm_dict))(normed_times)
-
-    for c, (k, v) in zip(colors, pm_dict.items()):
-        ax1.plot(r_number, v.scores_average, color=c, marker='.', linestyle='')
-
-    ax1.set_ylabel('Score (%)')
-
-    ax2.plot(r_number, np.ones_like(r_number), marker='.', linestyle='', color='k')
-
-    # lc = LineCollection(self._lc_data, colors='r')
-    # ax2.add_collection(lc)
-    #        ax2.axhline(self.rate_max, color='r', autolim=False)
-    ax2.set_yscale('log')
-    ax2.set_xlabel('Residue number')
-    ax2.set_ylabel('Rate constant\n (min$^{-1})$')
-
-    fig.align_ylabels()  # todo doesnt seem to work
-
-    fig.subplots_adjust(right=0.85)
-
-    cbar_ax = fig.add_axes([0.87, 0.05, 0.02, 0.9])
-
-    cb1 = mpl.colorbar.ColorbarBase(cbar_ax, cmap=mpl.cm.get_cmap(cmap),
-                                    norm=norm,
-                                    orientation='vertical')
-    cb1.set_label('Time (min)')
-    #   plt.tight_layout()
-
-    return fig, (ax1, ax2, cbar_ax)
 
 
 
@@ -138,7 +125,8 @@ def plot_peptides(pm, ax, wrap=None,
     norm = mpl.colors.Normalize(vmin=0, vmax=1)
     i = -1
 
-    for p_num, e in enumerate(pm.data):
+    for p_num, idx in enumerate(pm.data.index):
+        e = pm.data.loc[idx]
         if i < -wrap:
             i = -1
 
@@ -173,3 +161,150 @@ def plot_peptides(pm, ax, wrap=None,
     end = pm.interval[1]
     ax.set_xlim(0, end)
     ax.set_yticks([])
+
+
+def plot_fitresults(fitresult_path, plots='all', renew=False):
+    #fit_result = csv_to_dataframe(fitresult_path / 'fit_result.csv')
+
+    history_path = fitresult_path / 'model_history.csv'
+    check_exists = lambda x: False if renew else x.exists()
+    try: # temp hack as batch results do not store hdxms
+        fit_result = load_fitresult(fitresult_path)
+        df = fit_result.output
+
+        dfs = [df]
+        names = ['']
+        hdxm_s = [fit_result.data_obj]
+        loss_list = [fit_result.losses]
+        if history_path.exists():
+            history_list = [csv_to_dataframe(history_path)]
+        else:
+            history_list = []
+
+    except FileNotFoundError:
+        df = csv_to_dataframe(fitresult_path / 'fit_result.csv')
+        dfs = [df[c] for c in df.columns.levels[0]]
+        names = [c + '_' for c in df.columns.levels[0]]
+        loss_list = [csv_to_dataframe(fitresult_path / 'losses.csv')]
+
+        hdxm_s = []
+
+        if history_path.exists():
+            history_df = csv_to_dataframe(history_path)
+            history_list = [history_df[c] for c in history_df.columns.levels[0]]
+        else:
+            history_list = []
+
+    full_width = 170 / 25.4
+    width = 120 / 25.4
+    aspect = 4
+    cmap = rgb_cmap
+    norm = rgb_norm
+
+    COV_SCALE = 1.
+
+    if plots == 'all':
+        plots = ['losses', 'deltaG', 'pdf', 'coverage', 'history']
+
+    if 'losses' in plots:
+        for loss_df in loss_list:  # Mock loop to use break
+            output_path = fitresult_path / 'losses.png'
+            if check_exists(output_path):
+                break
+
+#            losses = loss_df.drop('reg_percentage', axis=1)
+            loss_df.plot()
+
+            mse_loss = loss_df['mse_loss']
+            reg_loss = loss_df.iloc[:, 1:].sum(axis=1)
+            reg_percentage = 100*reg_loss / (mse_loss + reg_loss)
+            fig = plt.gcf()
+            ax = plt.gca()
+            ax1 = ax.twinx()
+            reg_percentage.plot(ax=ax1, color='k')
+            ax1.set_xlim(0, None)
+            plt.savefig(output_path)
+            plt.close(fig)
+
+    if 'deltaG' in plots:
+        for result, name in zip(dfs, names):
+            output_path = fitresult_path / f'{name}deltaG.png'
+            if check_exists(output_path):
+                break
+
+            fig, axes = pplt.subplots(nrows=1, width=width, aspect=aspect)
+            ax = axes[0]
+
+            yvals = result['deltaG'] * 1e-3
+            rgba_colors = cmap(norm(yvals), bytes=True)
+            hex_colors = rgb_to_hex(rgba_colors)
+            ax.scatter(result.index, yvals, c=hex_colors, **scatter_kwargs)
+            ylim = ax.get_ylim()
+            ax.errorbar(result.index, yvals, yerr=result['covariance'] * 1e-3 * COV_SCALE, **errorbar_kwargs, zorder=-1)
+
+            ax.format(ylim=ylim, ylabel=dG_ylabel, xlabel=r_xlabel)
+
+            plt.savefig(output_path, transparent=False)
+            plt.close(fig)
+
+    if 'pdf' in plots:
+        for i in range(1):
+            output_path = fitresult_path / 'fit_report'
+            if check_exists(fitresult_path / 'fit_report.pdf'):
+                break
+
+            output = pyhdx.Output(fit_result)
+
+            report = pyhdx.Report(output, title=f'Fit report {fit_result.data_obj.name}')
+            report.add_peptide_figures()
+            report.generate_pdf(output_path)
+
+    if 'coverage' in plots:
+        for hdxm in hdxm_s:
+            output_path = fitresult_path / f'{hdxm.name}_coverage.png'
+            if check_exists(output_path):
+                break
+
+            n_rows = int(np.ceil(len(hdxm.timepoints) / 2))
+
+            fig, axes = pplt.subplots(ncols=2, nrows=n_rows, sharex=True, width=full_width, aspect=4)
+            axes_list = list(axes[:, 0]) + list(axes[:, 1])
+
+            for label, ax, pm in zip(hdxm.timepoints, axes_list, hdxm):
+                plot_peptides(pm, ax, linewidth=0.5)
+                ax.format(title=label, xlabel=r_xlabel)
+
+            plt.savefig(output_path, transparent=False)
+            plt.close(fig)
+
+    if 'history' in plots:
+        for h_df, name in zip(history_list, names):
+            output_path = fitresult_path / f'{name}history.png'
+            if check_exists(output_path):
+                break
+
+            num = len(h_df.columns)
+            max_epochs = max([int(c) for c in h_df.columns])
+
+            cmap = mpl.cm.get_cmap('winter')
+            norm = mpl.colors.Normalize(vmin=1, vmax=max_epochs)
+            colors = iter(cmap(np.linspace(0, 1, num=num)))
+
+            fig, axes = pplt.subplots(nrows=1, width=width, aspect=aspect)
+            ax = axes[0]
+            for key in h_df:
+                c = next(colors)
+                to_hex(c)
+
+                ax.scatter(h_df.index, h_df[key] * 1e-3, color=to_hex(c), **scatter_kwargs)
+            ax.format(xlabel=r_xlabel, ylabel=dG_ylabel)
+
+            values = np.linspace(0, max_epochs, endpoint=True, num=num)
+            colors = cmap(norm(values))
+            tick_labels = np.linspace(0, max_epochs, num=5)
+
+            cbar = fig.colorbar(colors, values=values, ticks=tick_labels, space=0, width=cbar_width, label='Epochs')
+            ax.format(yticklabelloc='None', ytickloc='None')
+
+            plt.savefig(output_path)
+            plt.close(fig)
