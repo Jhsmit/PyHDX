@@ -17,7 +17,7 @@ def yaml_to_hdxmset(yaml_dict, data_dir=None, **kwargs):
     return HDXMeasurementSet(hdxm_list)
 
 
-def yaml_to_hdxm(yaml_dict, data_dir=None, **kwargs):
+def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
     #todo perhas classmethod on HDXMeasurement object?
     """
     Creates a :class:`~pyhdx.models.HDXMeasurement` object from dictionary input.
@@ -72,6 +72,10 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, **kwargs):
         raise ValueError("Must specify either 'c_term' or 'sequence'")
 
     state_data = pmt.get_state(yaml_dict['state'])
+    data_filters = data_filters or []
+    for filter in data_filters:
+        state_data = filter(state_data)
+
     hdxm = HDXMeasurement(state_data, temperature=temperature, pH=yaml_dict['pH'],
                           sequence=sequence, n_term=n_term, c_term=c_term, **kwargs)
 
