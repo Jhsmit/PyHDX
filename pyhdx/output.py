@@ -197,7 +197,7 @@ class Output(object):
         axes_iter = iter(axes)
         for i, ax in zip(indices, axes_iter):
             ax.plot(self.fit_timepoints, self.d_calc[i], color='r')
-            ax.scatter(self.fit_result.data_obj.timepoints, self.fit_result.data_obj.d_exp[i], color='k')
+            ax.scatter(self.fit_result.data_obj.timepoints, self.fit_result.data_obj.d_exp.to_numpy()[i], color='k')
 
             start = self.fit_result.data_obj.coverage.data['_start'][i]
             end = self.fit_result.data_obj.coverage.data['_end'][i]
