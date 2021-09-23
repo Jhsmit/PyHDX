@@ -16,16 +16,17 @@ mock_alignment = {
 current_dir = Path(__file__).parent
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
-data_dir = current_dir.parent / 'tests' / 'test_data'
-data = read_dynamx(data_dir / 'ecSecB_apo.csv', data_dir / 'ecSecB_dimer.csv')
+test_data_dir = current_dir.parent / 'tests' / 'test_data'
+input_dir = test_data_dir / 'input'
+data = read_dynamx(input_dir / 'ecSecB_apo.csv', input_dir / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data)
-pmt.set_control(('Full deuteration control', 0.167))
+pmt.set_control(('Full deuteration control', 0.167*60))
 
 st1 = HDXMeasurement(pmt.get_state('SecB his dimer apo'), pH=8, temperature=273.15 + 30)
 st2 = HDXMeasurement(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15 + 30)
 
-guess = csv_to_protein(data_dir / 'ecSecB_guess.txt', header=[2], index_col=0)
+guess = csv_to_protein(test_data_dir / 'output' / 'ecSecB_guess.csv')
 
 hdx_set = HDXMeasurementSet([st1, st2])
 gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])

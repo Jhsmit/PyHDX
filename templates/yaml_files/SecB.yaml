@@ -1,12 +1,17 @@
 SecB_tetramer:
   filenames:
     - ecSecB_apo.csv
-  control: [Full deuteration control, 0.167]
-  series_name: 'SecB WT apo'
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state: 'SecB WT apo'
   pH: 8.
   d_percentage: 90.
-  temperature: 30.
-  temperature_unit: Celsius
+  temperature:
+    value: 30.
+    unit: C
   sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
   n_term: 1
   c_term: 155
@@ -16,11 +21,17 @@ SecB_dimer:
   filenames:
     - ecSecB_apo.csv
     - ecSecB_dimer.csv
-  control: [Full deuteration control, 0.167]
-  series_name: 'SecB his dimer apo'
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state: 'SecB his dimer apo'
   pH: 8.
   d_percentage: 90.
-  temperature: 30.
+  temperature:
+    value: 30.
+    unit: C
   temperature_unit: Celsius
   sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
   n_term: 1

@@ -21,10 +21,10 @@ current_dir = Path(__file__).parent
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
 test_data_dir = current_dir.parent / 'tests' / 'test_data'
-input_file_path = test_data_dir / 'ecSecB_apo.csv'
+input_dir = test_data_dir / 'input'
 
 # Load the data of two Dynamx files, and combine the result to one table
-data = read_dynamx(test_data_dir / 'ecSecB_apo.csv', test_data_dir / 'ecSecB_dimer.csv')
+data = read_dynamx(input_dir / 'ecSecB_apo.csv', input_dir / 'ecSecB_dimer.csv')
 
 pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
 pmt.set_control(('Full deuteration control', 0.167*60))
@@ -36,7 +36,7 @@ if guess:
     wt_avg_result = fit_rates_weighted_average(hdxm, client=client)
     init_guess = wt_avg_result.output
 else:
-    init_guess = csv_to_protein(test_data_dir / 'ecSecB_guess.csv')
+    init_guess = csv_to_protein(test_data_dir / 'output' / 'ecSecB_guess.csv')
 
 gibbs_guess = hdxm.guess_deltaG(init_guess['rate'])
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, **fit_kwargs)
