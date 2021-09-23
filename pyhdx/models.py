@@ -1093,6 +1093,8 @@ class HDXMeasurementSet(object):
             ΔG guess values
 
         """
+
+        #todo pandify this?
         assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
 
         guesses = [hdxm.guess_deltaG(rates, crop=True).to_numpy() for rates, hdxm in zip(rates_list, self.hdxm_list)]
