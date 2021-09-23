@@ -331,11 +331,18 @@ class PeptideMasterTable(object):
         fd_df = self.get_data(*control_1)[['start', 'end', 'uptake']]
         fd_df.rename(columns={'uptake': 'FD_uptake'}, inplace=True)
 
+        if fd_df.size == 0:
+            raise ValueError(f'No matching peptides with state {control_1[0]} and exposure {control_1[1]}')
+
         if control_0 is None:
             nd_df = self.get_data(*control_1).copy()[['start', 'end', 'uptake']]
             nd_df['uptake'] = 0
+            if nd_df.size == 0:
+                raise ValueError(f'No matching peptides with state {control_0[0]} and exposure {control_0[1]}')
         else:
             nd_df = self.get_data(*control_0)[['start', 'end', 'uptake']]
+
+
 
         nd_df.rename(columns={'uptake': 'ND_uptake'}, inplace=True)
 
