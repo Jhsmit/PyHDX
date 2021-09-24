@@ -15,7 +15,7 @@ from pyhdx.web.filters import UniqueValuesFilter, MultiIndexSelectFilter
 import logging
 import panel as pn
 from pyhdx.web.log import logger
-from pyhdx.config import ConfigurationSettings
+from pyhdx.config import cfg
 from pyhdx.local_cluster import default_client
 
 from pathlib import Path
@@ -27,7 +27,6 @@ DEBUG = True
 current_dir = Path(__file__).parent
 data_dir = current_dir.parent.parent / 'tests' / 'test_data'
 global_opts = {'show_grid': True}
-cfg = ConfigurationSettings()
 
 @logger('pyhdx')
 def main_app(client='default'):

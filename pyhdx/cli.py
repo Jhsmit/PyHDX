@@ -1,7 +1,7 @@
 import argparse
 from ipaddress import ip_address
 from pyhdx.web import serve
-from pyhdx.config import ConfigurationSettings
+from pyhdx.config import cfg
 from pyhdx.local_cluster import verify_cluster, default_cluster
 
 
@@ -14,8 +14,6 @@ def main():
     parser.add_argument('serve', help="Runs PyHDX Dashboard")
     parser.add_argument('--scheduler_address', help="Run with local cluster <ip>:<port>")
     args = parser.parse_args()
-
-    cfg = ConfigurationSettings()
 
     if args.scheduler_address:
         ip, port = args.scheduler_address.split(':')
