@@ -1,8 +1,12 @@
 from .models import PeptideMasterTable, PeptideMeasurements, HDXMeasurement, Coverage, HDXMeasurementSet
 from .fileIO import read_dynamx
 from .fitting_torch import TorchSingleFitResult, TorchBatchFitResult
-from .output import Output, Report
 from ._version import get_versions
+
+try:
+    from .output import Output, Report
+except ModuleNotFoundError:
+    pass
 
 
 __version__ = get_versions()['version']
