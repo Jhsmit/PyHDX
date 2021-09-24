@@ -1,8 +1,13 @@
 import configparser
 from pathlib import Path
-from pyhdx import __version__
+from pyhdx._version import get_versions
 from packaging import version
+import torch
 import warnings
+
+
+__version__ = get_versions()['version']
+del get_versions
 
 
 def read_config(path):
