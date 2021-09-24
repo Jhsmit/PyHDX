@@ -12,6 +12,7 @@ import pyhdx
 from pyhdx.alignment import align_dataframes
 from pyhdx.fileIO import dataframe_to_file
 from pyhdx.support import reduce_inter, fields_view
+from pyhdx.config import cfg
 
 
 def protein_wrapper(func, *args, **kwargs):
@@ -748,7 +749,7 @@ class HDXMeasurement(object):
         df.columns.name = 'exposure'
         return df
 
-    def get_tensors(self, exchanges=False):
+    def get_tensors(self, exchanges=False, dtype=None):
         """
         Returns a dictionary of tensor variables for fitting to Linderstrøm-Lang kinetics.
 
@@ -784,8 +785,8 @@ class HDXMeasurement(object):
         else:
             bools = np.ones(self.Nr, dtype=bool)
 
-        dtype = pyhdx.fitting_torch.TORCH_DTYPE
-        device = pyhdx.fitting_torch.TORCH_DEVICE
+        dtype = dtype or cfg.TORCH_DTYPE
+        device = cfg.TORCH_DEVICE
 
         tensors = {
             'temperature': torch.tensor([self.temperature], dtype=dtype, device=device).unsqueeze(-1),
@@ -1130,7 +1131,7 @@ class HDXMeasurementSet(object):
 
         self.aligned_indices = df.to_numpy(dtype=int).T
 
-    def get_tensors(self):
+    def get_tensors(self, dtype=None):
         #todo create correct shapes as per table X for all
         temperature = np.array([kf.temperature for kf in self.hdxm_list])
 
@@ -1142,8 +1143,8 @@ class HDXMeasurementSet(object):
         k_int = np.zeros((self.Ns, self.Nr))
         k_int[self.masks['sr']] = k_int_values
 
-        dtype = pyhdx.fitting_torch.TORCH_DTYPE
-        device = pyhdx.fitting_torch.TORCH_DEVICE
+        dtype = dtype or cfg.TORCH_DTYPE
+        device = cfg.TORCH_DEVICE
 
         tensors = {
             'temperature': torch.tensor(temperature, dtype=dtype, device=device).reshape(self.Ns, 1, 1),
