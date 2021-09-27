@@ -1,9 +1,7 @@
 from dask.distributed import LocalCluster, Client
 import time
-from pyhdx.config import ConfigurationSettings
+from pyhdx.config import cfg
 import argparse
-
-cfg = ConfigurationSettings()
 
 def default_client(timeout='2s'):
     """Return Dask client at scheduler adress as defined by the global config"""

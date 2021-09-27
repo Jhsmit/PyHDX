@@ -1,8 +1,13 @@
 import configparser
 from pathlib import Path
-from pyhdx import __version__
+from pyhdx._version import get_versions
 from packaging import version
+import torch
 import warnings
+
+
+__version__ = get_versions()['version']
+del get_versions
 
 
 def read_config(path):
@@ -86,6 +91,21 @@ class ConfigurationSettings(metaclass=Singleton):
         with open(pth, 'w') as config_file:
             self._config.write(config_file)
 
+    @property
+    def TORCH_DTYPE(self):
+        dtype = self.get('fitting', 'dtype')
+        if dtype in ['float64', 'double']:
+            return torch.float64
+        elif dtype in ['float32', 'float']:
+            return torch.float32
+        else:
+            raise ValueError(f'Unsupported data type: {dtype}')
+
+    @property
+    def TORCH_DEVICE(self):
+        device = self.get('fitting', 'device')
+        return torch.device(device)
+
 
 def valid_config():
     """Checks if the current config file in the user home directory is a valid config
@@ -112,3 +132,5 @@ current_dir = Path(__file__).parent
 config_file_path = config_dir / 'config.ini'
 if not valid_config():
     reset_config()
+
+cfg = ConfigurationSettings()

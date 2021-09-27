@@ -4,7 +4,7 @@ from pyhdx.web.base import STATIC_DIR
 import numpy as np
 import torch
 
-from pyhdx.config import ConfigurationSettings
+from pyhdx.config import cfg
 from pyhdx.local_cluster import verify_cluster
 
 import logging
@@ -24,7 +24,7 @@ def run_main():
     np.random.seed(43)
     torch.manual_seed(43)
 
-    scheduler_address = ConfigurationSettings().get('cluster', 'scheduler_address')
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
     if not verify_cluster(scheduler_address):
         print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")
         return

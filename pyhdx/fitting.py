@@ -10,9 +10,10 @@ from symfit.core.minimizers import DifferentialEvolution, Powell
 from tqdm import trange
 
 from pyhdx.fit_models import SingleKineticModel, TwoComponentAssociationModel, TwoComponentDissociationModel
-from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult, TORCH_DTYPE, TORCH_DEVICE
-from pyhdx.models import Protein
+from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
 from pyhdx.support import temporary_seed
+from pyhdx.models import Protein
+from pyhdx.config import cfg
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
 er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
@@ -451,7 +452,7 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
 
     dtype = torch.float64
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=TORCH_DTYPE, device=TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
+    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
 
     model = DeltaGFit(deltaG_par)
     criterion = torch.nn.MSELoss(reduction='mean')
@@ -580,7 +581,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
 
     assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
 
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=TORCH_DTYPE, device=TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
+    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 
     model = DeltaGFit(deltaG_par)
     criterion = torch.nn.MSELoss(reduction='mean')

@@ -3,6 +3,7 @@ from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, save_fitresult, load_fitresult
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.models import HDXMeasurementSet
+from pyhdx.config import cfg
 import numpy as np
 import torch
 import time
@@ -10,6 +11,7 @@ from dask.distributed import LocalCluster
 from pathlib import Path
 
 import pandas as pd
+from pandas.testing import assert_series_equal
 
 cwd = Path(__file__).parent
 input_dir = cwd / 'test_data' / 'input'
@@ -52,6 +54,35 @@ class TestSecBDataFit(object):
         # todo additional tests:
         #  result = fit_rates_half_time_interpolate()
 
+    def test_dtype_cuda(self):
+        check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
+        initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
+
+        cfg.set('fitting', 'device', 'cuda')
+        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
+
+        if torch.cuda.is_available():
+            fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
+            out_deltaG = fr_global.output
+            for field in ['deltaG', 'k_obs', 'covariance']:
+                assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
+        else:
+            with pytest.raises(AssertionError, match=r".* CUDA .*"):
+                fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
+
+        cfg.set('fitting', 'device', 'cpu')
+        cfg.set('fitting', 'dtype', 'float32')
+
+        fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
+        dg = fr_global.model.deltaG
+        assert dg.dtype == torch.float32
+
+        out_deltaG = fr_global.output
+        for field in ['deltaG', 'k_obs']:
+            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
+
+        cfg.set('fitting', 'dtype', 'float64')
+
     def test_global_fit(self):
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
@@ -64,32 +95,49 @@ class TestSecBDataFit(object):
         out_deltaG = fr_global.output
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
-        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
-        assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
-        assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
+        for field in ['deltaG', 'covariance', 'k_obs']:
+            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01)
 
         mse = fr_global.get_mse()
         assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended(self):
+        check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit_epochs_20000.csv')
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
+        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
 
         t0 = time.time()  # Very crude benchmarks
-        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
         fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=20000, r1=2)
         t1 = time.time()
 
         assert t1 - t0 < 20
         out_deltaG = fr_global.output
-        check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit_epochs_20000.csv')
-
-        assert np.allclose(check_deltaG['deltaG'], out_deltaG['deltaG'], equal_nan=True, rtol=0.01)
-        assert np.allclose(check_deltaG['covariance'], out_deltaG['covariance'], equal_nan=True, rtol=0.01)
-        assert np.allclose(check_deltaG['k_obs'], out_deltaG['k_obs'], equal_nan=True, rtol=0.01)
+        for field in ['deltaG', 'k_obs', 'covariance']:
+            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
 
         mse = fr_global.get_mse()
         assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
+
+    @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
+    def test_global_fit_extended_cuda(self):
+        check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit_epochs_20000.csv')
+        initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
+        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
+
+        #todo allow contextmanger?
+        cfg.set('fitting', 'device', 'cuda')
+        cfg.set('fitting', 'dtype', 'float32')
+
+        fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=20000, r1=2)
+        out_deltaG = fr_global.output
+
+        for field in ['deltaG', 'k_obs']:
+            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
+
+        cfg.set('fitting', 'device', 'cpu')
+        cfg.set('fitting', 'dtype', 'float64')
+
 
     def test_batch_fit(self, tmp_path):
         hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
