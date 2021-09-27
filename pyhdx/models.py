@@ -232,11 +232,13 @@ class PeptideMasterTable(object):
         assert 0 <= d_percentage <= 100., 'Deuteration percentage must be between 0 and 100'
         d_percentage /= 100.
 
-        self.data = data.copy()
+        self.data = data.copy().reset_index(drop=True)
+        self.data.index.name = 'peptide_index'
+
         if remove_nan:
             self.data = self.data.dropna(subset=['uptake'])
         if sort:
-            self.data = self.data.sort_values(['start', 'end', 'sequence', 'exposure', 'state'])
+            self.data = self.data.sort_values(['start', 'end', 'sequence', 'state', 'exposure'])
 
         for col in ['start', 'end', 'sequence']:
             target = '_' + col
@@ -329,33 +331,33 @@ class PeptideMasterTable(object):
 
         """
 
-        fd_df = self.get_data(*control_1)[['start', 'end', 'uptake']]
-        fd_df.rename(columns={'uptake': 'FD_uptake'}, inplace=True)
+        try:
+            fd_df = self.get_data(*control_1)[['start', 'end', 'uptake']].set_index(['start', 'end'], verify_integrity=True)
+        except ValueError as e:
+            raise ValueError("FD control has duplicate entries") from e
 
         if fd_df.size == 0:
             raise ValueError(f'No matching peptides with state {control_1[0]} and exposure {control_1[1]}')
 
-        if control_0 is None:
-            nd_df = self.get_data(*control_1).copy()[['start', 'end', 'uptake']]
-            nd_df['uptake'] = 0
-            if nd_df.size == 0:
-                raise ValueError(f'No matching peptides with state {control_0[0]} and exposure {control_0[1]}')
-        else:
-            nd_df = self.get_data(*control_0)[['start', 'end', 'uptake']]
+        try:
+            if control_0 is None:
+                nd_df = self.get_data(*control_1).copy()[['start', 'end', 'uptake']].set_index(['start', 'end'], verify_integrity=True)
+                nd_df['uptake'] = 0
 
+            else:
+                nd_df = self.get_data(*control_0)[['start', 'end', 'uptake']].set_index(['start', 'end'], verify_integrity=True)
+                if nd_df.size == 0:
+                    raise ValueError(f'No matching peptides with state {control_0[0]} and exposure {control_0[1]}')
+        except ValueError as e:
+            raise ValueError("ND control has duplicate entries") from e
 
+        self.data.set_index(['start', 'end'], append=True, inplace=True)
+        self.data.reset_index(level=0, inplace=True)
 
-        nd_df.rename(columns={'uptake': 'ND_uptake'}, inplace=True)
+        self.data['rfu'] = (self.data['uptake'] - nd_df['uptake']) / (fd_df['uptake'] - nd_df['uptake'])
+        self.data['uptake_corrected'] = self.data['rfu'] * self.data['ex_residues']
 
-        # this should probably go to the log (but atm there isnt any for running without GUI)
-        # assert control_1.size > 0, f"No peptides found with state '{control_1[0]}' and exposure '{control_1[1]}'"
-        # assert control_0.size > 0, f"No peptides found with state '{control_0[0]}' and exposure '{control_0[1]}'"
-
-        self.data = pd.merge(self.data, fd_df, on=['start', 'end'], how='left')
-        self.data = pd.merge(self.data, nd_df, on=['start', 'end'], how='left')
-
-        self.data['rfu'] = (self.data['uptake'] - self.data['ND_uptake']) / (self.data['FD_uptake'] - self.data['ND_uptake'])
-        self.data['uptake_corrected'] = (self.data['uptake'] / self.data['FD_uptake'] * self.data['ex_residues'])
+        self.data = self.data.set_index('peptide_index', append=True).reset_index(level=[0, 1])
 
     def select(self, **kwargs):
         """

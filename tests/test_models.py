@@ -8,6 +8,7 @@ from functools import reduce
 from operator import add
 from pathlib import Path
 import pandas as pd
+from pandas.testing import assert_frame_equal
 import tempfile
 import pickle
 import pytest
@@ -60,9 +61,9 @@ class TestHDXMeasurement(object):
     def test_rfu(self):
         rfu_residues = self.hdxm.rfu_residues
         compare = csv_to_dataframe(output_dir / 'ecSecB_rfu_per_exposure.csv')
-        compare_array = compare.to_numpy()
-
-        np.testing.assert_allclose(rfu_residues, compare_array)
+        compare.columns = compare.columns.astype(float)
+        compare.columns.name = 'exposure'
+        assert_frame_equal(rfu_residues, compare)
 
     def test_to_file(self):
         with tempfile.TemporaryDirectory() as tempdir:
