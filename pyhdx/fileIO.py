@@ -18,6 +18,8 @@ from importlib import import_module
 PEPTIDE_DTYPES = {
     'start': int,
     'end': int,
+    '_start': int,
+    '_end': int
 }
 
 
@@ -196,7 +198,7 @@ def csv_to_hdxm(filepath_or_buffer, comment='#', **kwargs):
     if df.columns.nlevels == 2:
         hdxm_list = []
         for state in df.columns.unique(level=0):
-            subdf = df[state].dropna(how='all')
+            subdf = df[state].dropna(how='all').astype(PEPTIDE_DTYPES)
             m = metadata.get(state, {})
             hdxm = pyhdx.models.HDXMeasurement(subdf, **m)
             hdxm_list.append(hdxm)
