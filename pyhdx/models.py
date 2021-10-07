@@ -719,6 +719,8 @@ class HDXMeasurement(object):
         return len(self.timepoints)
 
     def __len__(self):
+        import warnings
+        warnings.warn('Use hdxm.Nt instead', DeprecationWarning)
         return len(self.timepoints)
 
     def __iter__(self):

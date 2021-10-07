@@ -228,6 +228,8 @@ class TorchSingleFitResult(TorchFitResult):
             output = self.model(*inputs)
         return output.detach().numpy()
 
+    def __len__(self):
+        return 1
 
 class TorchBatchFitResult(TorchFitResult):
     def __init__(self, *args, **kwargs):
@@ -254,6 +256,9 @@ class TorchBatchFitResult(TorchFitResult):
 
             output = self.model(*inputs)
         return output.detach().numpy()
+
+    def __len__(self):
+        return self.data_obj.Ns
 
 
 class Callback(object):
