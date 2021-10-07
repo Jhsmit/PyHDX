@@ -649,7 +649,7 @@ class HDXMeasurement(object):
 
         cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [0, 1, ''])}
 
-        self.peptides = [PeptideMeasurements(df, **cov_kwargs) for df in intersected_data]
+        self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
         # Create coverage object from the first time point (as all are now equal)
         self.coverage = Coverage(intersected_data[0], **cov_kwargs)
@@ -864,7 +864,7 @@ class HDXMeasurement(object):
         dataframe_to_file(file_path, df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
 
-class PeptideMeasurements(Coverage):
+class HDXTimepoint(Coverage):
     """
     Class with subset of peptides corresponding to only one state and exposure
 
@@ -879,7 +879,7 @@ class PeptideMeasurements(Coverage):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
-        super(PeptideMeasurements, self).__init__(data, **kwargs)
+        super(HDXTimepoint, self).__init__(data, **kwargs)
 
         self.state = self.data['state'][0]
         self.exposure = self.data['exposure'][0]
