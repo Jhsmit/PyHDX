@@ -8,7 +8,7 @@ from matplotlib.patches import Rectangle
 import numpy as np
 import proplot as pplt
 import pyhdx
-from pyhdx.support import autowrap, rgb_to_hex
+from pyhdx.support import autowrap, rgb_to_hex, color_pymol, apply_cmap
 from pyhdx.fileIO import load_fitresult
 from pyhdx.config import cfg
 import warnings
@@ -17,6 +17,11 @@ import pandas as pd
 from scipy.stats import kde
 import matplotlib as mpl
 from matplotlib.axes import Axes
+
+try:
+    from pymol import cmd
+except ModuleNotFoundError:
+    cmd = None
 
 dG_ylabel = 'ΔG (kJ/mol)'
 ddG_ylabel = 'ΔΔG (kJ/mol)'
@@ -552,6 +557,99 @@ def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, **fi
     axes.format(xlabel=r_xlabel)
 
     return fig, axes
+
+
+def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', cmap=None, norm=None, extent=None,
+                  orient=True, views=None,
+                  additional_views=None, img_size=(640, 640)):
+
+    protein_states = data.columns.get_level_values(0).unique()
+
+    if isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    else:
+        reference_state = None
+
+    if reference_state:
+        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
+        ref = data[reference_state, field]
+        plot_data = test.subtract(ref, axis=0)
+        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
+
+        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+    else:
+        plot_data = data
+        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+
+    cmap = cmap or cmap_default
+    norm = norm or norm_default
+    #plot_data = plot_data.xs(field, axis=1, level=1)
+
+    for state in protein_states:
+        if state == reference_state:
+            continue
+
+        values = plot_data[state, field]
+        rmin, rmax = extent or [None, None]
+        rmin = rmin or values.index.min()
+        rmax = rmax or values.index.max()
+
+        values = values.reindex(pd.RangeIndex(rmin, rmax+1, name='r_number'))
+        colors = apply_cmap(values, cmap, norm)
+        name = f'pymol_ddG_{state}' if reference_state else f'pymol_dG_{state}'
+        pymol_render(output_path, pdb_file, colors, name=name, orient=orient, views=views, additional_views=additional_views,
+                     img_size=img_size)
+
+def pymol_render(output_path, pdb_file, colors, name='Pymol render', orient=True, views=None, additional_views=None, img_size=(640, 640)):
+    if cmd is None:
+        raise ModuleNotFoundError("Pymol module is not installed")
+
+    px, py = img_size
+
+    cmd.reinitialize()
+    cmd.load(pdb_file)
+    if orient:
+        cmd.orient()
+    cmd.set('antialias', 2)
+    cmd.set('fog', 0)
+
+    color_pymol(colors, cmd)
+
+    if views:
+        for i, view in enumerate(views):
+            cmd.set_view(view)
+            cmd.ray(px, py, renderer=0, antialias=2)
+            output_file = output_path / f'{name}_pymol_view_{i}.png'
+            cmd.png(str(output_file))
+
+    else:
+        cmd.ray(px, py, renderer=0, antialias=2)
+        output_file = output_path / f'{name}_pymol_xy.png'
+        cmd.png(str(output_file))
+
+        cmd.rotate('x', 90)
+
+        cmd.ray(px, py, renderer=0, antialias=2)
+        output_file = output_path / f'{name}_pymol_xz.png'
+        cmd.png(str(output_file))
+
+        cmd.rotate('z', -90)
+
+        cmd.ray(px, py, renderer=0, antialias=2)
+        output_file = output_path / f'{name}_pymol_yz.png'
+        cmd.png(str(output_file))
+
+        additional_views = additional_views or []
+
+        for i, view in enumerate(additional_views):
+            cmd.set_view(view)
+            cmd.ray(px, py, renderer=0, antialias=2)
+            output_file = output_path / f'{name}_pymol_view_{i}.png'
+            cmd.png(str(output_file))
+
+
 
 
 def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
