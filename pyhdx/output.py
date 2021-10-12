@@ -154,7 +154,7 @@ class FitReport(object):
         else:
             raise NotImplementedError('Sorting by protein state not implemented')
 
-    def generate_figures(self, executor='process'):
+    def generate_figures(self, executor='local'):
         if isinstance(executor, futures.Executor):
             exec_klass = executor
         elif executor == 'process':
