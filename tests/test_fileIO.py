@@ -116,10 +116,12 @@ class TestFileIO(object):
     #     .. add tests
 
     def test_load_save_fitresult(self, tmp_path):
+        #todo missing read batch result test
+
         fpath = Path(tmp_path) / 'fit_result_single.csv'
         self.fit_result.to_file(fpath)
         df = csv_to_dataframe(fpath)
-        assert df.attrs['metadata'] ==  self.fit_result.metadata
+        assert df.attrs['metadata'] == self.fit_result.metadata
         fit_result_dir = Path(tmp_path) / 'fit_result'
 
         save_fitresult(fit_result_dir, self.fit_result, log_lines=['test123'])
