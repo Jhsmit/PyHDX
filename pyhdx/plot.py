@@ -1,6 +1,7 @@
 """
 Outdated module
 """
+from copy import copy
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -55,7 +56,6 @@ CBAR_KWARGS = {
 }
 
 
-
 def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_field='rfu', subplot_field='exposure',
                             rect_fields=('start', 'end'), rect_kwargs=None, **figure_kwargs):
     """
@@ -101,7 +101,7 @@ def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_fiel
     axes_iter = iter(axes)
     for value, sub_df in sub_dfs.items():
         ax = next(axes_iter)
-        peptide_coverage(ax, sub_df, cmap=cmap, norm=norm, color_field=color_field, wrap=wrap, **rect_kwargs)
+        peptide_coverage(ax, sub_df, cmap=cmap, norm=norm, color_field=color_field, wrap=wrap, cbar=False, **rect_kwargs)
         ax.format(title=f'{subplot_field}: {value}')
 
     for ax in axes_iter:
@@ -120,16 +120,16 @@ def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_fiel
     return fig, axes, cbar_ax
 
 
-def peptide_coverage(ax, data,  wrap=None, cmap='turbo', norm=None, color_field='rfu', rect_fields=('start', 'end'), labels=False, **kwargs):
+def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='rfu', rect_fields=('start', 'end'), labels=False, cbar=True, **kwargs):
     start_field, end_field = rect_fields
     data = data.sort_values(by=[start_field, end_field])
 
     wrap = wrap or autowrap(data[start_field], data[end_field])
+    cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
     rect_kwargs = {**RECT_KWARGS, **kwargs}
 
     cmap = pplt.Colormap(cmap)
     norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
-
     i = -1
     for p_num, idx in enumerate(data.index):
         elem = data.loc[idx]
@@ -140,13 +140,6 @@ def peptide_coverage(ax, data,  wrap=None, cmap='turbo', norm=None, color_field=
             color = cmap(0.5)
         else:
             color = cmap(norm(elem[color_field]))
-
-        # if intervals == 'corrected':
-        #     start, end = 'start', 'end'
-        # elif intervals == 'original':
-        #     start, end = '_start', '_end'
-        # else:
-        #     raise ValueError(f"Invalid value '{intervals}' for keyword 'intervals', options are 'corrected' or 'original'")
 
         width =  elem[end_field] - elem[start_field]
         rect = Rectangle((elem[start_field] - 0.5, i), width, 1, facecolor=color, **rect_kwargs)
@@ -164,9 +157,17 @@ def peptide_coverage(ax, data,  wrap=None, cmap='turbo', norm=None, color_field=
     ax.set_xlim(start-pad, end+pad)
     ax.set_yticks([])
 
+    if cbar and color_field:
+        cbar_ax = ax.colorbar(cmap, norm=norm, width=cbar_width)
+        cbar_ax.set_label(color_field, labelpad=-0)
+    else:
+        cbar_ax = None
+
+    return cbar_ax
+
 
 def residue_time_scatter_figure(hdxm, field='rfu', scatter_kwargs=None, **figure_kwargs):
-    """per-residue per-exposurevalues for field  `field` by weighted averaging """
+    """per-residue per-exposure values for field  `field` by weighted averaging """
 
     n_subplots = hdxm.Nt
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
@@ -217,7 +218,7 @@ def residue_scatter_figure(hdxm_set, field='rfu', cmap='viridis', norm=None, sca
     scatter_kwargs = scatter_kwargs or {}
     for hdxm in hdxm_set:
         ax = next(axes_iter)
-        residue_scatter(ax, hdxm, cmap=cmap, norm=norm, field=field, **scatter_kwargs)
+        residue_scatter(ax, hdxm, cmap=cmap, norm=norm, field=field, cbar=False, **scatter_kwargs)
 
     for ax in axes_iter:
         ax.axis('off')
@@ -225,7 +226,7 @@ def residue_scatter_figure(hdxm_set, field='rfu', cmap='viridis', norm=None, sca
     #todo function for this?
     locator = pplt.Locator(norm(tps))
     cbar_ax = fig.colorbar(cmap, width=cbar_width, ticks=locator)
-    formatter = pplt.Formatter('simple', precision=2)
+    formatter = pplt.Formatter('simple', precision=1)
     cbar_ax.ax.set_yticklabels([formatter(t) for t in tps])
     cbar_ax.set_label('Exposure time (s)', labelpad=-0)
 
@@ -234,11 +235,12 @@ def residue_scatter_figure(hdxm_set, field='rfu', cmap='viridis', norm=None, sca
     return fig, axes, cbar_ax
 
 
-def residue_scatter(ax, hdxm, field='rfu', cmap='viridis', norm=None, **kwargs):
+def residue_scatter(ax, hdxm, field='rfu', cmap='viridis', norm=None, cbar=True, **kwargs):
     cmap = pplt.Colormap(cmap)
     tps = hdxm.timepoints[np.nonzero(hdxm.timepoints)]
     norm = norm or pplt.Norm('log', tps.min(), tps.max())
 
+    cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
     scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
     for hdx_tp in hdxm:
         if isinstance(norm, mpl.colors.LogNorm) and hdx_tp.exposure == 0.:
@@ -247,6 +249,13 @@ def residue_scatter(ax, hdxm, field='rfu', cmap='viridis', norm=None, **kwargs):
         color = cmap(norm(hdx_tp.exposure))
         scatter_kwargs['color'] = color
         ax.scatter(values.index, values, **scatter_kwargs)
+
+    if cbar:
+        locator = pplt.Locator(norm(tps))
+        cbar_ax = ax.colorbar(cmap, width=cbar_width, ticks=locator)
+        formatter = pplt.Formatter('simple', precision=1)
+        cbar_ax.ax.set_yticklabels([formatter(t) for t in tps])
+        cbar_ax.set_label('Exposure time (s)', labelpad=-0)
 
 
 def dG_scatter_figure(data, norm=None, cmap=None, scatter_kwargs=None, cbar_kwargs=None, **figure_kwargs):
@@ -305,17 +314,16 @@ def ddG_scatter_figure(data, reference=None, norm=None, cmap=None, scatter_kwarg
     elif reference in protein_states:
         reference_state = reference
     else:
-        raise ValueError(f"Invalide value for reference: {reference}")
-
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
     dG_test = data.xs('deltaG', axis=1, level=1).drop(reference_state, axis=1)
     dG_ref = data[reference_state, 'deltaG']
     ddG = dG_test.subtract(dG_ref, axis=0)
     ddG.columns = pd.MultiIndex.from_product([ddG.columns, ['deltadeltaG']], names=['State', 'quantity'])
 
-    cov_ref = data[reference_state, 'covariance']**2
     cov_test = data.xs('covariance', axis=1, level=1).drop(reference_state, axis=1)**2
-    cov = cov_test.add(cov_ref, axis=1).pow(0.5)
+    cov_ref = data[reference_state, 'covariance']**2
+    cov = cov_test.add(cov_ref, axis=0).pow(0.5)
     cov.columns = pd.MultiIndex.from_product([cov.columns, ['covariance']], names=['State', 'quantity'])
 
     combined = pd.concat([ddG, cov], axis=1)
@@ -365,6 +373,59 @@ def ddG_scatter_figure(data, reference=None, norm=None, cmap=None, scatter_kwarg
 
 
 deltadeltaG_scatter_figure = ddG_scatter_figure
+
+
+def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
+    #todo refactor to colorbar_scatter?
+    #todo custom ylims? scaling?
+    if y == 'deltaG':
+        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+        sclf = 1e-3  # deltaG are given in J/mol but plotted in kJ/mol
+    elif y == 'deltadeltaG':
+        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+        sclf = 1e-3
+    else:
+        if cmap is None or norm is None:
+            raise ValueError("No valid `cmap` or `norm` is given.")
+        sclf = 1e-3
+
+
+    cmap = cmap or cmap_default
+    cmap = pplt.Colormap(cmap)
+    norm = norm or norm_default
+
+    colors = cmap(norm(data[y]))
+
+    #todo errorbars using proplot kwargs?
+    errorbar_kwargs = {**ERRORBAR_KWARGS, **kwargs.pop('errorbar_kwargs', {})}
+    scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
+    ax.scatter(data.index, data[y]*sclf, color=colors, **scatter_kwargs)
+    with autoscale_turned_off(ax):
+        ax.errorbar(data.index, data[y]*sclf, yerr=data[yerr]*sclf, zorder=-1,
+                    **errorbar_kwargs)
+    ax.set_xlabel(r_xlabel)
+    # Default y labels
+    labels = {'deltaG': dG_ylabel, 'deltadeltaG': ddG_ylabel}
+    label = labels.get(y, '')
+    ax.set_ylabel(label)
+
+    ylim = ax.get_ylim()
+    if (ylim[0] < ylim[1]) and y == 'deltaG':
+        ax.set_ylim(*ylim[::-1])
+    elif y == 'deltadeltaG':
+        ylim = np.max(np.abs(ylim))
+        ax.set_ylim(ylim, -ylim)
+
+
+    if cbar:
+        cbar_norm = copy(norm)
+        cbar_norm.vmin *= sclf
+        cbar_norm.vmax *= sclf
+        cbar = add_cbar(ax, cmap, cbar_norm)
+    else:
+        cbar = None
+
+    return cbar
 
 
 def cmap_norm_from_nodes(colors, nodes, bad=None):
@@ -439,8 +500,10 @@ def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, **
         reference_state = protein_states[reference]
     elif reference in protein_states:
         reference_state = reference
-    else:
+    elif reference is None:
         reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
     if reference_state:
         test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
@@ -500,15 +563,17 @@ def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, **
     return fig, ax
 
 
-def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, **figure_kwargs):
+def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, labels=None, **figure_kwargs):
     protein_states = data.columns.get_level_values(0).unique()
 
     if isinstance(reference, int):
         reference_state = protein_states[reference]
     elif reference in protein_states:
         reference_state = reference
-    else:
+    elif reference is None:
         reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
     if reference_state:
         test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
@@ -530,10 +595,14 @@ def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, **fi
     nrows = n_subplots
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'linear_bars_aspect'))
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
 
     fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=0)
     axes_iter = iter(axes)
-    for state in protein_states:
+    labels = labels or protein_states
+    if len(labels) != len(protein_states):
+        raise ValueError('Number of labels provided must be equal to the number of protein states')
+    for label, state in zip(labels, protein_states):
         if state == reference_state:
             continue
 
@@ -551,16 +620,30 @@ def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, **fi
         # ax.imshow(img, aspect='auto', cmap=cmap, norm=norm, interpolation='None', discrete=False,
         #             extent=extent)
         ax.format(yticks=[])
-        ax.text(1.02, 0.5, state, horizontalalignment='left',
+        ax.text(1.02, 0.5, label, horizontalalignment='left',
                   verticalalignment='center', transform=ax.transAxes)
 
     axes.format(xlabel=r_xlabel)
+
+    sclf = 1e-3 # todo kwargs / check value of filed
+    cmap_norm = copy(norm)
+    cmap_norm.vmin *= sclf
+    cmap_norm.vmax *= sclf
+
+    if field == 'deltaG':
+        label = dG_ylabel
+    elif field == 'deltaG' and reference_state:
+        label = ddG_ylabel
+    else:
+        label = ''
+
+    fig.colorbar(cmap, norm=cmap_norm, loc='b', label=label, width=cbar_width)
 
     return fig, axes
 
 
 def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', cmap=None, norm=None, extent=None,
-                  orient=True, views=None,
+                  orient=True, views=None, name_suffix='',
                   additional_views=None, img_size=(640, 640)):
 
     protein_states = data.columns.get_level_values(0).unique()
@@ -569,8 +652,10 @@ def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', c
         reference_state = protein_states[reference]
     elif reference in protein_states:
         reference_state = reference
-    else:
+    elif reference is None:
         reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
     if reference_state:
         test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
@@ -599,8 +684,10 @@ def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', c
         values = values.reindex(pd.RangeIndex(rmin, rmax+1, name='r_number'))
         colors = apply_cmap(values, cmap, norm)
         name = f'pymol_ddG_{state}' if reference_state else f'pymol_dG_{state}'
+        name += name_suffix
         pymol_render(output_path, pdb_file, colors, name=name, orient=orient, views=views, additional_views=additional_views,
                      img_size=img_size)
+
 
 def pymol_render(output_path, pdb_file, colors, name='Pymol render', orient=True, views=None, additional_views=None, img_size=(640, 640)):
     if cmd is None:
@@ -621,24 +708,24 @@ def pymol_render(output_path, pdb_file, colors, name='Pymol render', orient=True
         for i, view in enumerate(views):
             cmd.set_view(view)
             cmd.ray(px, py, renderer=0, antialias=2)
-            output_file = output_path / f'{name}_pymol_view_{i}.png'
+            output_file = output_path / f'{name}_view_{i}.png'
             cmd.png(str(output_file))
 
     else:
         cmd.ray(px, py, renderer=0, antialias=2)
-        output_file = output_path / f'{name}_pymol_xy.png'
+        output_file = output_path / f'{name}_xy.png'
         cmd.png(str(output_file))
 
         cmd.rotate('x', 90)
 
         cmd.ray(px, py, renderer=0, antialias=2)
-        output_file = output_path / f'{name}_pymol_xz.png'
+        output_file = output_path / f'{name}_xz.png'
         cmd.png(str(output_file))
 
         cmd.rotate('z', -90)
 
         cmd.ray(px, py, renderer=0, antialias=2)
-        output_file = output_path / f'{name}_pymol_yz.png'
+        output_file = output_path / f'{name}_yz.png'
         cmd.png(str(output_file))
 
         additional_views = additional_views or []
@@ -646,50 +733,8 @@ def pymol_render(output_path, pdb_file, colors, name='Pymol render', orient=True
         for i, view in enumerate(additional_views):
             cmd.set_view(view)
             cmd.ray(px, py, renderer=0, antialias=2)
-            output_file = output_path / f'{name}_pymol_view_{i}.png'
+            output_file = output_path / f'{name}_view_{i}.png'
             cmd.png(str(output_file))
-
-
-
-
-def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
-    #todo refactor to colorbar_scatter?
-    #todo custom ylims? scaling?
-    if y == 'deltaG':
-        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
-    elif y == 'deltadeltaG':
-        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
-    else:
-        if cmap is None or norm is None:
-            raise ValueError("No valid `cmap` or `norm` is given.")
-
-    cmap = cmap or cmap_default
-    cmap = pplt.Colormap(cmap)
-    norm = norm or norm_default
-
-    colors = cmap(norm(data[y]))
-
-    errorbar_kwargs = {**ERRORBAR_KWARGS, **kwargs.pop('errorbar_kwargs', {})}
-    scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
-    ax.scatter(data.index, data[y]*1e-3, color=colors, **scatter_kwargs)
-    with autoscale_turned_off(ax):
-        ax.errorbar(data.index, data[y]*1e-3, yerr=data[yerr] * 1e-3, zorder=-1,
-                    **errorbar_kwargs)
-    ax.set_xlabel(r_xlabel)
-    # Default y labels
-    labels = {'deltaG': dG_ylabel, 'deltadeltaG': ddG_ylabel}
-    label = labels.get(y, '')
-    ax.set_ylabel(label)
-    ylim = ax.get_ylim()
-    if ylim[0] < ylim[1]:
-        ax.set_ylim(*ylim[::-1])
-
-    if cbar:
-        cbar = add_cbar(ax, cmap, norm)
-    else:
-        cbar = None
-
-    return cbar
 
 
 def add_cbar(ax, cmap, norm, **kwargs):
@@ -902,8 +947,10 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
         reference_state = protein_states[reference]
     elif reference in protein_states:
         reference_state = reference
-    else:
+    elif reference is None:
         reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
     cmap_and_norm = cmap_and_norm or {}
     dG_cmap, dG_norm = cmap_and_norm.get('dG', (None, None))
@@ -913,7 +960,7 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
     dG_cmap = ddG_cmap or dG_cmap_default
     dG_norm = dG_norm or dG_norm_default
     ddG_cmap = ddG_cmap or ddG_cmap_default
-    ddG_nrom = ddG_norm or ddG_norm_default
+    ddG_norm = ddG_norm or ddG_norm_default
 
     check_exists = lambda x: False if renew else x.exists()
 
@@ -967,14 +1014,14 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
         plt.close(fig)
 
     if 'dG_scatter' in plots:
-        fig, axes, cbars = dG_scatter_figure(fitresult.output.df)
+        fig, axes, cbars = dG_scatter_figure(fitresult.output.df, cmap=dG_cmap, norm=dG_norm)
         for ext in output_type:
             f_out = output_path / (f'dG_scatter' + ext)
             plt.savefig(f_out)
         plt.close(fig)
 
     if 'ddG_scatter' in plots:
-        fig, axes, cbars = ddG_scatter_figure(fitresult.output.df, reference=reference)
+        fig, axes, cbars = ddG_scatter_figure(fitresult.output.df, reference=reference, cmap=ddG_cmap, norm=ddG_norm)
         for ext in output_type:
             f_out = output_path / (f'ddG_scatter' + ext)
             plt.savefig(f_out)
