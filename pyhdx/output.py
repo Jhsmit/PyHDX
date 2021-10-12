@@ -118,7 +118,7 @@ class FitReport(object):
         n = nrows*ncols
         time = time_axis or self.get_fit_timepoints()
         if time.ndim == 1:
-            time = np.tile(time, (len(self.fit_result), 1))
+            time = np.tile(time, (len(self.fit_result), 1))  # todo move shape change to FitResult object
 
         d_calc = self.fit_result(time)  # Ns x Np x Nt
 
@@ -175,11 +175,11 @@ class FitReport(object):
         defaults.update(kwargs)
 
         self.doc.generate_pdf(file_path, **defaults)
-
-        if cleanup:
-            #try:
-            self._temp_dir.clean()
-            #except:
+        # 
+        # if cleanup:
+        #     #try:
+        #     self._temp_dir.clean()
+        #     #except:
 
 
 
