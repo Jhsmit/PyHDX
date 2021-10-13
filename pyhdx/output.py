@@ -1,33 +1,27 @@
-"""
-This module allows users to generate a .pdf output report from their HDX measurement
-
-(Currently partially out of date)
-"""
-
-
-import matplotlib.pyplot as plt
-import matplotlib as mpl
-import numpy as np
 import os
+import tempfile
 import uuid
-import shutil
-from functools import lru_cache, partial
-from pyhdx.support import grouper, autowrap
-from pyhdx.fitting_torch import TorchSingleFitResult
-from tqdm.auto import tqdm
+from concurrent import futures
+from functools import partial
+from importlib import import_module
 from pathlib import Path
 
-import pylatex as pyl
+import matplotlib.pyplot as plt
+import numpy as np
 import proplot as pplt
-import tempfile
+import pylatex as pyl
+from tqdm.auto import tqdm
 
-from concurrent import futures
+from pyhdx.plot import peptide_coverage_figure, residue_time_scatter_figure
 
 geometry_options = {
     "lmargin": "1in",
-    "rmargin": "1.5in"
+    "rmargin": "1in"
     }
 
+#assuming A4 210 mm width
+PAGE_WIDTH = 210 - pplt.units(geometry_options['lmargin'], dest='mm') - pplt.units(geometry_options['rmargin'], dest='mm')
+print(PAGE_WIDTH)
 
 class BaseReport(object):
     pass
@@ -78,11 +72,11 @@ class FitReport(object):
 
         return doc
 
-    def _save_fig(self, fig, *args, extension='pdf', **kwargs):
-        filename = '{}.{}'.format(str(uuid.uuid4()), extension.strip('.'))
-        filepath = os.path.join(self._temp_dir, filename)
-        fig.savefig(filepath, *args, **kwargs)
-        return filepath
+    # def _save_fig(self, fig, *args, extension='pdf', **kwargs):
+    #     filename = '{}.{}'.format(str(uuid.uuid4()), extension.strip('.'))
+    #     filepath = os.path.join(self._temp_dir, filename)
+    #     fig.savefig(filepath, *args, **kwargs)
+    #     return filepath
 
     def reset_doc(self, add_date=True):
         self.doc = self._init_doc(add_date=add_date)
@@ -106,9 +100,43 @@ class FitReport(object):
 
         return time
 
-    def figure_number(self):
-        self._figure_number += 1
-        return self._figure_number
+
+    def add_standard_figure(self, name, **kwargs):
+        extension = '.pdf'
+        self.tex_dict[name] = {}
+
+        module = import_module('pyhdx.plot')
+        f = getattr(module, name)
+        args_dict = self._get_args(name)
+        width = kwargs.pop('width', PAGE_WIDTH)
+
+        for args_name, args in args_dict.items():
+            fig_func = partial(f, *args, width=width, **kwargs)
+            file_name = '{}.{}'.format(str(uuid.uuid4()), extension.strip('.'))
+            file_path = self._temp_dir / file_name
+
+            self.figure_queue.append((file_path, fig_func))
+
+            tex_func = partial(_place_figure, file_path)
+            self.tex_dict[name][args_name] = [tex_func]
+
+    def _get_args(self, plot_func_name):
+        if plot_func_name == 'peptide_coverage_figure':
+            return {hdxm.name: [hdxm.data] for hdxm in self.fit_result.data_obj.hdxm_list}
+        elif plot_func_name == 'residue_time_scatter_figure':
+            return {hdxm.name: [hdxm] for hdxm in self.fit_result.data_obj.hdxm_list}
+        elif plot_func_name == 'residue_scatter_figure':
+            return {'All states': [self.fit_result.data_obj]}
+        elif plot_func_name == 'dG_scatter_figure':
+            return {'All states': [self.fit_result.output]}
+        elif plot_func_name == 'ddG_scatter_figure':
+            return {'All states': [self.fit_result.output.df]}  # Todo change protein object to dataframe!
+        elif plot_func_name == 'linear_bars':
+            return {'All states': [self.fit_result.output.df]}
+        elif plot_func_name == 'rainbowclouds':
+            return {'All states': [self.fit_result.output.df]}
+        else:
+            raise ValueError(f"Unknown plot function {plot_func_name!r}")
 
     def add_peptide_uptake_curves(self, layout=(5, 4), time_axis=None):
         extension = '.pdf'
@@ -122,7 +150,7 @@ class FitReport(object):
 
         d_calc = self.fit_result(time)  # Ns x Np x Nt
 
-        fig_factory = partial(pplt.subplots, ncols=ncols, nrows=nrows, sharex=1, sharey=1, num=self.figure_number())
+        fig_factory = partial(pplt.subplots, ncols=ncols, nrows=nrows, sharex=1, sharey=1, width=f'{PAGE_WIDTH}mm')
 
         # iterate over samples
         for hdxm, d_calc_s in zip(self.fit_result.data_obj, d_calc):
@@ -175,7 +203,7 @@ class FitReport(object):
         defaults.update(kwargs)
 
         self.doc.generate_pdf(file_path, **defaults)
-        # 
+        #
         # if cleanup:
         #     #try:
         #     self._temp_dir.clean()
@@ -210,6 +238,8 @@ def _peptide_uptake_figure(fig_factory, indices, _t, _d, hdxm):
 def run(item):
     file_path, fig_func = item
     fig = fig_func()
+    if not isinstance(fig, plt.Figure):
+        fig = fig[0]
     fig.savefig(file_path)
     plt.close(fig)
 
