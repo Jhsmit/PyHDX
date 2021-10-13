@@ -142,7 +142,7 @@ def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='
     return cbar_ax
 
 
-def residue_time_scatter_figure(hdxm, field='rfu', scatter_kwargs=None, **figure_kwargs):
+def residue_time_scatter_figure(hdxm, field='rfu', cmap='turbo', norm=None, scatter_kwargs=None, **figure_kwargs):
     """per-residue per-exposure values for field  `field` by weighted averaging """
 
     n_subplots = hdxm.Nt
@@ -150,13 +150,17 @@ def residue_time_scatter_figure(hdxm, field='rfu', scatter_kwargs=None, **figure
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'residue_scatter_aspect'))
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+
+    cmap = pplt.Colormap(cmap)  # todo allow None as cmap
+    norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
 
     fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
     scatter_kwargs = scatter_kwargs or {}
     axes_iter = iter(axes)
     for hdx_tp in hdxm:
         ax = next(axes_iter)
-        residue_time_scatter(ax, hdx_tp, field=field, **scatter_kwargs)
+        residue_time_scatter(ax, hdx_tp, field=field, cmap=cmap, norm=norm, **scatter_kwargs)  #todo cbar kwargs? (check with other methods)
         ax.format(title=f'exposure: {hdx_tp.exposure:.1f}')
 
     for ax in axes_iter:
@@ -166,14 +170,22 @@ def residue_time_scatter_figure(hdxm, field='rfu', scatter_kwargs=None, **figure
     return fig, axes
 
 
-def residue_time_scatter(ax, hdx_tp, field='rfu', **kwargs):
+def residue_time_scatter(ax, hdx_tp, field='rfu', cmap='turbo', norm=None, cbar=True, **kwargs):
+    cmap = pplt.Colormap(cmap)  # todo allow None as cmap
+    norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
+    cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+
     scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
     values = hdx_tp.weighted_average(field)
-    ax.scatter(values.index, values, **scatter_kwargs)
+    colors = cmap(norm(values))
+    ax.scatter(values.index, values, c=colors, **scatter_kwargs)
+
+    if not cmap.monochrome and cbar:
+        add_cbar(ax, cmap, norm, width=cbar_width)
 
 
 def residue_scatter_figure(hdxm_set, field='rfu', cmap='viridis', norm=None, scatter_kwargs=None,
-                               **figure_kwargs):
+                           **figure_kwargs):
     n_subplots = hdxm_set.Ns
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))  #todo disallow setting rows
