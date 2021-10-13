@@ -731,35 +731,23 @@ def pymol_render(output_path, pdb_file, colors, name='Pymol render', orient=True
 
 
 def add_cbar(ax, cmap, norm, **kwargs):
-    """Truncate or append cmap such that it covers axes limit and and colorbar to axes"""
+    """Truncate or expand cmap such that it covers axes limit and and colorbar to axes"""
 
-    cmap = pplt.Colormap(cmap)
+    N = cmap.N
+    ymin, ymax = np.min(ax.get_ylim()), np.max(ax.get_ylim())
+    values = np.linspace(ymin, ymax, num=N)
 
-    vmin, vmax = norm.vmin, norm.vmax
-    ylim = ax.get_ylim()
-    ymin, ymax = np.min(ylim), np.max(ylim)
+    norm_clip = copy(norm)
+    norm_clip.clip = True
+    colors = cmap(norm_clip(values))
 
-    nodes = [ymin, vmin, vmax, ymax]
-    all_ratios = np.diff(nodes)
-    idx = np.nonzero(all_ratios > 0)
-    all_cmaps = np.array([pplt.Colormap([cmap(0.)]), cmap, pplt.Colormap([cmap(1.)])])
-    cmaps = all_cmaps[idx]
-    ratios = all_ratios[idx]
-    if len(cmaps) >= 2:
-        new_cmap = cmaps[0].append(*cmaps[1:], ratios=ratios)
-    else:
-        new_cmap = cmap
-    reverse = ylim[0] > ylim[1]
+    cb_cmap = pplt.Colormap(colors)
 
-    new_total_length = np.sum(ratios)
-    left = np.max([-all_ratios[0] / new_total_length, 0.])
-    right = np.min([1 + all_ratios[-1] / new_total_length, 1.])
-
-    new_cmap = new_cmap.truncate(left=left, right=right)
-    new_norm = pplt.Norm('linear', vmin=ymin, vmax=ymax)
-
+    cb_norm = pplt.Norm('linear', vmin=ymin, vmax=ymax)  #todo allow log norms?
     cbar_kwargs = {**CBAR_KWARGS, **kwargs}
-    cbar = ax.colorbar(new_cmap, norm=new_norm, reverse=reverse, **cbar_kwargs)
+    reverse = np.diff(ax.get_ylim()) < 0
+
+    cbar = ax.colorbar(cb_cmap, norm=cb_norm, reverse=reverse, **cbar_kwargs)
 
     return cbar
 
