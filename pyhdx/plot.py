@@ -518,7 +518,7 @@ def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, up
 
 
 def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
-    #todo refactor to colorbar_scatter?
+    #todo make error bars optional
     #todo custom ylims? scaling?
     if y == 'deltaG':
         cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
@@ -676,7 +676,7 @@ def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', c
 
         values = values.reindex(pd.RangeIndex(rmin, rmax+1, name='r_number'))
         colors = apply_cmap(values, cmap, norm)
-        name = f'pymol_ddG_{state}' if reference_state else f'pymol_dG_{state}'
+        name = f'pymol_ddG_{state}_ref_{reference_state}' if reference_state else f'pymol_dG_{state}'
         name += name_suffix
         pymol_render(output_path, pdb_file, colors, name=name, orient=orient, views=views, additional_views=additional_views,
                      img_size=img_size)
