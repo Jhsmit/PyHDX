@@ -21,7 +21,6 @@ geometry_options = {
 
 #assuming A4 210 mm width
 PAGE_WIDTH = 210 - pplt.units(geometry_options['lmargin'], dest='mm') - pplt.units(geometry_options['rmargin'], dest='mm')
-print(PAGE_WIDTH)
 
 class BaseReport(object):
     pass
