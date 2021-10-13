@@ -246,7 +246,7 @@ def residue_scatter(ax, hdxm, field='rfu', cmap='viridis', norm=None, cbar=True,
         cbar_ax.set_label('Exposure time (s)', labelpad=-0)
 
 
-def dG_scatter_figure(data, norm=None, cmap=None, scatter_kwargs=None, cbar_kwargs=None, **figure_kwargs):
+def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwargs=None, **figure_kwargs):
     protein_states = data.columns.get_level_values(0).unique()
 
     n_subplots = len(protein_states)
@@ -292,7 +292,7 @@ def dG_scatter_figure(data, norm=None, cmap=None, scatter_kwargs=None, cbar_kwar
 deltaG_scatter_figure = dG_scatter_figure
 
 
-def ddG_scatter_figure(data, reference=None, norm=None, cmap=None, scatter_kwargs=None, cbar_kwargs=None,
+def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwargs=None, cbar_kwargs=None,
                        **figure_kwargs):
     protein_states = data.columns.get_level_values(0).unique()
     if reference is None:
