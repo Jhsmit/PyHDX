@@ -1,23 +1,18 @@
-"""
-Outdated module
-"""
+from contextlib import contextmanager
 from copy import copy
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 import numpy as np
-import proplot as pplt
-import pyhdx
-from pyhdx.support import autowrap, rgb_to_hex, color_pymol, apply_cmap
-from pyhdx.fileIO import load_fitresult
-from pyhdx.config import cfg
-import warnings
-from contextlib import contextmanager
 import pandas as pd
-from scipy.stats import kde
-import matplotlib as mpl
+import proplot as pplt
 from matplotlib.axes import Axes
+from matplotlib.patches import Rectangle
+from scipy.stats import kde
+
+from pyhdx.config import cfg
+from pyhdx.fileIO import load_fitresult
+from pyhdx.support import autowrap, color_pymol, apply_cmap
 
 try:
     from pymol import cmd
@@ -58,25 +53,6 @@ CBAR_KWARGS = {
 
 def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_field='rfu', subplot_field='exposure',
                             rect_fields=('start', 'end'), rect_kwargs=None, **figure_kwargs):
-    """
-
-    TODO: needs to be checked if intervals (start, end) are still accurately taking inclusive, exclusive into account
-    Plots peptides as rectangles in the provided axes
-
-    Parameters
-    ----------
-    data: :class:`pandas.DataFrame`
-    wrap
-    ax
-    color
-    labels
-    cmap
-    kwargs
-
-    Returns
-    -------
-
-    """
 
     subplot_values = data[subplot_field].unique()
     sub_dfs = {value: data.query(f'`{subplot_field}` == {value}') for value in subplot_values}
@@ -181,7 +157,7 @@ def residue_time_scatter_figure(hdxm, field='rfu', scatter_kwargs=None, **figure
     for hdx_tp in hdxm:
         ax = next(axes_iter)
         residue_time_scatter(ax, hdx_tp, field=field, **scatter_kwargs)
-        ax.format(title=f'exposure: {hdx_tp.exposure}')
+        ax.format(title=f'exposure: {hdx_tp.exposure:.1f}')
 
     for ax in axes_iter:
         ax.axis('off')
@@ -200,7 +176,7 @@ def residue_scatter_figure(hdxm_set, field='rfu', cmap='viridis', norm=None, sca
                                **figure_kwargs):
     n_subplots = hdxm_set.Ns
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
-    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))  #todo disallow setting rows
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
     cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'residue_scatter_aspect'))
@@ -375,6 +351,160 @@ def ddG_scatter_figure(data, reference=None, norm=None, cmap=None, scatter_kwarg
 deltadeltaG_scatter_figure = ddG_scatter_figure
 
 
+def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, labels=None, **figure_kwargs):
+    #todo add sorting
+    protein_states = data.columns.get_level_values(0).unique()
+
+    if isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    elif reference is None:
+        reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
+
+    if reference_state:
+        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
+        ref = data[reference_state, field]
+        plot_data = test.subtract(ref, axis=0)
+        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
+
+        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+        n_subplots = len(protein_states) - 1
+    else:
+        plot_data = data
+        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+        n_subplots = len(protein_states)
+
+    cmap = cmap or cmap_default
+    norm = norm or norm_default
+
+    ncols = 1
+    nrows = n_subplots
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'linear_bars_aspect'))
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+
+    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=0)
+    axes_iter = iter(axes)
+    labels = labels or protein_states
+    if len(labels) != len(protein_states):
+        raise ValueError('Number of labels provided must be equal to the number of protein states')
+    for label, state in zip(labels, protein_states):
+        if state == reference_state:
+            continue
+
+        values = plot_data[state, field]
+        rmin, rmax = values.index.min(), values.index.max()
+        extent = [rmin - 0.5, rmax + 0.5, 0, 1]
+
+        img = np.expand_dims(values, 0)
+
+        ax = next(axes_iter)
+        from matplotlib.axes import Axes
+        Axes.imshow(ax, norm(img), aspect='auto', cmap=cmap, vmin=0, vmax=1, interpolation='None',
+                    extent=extent)
+
+        # ax.imshow(img, aspect='auto', cmap=cmap, norm=norm, interpolation='None', discrete=False,
+        #             extent=extent)
+        ax.format(yticks=[])
+        ax.text(1.02, 0.5, label, horizontalalignment='left',
+                  verticalalignment='center', transform=ax.transAxes)
+
+    axes.format(xlabel=r_xlabel)
+
+    sclf = 1e-3 # todo kwargs / check value of filed
+    cmap_norm = copy(norm)
+    cmap_norm.vmin *= sclf
+    cmap_norm.vmax *= sclf
+
+    if field == 'deltaG':
+        label = dG_ylabel
+    elif field == 'deltaG' and reference_state:
+        label = ddG_ylabel
+    else:
+        label = ''
+
+    fig.colorbar(cmap, norm=cmap_norm, loc='b', label=label, width=cbar_width)
+
+    return fig, axes
+
+
+def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, update_rc=True, **figure_kwargs):
+    # todo add sorting
+    if update_rc:
+        plt.rcParams["image.composite_image"] = False
+
+    protein_states = data.columns.get_level_values(0).unique()
+
+    if isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    elif reference is None:
+        reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
+
+    if reference_state:
+        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
+        ref = data[reference_state, field]
+        plot_data = test.subtract(ref, axis=0)
+        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
+
+        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+    else:
+        plot_data = data
+        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+
+
+    cmap = cmap or cmap_default
+    norm = norm or norm_default
+    plot_data = plot_data.xs(field, axis=1, level=1)
+
+    #scaling
+    plot_data *= 1e-3
+    norm.vmin = norm.vmin * 1e-3
+    norm.vmax = norm.vmax * 1e-3
+
+    f_data = [plot_data[column].dropna().to_numpy() for column in plot_data.columns]  # todo make funcs accept dataframes
+    f_labels = plot_data.columns
+
+    ncols = 1
+    nrows = 1
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'rainbow_aspect'))
+
+    boxplot_width = 0.1
+    orientation = 'vertical'
+
+    strip_kwargs = dict(offset=0.0, orientation=orientation, s=2, colors='k', jitter=0.2, alpha=0.25)
+    kde_kwargs = dict(linecolor='k', offset=0.15, orientation=orientation, fillcolor=False, fill_cmap=cmap,
+                      fill_norm=norm, y_scale=None, y_norm=0.4, linewidth=1)
+    boxplot_kwargs = dict(offset=0.2, sym='', linewidth=1., linecolor='k', orientation=orientation,
+                          widths=boxplot_width)
+
+    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
+    ax = axes[0]
+    stripplot(f_data, ax=ax, **strip_kwargs)
+    kdeplot(f_data, ax=ax, **kde_kwargs)
+    boxplot(f_data, ax=ax, **boxplot_kwargs)
+    label_axes(f_labels, ax=ax, rotation=45)
+    if field == 'deltaG':
+        label = dG_ylabel
+    elif field == 'deltaG' and reference_state:
+        label = ddG_ylabel
+    else:
+        label = ''
+    ax.format(xlim=(-0.75, len(f_data) - 0.5), ylabel=label, yticklabelloc='left', ytickloc='left',
+              ylim=ax.get_ylim()[::-1])
+
+    add_cbar(ax, cmap, norm)
+
+    return fig, ax
+
+
 def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
     #todo refactor to colorbar_scatter?
     #todo custom ylims? scaling?
@@ -491,155 +621,6 @@ def get_color_scheme(name):
         raise ValueError(f"Color scheme '{name}' not found")
 
     return colors, bad
-
-
-def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, **figure_kwargs):
-    protein_states = data.columns.get_level_values(0).unique()
-
-    if isinstance(reference, int):
-        reference_state = protein_states[reference]
-    elif reference in protein_states:
-        reference_state = reference
-    elif reference is None:
-        reference_state = None
-    else:
-        raise ValueError(f"Invalid value {reference!r} for 'reference'")
-
-    if reference_state:
-        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
-        ref = data[reference_state, field]
-        plot_data = test.subtract(ref, axis=0)
-        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
-
-        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
-    else:
-        plot_data = data
-        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
-
-
-    cmap = cmap or cmap_default
-    norm = norm or norm_default
-    plot_data = plot_data.xs(field, axis=1, level=1)
-
-    #scaling
-    plot_data *= 1e-3
-    norm.vmin = norm.vmin * 1e-3
-    norm.vmax = norm.vmax * 1e-3
-
-    f_data = [plot_data[column].dropna().to_numpy() for column in plot_data.columns]  # todo make funcs accept dataframes
-    f_labels = plot_data.columns
-
-    ncols = 1
-    nrows = 1
-    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
-    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'rainbow_aspect'))
-
-    boxplot_width = 0.1
-    orientation = 'vertical'
-
-    strip_kwargs = dict(offset=0.0, orientation=orientation, s=2, colors='k', jitter=0.2, alpha=0.25)
-    kde_kwargs = dict(linecolor='k', offset=0.15, orientation=orientation, fillcolor=False, fill_cmap=cmap,
-                      fill_norm=norm, y_scale=None, y_norm=0.4, linewidth=1)
-    boxplot_kwargs = dict(offset=0.2, sym='', linewidth=1., linecolor='k', orientation=orientation,
-                          widths=boxplot_width)
-
-    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
-    ax = axes[0]
-    stripplot(f_data, ax=ax, **strip_kwargs)
-    kdeplot(f_data, ax=ax, **kde_kwargs)
-    boxplot(f_data, ax=ax, **boxplot_kwargs)
-    label_axes(f_labels, ax=ax, rotation=45)
-    if field == 'deltaG':
-        label = dG_ylabel
-    elif field == 'deltaG' and reference_state:
-        label = ddG_ylabel
-    else:
-        label = ''
-    ax.format(xlim=(-0.75, len(f_data) - 0.5), ylabel=label, yticklabelloc='left', ytickloc='left',
-              ylim=ax.get_ylim()[::-1])
-
-    add_cbar(ax, cmap, norm)
-
-    return fig, ax
-
-
-def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, labels=None, **figure_kwargs):
-    protein_states = data.columns.get_level_values(0).unique()
-
-    if isinstance(reference, int):
-        reference_state = protein_states[reference]
-    elif reference in protein_states:
-        reference_state = reference
-    elif reference is None:
-        reference_state = None
-    else:
-        raise ValueError(f"Invalid value {reference!r} for 'reference'")
-
-    if reference_state:
-        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
-        ref = data[reference_state, field]
-        plot_data = test.subtract(ref, axis=0)
-        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
-
-        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
-        n_subplots = len(protein_states) - 1
-    else:
-        plot_data = data
-        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
-        n_subplots = len(protein_states)
-
-    cmap = cmap or cmap_default
-    norm = norm or norm_default
-
-    ncols = 1
-    nrows = n_subplots
-    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
-    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'linear_bars_aspect'))
-    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
-
-    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=0)
-    axes_iter = iter(axes)
-    labels = labels or protein_states
-    if len(labels) != len(protein_states):
-        raise ValueError('Number of labels provided must be equal to the number of protein states')
-    for label, state in zip(labels, protein_states):
-        if state == reference_state:
-            continue
-
-        values = plot_data[state, field]
-        rmin, rmax = values.index.min(), values.index.max()
-        extent = [rmin - 0.5, rmax + 0.5, 0, 1]
-
-        img = np.expand_dims(values, 0)
-
-        ax = next(axes_iter)
-        from matplotlib.axes import Axes
-        Axes.imshow(ax, norm(img), aspect='auto', cmap=cmap, vmin=0, vmax=1, interpolation='None',
-                    extent=extent)
-
-        # ax.imshow(img, aspect='auto', cmap=cmap, norm=norm, interpolation='None', discrete=False,
-        #             extent=extent)
-        ax.format(yticks=[])
-        ax.text(1.02, 0.5, label, horizontalalignment='left',
-                  verticalalignment='center', transform=ax.transAxes)
-
-    axes.format(xlabel=r_xlabel)
-
-    sclf = 1e-3 # todo kwargs / check value of filed
-    cmap_norm = copy(norm)
-    cmap_norm.vmin *= sclf
-    cmap_norm.vmax *= sclf
-
-    if field == 'deltaG':
-        label = dG_ylabel
-    elif field == 'deltaG' and reference_state:
-        label = ddG_ylabel
-    else:
-        label = ''
-
-    fig.colorbar(cmap, norm=cmap_norm, loc='b', label=label, width=cbar_width)
-
-    return fig, axes
 
 
 def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', cmap=None, norm=None, extent=None,
