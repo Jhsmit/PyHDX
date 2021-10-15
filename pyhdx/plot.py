@@ -256,7 +256,7 @@ def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwar
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
-    cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+    cmap_default, norm_default = default_cmap_norm('dG')
     cmap = cmap or cmap_default
     cmap = pplt.Colormap(cmap)
     norm = norm or norm_default
@@ -323,7 +323,7 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
-    cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+    cmap_default, norm_default = default_cmap_norm('ddG')
     cmap = cmap or cmap_default
     cmap = pplt.Colormap(cmap)
     norm = norm or norm_default
@@ -382,11 +382,11 @@ def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, labe
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
 
-        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+        cmap_default, norm_default = default_cmap_norm('ddG')
         n_subplots = len(protein_states) - 1
     else:
         plot_data = data
-        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+        cmap_default, norm_default = default_cmap_norm('dG')
         n_subplots = len(protein_states)
 
     cmap = cmap or cmap_default
@@ -465,11 +465,10 @@ def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, up
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
 
-        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+        cmap_default, norm_default = default_cmap_norm('ddG')
     else:
         plot_data = data
-        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
-
+        cmap_default, norm_default = default_cmap_norm('dG')
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
@@ -520,12 +519,10 @@ def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, up
 def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
     #todo make error bars optional
     #todo custom ylims? scaling?
-    if y == 'deltaG':
-        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+    cmap_default, norm_default = default_cmap_norm(y)
+
+    if y in ['deltaG', 'deltadeltaG']:
         sclf = 1e-3  # deltaG are given in J/mol but plotted in kJ/mol
-    elif y == 'deltadeltaG':
-        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
-        sclf = 1e-3
     else:
         if cmap is None or norm is None:
             raise ValueError("No valid `cmap` or `norm` is given.")
@@ -582,6 +579,23 @@ def cmap_norm_from_nodes(colors, nodes, bad=None):
     cmap.set_bad(bad)
 
     return cmap, norm
+
+
+
+def default_cmap_norm(datatype):
+    if datatype in ['deltaG', 'dG']:
+        return get_cmap_norm_preset('vibrant', 10e3, 40e3)
+    elif datatype in ['deltadeltaG', 'ddG']:
+        return get_cmap_norm_preset('PRGn', -10e3, 10e3)
+    elif datatype == 'rfu':
+        norm = pplt.Norm('linear', 0, 1)
+        cmap = pplt.Colormap('turbo')
+        return cmap, norm
+    elif datatype == 'mse':
+        cmap = pplt.Colormap('Haline')
+        return cmap, None
+    else:
+        raise ValueError(f"Invalid datatype {datatype!r}")
 
 
 def get_cmap_norm_preset(name, vmin, vmax):
@@ -656,10 +670,10 @@ def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', c
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
 
-        cmap_default, norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+        cmap_default, norm_default = default_cmap_norm('ddG')
     else:
         plot_data = data
-        cmap_default, norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+        cmap_default, norm_default = default_cmap_norm('dG')
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
@@ -933,11 +947,12 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
     else:
         raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
+    # todo needs tidying up
     cmap_and_norm = cmap_and_norm or {}
     dG_cmap, dG_norm = cmap_and_norm.get('dG', (None, None))
-    dG_cmap_default, dG_norm_default = get_cmap_norm_preset('vibrant', 10e3, 40e3)
+    dG_cmap_default, dG_norm_default = cmap_default, norm_default = default_cmap_norm('dG')
     ddG_cmap, ddG_norm = cmap_and_norm.get('ddG', (None, None))
-    ddG_cmap_default, ddG_norm_default = get_cmap_norm_preset('PRGn', -10e3, 10e3)
+    ddG_cmap_default, ddG_norm_default = cmap_default, norm_default = default_cmap_norm('ddG')
     dG_cmap = ddG_cmap or dG_cmap_default
     dG_norm = dG_norm or dG_norm_default
     ddG_cmap = ddG_cmap or ddG_cmap_default
