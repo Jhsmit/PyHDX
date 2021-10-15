@@ -96,7 +96,8 @@ def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_fiel
     return fig, axes, cbar_ax
 
 
-def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='rfu', rect_fields=('start', 'end'), labels=False, cbar=True, **kwargs):
+def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='rfu', rect_fields=('start', 'end'),
+                     labels=False, cbar=True, **kwargs):
     start_field, end_field = rect_fields
     data = data.sort_values(by=[start_field, end_field])
 
@@ -142,7 +143,8 @@ def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='
     return cbar_ax
 
 
-def residue_time_scatter_figure(hdxm, field='rfu', cmap='turbo', norm=None, scatter_kwargs=None, **figure_kwargs):
+def residue_time_scatter_figure(hdxm, field='rfu', cmap='turbo', norm=None, scatter_kwargs=None, cbar_kwargs=None,
+                                **figure_kwargs):
     """per-residue per-exposure values for field  `field` by weighted averaging """
 
     n_subplots = hdxm.Nt
@@ -155,19 +157,30 @@ def residue_time_scatter_figure(hdxm, field='rfu', cmap='turbo', norm=None, scat
     cmap = pplt.Colormap(cmap)  # todo allow None as cmap
     norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
 
-    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, sharey=4, **figure_kwargs)
     scatter_kwargs = scatter_kwargs or {}
     axes_iter = iter(axes)
     for hdx_tp in hdxm:
         ax = next(axes_iter)
-        residue_time_scatter(ax, hdx_tp, field=field, cmap=cmap, norm=norm, **scatter_kwargs)  #todo cbar kwargs? (check with other methods)
+        residue_time_scatter(ax, hdx_tp, field=field, cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)  #todo cbar kwargs? (check with other methods)
         ax.format(title=f'exposure: {hdx_tp.exposure:.1f}')
 
     for ax in axes_iter:
         ax.axis('off')
 
-    axes.format(xlabel=r_xlabel)
-    return fig, axes
+
+    axes.format(xlabel=r_xlabel, ylabel=field)
+
+    cbar_kwargs = cbar_kwargs or {}
+    cbars = []
+    for ax in axes:
+        if not ax.axison:
+            continue
+
+        cbar = add_cbar(ax, cmap, norm, **cbar_kwargs)
+        cbars.append(cbar)
+
+    return fig, axes, cbars
 
 
 def residue_time_scatter(ax, hdx_tp, field='rfu', cmap='turbo', norm=None, cbar=True, **kwargs):
@@ -612,7 +625,6 @@ def cmap_norm_from_nodes(colors, nodes, bad=None):
     return cmap, norm
 
 
-
 def default_cmap_norm(datatype):
     if datatype in ['deltaG', 'dG']:
         return get_cmap_norm_preset('vibrant', 10e3, 40e3)
@@ -981,16 +993,16 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
     # todo needs tidying up
     cmap_and_norm = cmap_and_norm or {}
     dG_cmap, dG_norm = cmap_and_norm.get('dG', (None, None))
-    dG_cmap_default, dG_norm_default = cmap_default, norm_default = default_cmap_norm('dG')
+    dG_cmap_default, dG_norm_default = default_cmap_norm('dG')
     ddG_cmap, ddG_norm = cmap_and_norm.get('ddG', (None, None))
-    ddG_cmap_default, ddG_norm_default = cmap_default, norm_default = default_cmap_norm('ddG')
+    ddG_cmap_default, ddG_norm_default = default_cmap_norm('ddG')
     dG_cmap = ddG_cmap or dG_cmap_default
     dG_norm = dG_norm or dG_norm_default
     ddG_cmap = ddG_cmap or ddG_cmap_default
     ddG_norm = ddG_norm or ddG_norm_default
 
-    check_exists = lambda x: False if renew else x.exists()
-
+    #check_exists = lambda x: False if renew else x.exists()
+    #todo add logic for checking renew or not
 
     if plots == 'all':
         plots = ['loss', 'rfu_coverage', 'rfu_scatter', 'dG_scatter', 'ddG_scatter', 'linear_bars', 'rainbowclouds']
