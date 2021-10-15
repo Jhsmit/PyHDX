@@ -360,6 +360,37 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     return fig, axes, cbars
 
 
+def peptide_mse_figure(fitresult, cmap='Haline', norm=None, rect_kwargs=None, **figure_kwargs):
+    n_subplots = len(fitresult)
+
+    ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'peptide_mse_aspect'))
+
+    cmap = pplt.Colormap(cmap)
+
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
+    axes_iter = iter(axes)
+    mse = fitresult.get_mse()  #shape: Ns, Np, Nt
+    for i, mse_sample in enumerate(mse):
+        mse_peptide = np.mean(mse_sample, axis=1)
+
+        hdxm = fitresult.data_obj.hdxm_list[i]
+        peptide_data = hdxm.coverage.data
+
+        data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'mse': mse_peptide[:hdxm.Np]}
+        mse_df = pd.DataFrame(data_dict)
+
+        ax = next(axes_iter)
+        vmax = mse_df['mse'].max()
+        norm = pplt.Norm('linear', vmin=0, vmax=vmax)
+        cbar_ax = peptide_coverage(ax, mse_df, color_field='mse', norm=norm, cmap=cmap)
+        cbar_ax.set_label('MSE')
+        ax.format(xlabel=r_xlabel, title=f'{hdxm.name}: Peptide mean squared error')
+
+
 deltadeltaG_scatter_figure = ddG_scatter_figure
 
 
