@@ -686,7 +686,12 @@ class HDXMeasurement(object):
         pH:                     {self.pH}             
         """
 
-        return textwrap.dedent(s)
+        return textwrap.dedent(s.lstrip('\n'))
+
+    def _repr_markdown_(self):
+        s = str(self)
+        s = s.replace('\n', '<br>')
+        return s
 
     @property
     def name(self):
