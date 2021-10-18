@@ -379,18 +379,19 @@ def peptide_mse_figure(fitresult, cmap='Haline', norm=None, rect_kwargs=None, **
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
-    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'peptide_mse_aspect'))
 
     cmap = pplt.Colormap(cmap)
 
     fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
     axes_iter = iter(axes)
-    mse = fitresult.get_mse()  #shape: Ns, Np, Nt
+    mse = fitresult.get_mse() #shape: Ns, Np, Nt
+    cbars = []
+    rect_kwargs = rect_kwargs or {}
     for i, mse_sample in enumerate(mse):
         mse_peptide = np.mean(mse_sample, axis=1)
 
-        hdxm = fitresult.data_obj.hdxm_list[i]
+        hdxm = fitresult.hdxm_set.hdxm_list[i]
         peptide_data = hdxm.coverage.data
 
         data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'mse': mse_peptide[:hdxm.Np]}
@@ -398,10 +399,15 @@ def peptide_mse_figure(fitresult, cmap='Haline', norm=None, rect_kwargs=None, **
 
         ax = next(axes_iter)
         vmax = mse_df['mse'].max()
-        norm = pplt.Norm('linear', vmin=0, vmax=vmax)
-        cbar_ax = peptide_coverage(ax, mse_df, color_field='mse', norm=norm, cmap=cmap)
+        norm = norm or pplt.Norm('linear', vmin=0, vmax=vmax)
+        #color bar per subplot as norm differs
+        #todo perhaps unify color scale? -> when global norm, global cbar
+        cbar_ax = peptide_coverage(ax, mse_df, color_field='mse', norm=norm, cmap=cmap, **rect_kwargs)
         cbar_ax.set_label('MSE')
+        cbars.append(cbar_ax)
         ax.format(xlabel=r_xlabel, title=f'{hdxm.name}: Peptide mean squared error')
+
+    return fig, axes, cbars
 
 
 deltadeltaG_scatter_figure = ddG_scatter_figure
@@ -1005,7 +1011,8 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
     #todo add logic for checking renew or not
 
     if plots == 'all':
-        plots = ['loss', 'rfu_coverage', 'rfu_scatter', 'dG_scatter', 'ddG_scatter', 'linear_bars', 'rainbowclouds']
+        plots = ['loss', 'rfu_coverage', 'rfu_scatter', 'dG_scatter', 'ddG_scatter', 'linear_bars', 'rainbowclouds',
+                 'peptide_mse']
 
 
     # def check_update(pth, fname, extensions, renew):
