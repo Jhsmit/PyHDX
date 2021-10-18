@@ -36,7 +36,7 @@ class FitReport(FitResultPlotBase):
     Create .pdf output of a fit result
     """
     def __init__(self, fit_result, title=None, doc=None, add_date=True, temp_dir=None, **kwargs):
-        super().__init__(fit_result, **kwargs)
+        super().__init__(fit_result)
         self.title = title or f'Fit report'
         self.doc = doc or self._init_doc(add_date=add_date)
         self._temp_dir = temp_dir or self.make_temp_dir()
