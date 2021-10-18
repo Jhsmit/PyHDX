@@ -647,7 +647,7 @@ class KineticsFitResult(object):
         assert len(results) == len(models)
 #        assert len(models) == len(block_length)
         self.hdxm = hdxm
-        self.r_number = hdxm.coverage.r_number
+        self.r_number = hdxm.coverage.r_number  #pandas RangeIndex
         self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
@@ -754,22 +754,25 @@ class KineticsFitResult(object):
         return 1 / self.rate
 
     def get_output(self, names):
-        # change to property which gives all parameters as output
-        dtype = [('r_number', int)] + [(name, float) for name in names]
-        array = np.full_like(self.r_number, np.nan, dtype=dtype)
-        array['r_number'] = self.r_number
+
+        # this does not seem to work:
+        #df_dict = {name: getattr(self, name, self.get_param(name)) for name in names}
+        df_dict = {}
         for name in names:
             try:
-                array[name] = getattr(self, name)
+                df_dict[name] = getattr(self, name)
             except AttributeError:
-                array[name] = self.get_param(name)
-        return array
+                df_dict[name] = self.get_param(name)
+
+        df = pd.DataFrame(df_dict, index=self.r_number)
+
+        return df
 
     @property
     def output(self):
-        """:class:`~pyhdx.Protein`: Protein object with fitted rates per residue"""
-        array = self.get_output(['rate', 'k1', 'k2', 'r'])
-        return Protein(array, index='r_number')
+        """:class:`~pandas.Dataframe`: Dataframe with fitted rates per residue"""
+        df = self.get_output(['rate', 'k1', 'k2', 'r'])
+        return df
 
 
 @dataclass
