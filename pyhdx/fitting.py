@@ -1,4 +1,5 @@
 from collections import namedtuple
+from dataclasses import dataclass, field
 from functools import partial
 
 import numpy as np
@@ -10,9 +11,9 @@ from symfit.core.minimizers import DifferentialEvolution, Powell
 from tqdm import trange
 
 from pyhdx.fit_models import SingleKineticModel, TwoComponentAssociationModel, TwoComponentDissociationModel
-from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
+from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
 from pyhdx.support import temporary_seed
-from pyhdx.models import Protein
+from pyhdx.models import Protein, HDXMeasurementSet
 from pyhdx.config import cfg
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
@@ -133,17 +134,13 @@ def fit_rates_half_time_interpolate(hdxm):
         dataclass with fit result
 
     """
+    # find t_50
     interpolated = np.array(
-        [np.interp(0.5, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues])
+        [np.interp(0.5, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues.to_numpy()])  #iterate over residues
+    rate = np.log(2) / interpolated  # convert to rate
 
-    output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
-    output['r_number'] = hdxm.coverage.r_number
-    output['rate'] = np.log(2) / interpolated
-
-    protein = Protein(output, index='r_number')
-    t50FitResult = namedtuple('t50FitResult', ['output']) # todo dataclass?
-
-    result = t50FitResult(output=protein)
+    output = pd.DataFrame({'rate': rate}, index=hdxm.coverage.r_number)
+    result = GenericFitResult(output=output, fit_function='fit_rates_half_time_interpolate')
 
     return result
 
@@ -469,7 +466,8 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
                                                          patience=patience, stop_loss=stop_loss, callbacks=callbacks)
     losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
-    result = TorchSingleFitResult(hdxm, model, losses=losses, **fit_kwargs)
+    hdxm_set = HDXMeasurementSet([hdxm])
+    result = TorchFitResult(hdxm_set, model, losses=losses, **fit_kwargs)
 
     return result
 
@@ -596,7 +594,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
                                                          model, criterion, reg_func, **loop_kwargs)
     losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
-    result = TorchBatchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
+    result = TorchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
 
     return result
 
@@ -649,7 +647,7 @@ class KineticsFitResult(object):
         assert len(results) == len(models)
 #        assert len(models) == len(block_length)
         self.hdxm = hdxm
-        self.r_number = hdxm.coverage.r_number
+        self.r_number = hdxm.coverage.r_number  #pandas RangeIndex
         self.intervals = intervals  #inclusive, excluive
         self.results = results
         self.models = models
@@ -756,20 +754,28 @@ class KineticsFitResult(object):
         return 1 / self.rate
 
     def get_output(self, names):
-        # change to property which gives all parameters as output
-        dtype = [('r_number', int)] + [(name, float) for name in names]
-        array = np.full_like(self.r_number, np.nan, dtype=dtype)
-        array['r_number'] = self.r_number
+
+        # this does not seem to work:
+        #df_dict = {name: getattr(self, name, self.get_param(name)) for name in names}
+        df_dict = {}
         for name in names:
             try:
-                array[name] = getattr(self, name)
+                df_dict[name] = getattr(self, name)
             except AttributeError:
-                array[name] = self.get_param(name)
-        return array
+                df_dict[name] = self.get_param(name)
+
+        df = pd.DataFrame(df_dict, index=self.r_number)
+
+        return df
 
     @property
     def output(self):
-        """:class:`~pyhdx.Protein`: Protein object with fitted rates per residue"""
-        array = self.get_output(['rate', 'k1', 'k2', 'r'])
-        return Protein(array, index='r_number')
+        """:class:`~pandas.Dataframe`: Dataframe with fitted rates per residue"""
+        df = self.get_output(['rate', 'k1', 'k2', 'r'])
+        return df
 
+
+@dataclass
+class GenericFitResult:
+    output: pd.DataFrame
+    fit_function: str  # name of the function used to generate the fit result

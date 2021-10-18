@@ -543,7 +543,7 @@ class InitialGuessControl(ControlPanel):
         name = self._guess_names.pop(future.key)
 
         results = future.result()
-        dfs = [result.output.df for result in results]
+        dfs = [result.output for result in results]
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(self.parent.data_objects.keys()),
                                      names=['state_name', 'quantity'])
@@ -577,7 +577,7 @@ class InitialGuessControl(ControlPanel):
         elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
             futures = self.parent.client.map(fit_rates_half_time_interpolate, self.parent.data_objects.values())
 
-        dask_future = self.parent.client.submit(lambda args: args, futures)
+        dask_future = self.parent.client.submit(lambda args: args, futures)  #combine multiple futures into one future
         self._guess_names[dask_future.key] = self.guess_name
 
         self.parent.future_queue.append((dask_future, self.add_fit_result))
@@ -661,7 +661,7 @@ class FitControl(ControlPanel):
         # List of single fit results
         if isinstance(result, list):
             self.parent.fit_results[name] = list(result)
-            output_dfs = {fit_result.data_obj.name: fit_result.output.df for fit_result in result}
+            output_dfs = {fit_result.hdxm_set.name: fit_result.output for fit_result in result}
             df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
 
             # create mse losses dataframe
@@ -670,9 +670,9 @@ class FitControl(ControlPanel):
             # Determine mean squared errors per peptide, summed over timepoints
                 mse = single_result.get_mse()
                 mse_sum = np.sum(mse, axis=1)
-                peptide_data = single_result.data_obj[0].data
+                peptide_data = single_result.hdxm_set[0].data
                 data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum}
-                dfs[single_result.data_obj.name] = pd.DataFrame(data_dict)
+                dfs[single_result.hdxm_set.name] = pd.DataFrame(data_dict)
             mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
 
         #todo d calc for single fits
@@ -683,12 +683,12 @@ class FitControl(ControlPanel):
             # todo needs cleaning up
             state_dfs = {}
             for single_result in result:
-                tp_flat = single_result.data_obj.timepoints
+                tp_flat = single_result.hdxm_set.timepoints
                 elem = tp_flat[np.nonzero(tp_flat)]
 
                 time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
                 d_calc_state = single_result(time_vec)  #shape Np x Nt
-                hdxm = single_result.data_obj
+                hdxm = single_result.hdxm_set
 
                 peptide_dfs = []
                 pm_data = hdxm[0].data
@@ -703,20 +703,20 @@ class FitControl(ControlPanel):
 
             # Create losses/epoch dataframe
             # -----------------------------
-            losses_dfs = {fit_result.data_obj.name: fit_result.losses for fit_result in result}
+            losses_dfs = {fit_result.hdxm_set.name: fit_result.losses for fit_result in result}
             losses_df = pd.concat(losses_dfs.values(), keys=losses_dfs.keys(), axis=1)
 
 
         else:  # one batchfit result
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
-            df = result.output.df
+            df = result.output
             # df.index.name = 'peptide index'
 
             # Create MSE losses df (per peptide, summed over timepoints)
             # -----------------------
             mse = result.get_mse()
             dfs = {}
-            for mse_sample, hdxm in zip(mse, result.data_obj):
+            for mse_sample, hdxm in zip(mse, result.hdxm_set):
                 peptide_data = hdxm[0].data
                 mse_sum = np.sum(mse_sample, axis=1)
                 # Indexing of mse_sum with Np to account for zero-padding
@@ -729,15 +729,15 @@ class FitControl(ControlPanel):
 
             # Create d_calc dataframe
             # -----------------------
-            tp_flat = result.data_obj.timepoints.flatten()
+            tp_flat = result.hdxm_set.timepoints.flatten()
             elem = tp_flat[np.nonzero(tp_flat)]
 
             time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
-            stacked = np.stack([time_vec for i in range(result.data_obj.Ns)])
+            stacked = np.stack([time_vec for i in range(result.hdxm_set.Ns)])
             d_calc = result(stacked)
 
             state_dfs = {}
-            for hdxm, d_calc_state in zip(result.data_obj, d_calc):
+            for hdxm, d_calc_state in zip(result.hdxm_set, d_calc):
                 peptide_dfs = []
                 pm_data = hdxm[0].data
                 for d_peptide, idx in zip(d_calc_state, pm_data.index):

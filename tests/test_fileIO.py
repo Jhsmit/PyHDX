@@ -1,7 +1,7 @@
 import pyhdx
 from pyhdx.fileIO import read_dynamx, csv_to_dataframe, csv_to_protein, dataframe_to_stringio, dataframe_to_file, \
     save_fitresult, load_fitresult
-from pyhdx.models import Protein, PeptideMasterTable, HDXMeasurement
+from pyhdx.models import Protein, PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fitting import fit_gibbs_global
 from pathlib import Path
 from io import StringIO
@@ -116,10 +116,12 @@ class TestFileIO(object):
     #     .. add tests
 
     def test_load_save_fitresult(self, tmp_path):
+        #todo missing read batch result test
+
         fpath = Path(tmp_path) / 'fit_result_single.csv'
         self.fit_result.to_file(fpath)
         df = csv_to_dataframe(fpath)
-        assert df.attrs['metadata'] ==  self.fit_result.metadata
+        assert df.attrs['metadata'] == self.fit_result.metadata
         fit_result_dir = Path(tmp_path) / 'fit_result'
 
         save_fitresult(fit_result_dir, self.fit_result, log_lines=['test123'])
@@ -129,15 +131,11 @@ class TestFileIO(object):
 
         fit_result_loaded = load_fitresult(fit_result_dir)
         assert isinstance(fit_result_loaded.losses, pd.DataFrame)
-        assert isinstance(fit_result_loaded.data_obj, HDXMeasurement)
+        assert isinstance(fit_result_loaded.hdxm_set, HDXMeasurementSet)
 
         timepoints = np.linspace(0, 30*60, num=100)
         d_calc = fit_result_loaded(timepoints)
-        assert d_calc.shape == (self.hdxm.Np, len(timepoints))
-
-        timepoints = np.linspace(0, 30*60, num=100)
-        d_calc = fit_result_loaded(timepoints)
-        assert d_calc.shape == (self.hdxm.Np, len(timepoints))
+        assert d_calc.shape == (1, self.hdxm.Np, len(timepoints))
 
         losses = csv_to_dataframe(fit_result_dir / 'losses.csv')
         fr_load_with_hdxm_and_losses = load_fitresult(fit_result_dir)

@@ -74,6 +74,15 @@ class ConfigurationSettings(metaclass=Singleton):
         """configparser get"""
         return self._config.get(*args, **kwargs)
 
+    def getint(self, *args, **kwargs):
+        return self._config.getint(*args, **kwargs)
+
+    def getfloat(self, *args, **kwargs):
+        return self._config.getfloat(*args, **kwargs)
+
+    def getboolean(self, *args, **kwargs):
+        return self._config.getboolean(*args, **kwargs)
+
     def set(self, *args, **kwargs):
         """configparser set"""
         self._config.set(*args, **kwargs)

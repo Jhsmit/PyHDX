@@ -18,6 +18,8 @@ from importlib import import_module
 PEPTIDE_DTYPES = {
     'start': int,
     'end': int,
+    '_start': int,
+    '_end': int
 }
 
 
@@ -196,7 +198,7 @@ def csv_to_hdxm(filepath_or_buffer, comment='#', **kwargs):
     if df.columns.nlevels == 2:
         hdxm_list = []
         for state in df.columns.unique(level=0):
-            subdf = df[state].dropna(how='all')
+            subdf = df[state].dropna(how='all').astype(PEPTIDE_DTYPES)
             m = metadata.get(state, {})
             hdxm = pyhdx.models.HDXMeasurement(subdf, **m)
             hdxm_list.append(hdxm)
@@ -343,10 +345,10 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     dataframe_to_file(output_dir / 'losses.csv', fit_result.losses)
     dataframe_to_file(output_dir / 'losses.txt', fit_result.losses, fmt='pprint')
 
-    if isinstance(fit_result.data_obj, pyhdx.HDXMeasurement):
-        fit_result.data_obj.to_file(output_dir / 'HDXMeasurement.csv')
-    if isinstance(fit_result.data_obj, pyhdx.HDXMeasurementSet):
-        fit_result.data_obj.to_file(output_dir / 'HDXMeasurements.csv')
+    if isinstance(fit_result.hdxm_set, pyhdx.HDXMeasurement):
+        fit_result.hdxm_set.to_file(output_dir / 'HDXMeasurement.csv')
+    if isinstance(fit_result.hdxm_set, pyhdx.HDXMeasurementSet):
+        fit_result.hdxm_set.to_file(output_dir / 'HDXMeasurements.csv')
 
     loss = f'Total_loss {fit_result.total_loss:.2f}, mse_loss {fit_result.mse_loss:.2f}, reg_loss {fit_result.reg_loss:.2f}' \
            f'({fit_result.regularization_percentage:.2f}%)'
@@ -379,12 +381,9 @@ def load_fitresult(fit_dir):
     if pth.is_dir():
         fit_result = csv_to_dataframe(fit_dir / 'fit_result.csv')
         losses = csv_to_dataframe(fit_dir / 'losses.csv')
-        try:
-            data_obj = csv_to_hdxm(fit_dir / 'HDXMeasurement.csv')
-            result_klass = pyhdx.fitting_torch.TorchSingleFitResult
-        except FileNotFoundError:
-            data_obj = csv_to_hdxm(fit_dir / 'HDXMeasurements.csv')
-            result_klass = pyhdx.fitting_torch.TorchBatchFitResult
+
+        data_obj = csv_to_hdxm(fit_dir / 'HDXMeasurements.csv')
+        result_klass = pyhdx.fitting_torch.TorchFitResult
     elif pth.is_file():
         raise DeprecationWarning('`load_fitresult` only loads from fit result directories')
         fit_result = csv_to_dataframe(fit_dir)

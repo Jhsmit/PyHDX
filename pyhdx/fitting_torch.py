@@ -13,6 +13,7 @@ from pyhdx.config import cfg
 # TORCH_DTYPE = t.double
 # TORCH_DEVICE = t.device('cpu')
 
+
 class DeltaGFit(nn.Module):
     def __init__(self, deltaG):
         super(DeltaGFit, self).__init__()
@@ -101,13 +102,13 @@ class TorchFitResult(object):
     Parameters
     ----------
 
-    data_obj : :class:`~pyhdx.models.HDXMeasurement` or :class:`~pyhdx.models.HDXMeasurementSet`
+    hdxm_set : :class:`~pyhdx.models.HDXMeasurementSet`
     model
     **metdata
 
     """
-    def __init__(self, data_obj, model, losses=None, **metadata):
-        self.data_obj = data_obj
+    def __init__(self, hdxm_set, model, losses=None, **metadata):
+        self.hdxm_set = hdxm_set
         self.model = model
         self.losses = losses
         self.metadata = metadata
@@ -118,7 +119,13 @@ class TorchFitResult(object):
             self.metadata['reg_loss'] = self.reg_loss
             self.metadata['regularization_percentage'] = self.regularization_percentage
             self.metadata['epochs_run'] = len(self.losses)
-        self.output = None  # implemented by subclasses
+
+        names = [hdxm.name for hdxm in self.hdxm_set.hdxm_list]
+
+        dfs = [self.generate_output(hdxm, self.deltaG[g_column]) for hdxm, g_column in zip(self.hdxm_set, self.deltaG)]
+        df = pd.concat(dfs, keys=names, axis=1)
+
+        self.output = df
 
     @property
     def mse_loss(self):
@@ -150,10 +157,10 @@ class TorchFitResult(object):
         """
 
         g_values = self.model.deltaG.cpu().detach().numpy().squeeze()
-        if g_values.ndim == 1:
-            deltaG = pd.Series(g_values, index=self.data_obj.coverage.index)
-        else:
-            deltaG = pd.DataFrame(g_values.T, index=self.data_obj.coverage.index, columns=self.data_obj.names)
+        # if g_values.ndim == 1:
+        #     deltaG = pd.Series(g_values, index=self.hdxm_set.coverage.index)
+        # else:
+        deltaG = pd.DataFrame(g_values.T, index=self.hdxm_set.coverage.index, columns=self.hdxm_set.names)
 
         return deltaG
 
@@ -195,65 +202,81 @@ class TorchFitResult(object):
 
     def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
         metadata = self.metadata if include_metadata else include_metadata
-        dataframe_to_file(file_path, self.output.df, include_version=include_version, include_metadata=metadata,
+        dataframe_to_file(file_path, self.output, include_version=include_version, include_metadata=metadata,
                           fmt=fmt, **kwargs)
 
     def get_mse(self):
         """np.ndarray: Returns the mean squared error per peptide per timepoint. Output shape is Np x Nt"""
 
-        d_calc = self(self.data_obj.timepoints)
-        mse = (d_calc - self.data_obj.d_exp) ** 2
+        d_calc = self(self.hdxm_set.timepoints)
+        mse = (d_calc - self.hdxm_set.d_exp) ** 2
 
         return mse
 
-
-class TorchSingleFitResult(TorchFitResult):
-    def __init__(self, *args, **kwargs):
-        super(TorchSingleFitResult, self).__init__(*args, **kwargs)
-
-        df = self.generate_output(self.data_obj, self.deltaG)
-        self.output = Protein(df)
-
     def __call__(self, timepoints):
-        """ timepoints: Nt array (will be unsqueezed to 1 x Nt)
-        output: Np x Nt array"""
-        #todo fix and tests
-        dtype = t.float64
-
-        with t.no_grad():
-            tensors = self.data_obj.get_tensors()
-            inputs = [tensors[key] for key in ['temperature', 'X', 'k_int']]
-            inputs.append(t.tensor(timepoints, dtype=dtype).unsqueeze(0))
-
-            output = self.model(*inputs)
-        return output.detach().numpy()
-
-
-class TorchBatchFitResult(TorchFitResult):
-    def __init__(self, *args, **kwargs):
-        super(TorchBatchFitResult, self).__init__(*args, **kwargs)
-        names = [hdxm.name for hdxm in self.data_obj.hdxm_list]
-
-        dfs = [self.generate_output(hdxm, self.deltaG[g_column]) for hdxm, g_column in zip(self.data_obj, self.deltaG)]
-        df = pd.concat(dfs, keys=names, axis=1)
-
-        self.output = Protein(df)
-
-    def __call__(self, timepoints):
-        """timepoints: must be Ns x Nt, will be reshaped to Ns x 1 x Nt
+        """timepoints: shape must be Ns x Nt, or Nt and will be reshaped to Ns x 1 x Nt
         output: Ns x Np x Nt array"""
         #todo fix and tests
+
+        timepoints = np.array(timepoints)
+        if timepoints.ndim == 1:
+            time_reshaped = np.tile(timepoints, (self.hdxm_set.Ns, 1, 1))
+        elif timepoints.ndim == 2:
+            Ns, Nt = timepoints.shape
+            assert Ns == self.hdxm_set.Ns, "First dimension of 'timepoints' must match the number of samples"
+            time_reshaped = timepoints.reshape(Ns, 1, Nt)
+        elif timepoints.ndim == 3:
+            assert timepoints.shape[0] == self.hdxm_set.Ns, "First dimension of 'timepoints' must match the number of samples"
+            time_reshaped = timepoints
+        else:
+            raise ValueError("Invalid timepoints number of dimensions, must be <=3")
+
         dtype = t.float64
-        assert timepoints.shape[0] == self.data_obj.Ns, 'Invalid shape of timepoints'
         with t.no_grad():
-            tensors = self.data_obj.get_tensors()
+            tensors = self.hdxm_set.get_tensors()
             inputs = [tensors[key] for key in ['temperature', 'X', 'k_int']]
 
-            time_tensor = t.tensor(timepoints.reshape(self.data_obj.Ns, 1, timepoints.shape[1]), dtype=dtype)
+            time_tensor = t.tensor(time_reshaped, dtype=dtype)
             inputs.append(time_tensor)
 
             output = self.model(*inputs)
+
+        # todo return as dataframe?
         return output.detach().numpy()
+
+    def __len__(self):
+        return self.hdxm_set.Ns
+
+
+
+# class TorchSingleFitResult(TorchFitResult):
+#     def __init__(self, *args, **kwargs):
+#         super(TorchSingleFitResult, self).__init__(*args, **kwargs)
+#
+#         df = self.generate_output(self.hdxm_set, self.deltaG)
+#         self.output = Protein(df)
+#
+#     def __call__(self, timepoints):
+#         """ timepoints: Nt array (will be unsqueezed to 1 x Nt)
+#         output: Np x Nt array"""
+#         #todo fix and tests
+#         dtype = t.float64
+#
+#         with t.no_grad():
+#             tensors = self.hdxm_set.get_tensors()
+#             inputs = [tensors[key] for key in ['temperature', 'X', 'k_int']]
+#             inputs.append(t.tensor(timepoints, dtype=dtype).unsqueeze(0))
+#
+#             output = self.model(*inputs)
+#         return output.detach().numpy()
+#
+#     def __len__(self):
+#         return 1
+
+
+# class TorchBatchFitResult(TorchFitResult):
+#     def __init__(self, *args, **kwargs):
+#         super(TorchBatchFitResult, self).__init__(*args, **kwargs)
 
 
 class Callback(object):

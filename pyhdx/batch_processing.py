@@ -4,7 +4,8 @@ from pyhdx.fileIO import read_dynamx
 
 
 time_factors = {"s": 1, "m": 60., "min": 60., "h": 3600, "d": 86400}
-temperature_offsets = {'C': 273.15, 'celsius': 273.15, 'K': 0, 'kelvin': 0}
+temperature_offsets = {'c': 273.15, 'celsius': 273.15, 'k': 0, 'kelvin': 0}
+
 
 def yaml_to_hdxmset(yaml_dict, data_dir=None, **kwargs):
     """reads files according to `yaml_dict` spec from `data_dir into HDXMEasurementSet"""

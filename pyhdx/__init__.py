@@ -1,10 +1,10 @@
-from .models import PeptideMasterTable, PeptideMeasurements, HDXMeasurement, Coverage, HDXMeasurementSet
+from .models import PeptideMasterTable, HDXTimepoint, HDXMeasurement, Coverage, HDXMeasurementSet
 from .fileIO import read_dynamx
-from .fitting_torch import TorchSingleFitResult, TorchBatchFitResult
+from .fitting_torch import TorchFitResult
 from ._version import get_versions
 
 try:
-    from .output import Output, Report
+    from .output import FitReport
 except ModuleNotFoundError:
     pass
 

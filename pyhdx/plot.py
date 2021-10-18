@@ -1,310 +1,1279 @@
-"""
-Outdated module
-"""
+from contextlib import contextmanager
+from copy import copy
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib.patches import Rectangle
 import numpy as np
+import pandas as pd
 import proplot as pplt
-import pyhdx
-from pyhdx.support import autowrap, rgb_to_hex
+from matplotlib.axes import Axes
+from matplotlib.patches import Rectangle
+from scipy.stats import kde
+from tqdm import tqdm
+
+from pyhdx.config import cfg
 from pyhdx.fileIO import load_fitresult
-import warnings
+from pyhdx.support import autowrap, color_pymol, apply_cmap
 
-
-no_coverage = '#8c8c8c'
-node_pos = [10, 25, 40]  # in kJ/mol
-linear_colors = ['#ff0000', '#00ff00', '#0000ff']  # red, green, blue
-rgb_norm = plt.Normalize(node_pos[0], node_pos[-1], clip=True)
-rgb_cmap = mpl.colors.LinearSegmentedColormap.from_list("rgb_cmap", list(zip(rgb_norm(node_pos), linear_colors)))
-rgb_cmap.set_bad(color=no_coverage)
-
-diff_colors = ['#54278e', '#ffffff', '#006d2c'][::-1]
-diff_node_pos = [-10, 0, 10]
-diff_norm = plt.Normalize(diff_node_pos[0], diff_node_pos[-1], clip=True)
-diff_cmap = mpl.colors.LinearSegmentedColormap.from_list("diff_cmap", list(zip(diff_norm(diff_node_pos), diff_colors)))
-diff_cmap.set_bad(color=no_coverage)
-
-cbar_width = 0.075
+try:
+    from pymol import cmd
+except ModuleNotFoundError:
+    cmd = None
 
 dG_ylabel = 'ΔG (kJ/mol)'
 ddG_ylabel = 'ΔΔG (kJ/mol)'
-
 r_xlabel = 'Residue Number'
 
 
-errorbar_kwargs = {
+ERRORBAR_KWARGS = {
     'fmt': 'o',
     'ecolor': 'k',
     'elinewidth': 0.3,
     'markersize': 0,
-    'alpha': 0.75
+    'alpha': 0.75,
+    'capthick': 0.3,
+    'capsize': 0.
+
 }
 
-scatter_kwargs = {
+SCATTER_KWARGS = {
     's': 7
 }
 
-def plot_residue_map(pm, scores=None, ax=None, cmap='jet', bad='k', cbar=True, **kwargs): # pragma: no cover
-    """
-    FUNCTION IS MOST LIKELY OUT OF DATE
+RECT_KWARGS = {
+    'linewidth': 0.5,
+    'linestyle': '-',
+    'edgecolor': 'k'}
 
-    Parameters
-    ----------
-    pm
-    scores
-    ax
-    cmap
-    bad
-    cbar
-    kwargs
-
-    Returns
-    -------
-
-    """
-
-    warnings.warn("This function will be removed", DeprecationWarning)
-
-    img = (pm.X > 0).astype(float)
-    if scores is not None:
-        img *= scores[:, np.newaxis]
-    elif pm.rfu is not None:
-        img *= pm.rfu[:, np.newaxis]
-
-    ma = np.ma.masked_where(img == 0, img)
-    cmap = mpl.cm.get_cmap(cmap)
-    cmap.set_bad(color=bad)
-
-    ax = plt.gca() if ax is None else ax
-    ax.set_facecolor(bad)
-
-    im = ax.imshow(ma, cmap=cmap, **kwargs)
-    if cbar:
-        cbar = plt.colorbar(im, ax=ax)
-        cbar.set_label('Uptake (%)')
-
-    ax.set_xlabel('Residue number')
-    ax.set_ylabel('Peptide index')
+CBAR_KWARGS = {
+    'space': 0,
+    'width': cfg.getfloat('plotting', 'cbar_width') / 25.4,
+    'tickminor': True
+}
 
 
+def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_field='rfu', subplot_field='exposure',
+                            rect_fields=('start', 'end'), rect_kwargs=None, **figure_kwargs):
+
+    subplot_values = data[subplot_field].unique()
+    sub_dfs = {value: data.query(f'`{subplot_field}` == {value}') for value in subplot_values}
+
+    n_subplots = len(subplot_values)
+
+    ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'peptide_coverage_aspect'))
+
+    cmap = pplt.Colormap(cmap)
+    norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
+
+    start_field, end_field = rect_fields
+    if wrap is None:
+        wrap = max([autowrap(sub_df[start_field], sub_df[end_field]) for sub_df in sub_dfs.values()])
+
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
+    rect_kwargs = rect_kwargs or {}
+    axes_iter = iter(axes)
+    for value, sub_df in sub_dfs.items():
+        ax = next(axes_iter)
+        peptide_coverage(ax, sub_df, cmap=cmap, norm=norm, color_field=color_field, wrap=wrap, cbar=False, **rect_kwargs)
+        ax.format(title=f'{subplot_field}: {value}')
+
+    for ax in axes_iter:
+        ax.axis('off')
+
+    start, end = data[start_field].min(), data[end_field].max()
+    pad = 0.05*(end-start)
+    axes.format(xlim=(start-pad, end+pad), xlabel=r_xlabel)
+
+    if not cmap.monochrome:
+        cbar_ax = fig.colorbar(cmap, norm, width=cbar_width)
+        cbar_ax.set_label(color_field, labelpad=-0)
+    else:
+        cbar_ax = None
+
+    return fig, axes, cbar_ax
 
 
+def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='rfu', rect_fields=('start', 'end'),
+                     labels=False, cbar=True, **kwargs):
+    start_field, end_field = rect_fields
+    data = data.sort_values(by=[start_field, end_field])
 
+    wrap = wrap or autowrap(data[start_field], data[end_field])
+    cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+    rect_kwargs = {**RECT_KWARGS, **kwargs}
 
-
-def plot_peptides(pm, ax, wrap=None,
-                  color=True, labels=False, cbar=False,
-                  intervals='corrected', cmap='jet', **kwargs):
-    """
-
-    TODO: needs to be checked if intervals (start, end) are still accurately taking inclusive, exclusive into account
-    Plots peptides as rectangles in the provided axes
-
-    Parameters
-    ----------
-    pm
-    wrap
-    ax
-    color
-    labels
-    cmap
-    kwargs
-
-    Returns
-    -------
-
-    """
-
-    wrap = wrap or autowrap(pm.data['start'], pm.data['end'])
-    rect_kwargs = {'linewidth': 1, 'linestyle': '-', 'edgecolor': 'k'}
-    rect_kwargs.update(kwargs)
-
-    cmap = mpl.cm.get_cmap(cmap)
-    norm = mpl.colors.Normalize(vmin=0, vmax=1)
+    cmap = pplt.Colormap(cmap)
+    norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
     i = -1
-
-    for p_num, idx in enumerate(pm.data.index):
-        e = pm.data.loc[idx]
+    for p_num, idx in enumerate(data.index):
+        elem = data.loc[idx]
         if i < -wrap:
             i = -1
 
-        if color:
-            c = cmap(norm(e['rfu']))
+        if color_field is None:
+            color = cmap(0.5)
         else:
-            c = '#707070'
+            color = cmap(norm(elem[color_field]))
 
-        if intervals == 'corrected':
-            start, end = 'start', 'end'
-        elif intervals == 'original':
-            start, end = '_start', '_end'
-        else:
-            raise ValueError(f"Invalid value '{intervals}' for keyword 'intervals', options are 'corrected' or 'original'")
-
-        width = e[end] - e[start]
-        rect = Rectangle((e[start] - 0.5, i), width, 1, facecolor=c, **rect_kwargs)
+        width =  elem[end_field] - elem[start_field]
+        rect = Rectangle((elem[start_field] - 0.5, i), width, 1, facecolor=color, **rect_kwargs)
         ax.add_patch(rect)
         if labels:
             rx, ry = rect.get_xy()
             cy = ry
             cx = rx
             ax.annotate(str(p_num), (cx, cy), color='k', fontsize=6, va='bottom', ha='right')
-
         i -= 1
 
-    if cbar:
-        scalar_mappable = mpl.cm.ScalarMappable(norm=norm, cmap=cmap)
-        plt.colorbar(scalar_mappable, label='Percentage D')
-
     ax.set_ylim(-wrap, 0)
-    end = pm.interval[1]
-    ax.set_xlim(0, end)
+    start, end = data[start_field].min(), data[end_field].max()
+    pad = 0.05*(end-start)
+    ax.set_xlim(start-pad, end+pad)
     ax.set_yticks([])
 
+    if cbar and color_field:
+        cbar_ax = ax.colorbar(cmap, norm=norm, width=cbar_width)
+        cbar_ax.set_label(color_field, labelpad=-0)
+    else:
+        cbar_ax = None
 
-def plot_fitresults(fitresult_path, plots='all', renew=False):
-    #fit_result = csv_to_dataframe(fitresult_path / 'fit_result.csv')
+    return cbar_ax
 
+
+def residue_time_scatter_figure(hdxm, field='rfu', cmap='turbo', norm=None, scatter_kwargs=None, cbar_kwargs=None,
+                                **figure_kwargs):
+    """per-residue per-exposure values for field  `field` by weighted averaging """
+
+    n_subplots = hdxm.Nt
+    ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'residue_scatter_aspect'))
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+
+    cmap = pplt.Colormap(cmap)  # todo allow None as cmap
+    norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
+
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, sharey=4, **figure_kwargs)
+    scatter_kwargs = scatter_kwargs or {}
+    axes_iter = iter(axes)
+    for hdx_tp in hdxm:
+        ax = next(axes_iter)
+        residue_time_scatter(ax, hdx_tp, field=field, cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)  #todo cbar kwargs? (check with other methods)
+        ax.format(title=f'exposure: {hdx_tp.exposure:.1f}')
+
+    for ax in axes_iter:
+        ax.axis('off')
+
+
+    axes.format(xlabel=r_xlabel, ylabel=field)
+
+    cbar_kwargs = cbar_kwargs or {}
+    cbars = []
+    for ax in axes:
+        if not ax.axison:
+            continue
+
+        cbar = add_cbar(ax, cmap, norm, **cbar_kwargs)
+        cbars.append(cbar)
+
+    return fig, axes, cbars
+
+
+def residue_time_scatter(ax, hdx_tp, field='rfu', cmap='turbo', norm=None, cbar=True, **kwargs):
+    cmap = pplt.Colormap(cmap)  # todo allow None as cmap
+    norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
+    cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+
+    scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
+    values = hdx_tp.weighted_average(field)
+    colors = cmap(norm(values))
+    ax.scatter(values.index, values, c=colors, **scatter_kwargs)
+
+    if not cmap.monochrome and cbar:
+        add_cbar(ax, cmap, norm, width=cbar_width)
+
+
+def residue_scatter_figure(hdxm_set, field='rfu', cmap='viridis', norm=None, scatter_kwargs=None,
+                           **figure_kwargs):
+    n_subplots = hdxm_set.Ns
+    ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))  #todo disallow setting rows
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'residue_scatter_aspect'))
+
+    cmap = pplt.Colormap(cmap)
+    if norm is None:
+        tps = np.unique(np.concatenate([hdxm.timepoints for hdxm in hdxm_set]))
+        tps = tps[np.nonzero(tps)]
+        norm = pplt.Norm('log', vmin=tps.min(), vmax=tps.max())
+    else:
+        tps = np.unique(np.concatenate([hdxm.timepoints for hdxm in hdxm_set]))
+
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
+    axes_iter = iter(axes)
+    scatter_kwargs = scatter_kwargs or {}
+    for hdxm in hdxm_set:
+        ax = next(axes_iter)
+        residue_scatter(ax, hdxm, cmap=cmap, norm=norm, field=field, cbar=False, **scatter_kwargs)
+        ax.format(title=f'{hdxm.name}')
+
+    for ax in axes_iter:
+        ax.axis('off')
+
+    #todo function for this?
+    locator = pplt.Locator(norm(tps))
+    cbar_ax = fig.colorbar(cmap, width=cbar_width, ticks=locator)
+    formatter = pplt.Formatter('simple', precision=1)
+    cbar_ax.ax.set_yticklabels([formatter(t) for t in tps])
+    cbar_ax.set_label('Exposure time (s)', labelpad=-0)
+
+    axes.format(xlabel=r_xlabel)
+
+    return fig, axes, cbar_ax
+
+
+def residue_scatter(ax, hdxm, field='rfu', cmap='viridis', norm=None, cbar=True, **kwargs):
+    cmap = pplt.Colormap(cmap)
+    tps = hdxm.timepoints[np.nonzero(hdxm.timepoints)]
+    norm = norm or pplt.Norm('log', tps.min(), tps.max())
+
+    cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+    scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
+    for hdx_tp in hdxm:
+        if isinstance(norm, mpl.colors.LogNorm) and hdx_tp.exposure == 0.:
+            continue
+        values = hdx_tp.weighted_average(field)
+        color = cmap(norm(hdx_tp.exposure))
+        scatter_kwargs['color'] = color
+        ax.scatter(values.index, values, **scatter_kwargs)
+
+    if cbar:
+        locator = pplt.Locator(norm(tps))
+        cbar_ax = ax.colorbar(cmap, width=cbar_width, ticks=locator)
+        formatter = pplt.Formatter('simple', precision=1)
+        cbar_ax.ax.set_yticklabels([formatter(t) for t in tps])
+        cbar_ax.set_label('Exposure time (s)', labelpad=-0)
+
+
+def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwargs=None, **figure_kwargs):
+    protein_states = data.columns.get_level_values(0).unique()
+
+    n_subplots = len(protein_states)
+    ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
+    sharey = figure_kwargs.pop('sharey', 1)
+
+    cmap_default, norm_default = default_cmap_norm('dG')
+    cmap = cmap or cmap_default
+    cmap = pplt.Colormap(cmap)
+    norm = norm or norm_default
+
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, sharey=sharey, **figure_kwargs)
+    axes_iter = iter(axes)
+    scatter_kwargs = scatter_kwargs or {}
+    for state in protein_states:
+        sub_df = data[state]
+        ax = next(axes_iter)
+        colorbar_scatter(ax, sub_df, cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)
+        ax.format(title=f'{state}')
+
+    for ax in axes_iter:
+        ax.set_axis_off()
+
+    # Set global ylims
+    ylims = [lim for ax in axes if ax.axison for lim in ax.get_ylim()]
+    axes.format(ylim=(np.max(ylims), np.min(ylims)), yticklabelloc='none', ytickloc='none')
+
+    cbar_kwargs = cbar_kwargs or {}
+    cbars = []
+    cbar_norm = pplt.Norm('linear', norm.vmin*1e-3, norm.vmax*1e-3)
+    for ax in axes:
+        if not ax.axison:
+            continue
+
+        cbar = add_cbar(ax, cmap, cbar_norm, **cbar_kwargs)
+        cbars.append(cbar)
+
+    return fig, axes, cbars
+
+#alias
+deltaG_scatter_figure = dG_scatter_figure
+
+
+def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwargs=None, cbar_kwargs=None,
+                       **figure_kwargs):
+    protein_states = data.columns.get_level_values(0).unique()
+    if reference is None:
+        reference_state = protein_states[0]
+    elif isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
+
+    dG_test = data.xs('deltaG', axis=1, level=1).drop(reference_state, axis=1)
+    dG_ref = data[reference_state, 'deltaG']
+    ddG = dG_test.subtract(dG_ref, axis=0)
+    ddG.columns = pd.MultiIndex.from_product([ddG.columns, ['deltadeltaG']], names=['State', 'quantity'])
+
+    cov_test = data.xs('covariance', axis=1, level=1).drop(reference_state, axis=1)**2
+    cov_ref = data[reference_state, 'covariance']**2
+    cov = cov_test.add(cov_ref, axis=0).pow(0.5)
+    cov.columns = pd.MultiIndex.from_product([cov.columns, ['covariance']], names=['State', 'quantity'])
+
+    combined = pd.concat([ddG, cov], axis=1)
+
+    n_subplots = len(protein_states) - 1
+    ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
+    sharey = figure_kwargs.pop('sharey', 1)
+
+    cmap_default, norm_default = default_cmap_norm('ddG')
+    cmap = cmap or cmap_default
+    cmap = pplt.Colormap(cmap)
+    norm = norm or norm_default
+
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, sharey=sharey, **figure_kwargs)
+    axes_iter = iter(axes)
+    scatter_kwargs = scatter_kwargs or {}
+    for state in protein_states:
+        if state == reference_state:
+            continue
+        sub_df = combined[state]
+        ax = next(axes_iter)
+        colorbar_scatter(ax, sub_df, y='deltadeltaG', cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)
+        title = f'{state} - {reference_state}'
+        ax.format(title=title)
+
+    for ax in axes_iter:
+        ax.set_axis_off()
+
+    # Set global ylims
+    ylim = np.abs([lim for ax in axes if ax.axison for lim in ax.get_ylim()]).max()
+    axes.format(ylim=(ylim, -ylim), yticklabelloc='none', ytickloc='none')
+
+    cbar_kwargs = cbar_kwargs or {}
+    cbars = []
+    cbar_norm = pplt.Norm('linear', norm.vmin*1e-3, norm.vmax*1e-3)
+    for ax in axes:
+        if not ax.axison:
+            continue
+
+        cbar = add_cbar(ax, cmap, cbar_norm, **cbar_kwargs)
+        cbars.append(cbar)
+
+    return fig, axes, cbars
+
+
+deltadeltaG_scatter_figure = ddG_scatter_figure
+
+
+def peptide_mse_figure(fit_result, cmap='Haline', norm=None, rect_kwargs=None, **figure_kwargs):
+    n_subplots = len(fit_result)
+
+    ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
+    nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'peptide_mse_aspect'))
+
+    cmap = pplt.Colormap(cmap)
+
+    fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
+    axes_iter = iter(axes)
+    mse = fit_result.get_mse() #shape: Ns, Np, Nt
+    cbars = []
+    rect_kwargs = rect_kwargs or {}
+    for i, mse_sample in enumerate(mse):
+        mse_peptide = np.mean(mse_sample, axis=1)
+
+        hdxm = fit_result.hdxm_set.hdxm_list[i]
+        peptide_data = hdxm.coverage.data
+
+        data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'mse': mse_peptide[:hdxm.Np]}
+        mse_df = pd.DataFrame(data_dict)
+
+        ax = next(axes_iter)
+        vmax = mse_df['mse'].max()
+        norm = norm or pplt.Norm('linear', vmin=0, vmax=vmax)
+        #color bar per subplot as norm differs
+        #todo perhaps unify color scale? -> when global norm, global cbar
+        cbar_ax = peptide_coverage(ax, mse_df, color_field='mse', norm=norm, cmap=cmap, **rect_kwargs)
+        cbar_ax.set_label('MSE')
+        cbars.append(cbar_ax)
+        ax.format(xlabel=r_xlabel, title=f'{hdxm.name}')
+
+    return fig, axes, cbars
+
+
+def loss_figure(fit_result, **figure_kwargs):
+    ncols = 1
+    nrows = 1
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'loss_aspect'))  # todo loss aspect also in config?
+
+    fig, ax = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
+    fit_result.losses.plot(ax=ax)
+    # ax.plot(fit_result.losses, legend='t')  # altnernative proplot plotting
+
+    # ox = ax.alty()
+    # reg_loss = fit_result.losses.drop('mse_loss', axis=1)
+    # total = fit_result.losses.sum(axis=1)
+    # perc = reg_loss.divide(total, axis=0) * 100
+    # perc.plot(ax=ox)  #todo formatting (perc as --, matching colors, legend)
+    #
+
+    ax.format(xlabel="Number of epochs", ylabel='Loss')
+
+    return fig, ax
+
+
+def linear_bars_figure(data, reference=None, field='deltaG', norm=None, cmap=None, labels=None, **figure_kwargs):
+    #todo add sorting
+    protein_states = data.columns.get_level_values(0).unique()
+
+    if isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    elif reference is None:
+        reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
+
+    if reference_state:
+        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
+        ref = data[reference_state, field]
+        plot_data = test.subtract(ref, axis=0)
+        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
+
+        cmap_default, norm_default = default_cmap_norm('ddG')
+        n_subplots = len(protein_states) - 1
+    else:
+        plot_data = data
+        cmap_default, norm_default = default_cmap_norm('dG')
+        n_subplots = len(protein_states)
+
+    cmap = cmap or cmap_default
+    norm = norm or norm_default
+
+    ncols = 1
+    nrows = n_subplots
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'linear_bars_aspect'))
+    cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
+
+    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=0)
+    axes_iter = iter(axes)
+    labels = labels or protein_states
+    if len(labels) != len(protein_states):
+        raise ValueError('Number of labels provided must be equal to the number of protein states')
+    for label, state in zip(labels, protein_states):
+        if state == reference_state:
+            continue
+
+        values = plot_data[state, field]
+        rmin, rmax = values.index.min(), values.index.max()
+        extent = [rmin - 0.5, rmax + 0.5, 0, 1]
+
+        img = np.expand_dims(values, 0)
+
+        ax = next(axes_iter)
+        from matplotlib.axes import Axes
+        Axes.imshow(ax, norm(img), aspect='auto', cmap=cmap, vmin=0, vmax=1, interpolation='None',
+                    extent=extent)
+
+        # ax.imshow(img, aspect='auto', cmap=cmap, norm=norm, interpolation='None', discrete=False,
+        #             extent=extent)
+        ax.format(yticks=[])
+        ax.text(1.02, 0.5, label, horizontalalignment='left',
+                  verticalalignment='center', transform=ax.transAxes)
+
+    axes.format(xlabel=r_xlabel)
+
+    sclf = 1e-3 # todo kwargs / check value of filed
+    cmap_norm = copy(norm)
+    cmap_norm.vmin *= sclf
+    cmap_norm.vmax *= sclf
+
+    if field == 'deltaG':
+        label = dG_ylabel
+    elif field == 'deltaG' and reference_state:
+        label = ddG_ylabel
+    else:
+        label = ''
+
+    fig.colorbar(cmap, norm=cmap_norm, loc='b', label=label, width=cbar_width)
+
+    return fig, axes
+
+
+def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=None, update_rc=True, **figure_kwargs):
+    # todo add sorting
+    if update_rc:
+        plt.rcParams["image.composite_image"] = False
+
+    protein_states = data.columns.get_level_values(0).unique()
+
+    if isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    elif reference is None:
+        reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
+
+    if reference_state:
+        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
+        ref = data[reference_state, field]
+        plot_data = test.subtract(ref, axis=0)
+        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
+
+        cmap_default, norm_default = default_cmap_norm('ddG')
+    else:
+        plot_data = data
+        cmap_default, norm_default = default_cmap_norm('dG')
+
+    cmap = cmap or cmap_default
+    norm = norm or norm_default
+    plot_data = plot_data.xs(field, axis=1, level=1)
+
+    #scaling
+    plot_data *= 1e-3
+    norm.vmin = norm.vmin * 1e-3
+    norm.vmax = norm.vmax * 1e-3
+
+    f_data = [plot_data[column].dropna().to_numpy() for column in plot_data.columns]  # todo make funcs accept dataframes
+    f_labels = plot_data.columns
+
+    ncols = 1
+    nrows = 1
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'rainbow_aspect'))
+
+    boxplot_width = 0.1
+    orientation = 'vertical'
+
+    strip_kwargs = dict(offset=0.0, orientation=orientation, s=2, colors='k', jitter=0.2, alpha=0.25)
+    kde_kwargs = dict(linecolor='k', offset=0.15, orientation=orientation, fillcolor=False, fill_cmap=cmap,
+                      fill_norm=norm, y_scale=None, y_norm=0.4, linewidth=1)
+    boxplot_kwargs = dict(offset=0.2, sym='', linewidth=1., linecolor='k', orientation=orientation,
+                          widths=boxplot_width)
+
+    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
+    ax = axes[0]
+    stripplot(f_data, ax=ax, **strip_kwargs)
+    kdeplot(f_data, ax=ax, **kde_kwargs)
+    boxplot(f_data, ax=ax, **boxplot_kwargs)
+    label_axes(f_labels, ax=ax, rotation=45)
+    if field == 'deltaG':
+        label = dG_ylabel
+    elif field == 'deltaG' and reference_state:
+        label = ddG_ylabel
+    else:
+        label = ''
+    ax.format(xlim=(-0.75, len(f_data) - 0.5), ylabel=label, yticklabelloc='left', ytickloc='left',
+              ylim=ax.get_ylim()[::-1])
+
+    add_cbar(ax, cmap, norm)
+
+    return fig, ax
+
+
+def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
+    #todo make error bars optional
+    #todo custom ylims? scaling?
+    cmap_default, norm_default = default_cmap_norm(y)
+
+    if y in ['deltaG', 'deltadeltaG']:
+        sclf = 1e-3  # deltaG are given in J/mol but plotted in kJ/mol
+    else:
+        if cmap is None or norm is None:
+            raise ValueError("No valid `cmap` or `norm` is given.")
+        sclf = 1e-3
+
+
+    cmap = cmap or cmap_default
+    cmap = pplt.Colormap(cmap)
+    norm = norm or norm_default
+
+    colors = cmap(norm(data[y]))
+
+    #todo errorbars using proplot kwargs?
+    errorbar_kwargs = {**ERRORBAR_KWARGS, **kwargs.pop('errorbar_kwargs', {})}
+    scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
+    ax.scatter(data.index, data[y]*sclf, color=colors, **scatter_kwargs)
+    with autoscale_turned_off(ax):
+        ax.errorbar(data.index, data[y]*sclf, yerr=data[yerr]*sclf, zorder=-1,
+                    **errorbar_kwargs)
+    ax.set_xlabel(r_xlabel)
+    # Default y labels
+    labels = {'deltaG': dG_ylabel, 'deltadeltaG': ddG_ylabel}
+    label = labels.get(y, '')
+    ax.set_ylabel(label)
+
+    ylim = ax.get_ylim()
+    if (ylim[0] < ylim[1]) and y == 'deltaG':
+        ax.set_ylim(*ylim[::-1])
+    elif y == 'deltadeltaG':
+        ylim = np.max(np.abs(ylim))
+        ax.set_ylim(ylim, -ylim)
+
+
+    if cbar:
+        cbar_norm = copy(norm)
+        cbar_norm.vmin *= sclf
+        cbar_norm.vmax *= sclf
+        cbar = add_cbar(ax, cmap, cbar_norm)
+    else:
+        cbar = None
+
+    return cbar
+
+
+def cmap_norm_from_nodes(colors, nodes, bad=None):
+    nodes = np.array(nodes)
+    if not np.all(np.diff(nodes) > 0):
+        raise ValueError("Node values must be monotonically increasing")
+
+    norm = pplt.Norm('linear', vmin=nodes.min(), vmax=nodes.max(), clip=True)
+    color_spec = list(zip(norm(nodes), colors))
+    cmap = pplt.Colormap(color_spec)
+    bad = bad or cfg.get('plotting', 'no_coverage')
+    cmap.set_bad(bad)
+
+    return cmap, norm
+
+
+def default_cmap_norm(datatype):
+    if datatype in ['deltaG', 'dG']:
+        return get_cmap_norm_preset('vibrant', 10e3, 40e3)
+    elif datatype in ['deltadeltaG', 'ddG']:
+        return get_cmap_norm_preset('PRGn', -10e3, 10e3)
+    elif datatype == 'rfu':
+        norm = pplt.Norm('linear', 0, 1)
+        cmap = pplt.Colormap('turbo')
+        return cmap, norm
+    elif datatype == 'mse':
+        cmap = pplt.Colormap('Haline')
+        return cmap, None
+    else:
+        raise ValueError(f"Invalid datatype {datatype!r}")
+
+
+def get_cmap_norm_preset(name, vmin, vmax):
+    # Paul Tol colour schemes: https://personal.sron.nl/~pault/#sec:qualitative
+
+    #todo warn if users use diverging colors with non diverging vmin/vmax?
+    colors, bad = get_color_scheme(name)
+    nodes = np.linspace(vmin, vmax, num=len(colors), endpoint=True)
+
+    cmap, norm = cmap_norm_from_nodes(colors, nodes, bad)
+
+    return cmap, norm
+
+
+def get_color_scheme(name):
+    # Paul Tol colour schemes: https://personal.sron.nl/~pault/#sec:qualitative
+    if name == 'rgb':
+        colors = ['#0000ff', '#00ff00', '#ff0000']  # red, green, blue
+        bad = '#8c8c8c'
+    elif name == 'bright':
+        colors = ['#ee6677', '#288833', '#4477aa']
+        bad = '#bbbbbb'
+    elif name == 'vibrant':
+        colors = ['#CC3311', '#009988', '#0077BB']
+        bad = '#bbbbbb'
+    elif name == 'muted':
+        colors = ['#882255', '#117733', '#332288']
+        bad = '#dddddd'
+    elif name == 'pale':
+        colors = ['#ffcccc', '#ccddaa', '#bbccee']
+        bad = '#dddddd'
+    elif name == 'dark':
+        colors = ['#663333', '#225522', '#222255']
+        bad = '#555555'
+    elif name == 'delta':  # Original ddG colors
+        colors = ['#006d2c', '#ffffff', '#54278e']  # Green, white, purple (flexible, no change, rigid)
+        bad = '#ffee99'
+    elif name == 'sunset':
+        colors = ['#a50026', '#dd3d2d', '#f67e4b', '#fdb366', '#feda8b', '#eaeccc', '#c2e4ef', '#98cae1', '#6ea6cd',
+                  '#4a7bb7', '#364b9a']
+        bad = '#ffffff'
+    elif name == 'BuRd':
+        colors = ['#b2182b', '#d6604d', '#f4a582', '#fddbc7', '#f7f7f7', '#d1e5f0', '#92c5de', '#4393c3', '#2166ac']
+        bad = '#ffee99'
+    elif name == 'PRGn':
+        colors = ['#1b7837', '#5aae61', '#acd39e', '#d9f0d3', '#f7f7f7', '#e7d4e8', '#c2a5cf', '#9970ab', '#762a83']
+        bad = '#ffee99'
+    else:
+        raise ValueError(f"Color scheme '{name}' not found")
+
+    return colors, bad
+
+
+def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', cmap=None, norm=None, extent=None,
+                  orient=True, views=None, name_suffix='',
+                  additional_views=None, img_size=(640, 640)):
+
+    protein_states = data.columns.get_level_values(0).unique()
+
+    if isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    elif reference is None:
+        reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
+
+    if reference_state:
+        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
+        ref = data[reference_state, field]
+        plot_data = test.subtract(ref, axis=0)
+        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
+
+        cmap_default, norm_default = default_cmap_norm('ddG')
+    else:
+        plot_data = data
+        cmap_default, norm_default = default_cmap_norm('dG')
+
+    cmap = cmap or cmap_default
+    norm = norm or norm_default
+    #plot_data = plot_data.xs(field, axis=1, level=1)
+
+    for state in protein_states:
+        if state == reference_state:
+            continue
+
+        values = plot_data[state, field]
+        rmin, rmax = extent or [None, None]
+        rmin = rmin or values.index.min()
+        rmax = rmax or values.index.max()
+
+        values = values.reindex(pd.RangeIndex(rmin, rmax+1, name='r_number'))
+        colors = apply_cmap(values, cmap, norm)
+        name = f'pymol_ddG_{state}_ref_{reference_state}' if reference_state else f'pymol_dG_{state}'
+        name += name_suffix
+        pymol_render(output_path, pdb_file, colors, name=name, orient=orient, views=views, additional_views=additional_views,
+                     img_size=img_size)
+
+
+def pymol_render(output_path, pdb_file, colors, name='Pymol render', orient=True, views=None, additional_views=None, img_size=(640, 640)):
+    if cmd is None:
+        raise ModuleNotFoundError("Pymol module is not installed")
+
+    px, py = img_size
+
+    cmd.reinitialize()
+    cmd.load(pdb_file)
+    if orient:
+        cmd.orient()
+    cmd.set('antialias', 2)
+    cmd.set('fog', 0)
+
+    color_pymol(colors, cmd)
+
+    if views:
+        for i, view in enumerate(views):
+            cmd.set_view(view)
+            cmd.ray(px, py, renderer=0, antialias=2)
+            output_file = output_path / f'{name}_view_{i}.png'
+            cmd.png(str(output_file))
+
+    else:
+        cmd.ray(px, py, renderer=0, antialias=2)
+        output_file = output_path / f'{name}_xy.png'
+        cmd.png(str(output_file))
+
+        cmd.rotate('x', 90)
+
+        cmd.ray(px, py, renderer=0, antialias=2)
+        output_file = output_path / f'{name}_xz.png'
+        cmd.png(str(output_file))
+
+        cmd.rotate('z', -90)
+
+        cmd.ray(px, py, renderer=0, antialias=2)
+        output_file = output_path / f'{name}_yz.png'
+        cmd.png(str(output_file))
+
+        additional_views = additional_views or []
+
+        for i, view in enumerate(additional_views):
+            cmd.set_view(view)
+            cmd.ray(px, py, renderer=0, antialias=2)
+            output_file = output_path / f'{name}_view_{i}.png'
+            cmd.png(str(output_file))
+
+
+def add_cbar(ax, cmap, norm, **kwargs):
+    """Truncate or expand cmap such that it covers axes limit and and colorbar to axes"""
+
+    N = cmap.N
+    ymin, ymax = np.min(ax.get_ylim()), np.max(ax.get_ylim())
+    values = np.linspace(ymin, ymax, num=N)
+
+    norm_clip = copy(norm)
+    norm_clip.clip = True
+    colors = cmap(norm_clip(values))
+
+    cb_cmap = pplt.Colormap(colors)
+
+    cb_norm = pplt.Norm('linear', vmin=ymin, vmax=ymax)  #todo allow log norms?
+    cbar_kwargs = {**CBAR_KWARGS, **kwargs}
+    reverse = np.diff(ax.get_ylim()) < 0
+
+    cbar = ax.colorbar(cb_cmap, norm=cb_norm, reverse=reverse, **cbar_kwargs)
+
+    return cbar
+
+
+#https://stackoverflow.com/questions/38629830/how-to-turn-off-autoscaling-in-matplotlib-pyplot
+@contextmanager
+def autoscale_turned_off(ax=None):
+  ax = ax or plt.gca()
+  lims = [ax.get_xlim(), ax.get_ylim()]
+  yield
+  ax.set_xlim(*lims[0])
+  ax.set_ylim(*lims[1])
+
+
+def stripplot(data, ax=None, jitter=0.25, colors=None, offset=0., orientation='vertical', **scatter_kwargs):
+    ax = ax or plt.gca()
+    color_list = _prepare_colors(colors, len(data))
+
+    for i, (d, color) in enumerate(zip(data, color_list)):
+        jitter_offsets = (np.random.rand(d.size) - 0.5) * jitter
+        cat_var = i * np.ones_like(d) + jitter_offsets + offset  # categorical axis variable
+        if orientation == 'vertical':
+            ax.scatter(cat_var, d, color=color, **scatter_kwargs)
+        elif orientation == 'horizontal':
+            ax.scatter(d, len(data) - cat_var, color=color, **scatter_kwargs)
+
+
+def _prepare_colors(colors, N):
+    if not isinstance(colors, list):
+        return [colors]*N
+    else:
+        return colors
+
+
+# From joyplot
+def _x_range(data, extra=0.2):
+    """ Compute the x_range, i.e., the values for which the
+        density will be computed. It should be slightly larger than
+        the max and min so that the plot actually reaches 0, and
+        also has a bit of a tail on both sides.
+    """
+    try:
+        sample_range = np.nanmax(data) - np.nanmin(data)
+    except ValueError:
+        return []
+    if sample_range < 1e-6:
+        return [np.nanmin(data), np.nanmax(data)]
+    return np.linspace(np.nanmin(data) - extra*sample_range,
+                       np.nanmax(data) + extra*sample_range, 1000)
+
+
+def kdeplot(data, ax=None, offset=0., orientation='vertical',
+            linecolor=None, linewidth=None, zero_line=True, x_extend=1e-3, y_scale=None, y_norm=None, fillcolor=False, fill_cmap=None,
+            fill_norm=None):
+    assert not (y_scale and y_norm), "Cannot set both 'y_scale' and 'y_norm'"
+    y_scale = 1. if y_scale is None else y_scale
+
+    color_list = _prepare_colors(linecolor, len(data))
+
+    for i, (d, color) in enumerate(zip(data, color_list)):
+        #todo remove NaNs?
+
+        # Perhaps also borrow this part from joyplot
+        kde_func = kde.gaussian_kde(d)
+        kde_x = _x_range(d, extra=0.4)
+        kde_y = kde_func(kde_x)*y_scale
+        if y_norm:
+            kde_y = y_norm*kde_y / kde_y.max()
+        bools = kde_y > x_extend * kde_y.max()
+        kde_x = kde_x[bools]
+        kde_y = kde_y[bools]
+
+        cat_var = len(data) - i + kde_y + offset # x in horizontal
+        cat_var_zero = (len(data) - i)*np.ones_like(kde_y) + offset
+
+        # x = i * np.ones_like(d) + jitter_offsets + offset  # 'x' like, could be y axis
+        if orientation == 'horizontal':
+            plot_x = kde_x
+            plot_y = cat_var
+            img_data = kde_x.reshape(1, -1)
+        elif orientation == 'vertical':
+            plot_x = len(data) - cat_var
+            plot_y = kde_x
+            img_data = kde_x[::-1].reshape(-1, 1)
+        else:
+            raise ValueError(f"Invalid value '{orientation}' for 'orientation'")
+
+        line, = ax.plot(plot_x, plot_y, color=color, linewidth=linewidth)
+        if zero_line:
+            ax.plot([plot_x[0], plot_x[-1]], [plot_y[0], plot_y[-1]], color=line.get_color(), linewidth=linewidth)
+
+        if fillcolor:
+            #todo refactor to one if/else orientation
+            color = line.get_color() if fillcolor is True else fillcolor
+            if orientation == 'horizontal':
+                ax.fill_between(kde_x, plot_y, np.linspace(plot_y[0], plot_y[-1], num=plot_y.size, endpoint=True),
+                                color=color)
+            elif orientation == 'vertical':
+                ax.fill_betweenx(kde_x, len(data) - cat_var, len(data) - cat_var_zero, color=color)
+
+        if fill_cmap:
+            fill_norm = fill_norm or (lambda x: x)
+            color_img = fill_norm(img_data)
+
+            xmin, xmax = np.min(plot_x), np.max(plot_x)
+            ymin, ymax = np.min(plot_y), np.max(plot_y)
+            extent = [xmin-offset, xmax-offset, ymin, ymax] if orientation == 'horizontal' else [xmin, xmax, ymin-offset, ymax-offset]
+            im = Axes.imshow(ax, color_img, aspect='auto', cmap=fill_cmap, extent=extent)  # left, right, bottom, top
+            fill_line, = ax.fill(plot_x, plot_y, facecolor='none')
+            im.set_clip_path(fill_line)
+
+
+def boxplot(data, ax, offset=0., orientation='vertical', widths=0.25, linewidth=None, linecolor=None, **kwargs):
+    if orientation == 'vertical':
+        vert = True
+        positions = np.arange(len(data)) + offset
+    elif orientation == 'horizontal':
+        vert = False
+        positions = len(data) - np.arange(len(data)) - offset
+    else:
+        raise ValueError(f"Invalid value '{orientation}' for 'orientation', options are 'horizontal' or 'vertical'")
+
+    #todo for loop
+    boxprops = kwargs.pop('boxprops', {})
+    whiskerprops = kwargs.pop('whiskerprops', {})
+    medianprops = kwargs.pop('whiskerprops', {})
+
+    boxprops['linewidth'] = linewidth
+    whiskerprops['linewidth'] = linewidth
+    medianprops['linewidth'] = linewidth
+
+    boxprops['color'] = linecolor
+    whiskerprops['color'] = linecolor
+    medianprops['color'] = linecolor
+
+    Axes.boxplot(ax, data, vert=vert, positions=positions, widths=widths, boxprops=boxprops, whiskerprops=whiskerprops,
+               medianprops=medianprops, **kwargs)
+
+
+def label_axes(labels, ax, offset=0., orientation='vertical', **kwargs):
+    #todo check offset sign
+    if orientation == 'vertical':
+        ax.set_xticks(np.arange(len(labels)) + offset)
+        ax.set_xticklabels(labels, **kwargs)
+    elif orientation == 'horizontal':
+        ax.set_yticks(len(labels) - np.arange(len(labels)) + offset)
+        ax.set_yticklabels(labels, **kwargs)
+
+
+class FitResultPlotBase(object):
+    def __init__(self, fit_result):
+        self.fit_result = fit_result
+
+    #todo equivalent this for axes?
+    def _make_figure(self, figure_name, **kwargs):
+        if not figure_name.endswith('_figure'):
+            figure_name += '_figure'
+
+        function = globals()[figure_name]
+        args_dict = self._get_arg(figure_name)
+
+        # return dictionary
+        # keys: either protein state name (hdxm.name) or 'All states'
+        figures_dict = {name: function(arg, **kwargs) for name, arg in args_dict.items()}
+        return figures_dict
+
+    def make_figure(self, figure_name, **kwargs):
+        figures_dict = self._make_figure(figure_name, **kwargs)
+        if len(figures_dict) == 1:
+            return next(iter(figures_dict.values()))
+        else:
+            return figures_dict
+
+    def get_fit_timepoints(self):
+        all_timepoints = np.concatenate([hdxm.timepoints for hdxm in self.fit_result.hdxm_set])
+
+        #x_axis_type = self.settings.get('fit_time_axis', 'Log')
+        x_axis_type = 'Log' # todo configureable
+        num = 100
+        if x_axis_type == 'Linear':
+            time = np.linspace(0, all_timepoints.max(), num=num)
+        elif x_axis_type == 'Log':
+            elem = all_timepoints[np.nonzero(all_timepoints)]
+            start = np.log10(elem.min())
+            end = np.log10(elem.max())
+            pad = (end - start)*0.1
+            time = np.logspace(start-pad, end+pad, num=num, endpoint=True)
+        else:
+            raise ValueError("Invalid value for 'x_axis_type'")
+
+        return time
+
+    # repeated code with fitreport (pdf) -> base class for fitreport
+    def _get_arg(self, plot_func_name):
+        #Add _figure suffix if not present
+        if not plot_func_name.endswith('_figure'):
+            plot_func_name += '_figure'
+
+        if plot_func_name == 'peptide_coverage_figure':
+            return {hdxm.name: hdxm.data for hdxm in self.fit_result.hdxm_set.hdxm_list}
+        elif plot_func_name == 'residue_time_scatter_figure':
+            return {hdxm.name: hdxm for hdxm in self.fit_result.hdxm_set.hdxm_list}
+        elif plot_func_name == 'residue_scatter_figure':
+            return {'All states': self.fit_result.hdxm_set}
+        elif plot_func_name == 'dG_scatter_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'ddG_scatter_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'linear_bars_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'rainbowclouds_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'peptide_mse_figure':
+            return {'All states': self.fit_result}
+        elif plot_func_name == 'loss_figure':
+            return {'All states': self.fit_result}
+        else:
+            raise ValueError(f"Unknown plot function {plot_func_name!r}")
+
+
+ALL_PLOT_TYPES = ['peptide_coverage', 'residue_scatter', 'dG_scatter', 'ddG_scatter', 'linear_bars', 'rainbowclouds',
+                 'peptide_mse', 'loss']
+
+
+class FitResultPlot(FitResultPlotBase):
+    def __init__(self, fit_result, output_path=None, **kwargs):
+        super().__init__(fit_result)
+        self.output_path = Path(output_path) if output_path else None
+        if output_path and not output_path.is_dir():
+            raise ValueError(f"Output path {output_path!r} is not a valid directory")
+
+        #todo save kwargs / rc params? / style context (https://matplotlib.org/devdocs/tutorials/introductory/customizing.html)
+
+    def save_figure(self, fig_name, ext='.png', **kwargs):
+        figures_dict = self._make_figure(fig_name, **kwargs)
+
+        if self.output_path is None:
+            raise ValueError(f"No output path given when `FitResultPlot` object as initialized")
+        for name, fig_tup in figures_dict.items():
+            fig = fig_tup if isinstance(fig_tup, plt.Figure) else fig_tup[0]
+
+            if name == 'All states':  # todo variable for 'All states'
+                file_name = f"{fig_name.replace('_figure', '')}{ext}"
+            else:
+                file_name = f"{fig_name.replace('_figure', '')}_{name}{ext}"
+            file_path = self.output_path / file_name
+            fig.savefig(file_path)
+            plt.close(fig)
+
+    def plot_all(self, **kwargs):
+        for plot_type in tqdm(ALL_PLOT_TYPES):
+            fig_kwargs = kwargs.get(plot_type, {})
+            self.save_figure(plot_type, **fig_kwargs)
+
+
+def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cmap_and_norm=None, output_path=None,
+                    output_type='.png', **save_kwargs):
+    """
+
+    Parameters
+    ----------
+    fitresult_path
+    plots
+    renew
+    cmap_and_norm: :obj:`dict`, optional
+        Dictionary with cmap and norms to use. If `None`, reverts to defaults.
+        Dict format: {'dG': (cmap, norm), 'ddG': (cmap, norm)}
+
+    output_type: list or str
+
+    Returns
+    -------
+
+    """
+    # batch results only
     history_path = fitresult_path / 'model_history.csv'
-    check_exists = lambda x: False if renew else x.exists()
-    try: # temp hack as batch results do not store hdxms
-        fit_result = load_fitresult(fitresult_path)
-        df = fit_result.output
+    output_path = output_path or fitresult_path
+    output_type = list([output_type]) if isinstance(output_type, str) else output_type
+    fitresult = load_fitresult(fitresult_path)
 
-        dfs = [df]
-        names = ['']
-        hdxm_s = [fit_result.data_obj]
-        loss_list = [fit_result.losses]
-        if history_path.exists():
-            history_list = [csv_to_dataframe(history_path)]
-        else:
-            history_list = []
+    protein_states = fitresult.output.df.columns.get_level_values(0).unique()
 
-    except FileNotFoundError:
-        df = csv_to_dataframe(fitresult_path / 'fit_result.csv')
-        dfs = [df[c] for c in df.columns.levels[0]]
-        names = [c + '_' for c in df.columns.levels[0]]
-        loss_list = [csv_to_dataframe(fitresult_path / 'losses.csv')]
+    if isinstance(reference, int):
+        reference_state = protein_states[reference]
+    elif reference in protein_states:
+        reference_state = reference
+    elif reference is None:
+        reference_state = None
+    else:
+        raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
-        hdxm_s = []
+    # todo needs tidying up
+    cmap_and_norm = cmap_and_norm or {}
+    dG_cmap, dG_norm = cmap_and_norm.get('dG', (None, None))
+    dG_cmap_default, dG_norm_default = default_cmap_norm('dG')
+    ddG_cmap, ddG_norm = cmap_and_norm.get('ddG', (None, None))
+    ddG_cmap_default, ddG_norm_default = default_cmap_norm('ddG')
+    dG_cmap = ddG_cmap or dG_cmap_default
+    dG_norm = dG_norm or dG_norm_default
+    ddG_cmap = ddG_cmap or ddG_cmap_default
+    ddG_norm = ddG_norm or ddG_norm_default
 
-        if history_path.exists():
-            history_df = csv_to_dataframe(history_path)
-            history_list = [history_df[c] for c in history_df.columns.levels[0]]
-        else:
-            history_list = []
-
-    full_width = 170 / 25.4
-    width = 120 / 25.4
-    aspect = 4
-    cmap = rgb_cmap
-    norm = rgb_norm
-
-    COV_SCALE = 1.
+    #check_exists = lambda x: False if renew else x.exists()
+    #todo add logic for checking renew or not
 
     if plots == 'all':
-        plots = ['losses', 'deltaG', 'pdf', 'coverage', 'history']
+        plots = ['loss', 'rfu_coverage', 'rfu_scatter', 'dG_scatter', 'ddG_scatter', 'linear_bars', 'rainbowclouds',
+                 'peptide_mse']
 
-    if 'losses' in plots:
-        for loss_df in loss_list:  # Mock loop to use break
-            output_path = fitresult_path / 'losses.png'
-            if check_exists(output_path):
-                break
 
-#            losses = loss_df.drop('reg_percentage', axis=1)
-            loss_df.plot()
+    # def check_update(pth, fname, extensions, renew):
+    #     # Returns True if the target graph should be renewed or not
+    #     if renew:
+    #         return True
+    #     else:
+    #         pths = [pth / (fname + ext) for ext in extensions]
+    #         return any([not pth.exists() for pth in pths])
 
-            mse_loss = loss_df['mse_loss']
-            reg_loss = loss_df.iloc[:, 1:].sum(axis=1)
-            reg_percentage = 100*reg_loss / (mse_loss + reg_loss)
-            fig = plt.gcf()
-            ax = plt.gca()
-            ax1 = ax.twinx()
-            reg_percentage.plot(ax=ax1, color='k')
-            ax1.set_xlim(0, None)
-            plt.savefig(output_path)
+    # plots = [p for p in plots if check_update(output_path, p, output_type, renew)]
+
+    if 'loss' in plots:
+        loss_df = fitresult.losses
+        loss_df.plot()
+
+        mse_loss = loss_df['mse_loss']
+        reg_loss = loss_df.iloc[:, 1:].sum(axis=1)
+        reg_percentage = 100*reg_loss / (mse_loss + reg_loss)
+        fig = plt.gcf()
+        ax = plt.gca()
+        ax1 = ax.twinx()
+        reg_percentage.plot(ax=ax1, color='k')
+        ax1.set_xlim(0, None)
+        for ext in output_type:
+            f_out = output_path / ('loss' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
+
+    if 'rfu_coverage' in plots:
+        for hdxm in fitresult.hdxm_set:
+            fig, axes, cbar_ax = peptide_coverage_figure(hdxm.data)
+            for ext in output_type:
+                f_out = output_path / (f'rfu_coverage_{hdxm.name}' + ext)
+                plt.savefig(f_out)
             plt.close(fig)
 
-    if 'deltaG' in plots:
-        for result, name in zip(dfs, names):
-            output_path = fitresult_path / f'{name}deltaG.png'
-            if check_exists(output_path):
-                break
+    #todo rfu_scatter_timepoint
 
-            fig, axes = pplt.subplots(nrows=1, width=width, aspect=aspect)
-            ax = axes[0]
+    if 'rfu_scatter' in plots:
+        fig, axes, cbar = residue_scatter_figure(fitresult.hdxm_set)
+        for ext in output_type:
+            f_out = output_path / (f'rfu_scatter' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
 
-            yvals = result['deltaG'] * 1e-3
-            rgba_colors = cmap(norm(yvals), bytes=True)
-            hex_colors = rgb_to_hex(rgba_colors)
-            ax.scatter(result.index, yvals, c=hex_colors, **scatter_kwargs)
-            ylim = ax.get_ylim()
-            ax.errorbar(result.index, yvals, yerr=result['covariance'] * 1e-3 * COV_SCALE, **errorbar_kwargs, zorder=-1)
+    if 'dG_scatter' in plots:
+        fig, axes, cbars = dG_scatter_figure(fitresult.output.df, cmap=dG_cmap, norm=dG_norm)
+        for ext in output_type:
+            f_out = output_path / (f'dG_scatter' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
 
-            ax.format(ylim=ylim, ylabel=dG_ylabel, xlabel=r_xlabel)
+    if 'ddG_scatter' in plots:
+        fig, axes, cbars = ddG_scatter_figure(fitresult.output.df, reference=reference, cmap=ddG_cmap, norm=ddG_norm)
+        for ext in output_type:
+            f_out = output_path / (f'ddG_scatter' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
 
-            plt.savefig(output_path, transparent=False)
+    if 'linear_bars' in plots:
+        fig, axes = linear_bars_figure(fitresult.output.df)
+        for ext in output_type:
+            f_out = output_path / (f'dG_linear_bars' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
+
+        if reference_state:
+            fig, axes = linear_bars_figure(fitresult.output.df, reference=reference)
+            for ext in output_type:
+                f_out = output_path / (f'ddG_linear_bars' + ext)
+                plt.savefig(f_out)
             plt.close(fig)
 
-    if 'pdf' in plots:
-        for i in range(1):
-            output_path = fitresult_path / 'fit_report'
-            if check_exists(fitresult_path / 'fit_report.pdf'):
-                break
+    if 'rainbowclouds' in plots:
+        fig, ax = rainbowclouds_figure(fitresult.output.df)
+        for ext in output_type:
+            f_out = output_path / (f'dG_rainbowclouds' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
 
-            output = pyhdx.Output(fit_result)
-
-            report = pyhdx.Report(output, title=f'Fit report {fit_result.data_obj.name}')
-            report.add_peptide_figures()
-            report.generate_pdf(output_path)
-
-    if 'coverage' in plots:
-        for hdxm in hdxm_s:
-            output_path = fitresult_path / f'{hdxm.name}_coverage.png'
-            if check_exists(output_path):
-                break
-
-            n_rows = int(np.ceil(len(hdxm.timepoints) / 2))
-
-            fig, axes = pplt.subplots(ncols=2, nrows=n_rows, sharex=True, width=full_width, aspect=4)
-            axes_list = list(axes[:, 0]) + list(axes[:, 1])
-
-            for label, ax, pm in zip(hdxm.timepoints, axes_list, hdxm):
-                plot_peptides(pm, ax, linewidth=0.5)
-                ax.format(title=label, xlabel=r_xlabel)
-
-            plt.savefig(output_path, transparent=False)
+        if reference_state:
+            fig, axes = rainbowclouds_figure(fitresult.output.df, reference=reference)
+            for ext in output_type:
+                f_out = output_path / (f'ddG_rainbowclouds' + ext)
+                plt.savefig(f_out)
             plt.close(fig)
 
-    if 'history' in plots:
-        for h_df, name in zip(history_list, names):
-            output_path = fitresult_path / f'{name}history.png'
-            if check_exists(output_path):
-                break
+    if 'peptide_mse' in plots:
+        fig, axes, cbars = peptide_mse_figure(fitresult)
+        for ext in output_type:
+            f_out = output_path / (f'peptide_mse' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
 
-            num = len(h_df.columns)
-            max_epochs = max([int(c) for c in h_df.columns])
 
-            cmap = mpl.cm.get_cmap('winter')
-            norm = mpl.colors.Normalize(vmin=1, vmax=max_epochs)
-            colors = iter(cmap(np.linspace(0, 1, num=num)))
 
-            fig, axes = pplt.subplots(nrows=1, width=width, aspect=aspect)
-            ax = axes[0]
-            for key in h_df:
-                c = next(colors)
-                to_hex(c)
 
-                ax.scatter(h_df.index, h_df[key] * 1e-3, color=to_hex(c), **scatter_kwargs)
-            ax.format(xlabel=r_xlabel, ylabel=dG_ylabel)
+    #
+    # if 'history' in plots:
+    #     for h_df, name in zip(history_list, names):
+    #         output_path = fitresult_path / f'{name}history.png'
+    #         if check_exists(output_path):
+    #             break
+    #
+    #         num = len(h_df.columns)
+    #         max_epochs = max([int(c) for c in h_df.columns])
+    #
+    #         cmap = mpl.cm.get_cmap('winter')
+    #         norm = mpl.colors.Normalize(vmin=1, vmax=max_epochs)
+    #         colors = iter(cmap(np.linspace(0, 1, num=num)))
+    #
+    #         fig, axes = pplt.subplots(nrows=1, width=width, aspect=aspect)
+    #         ax = axes[0]
+    #         for key in h_df:
+    #             c = next(colors)
+    #             to_hex(c)
+    #
+    #             ax.scatter(h_df.index, h_df[key] * 1e-3, color=to_hex(c), **scatter_kwargs)
+    #         ax.format(xlabel=r_xlabel, ylabel=dG_ylabel)
+    #
+    #         values = np.linspace(0, max_epochs, endpoint=True, num=num)
+    #         colors = cmap(norm(values))
+    #         tick_labels = np.linspace(0, max_epochs, num=5)
+    #
+    #         cbar = fig.colorbar(colors, values=values, ticks=tick_labels, space=0, width=cbar_width, label='Epochs')
+    #         ax.format(yticklabelloc='None', ytickloc='None')
+    #
+    #         plt.savefig(output_path)
+    #         plt.close(fig)
 
-            values = np.linspace(0, max_epochs, endpoint=True, num=num)
-            colors = cmap(norm(values))
-            tick_labels = np.linspace(0, max_epochs, num=5)
 
-            cbar = fig.colorbar(colors, values=values, ticks=tick_labels, space=0, width=cbar_width, label='Epochs')
-            ax.format(yticklabelloc='None', ytickloc='None')
-
-            plt.savefig(output_path)
-            plt.close(fig)

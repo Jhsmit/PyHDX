@@ -9,6 +9,7 @@ from pyhdx import PeptideMasterTable
 import pickle
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import DEFAULT_COLORS, STATIC_DIR
+from pyhdx.web.utils import load_state
 from pyhdx.web.sources import DataSource
 from pyhdx.batch_processing import yaml_to_hdxm
 from pyhdx.fileIO import csv_to_protein
@@ -16,47 +17,50 @@ import panel as pn
 import numpy as np
 from pathlib import Path
 import pandas as pd
+import yaml
 
 ctrl = main_app()
 directory = Path(__file__).parent
 root_dir = directory.parent.parent
-data_dir = root_dir / 'tests' / 'test_data'
+data_dir = root_dir / 'tests' / 'test_data' / 'input'
 test_dir = directory / 'test_data'
 
 fpath_1 = root_dir / 'tests' / 'test_data' / 'ecSecB_apo.csv'
 fpath_2 = root_dir / 'tests' / 'test_data' / 'ecSecB_dimer.csv'
 
-fpaths = [fpath_1, fpath_2]
-files = [p.read_bytes() for p in fpaths]
+yaml_dict = yaml.safe_load(Path(data_dir / 'data_states.yaml').read_text())
 
+# fpaths = [fpath_1, fpath_2]
+# files = [p.read_bytes() for p in fpaths]
+#
+#
+# d1 = {
+#     'filenames': ['ecSecB_apo.csv', 'ecSecB_dimer.csv'],
+#     'd_percentage': 95,
+#     'control': ('Full deuteration control', 0.167),
+#     'series_name': 'SecB WT apo',
+#     'temperature': 30,
+#     'temperature_unit': 'celsius',
+#     'pH': 8.,
+#     'c_term': 165
+# }
+#
+# d2 = {
+#     'filenames': ['ecSecB_apo.csv', 'ecSecB_dimer.csv'],
+#     'd_percentage': 95,
+#     'control': ('Full deuteration control', 0.167),
+#     'series_name': 'SecB his dimer apo',
+#     'temperature': 30,
+#     'temperature_unit': 'celsius',
+#     'pH': 8.,
+#     'c_term': 165
+# }
 
-d1 = {
-    'filenames': ['ecSecB_apo.csv', 'ecSecB_dimer.csv'],
-    'd_percentage': 95,
-    'control': ('Full deuteration control', 0.167),
-    'series_name': 'SecB WT apo',
-    'temperature': 30,
-    'temperature_unit': 'celsius',
-    'pH': 8.,
-    'c_term': 165
-}
-
-d2 = {
-    'filenames': ['ecSecB_apo.csv', 'ecSecB_dimer.csv'],
-    'd_percentage': 95,
-    'control': ('Full deuteration control', 0.167),
-    'series_name': 'SecB his dimer apo',
-    'temperature': 30,
-    'temperature_unit': 'celsius',
-    'pH': 8.,
-    'c_term': 165
-}
-
-yaml_dicts = {'testname_123': d1, 'SecB his dimer apo': d2}
+#yaml_dicts = {'testname_123': d1, 'SecB his dimer apo': d2}
 
 
 def reload_dashboard():
-    data_objs = {k: yaml_to_hdxm(v, data_dir=data_dir) for k, v in yaml_dicts.items()}
+    data_objs = {k: yaml_to_hdxm(v, data_dir=data_dir) for k, v in yaml_dict.items()}
     for k, v in data_objs.items():
         v.metadata['name'] = k
     ctrl.data_objects = data_objs
@@ -96,21 +100,24 @@ def reload_dashboard():
 
 
 def init_dashboard():
-    file_input = ctrl.control_panels['PeptideFileInputControl']
-    file_input.input_files = files
-    file_input.fd_state = 'Full deuteration control'
-    file_input.fd_exposure = 0.167*60
-    file_input.pH = 8
-    file_input.temperature = 273.15 + 30
-    file_input.d_percentage = 90.
+    for k, v in yaml_dict.items():
+        load_state(ctrl, v, data_dir=data_dir, name=k)
 
-    file_input.exp_state = 'SecB WT apo'
-    file_input.dataset_name = 'SecB_tetramer'
-    file_input._action_add_dataset()
-
-    file_input.exp_state = 'SecB his dimer apo'
-    file_input.dataset_name = 'SecB_dimer'  # todo catch error duplicate name
-    file_input._action_add_dataset()
+    # file_input = ctrl.control_panels['PeptideFileInputControl']
+    # file_input.input_files = files
+    # file_input.fd_state = 'Full deuteration control'
+    # file_input.fd_exposure = 0.167*60
+    # file_input.pH = 8
+    # file_input.temperature = 273.15 + 30
+    # file_input.d_percentage = 90.
+    #
+    # file_input.exp_state = 'SecB WT apo'
+    # file_input.dataset_name = 'SecB_tetramer'
+    # file_input._action_add_dataset()
+    #
+    # file_input.exp_state = 'SecB his dimer apo'
+    # file_input.dataset_name = 'SecB_dimer'  # todo catch error duplicate name
+    # file_input._action_add_dataset()
 
     # initial_guess = ctrl.control_panels['InitialGuessControl']
     # initial_guess._action_fit()

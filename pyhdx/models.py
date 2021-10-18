@@ -1,4 +1,5 @@
 import textwrap
+import warnings
 from functools import reduce, partial
 
 import numpy as np
@@ -582,7 +583,10 @@ class Coverage(object):
     @property
     def Z_norm(self):
         """:class:`~numpy.ndarray`: `Z` coefficient matrix normalized column wise."""
-        return self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            z_norm = self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
+        return z_norm
 
     def get_sections(self, gap_size=-1):
         """Get the intervals of independent sections of coverage.
@@ -651,7 +655,7 @@ class HDXMeasurement(object):
 
         cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [0, 1, ''])}
 
-        self.peptides = [PeptideMeasurements(df, **cov_kwargs) for df in intersected_data]
+        self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
         # Create coverage object from the first time point (as all are now equal)
         self.coverage = Coverage(intersected_data[0], **cov_kwargs)
@@ -688,7 +692,12 @@ class HDXMeasurement(object):
         pH:                     {self.pH}             
         """
 
-        return textwrap.dedent(s)
+        return textwrap.dedent(s.lstrip('\n'))
+
+    def _repr_markdown_(self):
+        s = str(self)
+        s = s.replace('\n', '<br>')
+        return s
 
     @property
     def name(self):
@@ -721,6 +730,8 @@ class HDXMeasurement(object):
         return len(self.timepoints)
 
     def __len__(self):
+        import warnings
+        warnings.warn('Use hdxm.Nt instead', DeprecationWarning)
         return len(self.timepoints)
 
     def __iter__(self):
@@ -866,7 +877,7 @@ class HDXMeasurement(object):
         dataframe_to_file(file_path, df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
 
-class PeptideMeasurements(Coverage):
+class HDXTimepoint(Coverage):
     """
     Class with subset of peptides corresponding to only one state and exposure
 
@@ -881,7 +892,7 @@ class PeptideMeasurements(Coverage):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
 
-        super(PeptideMeasurements, self).__init__(data, **kwargs)
+        super(HDXTimepoint, self).__init__(data, **kwargs)
 
         self.state = self.data['state'][0]
         self.exposure = self.data['exposure'][0]
@@ -904,9 +915,7 @@ class PeptideMeasurements(Coverage):
     @property
     def rfu_residues(self):
         """:class:`~pandas.Series`: Relative fractional uptake (RFU) per residue. Obtained by weighted averaging"""
-        array = self.Z_norm.T.dot(self.rfu_peptides)
-        series = pd.Series(array, index=self.index)
-        return series
+        return self.weighted_average('rfu')
 
     def calc_rfu(self, residue_rfu):
         """
