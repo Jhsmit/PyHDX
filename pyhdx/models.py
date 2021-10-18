@@ -913,9 +913,7 @@ class HDXTimepoint(Coverage):
     @property
     def rfu_residues(self):
         """:class:`~pandas.Series`: Relative fractional uptake (RFU) per residue. Obtained by weighted averaging"""
-        array = self.Z_norm.T.dot(self.rfu_peptides)
-        series = pd.Series(array, index=self.index)
-        return series
+        return self.weighted_average('rfu')
 
     def calc_rfu(self, residue_rfu):
         """
