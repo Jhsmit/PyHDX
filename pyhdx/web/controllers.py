@@ -661,7 +661,7 @@ class FitControl(ControlPanel):
         # List of single fit results
         if isinstance(result, list):
             self.parent.fit_results[name] = list(result)
-            output_dfs = {fit_result.hdxm_set.name: fit_result.output.df for fit_result in result}
+            output_dfs = {fit_result.hdxm_set.name: fit_result.output for fit_result in result}
             df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
 
             # create mse losses dataframe
@@ -709,7 +709,7 @@ class FitControl(ControlPanel):
 
         else:  # one batchfit result
             self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
-            df = result.output.df
+            df = result.output
             # df.index.name = 'peptide index'
 
             # Create MSE losses df (per peptide, summed over timepoints)
