@@ -1,0 +1,9 @@
+r1: 1
+r2: 1
+epochs: 200000
+stop_loss: 1.e-6
+patience: 100
+optimizer: SGD
+lr: 1.e+4
+momentum: 0.5
+nesterov: True
