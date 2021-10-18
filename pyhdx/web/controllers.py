@@ -577,7 +577,7 @@ class InitialGuessControl(ControlPanel):
         elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
             futures = self.parent.client.map(fit_rates_half_time_interpolate, self.parent.data_objects.values())
 
-        dask_future = self.parent.client.submit(lambda args: args, futures)
+        dask_future = self.parent.client.submit(lambda args: args, futures)  #combine multiple futures into one future
         self._guess_names[dask_future.key] = self.guess_name
 
         self.parent.future_queue.append((dask_future, self.add_fit_result))
