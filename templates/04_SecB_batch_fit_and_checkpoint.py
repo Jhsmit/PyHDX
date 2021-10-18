@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
 
-from pyhdx.fileIO import csv_to_protein, read_dynamx, dataframe_to_file
+from pyhdx.fileIO import csv_to_protein, read_dynamx, dataframe_to_file, save_fitresult
 from pyhdx.fitting import fit_gibbs_global_batch
 from pyhdx.fitting_torch import CheckPoint
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
@@ -71,3 +71,6 @@ result.to_file(output_dir / 'Batch_fit_result.txt', fmt='pprint')
 
 #Machine readable output
 result.to_file(output_dir / 'Batch_fit_result.csv', fmt='csv')
+
+#Save full fitresult
+save_fitresult(output_dir / 'SecB_tetramer_dimer_batch', result)
