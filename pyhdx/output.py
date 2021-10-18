@@ -12,7 +12,7 @@ import proplot as pplt
 import pylatex as pyl
 from tqdm.auto import tqdm
 
-from pyhdx.plot import peptide_coverage_figure, residue_time_scatter_figure
+from pyhdx.plot import FitResultPlotBase
 
 geometry_options = {
     "lmargin": "1in",
@@ -31,13 +31,13 @@ class Report(BaseReport):
         raise NotImplementedError()
 
 
-class FitReport(object):
+class FitReport(FitResultPlotBase):
     """
     Create .pdf output of a fit result
     """
-    def __init__(self, fit_result, title=None, doc=None, add_date=True, temp_dir=None):
+    def __init__(self, fit_result, title=None, doc=None, add_date=True, temp_dir=None, **kwargs):
+        super().__init__(fit_result, **kwargs)
         self.title = title or f'Fit report'
-        self.fit_result = fit_result
         self.doc = doc or self._init_doc(add_date=add_date)
         self._temp_dir = temp_dir or self.make_temp_dir()
         self._temp_dir = Path(self._temp_dir)
@@ -80,24 +80,6 @@ class FitReport(object):
     def reset_doc(self, add_date=True):
         self.doc = self._init_doc(add_date=add_date)
 
-    def get_fit_timepoints(self):
-        all_timepoints = np.concatenate([hdxm.timepoints for hdxm in self.fit_result.hdxm_set])
-
-        #x_axis_type = self.settings.get('fit_time_axis', 'Log')
-        x_axis_type = 'Log' # todo configureable
-        num = 100
-        if x_axis_type == 'Linear':
-            time = np.linspace(0, all_timepoints.max(), num=num)
-        elif x_axis_type == 'Log':
-            elem = all_timepoints[np.nonzero(all_timepoints)]
-            start = np.log10(elem.min())
-            end = np.log10(elem.max())
-            pad = (end - start)*0.1
-            time = np.logspace(start-pad, end+pad, num=num, endpoint=True)
-        else:
-            raise ValueError("Invalid value for 'x_axis_type'")
-
-        return time
 
 
     def add_standard_figure(self, name, **kwargs):
@@ -106,11 +88,12 @@ class FitReport(object):
 
         module = import_module('pyhdx.plot')
         f = getattr(module, name)
-        args_dict = self._get_args(name)
+        arg_dict = self._get_arg(name)
         width = kwargs.pop('width', PAGE_WIDTH)
 
-        for args_name, args in args_dict.items():
-            fig_func = partial(f, *args, width=width, **kwargs)
+
+        for args_name, arg in arg_dict.items():
+            fig_func = partial(f, arg, width=width, **kwargs)  #todo perhaps something like fig = lazy(func(args, **kwargs))?
             file_name = '{}.{}'.format(str(uuid.uuid4()), extension.strip('.'))
             file_path = self._temp_dir / file_name
 
@@ -119,23 +102,27 @@ class FitReport(object):
             tex_func = partial(_place_figure, file_path)
             self.tex_dict[name][args_name] = [tex_func]
 
-    def _get_args(self, plot_func_name):
-        if plot_func_name == 'peptide_coverage_figure':
-            return {hdxm.name: [hdxm.data] for hdxm in self.fit_result.hdxm_set.hdxm_list}
-        elif plot_func_name == 'residue_time_scatter_figure':
-            return {hdxm.name: [hdxm] for hdxm in self.fit_result.hdxm_set.hdxm_list}
-        elif plot_func_name == 'residue_scatter_figure':
-            return {'All states': [self.fit_result.hdxm_set]}
-        elif plot_func_name == 'dG_scatter_figure':
-            return {'All states': [self.fit_result.output]}
-        elif plot_func_name == 'ddG_scatter_figure':
-            return {'All states': [self.fit_result.output.df]}  # Todo change protein object to dataframe!
-        elif plot_func_name == 'linear_bars':
-            return {'All states': [self.fit_result.output.df]}
-        elif plot_func_name == 'rainbowclouds':
-            return {'All states': [self.fit_result.output.df]}
-        else:
-            raise ValueError(f"Unknown plot function {plot_func_name!r}")
+    # def _get_args(self, plot_func_name):
+    #     #Add _figure suffix if not present
+    #     if not plot_func_name.endswith('_figure'):
+    #         plot_func_name += '_figure'
+    #
+    #     if plot_func_name == 'peptide_coverage_figure':
+    #         return {hdxm.name: [hdxm.data] for hdxm in self.fit_result.hdxm_set.hdxm_list}
+    #     elif plot_func_name == 'residue_time_scatter_figure':
+    #         return {hdxm.name: [hdxm] for hdxm in self.fit_result.hdxm_set.hdxm_list}
+    #     elif plot_func_name == 'residue_scatter_figure':
+    #         return {'All states': [self.fit_result.hdxm_set]}
+    #     elif plot_func_name == 'dG_scatter_figure':
+    #         return {'All states': [self.fit_result.output]}
+    #     elif plot_func_name == 'ddG_scatter_figure':
+    #         return {'All states': [self.fit_result.output.df]}  # Todo change protein object to dataframe!
+    #     elif plot_func_name == 'linear_bars_figure':
+    #         return {'All states': [self.fit_result.output.df]}
+    #     elif plot_func_name == 'rainbowclouds_figure':
+    #         return {'All states': [self.fit_result.output.df]}
+    #     else:
+    #         raise ValueError(f"Unknown plot function {plot_func_name!r}")
 
     def add_peptide_uptake_curves(self, layout=(5, 4), time_axis=None):
         extension = '.pdf'
@@ -217,7 +204,7 @@ def _place_figure(file_path, width=r'\textwidth', doc=None):
 
 def _peptide_uptake_figure(fig_factory, indices, _t, _d, hdxm):
     fig, axes = fig_factory()
-    axes_iter = iter(axes)  # isnt this alreay iterable?
+    axes_iter = iter(axes)
     for i in indices:
         ax = next(axes_iter)
         ax.plot(_t, _d[i], color='r')

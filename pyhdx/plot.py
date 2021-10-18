@@ -1,5 +1,6 @@
 from contextlib import contextmanager
 from copy import copy
+from pathlib import Path
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -9,6 +10,7 @@ import proplot as pplt
 from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 from scipy.stats import kde
+from tqdm import tqdm
 
 from pyhdx.config import cfg
 from pyhdx.fileIO import load_fitresult
@@ -220,6 +222,7 @@ def residue_scatter_figure(hdxm_set, field='rfu', cmap='viridis', norm=None, sca
     for hdxm in hdxm_set:
         ax = next(axes_iter)
         residue_scatter(ax, hdxm, cmap=cmap, norm=norm, field=field, cbar=False, **scatter_kwargs)
+        ax.format(title=f'{hdxm.name}')
 
     for ax in axes_iter:
         ax.axis('off')
@@ -281,6 +284,7 @@ def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwar
         sub_df = data[state]
         ax = next(axes_iter)
         colorbar_scatter(ax, sub_df, cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)
+        ax.format(title=f'{state}')
 
     for ax in axes_iter:
         ax.set_axis_off()
@@ -373,8 +377,11 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     return fig, axes, cbars
 
 
-def peptide_mse_figure(fitresult, cmap='Haline', norm=None, rect_kwargs=None, **figure_kwargs):
-    n_subplots = len(fitresult)
+deltadeltaG_scatter_figure = ddG_scatter_figure
+
+
+def peptide_mse_figure(fit_result, cmap='Haline', norm=None, rect_kwargs=None, **figure_kwargs):
+    n_subplots = len(fit_result)
 
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
@@ -385,13 +392,13 @@ def peptide_mse_figure(fitresult, cmap='Haline', norm=None, rect_kwargs=None, **
 
     fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
     axes_iter = iter(axes)
-    mse = fitresult.get_mse() #shape: Ns, Np, Nt
+    mse = fit_result.get_mse() #shape: Ns, Np, Nt
     cbars = []
     rect_kwargs = rect_kwargs or {}
     for i, mse_sample in enumerate(mse):
         mse_peptide = np.mean(mse_sample, axis=1)
 
-        hdxm = fitresult.hdxm_set.hdxm_list[i]
+        hdxm = fit_result.hdxm_set.hdxm_list[i]
         peptide_data = hdxm.coverage.data
 
         data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'mse': mse_peptide[:hdxm.Np]}
@@ -405,15 +412,34 @@ def peptide_mse_figure(fitresult, cmap='Haline', norm=None, rect_kwargs=None, **
         cbar_ax = peptide_coverage(ax, mse_df, color_field='mse', norm=norm, cmap=cmap, **rect_kwargs)
         cbar_ax.set_label('MSE')
         cbars.append(cbar_ax)
-        ax.format(xlabel=r_xlabel, title=f'{hdxm.name}: Peptide mean squared error')
+        ax.format(xlabel=r_xlabel, title=f'{hdxm.name}')
 
     return fig, axes, cbars
 
 
-deltadeltaG_scatter_figure = ddG_scatter_figure
+def loss_figure(fit_result, **figure_kwargs):
+    ncols = 1
+    nrows = 1
+    figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'loss_aspect'))  # todo loss aspect also in config?
+
+    fig, ax = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
+    fit_result.losses.plot(ax=ax)
+    # ax.plot(fit_result.losses, legend='t')  # altnernative proplot plotting
+
+    # ox = ax.alty()
+    # reg_loss = fit_result.losses.drop('mse_loss', axis=1)
+    # total = fit_result.losses.sum(axis=1)
+    # perc = reg_loss.divide(total, axis=0) * 100
+    # perc.plot(ax=ox)  #todo formatting (perc as --, matching colors, legend)
+    #
+
+    ax.format(xlabel="Number of epochs", ylabel='Loss')
+
+    return fig, ax
 
 
-def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, labels=None, **figure_kwargs):
+def linear_bars_figure(data, reference=None, field='deltaG', norm=None, cmap=None, labels=None, **figure_kwargs):
     #todo add sorting
     protein_states = data.columns.get_level_values(0).unique()
 
@@ -493,7 +519,7 @@ def linear_bars(data, reference=None, field='deltaG', norm=None, cmap=None, labe
     return fig, axes
 
 
-def rainbowclouds(data, reference=None, field='deltaG', norm=None, cmap=None, update_rc=True, **figure_kwargs):
+def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=None, update_rc=True, **figure_kwargs):
     # todo add sorting
     if update_rc:
         plt.rcParams["image.composite_image"] = False
@@ -960,6 +986,112 @@ def label_axes(labels, ax, offset=0., orientation='vertical', **kwargs):
         ax.set_yticklabels(labels, **kwargs)
 
 
+class FitResultPlotBase(object):
+    def __init__(self, fit_result):
+        self.fit_result = fit_result
+
+    #todo equivalent this for axes?
+    def _make_figure(self, figure_name, **kwargs):
+        if not figure_name.endswith('_figure'):
+            figure_name += '_figure'
+
+        function = globals()[figure_name]
+        args_dict = self._get_arg(figure_name)
+
+        # return dictionary
+        # keys: either protein state name (hdxm.name) or 'All states'
+        figures_dict = {name: function(arg, **kwargs) for name, arg in args_dict.items()}
+        return figures_dict
+
+    def make_figure(self, figure_name, **kwargs):
+        figures_dict = self._make_figure(figure_name, **kwargs)
+        if len(figures_dict) == 1:
+            return next(iter(figures_dict.values()))
+        else:
+            return figures_dict
+
+    def get_fit_timepoints(self):
+        all_timepoints = np.concatenate([hdxm.timepoints for hdxm in self.fit_result.hdxm_set])
+
+        #x_axis_type = self.settings.get('fit_time_axis', 'Log')
+        x_axis_type = 'Log' # todo configureable
+        num = 100
+        if x_axis_type == 'Linear':
+            time = np.linspace(0, all_timepoints.max(), num=num)
+        elif x_axis_type == 'Log':
+            elem = all_timepoints[np.nonzero(all_timepoints)]
+            start = np.log10(elem.min())
+            end = np.log10(elem.max())
+            pad = (end - start)*0.1
+            time = np.logspace(start-pad, end+pad, num=num, endpoint=True)
+        else:
+            raise ValueError("Invalid value for 'x_axis_type'")
+
+        return time
+
+    # repeated code with fitreport (pdf) -> base class for fitreport
+    def _get_arg(self, plot_func_name):
+        #Add _figure suffix if not present
+        if not plot_func_name.endswith('_figure'):
+            plot_func_name += '_figure'
+
+        if plot_func_name == 'peptide_coverage_figure':
+            return {hdxm.name: hdxm.data for hdxm in self.fit_result.hdxm_set.hdxm_list}
+        elif plot_func_name == 'residue_time_scatter_figure':
+            return {hdxm.name: hdxm for hdxm in self.fit_result.hdxm_set.hdxm_list}
+        elif plot_func_name == 'residue_scatter_figure':
+            return {'All states': self.fit_result.hdxm_set}
+        elif plot_func_name == 'dG_scatter_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'ddG_scatter_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'linear_bars_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'rainbowclouds_figure':
+            return {'All states': self.fit_result.output}
+        elif plot_func_name == 'peptide_mse_figure':
+            return {'All states': self.fit_result}
+        elif plot_func_name == 'loss_figure':
+            return {'All states': self.fit_result}
+        else:
+            raise ValueError(f"Unknown plot function {plot_func_name!r}")
+
+
+ALL_PLOT_TYPES = ['peptide_coverage', 'residue_scatter', 'dG_scatter', 'ddG_scatter', 'linear_bars', 'rainbowclouds',
+                 'peptide_mse', 'loss']
+
+
+class FitResultPlot(FitResultPlotBase):
+    def __init__(self, fit_result, output_path=None, **kwargs):
+        super().__init__(fit_result)
+        self.output_path = Path(output_path) if output_path else None
+        if output_path and not output_path.is_dir():
+            raise ValueError(f"Output path {output_path!r} is not a valid directory")
+
+        #todo save kwargs / rc params? / style context (https://matplotlib.org/devdocs/tutorials/introductory/customizing.html)
+
+    def save_figure(self, fig_name, ext='.png', **kwargs):
+        figures_dict = self._make_figure(fig_name, **kwargs)
+
+        if self.output_path is None:
+            raise ValueError(f"No output path given when `FitResultPlot` object as initialized")
+        for name, fig_tup in figures_dict.items():
+            fig = fig_tup if isinstance(fig_tup, plt.Figure) else fig_tup[0]
+
+            if name == 'All states':  # todo variable for 'All states'
+                file_name = f"{fig_name.replace('_figure', '')}{ext}"
+            else:
+                file_name = f"{fig_name.replace('_figure', '')}_{name}{ext}"
+            file_path = self.output_path / file_name
+            fig.savefig(file_path)
+            plt.close(fig)
+
+    def plot_all(self, **kwargs):
+        for plot_type in tqdm(ALL_PLOT_TYPES):
+            fig_kwargs = kwargs.get(plot_type, {})
+            self.save_figure(plot_type, **fig_kwargs)
+
+
 def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cmap_and_norm=None, output_path=None,
                     output_type='.png', **save_kwargs):
     """
@@ -1074,28 +1206,28 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
         plt.close(fig)
 
     if 'linear_bars' in plots:
-        fig, axes = linear_bars(fitresult.output.df)
+        fig, axes = linear_bars_figure(fitresult.output.df)
         for ext in output_type:
             f_out = output_path / (f'dG_linear_bars' + ext)
             plt.savefig(f_out)
         plt.close(fig)
 
         if reference_state:
-            fig, axes = linear_bars(fitresult.output.df, reference=reference)
+            fig, axes = linear_bars_figure(fitresult.output.df, reference=reference)
             for ext in output_type:
                 f_out = output_path / (f'ddG_linear_bars' + ext)
                 plt.savefig(f_out)
             plt.close(fig)
 
     if 'rainbowclouds' in plots:
-        fig, ax = rainbowclouds(fitresult.output.df)
+        fig, ax = rainbowclouds_figure(fitresult.output.df)
         for ext in output_type:
             f_out = output_path / (f'dG_rainbowclouds' + ext)
             plt.savefig(f_out)
         plt.close(fig)
 
         if reference_state:
-            fig, axes = rainbowclouds(fitresult.output.df, reference=reference)
+            fig, axes = rainbowclouds_figure(fitresult.output.df, reference=reference)
             for ext in output_type:
                 f_out = output_path / (f'ddG_rainbowclouds' + ext)
                 plt.savefig(f_out)

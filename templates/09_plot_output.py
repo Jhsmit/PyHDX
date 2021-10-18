@@ -1,11 +1,13 @@
-#%%
-from pyhdx.fileIO import load_fitresult
-from pyhdx.plot import plot_fitresults
-from pathlib import Path
-import proplot as pplt
-import matplotlib.pyplot as plt
-import pandas as pd
+"""
+Automagically plot all available figures from a fit result
+"""
 
+from pyhdx.fileIO import load_fitresult
+from pyhdx.plot import FitResultPlot
+from pathlib import Path
+
+
+from pyhdx.config import reset_config
 
 #%%
 
@@ -13,8 +15,16 @@ import pandas as pd
 
 
 cwd = Path(__file__).parent
-output_dir = cwd / 'output' / 'figure'
+output_dir = cwd / 'output' / 'figures'
+output_dir.mkdir(exist_ok=True)
 fit_result = load_fitresult(cwd / 'output' / 'SecB_tetramer_dimer_batch')
 
+fr_plot = FitResultPlot(fit_result, output_path=output_dir)
 
-plot_fitresults(cwd / 'output' / 'SecB_tetramer_dimer_batch')
+kwargs = {
+    'residue_scatter': {'cmap': 'BuGn'},  # change default colormap
+    'ddG_scatter': {'reference': 1}  # Set reference for ΔΔG to the second (index 1 state) (+ APO state (tetramer))
+}
+
+fr_plot.plot_all(**kwargs)
+
