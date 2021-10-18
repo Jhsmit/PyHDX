@@ -10,9 +10,9 @@ from symfit.core.minimizers import DifferentialEvolution, Powell
 from tqdm import trange
 
 from pyhdx.fit_models import SingleKineticModel, TwoComponentAssociationModel, TwoComponentDissociationModel
-from pyhdx.fitting_torch import DeltaGFit, TorchSingleFitResult, TorchBatchFitResult
+from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
 from pyhdx.support import temporary_seed
-from pyhdx.models import Protein
+from pyhdx.models import Protein, HDXMeasurementSet
 from pyhdx.config import cfg
 
 EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
@@ -469,7 +469,8 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
                                                          patience=patience, stop_loss=stop_loss, callbacks=callbacks)
     losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
-    result = TorchSingleFitResult(hdxm, model, losses=losses, **fit_kwargs)
+    hdxm_set = HDXMeasurementSet([hdxm])
+    result = TorchFitResult(hdxm_set, model, losses=losses, **fit_kwargs)
 
     return result
 
@@ -596,7 +597,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
                                                          model, criterion, reg_func, **loop_kwargs)
     losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
-    result = TorchBatchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
+    result = TorchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
 
     return result
 

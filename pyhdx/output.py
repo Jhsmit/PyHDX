@@ -81,7 +81,7 @@ class FitReport(object):
         self.doc = self._init_doc(add_date=add_date)
 
     def get_fit_timepoints(self):
-        all_timepoints = np.concatenate([hdxm.timepoints for hdxm in self.fit_result.data_obj])
+        all_timepoints = np.concatenate([hdxm.timepoints for hdxm in self.fit_result.hdxm_set])
 
         #x_axis_type = self.settings.get('fit_time_axis', 'Log')
         x_axis_type = 'Log' # todo configureable
@@ -121,11 +121,11 @@ class FitReport(object):
 
     def _get_args(self, plot_func_name):
         if plot_func_name == 'peptide_coverage_figure':
-            return {hdxm.name: [hdxm.data] for hdxm in self.fit_result.data_obj.hdxm_list}
+            return {hdxm.name: [hdxm.data] for hdxm in self.fit_result.hdxm_set.hdxm_list}
         elif plot_func_name == 'residue_time_scatter_figure':
-            return {hdxm.name: [hdxm] for hdxm in self.fit_result.data_obj.hdxm_list}
+            return {hdxm.name: [hdxm] for hdxm in self.fit_result.hdxm_set.hdxm_list}
         elif plot_func_name == 'residue_scatter_figure':
-            return {'All states': [self.fit_result.data_obj]}
+            return {'All states': [self.fit_result.hdxm_set]}
         elif plot_func_name == 'dG_scatter_figure':
             return {'All states': [self.fit_result.output]}
         elif plot_func_name == 'ddG_scatter_figure':
@@ -152,7 +152,7 @@ class FitReport(object):
         fig_factory = partial(pplt.subplots, ncols=ncols, nrows=nrows, sharex=1, sharey=1, width=f'{PAGE_WIDTH}mm')
 
         # iterate over samples
-        for hdxm, d_calc_s in zip(self.fit_result.data_obj, d_calc):
+        for hdxm, d_calc_s in zip(self.fit_result.hdxm_set, d_calc):
             name = hdxm.name
             indices = range(hdxm.Np)
             chunks = [indices[i:i + n] for i in range(0, len(indices), n)]

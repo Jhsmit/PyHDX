@@ -12,14 +12,14 @@ fit_result = load_fitresult(current_dir / 'output' / 'SecB_fit')
 time = np.logspace(-3, 2, num=100)
 
 d_calc = fit_result(time)
-d_exp = fit_result.data_obj.d_exp
+d_exp = fit_result.hdxm_set.d_exp
 
 i = 20  # index of the protein to view
 
 fit_result.losses[['total_loss', 'mse_loss', 'reg_loss']].plot()
 
 fig, ax = plt.subplots()
-ax.scatter(fit_result.data_obj.timepoints, d_exp[i], color='k')
+ax.scatter(fit_result.hdxm_set.timepoints, d_exp[i], color='k')
 ax.plot(time, d_calc[i], color='r')
 ax.set_xscale('log')
 ax.set_xlabel('Time (min)')

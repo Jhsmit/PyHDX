@@ -65,7 +65,7 @@ class TestSecBDataFit(object):
             fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
             out_deltaG = fr_global.output
             for field in ['deltaG', 'k_obs', 'covariance']:
-                assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
+                assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01, check_dtype=False)
         else:
             with pytest.raises(AssertionError, match=r".* CUDA .*"):
                 fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
@@ -79,7 +79,8 @@ class TestSecBDataFit(object):
 
         out_deltaG = fr_global.output
         for field in ['deltaG', 'k_obs']:
-            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
+            assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
+                                check_dtype=False, check_names=False)
 
         cfg.set('fitting', 'dtype', 'float64')
 
@@ -96,10 +97,11 @@ class TestSecBDataFit(object):
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
         for field in ['deltaG', 'covariance', 'k_obs']:
-            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01)
+            assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
+                                check_names=False)
 
         mse = fr_global.get_mse()
-        assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
+        assert mse.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended(self):
