@@ -1,7 +1,8 @@
 import pytest
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, save_fitresult, load_fitresult
-from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
+from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, \
+    fit_gibbs_global_batch_aligned, fit_rates_half_time_interpolate, GenericFitResult
 from pyhdx.models import HDXMeasurementSet
 from pyhdx.config import cfg
 import numpy as np
@@ -43,13 +44,19 @@ class TestSecBDataFit(object):
         cluster = LocalCluster()
         cls.address = cluster.scheduler_address
 
-    def test_initial_guess(self):
+    def test_initial_guess_wt_average(self):
         result = fit_rates_weighted_average(self.reduced_hdxm)
         output = result.output
 
         assert output.size == 100
         check_rates = csv_to_protein(output_dir / 'ecSecB_reduced_guess.csv')
         pd.testing.assert_series_equal(check_rates['rate'], output['rate'])
+
+    def test_initial_guess_half_time_interpolate(self):
+        result = fit_rates_half_time_interpolate(self.reduced_hdxm)
+        assert isinstance(result, GenericFitResult)
+        assert result.output.index.name == 'r_number'
+        assert result.output['rate'].mean() == pytest.approx(0.04343354509254464)
 
         # todo additional tests:
         #  result = fit_rates_half_time_interpolate()

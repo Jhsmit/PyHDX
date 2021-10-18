@@ -1,4 +1,5 @@
 from collections import namedtuple
+from dataclasses import dataclass, field
 from functools import partial
 
 import numpy as np
@@ -133,17 +134,13 @@ def fit_rates_half_time_interpolate(hdxm):
         dataclass with fit result
 
     """
+    # find t_50
     interpolated = np.array(
-        [np.interp(0.5, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues])
+        [np.interp(0.5, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues.to_numpy()])  #iterate over residues
+    rate = np.log(2) / interpolated  # convert to rate
 
-    output = np.empty_like(interpolated, dtype=[('r_number', int), ('rate', float)])
-    output['r_number'] = hdxm.coverage.r_number
-    output['rate'] = np.log(2) / interpolated
-
-    protein = Protein(output, index='r_number')
-    t50FitResult = namedtuple('t50FitResult', ['output']) # todo dataclass?
-
-    result = t50FitResult(output=protein)
+    output = pd.DataFrame({'rate': rate}, index=hdxm.coverage.r_number)
+    result = GenericFitResult(output=output, fit_function='fit_rates_half_time_interpolate')
 
     return result
 
@@ -774,3 +771,8 @@ class KineticsFitResult(object):
         array = self.get_output(['rate', 'k1', 'k2', 'r'])
         return Protein(array, index='r_number')
 
+
+@dataclass
+class GenericFitResult:
+    output: pd.DataFrame
+    fit_function: str  # name of the function used to generate the fit result
