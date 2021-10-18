@@ -543,7 +543,7 @@ class InitialGuessControl(ControlPanel):
         name = self._guess_names.pop(future.key)
 
         results = future.result()
-        dfs = [result.output.df for result in results]
+        dfs = [result.output for result in results]
         combined_results = pd.concat(dfs, axis=1,
                                      keys=list(self.parent.data_objects.keys()),
                                      names=['state_name', 'quantity'])
