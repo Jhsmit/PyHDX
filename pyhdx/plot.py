@@ -1036,7 +1036,7 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
         plt.close(fig)
 
     if 'rfu_coverage' in plots:
-        for hdxm in fitresult.data_obj:
+        for hdxm in fitresult.hdxm_set:
             fig, axes, cbar_ax = peptide_coverage_figure(hdxm.data)
             for ext in output_type:
                 f_out = output_path / (f'rfu_coverage_{hdxm.name}' + ext)
@@ -1046,7 +1046,7 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
     #todo rfu_scatter_timepoint
 
     if 'rfu_scatter' in plots:
-        fig, axes, cbar = residue_scatter_figure(fitresult.data_obj)
+        fig, axes, cbar = residue_scatter_figure(fitresult.hdxm_set)
         for ext in output_type:
             f_out = output_path / (f'rfu_scatter' + ext)
             plt.savefig(f_out)
