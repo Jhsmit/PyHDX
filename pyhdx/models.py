@@ -1,4 +1,5 @@
 import textwrap
+import warnings
 from functools import reduce, partial
 
 import numpy as np
@@ -580,7 +581,10 @@ class Coverage(object):
     @property
     def Z_norm(self):
         """:class:`~numpy.ndarray`: `Z` coefficient matrix normalized column wise."""
-        return self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", category=RuntimeWarning)
+            z_norm = self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
+        return z_norm
 
     def get_sections(self, gap_size=-1):
         """Get the intervals of independent sections of coverage.
