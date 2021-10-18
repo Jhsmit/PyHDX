@@ -1094,6 +1094,15 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
                 plt.savefig(f_out)
             plt.close(fig)
 
+    if 'peptide_mse' in plots:
+        fig, axes, cbars = peptide_mse_figure(fitresult)
+        for ext in output_type:
+            f_out = output_path / (f'peptide_mse' + ext)
+            plt.savefig(f_out)
+        plt.close(fig)
+
+
+
 
     #
     # if 'history' in plots:
