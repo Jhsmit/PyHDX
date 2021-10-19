@@ -1,3 +1,4 @@
+import itertools
 import logging
 from itertools import groupby, count
 
@@ -11,8 +12,35 @@ from bokeh.plotting import figure
 from lumen.filters import ParamFilter
 from lumen.views import hvPlotView, View
 
+from pyhdx.support import autowrap
 from pyhdx.web.base import BokehFigurePanel, FigurePanel, MIN_BORDER_LEFT
 from pyhdx.web.widgets import LoggingMarkdown, NGL
+
+import numpy as np
+
+class WebView(View):
+    def get_data(self):
+        """
+        Queries the Source for the specified table applying any
+        filters and transformations specified on the View. Unlike
+        `get_value` this should be used when multiple return values
+        are expected.
+
+        Returns
+        -------
+        DataFrame
+            The queried table after filtering and transformations are
+            applied.
+        """
+        # if self._cache is not None:
+        #     return self._cache
+
+        queries = [filt.query for filt in self.filters]
+        data = self.source.get(self.table, *queries)
+        for transform in self.transforms:
+            data = transform.apply(data)
+
+        return data
 
 
 class hvPlotAppView(hvPlotView):
@@ -41,30 +69,61 @@ class hvPlotAppView(hvPlotView):
         return pd.DataFrame(dic)
 
 
-class hvRectangleAppView(View):
+class hvRectangleAppView(WebView):
 
     opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.")
 
     view_type = 'rectangles'
 
-    streaming = param.Boolean(default=False, doc="""
+    left = param.String('start', doc="Field name to use for left coordinate")
+
+    right = param.String('stop', doc="Field name to use for for the right coordinate")
+
+    height = param.Integer(1, doc="Height of the rectangles", constant=True)
+
+    passthrough = param.List()
+
+    wrap = param.Integer(None, doc="Number of peptides to go down on y axis before wrapping back around to the top")
+    step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
+    margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
+
+    streaming = param.Boolean(default=True, doc="""
         Whether to stream new data to the plot or rerender the plot.""")
 
     def __init__(self, **params):
-        # import hvplot.pandas # noqa
-        # if 'dask' in sys.modules:
-        #     try:
-        #         import hvplot.dask # noqa
-        #     except Exception:
-        #         pass
         self._stream = None
         self._linked_objs = []
+
+        #todo left and right cannot be none
         super().__init__(**params)
 
     def get_panel(self):
         kwargs = self._get_params()
         #interactive? https://github.com/holoviz/panel/issues/1824
         return pn.pane.HoloViews(**kwargs)
+
+    def get_data(self):
+        df = super().get_data()
+
+        wrap = self.wrap or autowrap(df[self.left].to_numpy(dtype=int), df[self.right].to_numpy(dtype=int), margin=self.margin, step=self.step)
+
+        # Order of columns determines their role, not the names
+        columns = ['x0', 'y0', 'x1', 'y1']  # bottom-left (x0, y0) and top right (x1, y1)
+        output_table = pd.DataFrame(index=df.index, columns=columns)
+        output_table['x0'] = df[self.left] - 0.5
+        output_table['x1'] = df[self.right] - 0.5
+        cycle = itertools.cycle(range(self.height*wrap, 0, -self.height))  # Starts at y top, cycles with wrap
+        yvals = np.array(list(itertools.islice(cycle, len(df)))) # Repeat cycle until the correct length
+        output_table['y0'] = yvals - self.height
+        output_table['y1'] = yvals
+
+        if self.passthrough:
+            for item in self.passthrough:
+                assert item not in ['value', 'index'], "Invalid field name, 'index' and 'value' names are reserved"
+                output_table[item] = df[item]
+        output_table['index'] = df.index
+
+        return output_table
 
     def get_plot(self, df):
         """
@@ -79,34 +138,9 @@ class hvRectangleAppView(View):
         -------
 
         """
-        # processed = {}
-        # for k, v in self.kwargs.items():
-        #     if k.endswith('formatter') and isinstance(v, str) and '%' not in v:
-        #         v = NumeralTickFormatter(format=v)
-        #     processed[k] = v
-        # if self.streaming:
-        #     processed['stream'] = self._stream
 
-        #hvplots stream? https://holoviews.org/user_guide/Streaming_Data.html
-
-#        plot = hv.Rectangles([(0, 0, 1, 1), (2, 3, 4, 6), (0.5, 2, 1.5, 4), (2, 1, 3.5, 2.5)])
-
-        processed = {}
-        for k, v in self.kwargs.items():
-            if k.endswith('formatter') and isinstance(v, str) and '%' not in v:
-                v = NumeralTickFormatter(format=v)
-            processed[k] = v
-        if self.streaming:
-            #processed['stream'] = self._stream
-
-            plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])
-            plot = plot.apply.opts(**self.opts) if self.opts else plot
-        else:
-            plot = hv.Rectangles(df)
-            plot.opts(**self.opts) if self.opts else plot
-
-        if self.selection_group or 'selection_expr' in self._param_watchers:
-            plot = self._link_plot(plot)
+        plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])
+        plot = plot.apply.opts(**self.opts) if self.opts else plot
 
         return plot
 
@@ -119,15 +153,6 @@ class hvRectangleAppView(View):
             from holoviews.streams import Pipe
             self._stream = Pipe(data=df)
         return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
-
-    def get_data(self):
-        #todo uniformify this method for all views
-        try:
-            return super().get_data()
-        except (KeyError, ValueError) as e:
-            #print(f'Empty data in {self.__class__}: {e}')
-            return None
-            #return self.empty_df
 
     def update(self, *events, invalidate_cache=True):
         """

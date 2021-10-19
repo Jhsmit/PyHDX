@@ -404,7 +404,7 @@ class PeptideFileInputControl(ControlPanel):
         target_source.add_df(df, 'peptides', self.dataset_name)
 
         index = pd.Index(hdxm.coverage.r_number, name='r_number')
-        df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)
+        df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)  # already is this
         target_source = self.parent.sources['dataframe']
         target_source.add_df(df, 'rfu', self.dataset_name)
 

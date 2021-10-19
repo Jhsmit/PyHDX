@@ -300,23 +300,23 @@ def main_app(client='default'):
     view_list.append(reg_losses)
 
 
-    # PROTEIN NGL VIEW
-    f = MultiIndexSelectFilter(
-        field='color_ID', name='ngl_color_id', table='colors', source=source
-    )
-    filters[f.name] = f
-
-    f = MultiIndexSelectFilter(
-        field='state_name', name='ngl_state_name', table='colors', source=source,
-        filters=[filters['ngl_color_id']]
-    )
-    filters[f.name] = f
-
-    protein_view = NGLView(
-        source=source, name='protein', table='colors',
-        filters=[filters['ngl_color_id'], filters['ngl_state_name']]
-    )
-    view_list.append(protein_view)
+    # # PROTEIN NGL VIEW
+    # f = MultiIndexSelectFilter(
+    #     field='color_ID', name='ngl_color_id', table='colors', source=source
+    # )
+    # filters[f.name] = f
+    #
+    # f = MultiIndexSelectFilter(
+    #     field='state_name', name='ngl_state_name', table='colors', source=source,
+    #     filters=[filters['ngl_color_id']]
+    # )
+    # filters[f.name] = f
+    #
+    # protein_view = NGLView(
+    #     source=source, name='protein', table='colors',
+    #     filters=[filters['ngl_color_id'], filters['ngl_state_name']]
+    # )
+    # view_list.append(protein_view)
 
     # LOGGING VIEWS
     log_view = LoggingView(logger=logger, level=logging.INFO, name='Info log')
@@ -337,7 +337,7 @@ def main_app(client='default'):
         FitControl,
         GraphControl,
         ClassificationControl,
-        ProteinControl,
+        # ProteinControl,
         # FitResultControl,
         FileExportControl,
         # ProteinViewControl,
@@ -364,7 +364,7 @@ def main_app(client='default'):
     elvis.compose(ctrl, elvis.column(
         elvis.stack(
             elvis.view(ctrl.views['coverage']),
-            elvis.view(ctrl.views['protein']),
+            #elvis.view(ctrl.views['protein']),
             elvis.view(ctrl.views['coverage_mse'])
         ),
         elvis.row(
@@ -580,22 +580,17 @@ def main_app(client='default'):
 
 
 if __name__ == '__main__':
-    print('joe')
-
     sys._excepthook = sys.excepthook
 
     import traceback as tb
     def my_exception_hook(exctype, value, traceback):
         # Print the error and traceback
-
+        # https://stackoverflow.com/questions/43039048/pyqt5-fails-with-cryptic-message/43039363#43039363
         tb.print_tb(traceback, file=sys.stdout)
         print(exctype, value, traceback)
-        print('whooo')
 
         tb.print_stack()
         print(traceback.format_exc())
-
-        print('whooo2')
         # or
         print(sys.exc_info()[2])
         # Call the normal Exception hook after

@@ -1,13 +1,98 @@
 import param
 from bokeh.models import ColumnDataSource
 import numpy as np
-from pyhdx.models import Protein
+
+from pyhdx import TorchFitResult
+from pyhdx.models import Protein, HDXMeasurement
 import pandas as pd
 from lumen.util import get_dataframe_schema
 
 #todo refactor module to models?
 
 from lumen.sources import Source, cached_schema
+
+
+class WebSource(Source):
+    """patched lumen source"""
+
+    updated = param.Event()
+
+
+    @classmethod
+    def _filter_dataframe(cls, df, *queries):
+        """
+        Filter the DataFrame.
+        Parameters
+        ----------
+        df : DataFrame
+           The DataFrame to filter
+        qeueries : list of tuple
+            A dictionary containing all the query parameters
+        Returns
+        -------
+        DataFrame
+            The filtered DataFrame
+        """
+
+        for query in queries:
+            query_func, kwargs = query
+            df = getattr(df, query_func)(**kwargs)
+
+        return df
+
+    def get_tables(self):
+        """
+        Returns the list of tables available on this source.
+        Returns
+        -------
+        list
+            The list of available tables on this source.
+        """
+
+
+class PyHDXSource(WebSource):
+    tables = param.Dict({}, doc="Dictionary of tables in this Source")
+
+    hdxm_objects = param.Dict({})
+    rate_results = param.Dict({})  # dataframes?
+    dG_results = param.Dict({})
+    cmaps = param.Dict({})   #TODO CMAP AND NORM SHOULD BE ON THE VIEWS!ONOENE
+
+    def from_file(self):
+        pass
+        # todo load hdxms first
+        #then use those to reload dG results
+
+    def add(self, obj, name):
+        if isinstance(obj, HDXMeasurement):
+            self.hdxm_objects[name] = obj
+            self.param.trigger('hdxm_objects')
+        elif isinstance(obj, TorchFitResult):
+            self.dG_results[name] = obj
+            self.param.trigger('dG_results')
+
+    @param.depends('hdxm_objects', watch=True)
+    def _hdxm_objects_updated(self):
+        #todo perhaps some logic which takes differences such that we dont have to redo the whole thing for each addition?
+        combined = pd.concat([hdxm.data for hdxm in self.hdxm_objects.values()], axis=1,
+                             keys=self.hdxm_objects.keys(), names=['state', 'quantity'])  #todo 'state' or 'name' or 'protein_state'?
+        self.tables['peptides'] = combined
+
+        #RFU per residue per exposure
+        dfs = [hdxm.rfu_residues for hdxm in self.hdxm_objects.values()]
+        combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'quantity'])
+        self.tables['rfu_residues'] = combined
+
+    @param.depends('dG_results')
+    def _dG_results_updated(self):
+        pass
+        #cached?:
+
+    def get(self, table, *queries):
+        df = self.tables[table]
+        df = self._filter_dataframe(df, *queries)
+
+        return df
 
 
 class DataFrameSource(Source):

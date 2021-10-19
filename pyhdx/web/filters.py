@@ -15,12 +15,19 @@ class WebAppFilter(Filter):
 
     # maybe instead of making filters co-dependent the second filter should have a DerivedSource
     # but we'll deal with this later
+    #  ^ this was as long time ago
     filters = param.List()
+
+    transforms = param.List()
 
     updated = param.Event()
 
+    pd_function = param.String(doc='Pandas function which this filter applies to the DataFrame ')
+
     def __init__(self, **params):
         super().__init__(**params)
+        # self.kwargs = {k: v for k, v in params.items() if k not in self.param}
+        # super().__init__(**{k: v for k, v in params.items() if k in self.param})
 
         if self.source:
             self.source.param.watch(self.update, 'updated')
@@ -31,19 +38,152 @@ class WebAppFilter(Filter):
     def get_data(self):
         """Equivalent to view's get_data method"""
 
-        query = {
-            filt.field: filt.query for filt in self.filters
-            if filt.query is not None and
-            (filt.table is None or filt.table == self.table)
-        }
+        queries = [filt.query for filt in self.filters]
+        data = self.source.get(self.table, *queries)
+        for transform in self.transforms:
+            data = transform.apply(data)
 
-        data = self.source.get(self.table, **query)
         return data
 
     @param.depends('value', watch=True)
     def update(self, *events):
         """gets called when the source event triggers"""
         self.updated = True
+
+    # def _get_params(self):
+    #     return self.kwargs
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas functin to apply filter"""
+        return {}
+
+    @property
+    def query(self):
+        return self.pd_function, self.pd_kwargs
+
+class TransformFilter(WebAppFilter):
+    pd_function = param.String('transform')
+
+
+class StackFilter(WebAppFilter):
+    pd_function = 'stack'
+
+    level = param.Integer(-1)  #actually int, str, or list of these, default -1 (last level)
+    #level = param.ClassSelector(_class=[int, str, list])  # where list is list of (str | int)
+
+    dropna = param.Boolean(True)
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas function to apply filter"""
+        #todo get_params func which finds the correct params here
+        return dict(level=self.level, dropna=self.dropna)
+
+#todo some kind of class that can do multiple of these combined?
+
+class YourMomFilter(WebAppFilter):
+    pd_function = param.String()
+
+    def __init__(self, **params):
+        self.kwargs = {k: v for k, v in params.items() if k not in self.param}
+        super().__init__(**{k: v for k, v in params.items() if k in self.param})
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas functin to apply filter"""
+        return self.kwargs
+
+class PivotFilter(WebAppFilter):
+    pd_function = 'pivot'
+
+    index = param.ClassSelector(class_=[str, list])
+
+    columns = param.ClassSelector(class_=[str, list])
+
+    values = param.ClassSelector(class_=[str, list])
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas function to apply filter"""
+        #todo get_params func which finds the correct params here
+        return dict(index=self.index, columns=self.columns, values=self.values)
+
+
+class CrossSectionFilter(WebAppFilter):
+
+    pd_function = 'xs'
+
+    key = param.Tuple()
+
+    axis = param.Integer(1, bounds=[0, 1])
+
+    n_levels = param.Integer(None, doc="Number of levels")
+
+    level = param.List()
+
+    drop_level = param.Boolean(True)
+
+    names = param.List(None, doc="List of label names for widgets")
+
+    empty_select = param.Boolean(default=False, doc="""
+        Add an option to Select widgets to indicate no filtering.""")
+
+    def __init__(self, **params):
+        super().__init__(**params)
+
+        self.df = self.get_data()
+        self.index = self.df.columns if self.axis else self.df.index
+        self.names = self.names or self.index.names
+        n_levels = self.n_levels or len(self.names)
+
+        # either has a widgets dict or panel property
+        self.widgets = {name: pn.widgets.Select(name=name) for name in self.names[:n_levels]}
+        self.selectors = list(self.widgets.values())
+        for selector in self.selectors:
+            selector.param.watch(self._selector_changed, ['value'], onlychanged=True)
+
+        options = list(self.index.get_level_values(0).unique())
+        if self.empty_select:
+            options = ['None'] + options
+        self.selectors[0].options = options
+        self.selectors[0].value = options[0]
+
+    def update(self, *events):
+        self.df = self.get_data()
+        self.index = self.df.columns if self.axis else self.df.index  #assuming names stay the same
+        super().update(*events)
+
+    def _selector_changed(self, *events):
+        for event in events:
+            current_index = self.selectors.index(event.obj)  # Index of the selector which was changed
+
+            try:  # try/except when we are at the last selector
+                next_selector = self.selectors[current_index + 1]
+
+                # Determine key/level to obtain new index which gives options for the next slider
+                values = [selector.value for selector in self.selectors[:current_index + 1]]
+                key = [value if value != 'None' else slice(None) for value in values]
+                level = list(range(current_index+1))
+                bools, current_columns = self.index.get_loc_level(key=key, level=level)
+                options = list(current_columns.get_level_values(0).unique())
+                if self.empty_select:
+                    options = ['None'] + options
+                next_selector.options = options
+                if next_selector.value is None:  # If the selector was not set yet, set it to 'None'
+                    next_selector.value = options[0]
+            except IndexError:
+                pass
+
+        # set the df
+        all_values = [selector.value for selector in self.selectors]
+        self.key = tuple([value if value != 'None' else slice(None) for value in all_values])
+        self.level = list(range(len(all_values)))
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas function to apply filter"""
+        return dict(key=self.key, axis=self.axis, level=self.level, drop_level=self.drop_level)
 
 
 class WebAppWidgetFilter(WebAppFilter):
