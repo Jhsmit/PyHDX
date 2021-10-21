@@ -43,23 +43,14 @@ class WebView(View):
         return data
 
 
-class hvPlotAppView(hvPlotView):
+class hvPlotAppView(hvPlotView, WebView):
 
     def get_data(self):
         # get data filter using pandas query syntax?
-        try:
-            data = super().get_data()
-        except (KeyError, ValueError) as e:
-            #print(f'Empty data in {self.__class__}: {e}')
-            return self.empty_df
+        data = super().get_data()
 
-        #data = super().get_data()
+        return data
 
-        if data.size > 2:  #todo fix this weird hack
-            return data
-        else:
-            #print(f'got data but too small in  {self.__class__}, ')
-            return self.empty_df
 
     @property
     def empty_df(self):
