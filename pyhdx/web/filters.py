@@ -82,7 +82,7 @@ class StackFilter(WebAppFilter):
 
 #todo some kind of class that can do multiple of these combined?
 
-class YourMomFilter(WebAppFilter):
+class GenericFilter(WebAppFilter):
     pd_function = param.String()
 
     def __init__(self, **params):
@@ -179,6 +179,9 @@ class CrossSectionFilter(WebAppFilter):
         all_values = [selector.value for selector in self.selectors]
         self.key = tuple([value if value != 'None' else slice(None) for value in all_values])
         self.level = list(range(len(all_values)))
+
+        #signal the change
+        self.updated = True
 
     @property
     def pd_kwargs(self):

@@ -63,7 +63,7 @@ class MainController(param.Parameterized):
         for filt in self.filters.values():
             if isinstance(filt, FacetFilter):
                 continue
-            filt.param.watch(partial(self._rerender, invalidate_cache=True), 'value')
+            filt.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
 
         for trs in self.transforms.values():
             if hasattr(trs, 'updated'):
