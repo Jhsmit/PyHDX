@@ -217,7 +217,7 @@ def _peptide_uptake_figure(fig_factory, indices, _t, _d, hdxm):
     for i in indices:
         ax = next(axes_iter)
         ax.plot(_t, _d[i], color='r')
-        ax.scatter(hdxm.timepoints, hdxm.d_exp.iloc[i], color='k')
+        ax.scatter(hdxm.timepoints, hdxm.d_exp.iloc[i], color='k', **SCATTER_KWARGS)
 
         start, end = hdxm.coverage.data.iloc[i][['_start', '_end']]
         ax.format(title=f'Peptide_{i}: {start} - {end}')
