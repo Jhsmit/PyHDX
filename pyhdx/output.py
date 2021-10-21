@@ -12,15 +12,24 @@ import proplot as pplt
 import pylatex as pyl
 from tqdm.auto import tqdm
 
-from pyhdx.plot import FitResultPlotBase
+from pyhdx.plot import FitResultPlotBase, SCATTER_KWARGS
 
 geometry_options = {
     "lmargin": "1in",
-    "rmargin": "1in"
+    "rmargin": "1in",
+    'tmargin': "1in",
+
     }
+#pyl.NoEscape
+# geometry_options = {
+#     'total': pyl.NoEscape(r'{170mm, 157mm}'),
+#     'left': '20mm',
+#     'top': '20mm'
+# }
 
 #assuming A4 210 mm width
 PAGE_WIDTH = 210 - pplt.units(geometry_options['lmargin'], dest='mm') - pplt.units(geometry_options['rmargin'], dest='mm')
+#PAGE_WIDTH = 170
 
 class BaseReport(object):
     pass
