@@ -171,6 +171,21 @@ class CSVFileInputControl(ControlPanel):
         #item.param.trigger('object')
 
 
+class DevTestControl(ControlPanel):
+
+    btn = param.Action(lambda self: self._action_debug(), label='Debug')
+
+    def _action_debug(self):
+        print('hola')
+
+
+    @property
+    def _layout(self):
+        return [
+            ('self', None),
+            ('filters.coverage_select', None),
+        ]
+
 class TestFileInputControl(ControlPanel):
     input_file = param.Parameter()
     load_file = param.Action(lambda self: self._action_load())
