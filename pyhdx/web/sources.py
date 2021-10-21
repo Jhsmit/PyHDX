@@ -55,7 +55,7 @@ class PyHDXSource(WebSource):
 
     hdxm_objects = param.Dict({})
     rate_results = param.Dict({})  # dataframes?
-    dG_results = param.Dict({})
+    dG_fits = param.Dict({})
     cmaps = param.Dict({})   #TODO CMAP AND NORM SHOULD BE ON THE VIEWS!ONOENE
 
     def from_file(self):
@@ -68,8 +68,10 @@ class PyHDXSource(WebSource):
             self.hdxm_objects[name] = obj
             self.param.trigger('hdxm_objects')
         elif isinstance(obj, TorchFitResult):
-            self.dG_results[name] = obj
-            self.param.trigger('dG_results')
+            self.dG_fits[name] = obj
+            self.param.trigger('dG_fits')
+        else:
+            raise ValueError(f"Unsupported object {obj!r}")
 
     @param.depends('hdxm_objects', watch=True)
     def _hdxm_objects_updated(self):
@@ -83,9 +85,13 @@ class PyHDXSource(WebSource):
         combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'quantity'])
         self.tables['rfu_residues'] = combined
 
-    @param.depends('dG_results')
-    def _dG_results_updated(self):
-        pass
+    @param.depends('dG_fits', watch=True)
+    def _fit_results_updated(self):
+        combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
+                             keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])
+        self.tables['dG_fits'] = combined
+
+        # todo add d_exp etc
         #cached?:
 
     def get(self, table, *queries):
