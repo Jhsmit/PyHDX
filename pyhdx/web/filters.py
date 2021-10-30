@@ -94,6 +94,23 @@ class GenericFilter(WebAppFilter):
         """kwargs to pass to pandas functin to apply filter"""
         return self.kwargs
 
+
+class RescaleFilter(WebAppFilter):
+    """Rescale a single column"""
+
+    pd_function = 'assign'
+
+    column = param.String(doc='Name of the column to rescale')
+
+    scale_factor = param.Number(1.)
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas function to apply filter"""
+        return {self.column: lambda x: x[self.column]*self.scale_factor}
+
+
+
 class PivotFilter(WebAppFilter):
     pd_function = 'pivot'
 
