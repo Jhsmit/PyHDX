@@ -53,6 +53,8 @@ CBAR_KWARGS = {
 }
 
 
+
+
 def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_field='rfu', subplot_field='exposure',
                             rect_fields=('start', 'end'), rect_kwargs=None, **figure_kwargs):
 
@@ -722,6 +724,9 @@ def get_color_scheme(name):
         raise ValueError(f"Color scheme '{name}' not found")
 
     return colors, bad
+
+
+CMAP_DEFAULTS = {q: default_cmap_norm(q) for q in ['dG', 'rfu', 'ddG']}
 
 
 def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', cmap=None, norm=None, extent=None,
