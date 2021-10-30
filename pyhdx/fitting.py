@@ -140,7 +140,7 @@ def fit_rates_half_time_interpolate(hdxm):
     rate = np.log(2) / interpolated  # convert to rate
 
     output = pd.DataFrame({'rate': rate}, index=hdxm.coverage.r_number)
-    result = GenericFitResult(output=output, fit_function='fit_rates_half_time_interpolate')
+    result = GenericFitResult(output=output, fit_function='fit_rates_half_time_interpolate', name=hdxm.name)
 
     return result
 
@@ -660,6 +660,10 @@ class KineticsFitResult(object):
         else:
             raise ValueError('Unsupported model types')
 
+    @property
+    def name(self):
+        return self.hdxm.name
+
     def __call__(self, timepoints):
         """call the result with timepoints to get fitted uptake per peptide back"""
         #todo outdated
@@ -779,3 +783,19 @@ class KineticsFitResult(object):
 class GenericFitResult:
     output: pd.DataFrame
     fit_function: str  # name of the function used to generate the fit result
+    name: str  # name of hdxm object
+
+
+@dataclass
+class RatesFitResult:
+    results: list
+
+    @property
+    def output(self):
+        dfs = [result.output for result in self.results]
+        keys = [result.name for result in self.results]
+        combined_results = pd.concat(dfs, axis=1,
+                                     keys=keys,
+                                     names=['state', 'quantity'])
+
+        return combined_results
