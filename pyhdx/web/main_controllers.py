@@ -14,6 +14,8 @@ from lumen.filters import FacetFilter
 from functools import partial
 from dask.distributed import Client
 
+from pyhdx.web.sources import PyHDXSource, WebSource
+
 
 class MainController(param.Parameterized):
     """
@@ -47,6 +49,7 @@ class MainController(param.Parameterized):
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
 
+    src = param.ClassSelector(WebSource)
     logger = param.ClassSelector(logging.Logger, doc="Logger object")
 
     def __init__(self, control_panels, client=False, **params):
@@ -65,9 +68,10 @@ class MainController(param.Parameterized):
                 continue
             filt.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
 
-        for trs in self.transforms.values():
-            if hasattr(trs, 'updated'):
-                trs.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
+        # for opt in self.opts.values():
+        #     opt.param.watch(self._update_views, 'updated')
+
+
 
         self._update_views()
         self.start()
@@ -80,9 +84,11 @@ class MainController(param.Parameterized):
         for view in self.views.values():
             view.update(invalidate_cache=invalidate_cache)
 
-    def __panel__(self):
-        # This does something but not as expected
-        return self.template
+    @param.depends('src.cmaps', watch=True)
+    def _update_cmaps(self):
+        #todo figure out which key in dict was updated
+        pass
+
 
     @property
     def panel(self):
