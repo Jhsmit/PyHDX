@@ -181,7 +181,7 @@ class TestMainGUISecB(object):
 
         classification.mode = 'Color map'
         classification.library = 'colorcet'
-        classification.color_map = 'CET_C1'
+        classification.colormap = 'CET_C1'
         cmap, norm = classification.get_cmap_and_norm()
 
         colors = cmap(norm(values), bytes=True)

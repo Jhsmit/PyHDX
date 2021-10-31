@@ -22,6 +22,7 @@ from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interp
     fit_gibbs_global_batch, PATIENCE, STOP_LOSS, EPOCHS, R1, R2, optimizer_defaults, RatesFitResult
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
 from pyhdx.web.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
+from pyhdx.web.opts import CmapOpts
 from pyhdx.web.sources import DataSource, DataFrameSource
 from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
@@ -206,6 +207,7 @@ class DevTestControl(ControlPanel):
             ('self', None),
             ('filters.coverage_select', None),
         ]
+
 
 class TestFileInputControl(ControlPanel):
     input_file = param.Parameter()
@@ -862,18 +864,18 @@ class ClassificationControl(ControlPanel):
     # fit_ID = param.Selector()  # generalize selecting widgets based on selected table
     # quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
 
-    mode = param.Selector(default='Discrete', objects=['Discrete', 'Continuous', 'Color map'],
+    mode = param.Selector(default='Colormap', objects=['Colormap', 'Continuous', 'Discrete'],
                           doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
     num_colors = param.Integer(3, bounds=(1, 10), label='Number of colours',
                               doc='Number of classification colors.')
-    library = param.Selector(default='matplotlib', objects=['matplotlib', 'colorcet'])
-    color_map = param.Selector()
+    library = param.Selector(default='matplotlib', objects=['matplotlib', 'colorcet', 'pyhdx_default'])
+    colormap = param.Selector()
     otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
                             doc="Automatically perform thresholding based on Otsu's method.")
     linear_thd = param.Action(lambda self: self._action_linear(), label='Linear',
                               doc='Automatically perform thresholding by creating equally spaced sections.')
-    log_space = param.Boolean(False,
-                              doc='Boolean to set whether to apply colors in log space or not.')
+    #log_space = param.Boolean(False,
+    #                          doc='Boolean to set whether to apply colors in log space or not.')
     #apply = param.Action(lambda self: self._action_apply())
     no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage')
 
@@ -896,11 +898,22 @@ class ClassificationControl(ControlPanel):
         mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
         pyhdx_cmaps = CMAP_DEFAULTS
         self.cmaps = {'matplotlib': mpl_cmaps, 'colorcet': cc_cmaps, 'pyhdx_default': pyhdx_cmaps}
-        self.param['color_map'].objects = mpl_cmaps
+        self.param['colormap'].objects = mpl_cmaps
 
         self._update_num_colors()
         self._update_num_values()
-        self.excluded = ['library', 'color_map'] # excluded widgets based on choice of `mode`
+        self.excluded = ['otsu_thd', 'num_colors']
+
+#        self.excluded = ['library', 'color_map'] # excluded widgets based on choice of `mode`
+
+        quantity_options = [opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)]
+        self.param['quantity'].objects = quantity_options
+        if self.quantity is None:
+            self.quantity = quantity_options[0]
+        self.update_box()
+
+
+
 
     @property
     def own_widget_names(self):
@@ -914,7 +927,7 @@ class ClassificationControl(ControlPanel):
                 initial_widgets.append(name)
 
         widget_names = initial_widgets + [f'value_{i}' for i in range(len(self.values))]
-        if self.mode != 'Color map':
+        if self.mode != 'Colormap':
             widget_names += [f'color_{i}' for i in range(len(self.colors))]
         return widget_names
 
@@ -980,11 +993,11 @@ class ClassificationControl(ControlPanel):
         if not values.size:
             return
 
-        if self.log_space:
-            thds = np.logspace(np.log(np.min(values)), np.log(np.max(values)),
-                               num=self.num_colors + i, endpoint=True, base=np.e)
-        else:
-            thds = np.linspace(np.min(values), np.max(values), num=self.num_colors + i, endpoint=True)
+        # if self.log_space:
+        #     thds = np.logspace(np.log(np.min(values)), np.log(np.max(values)),
+        #                        num=self.num_colors + i, endpoint=True, base=np.e)
+        #else:
+        thds = np.linspace(np.min(values), np.max(values), num=self.num_colors + i, endpoint=True)
 
         widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
         for thd, widget in zip(thds[i:self.num_colors][::-1], widgets):
@@ -1023,20 +1036,30 @@ class ClassificationControl(ControlPanel):
 
         source.add_df(output_df, 'colors')
 
-    @param.depends('color_map', 'values', 'colors', watch=True)
+    def _action_apply_colormap(self):
+        print('joehoe')
+        cmap, norm = self.get_cmap_and_norm()
+        print(cmap, norm)
+        if cmap and norm and self.quantity:
+            # this needs to be updated to more generalized
+            print('todo apply')
+            print(cmap, norm)
+            #with # aggregate and execute at once:
+            opt = self.opts[self.quantity]
+            opt.cmap = cmap
+            opt.norm = norm
+
+    @param.depends('colormap', 'values', 'colors', watch=True)
     def _preview_updated(self):
         if self.live_preview:
-            cmap, norm = self.get_cmap_and_norm()
+            self._action_apply_colormap()
 
-            if cmap and norm:
-                #this needs to be updated to more generalized
-                print('todo apply')
-
-    def _action_apply_colormap(self):
-        pass
+    @param.depends('quantity')
+    def _quantity_updated(self):
+        print('reload quantity settings')
 
     def get_cmap_and_norm(self):
-        norm_klass = mpl.colors.Normalize if not self.log_space else mpl.colors.LogNorm
+        norm_klass = mpl.colors.Normalize # if not self.log_space else mpl.colors.LogNorm
         if len(self.values) < 2:
             return None, None
 
@@ -1049,12 +1072,14 @@ class ClassificationControl(ControlPanel):
             norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
             positions = norm(self.values[::-1])
             cmap = mpl.colors.LinearSegmentedColormap.from_list('custom_cmap', list(zip(positions, self.colors)))
-        elif self.mode == 'Color map':
+        elif self.mode == 'Colormap':
             norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
             if self.library == 'matplotlib':
-                cmap = mpl.cm.get_cmap(self.color_map)
+                cmap = mpl.cm.get_cmap(self.colormap)
             elif self.library == 'colorcet':
-                cmap = getattr(colorcet, 'm_' + self.color_map)
+                cmap = getattr(colorcet, 'm_' + self.colormap)
+            elif self.library == 'pyhdx_default':
+                cmap, _norm = CMAP_DEFAULTS[self.quantity]
 
         cmap.set_bad(self.no_coverage)
         return cmap, norm
@@ -1062,18 +1087,18 @@ class ClassificationControl(ControlPanel):
     @param.depends('library', watch=True)
     def _update_library(self):
         options = self.cmaps[self.library]
-        self.param['color_map'].objects = options
+        self.param['colormap'].objects = options
 
     @param.depends('mode', watch=True)
     def _mode_updated(self):
         if self.mode == 'Discrete':
-            self.excluded = ['library', 'color_map']
+            self.excluded = ['library', 'colormap']
     #        self.num_colors = max(3, self.num_colors)
     #        self.param['num_colors'].bounds = (3, None)
         elif self.mode == 'Continuous':
-            self.excluded = ['library', 'color_map', 'otsu_thd']
+            self.excluded = ['library', 'colormap', 'otsu_thd']
       #      self.param['num_colors'].bounds = (2, None)
-        elif self.mode == 'Color map':
+        elif self.mode == 'Colormap':
             self.excluded = ['otsu_thd', 'num_colors']
             self.num_colors = 2
 
