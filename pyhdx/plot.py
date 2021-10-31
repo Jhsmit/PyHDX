@@ -697,6 +697,7 @@ def get_color_scheme(name):
         bad = '#bbbbbb'
     elif name == 'vibrant':
         colors = ['#CC3311', '#009988', '#0077BB']
+        # colors = ['#CC3311', '#EE7733', '#009988', '#33BBEE', '#0077BB']
         bad = '#bbbbbb'
     elif name == 'muted':
         colors = ['#882255', '#117733', '#332288']
