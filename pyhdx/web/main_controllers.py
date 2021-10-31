@@ -14,7 +14,7 @@ from lumen.filters import FacetFilter
 from functools import partial
 from dask.distributed import Client
 
-from pyhdx.web.sources import PyHDXSource, WebSource
+from pyhdx.web.sources import PyHDXSource, AppSource
 
 
 class MainController(param.Parameterized):
@@ -49,7 +49,7 @@ class MainController(param.Parameterized):
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
 
-    src = param.ClassSelector(WebSource)
+    src = param.ClassSelector(AppSource)
     logger = param.ClassSelector(logging.Logger, doc="Logger object")
 
     def __init__(self, control_panels, client=False, **params):

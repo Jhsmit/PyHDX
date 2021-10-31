@@ -13,15 +13,42 @@ from bokeh.models.formatters import NumeralTickFormatter
 from bokeh.plotting import figure
 from lumen.filters import ParamFilter
 from lumen.views import hvPlotView, View
+from panel.pane.base import PaneBase
 
 from pyhdx.support import autowrap
 from pyhdx.web.base import BokehFigurePanel, FigurePanel, MIN_BORDER_LEFT
+from pyhdx.web.sources import AppSource
 from pyhdx.web.widgets import LoggingMarkdown, NGL
 
 import numpy as np
 
 
-class WebView(View):
+class AppView(param.Parameterized):
+    """Base view object.
+
+    Inspired by Holoviz Lumen's View objects"""
+
+
+    filters = param.List(constant=True, doc="""
+        A list of Filter object providing the query parameters for the
+        Source.""")
+
+    source = param.ClassSelector(class_=AppSource, constant=True, doc="""
+        The Source to query for the data.""")
+
+    table = param.String(doc="The table being visualized.")
+
+    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.")
+
+    view_type = None
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        # todo allow for kwargs to be passed to DynamicMap's func
+
+        self._panel = None
+        self._updates = None
+
     def get_data(self):
         """
         Queries the Source for the specified table applying any
@@ -43,82 +70,26 @@ class WebView(View):
 
         return data
 
-
-class hvPlotAppView(hvPlotView, WebView):
-
-    def get_data(self):
-        # get data filter using pandas query syntax?
-        data = super().get_data()
-
-        return data
-
-
-    @property
-    def empty_df(self):
-        dic = {self.x: [], self.y: []}
-        if 'c' in self.kwargs:
-            dic[self.kwargs['c']] = []
-        return pd.DataFrame(dic)
+    def _update_panel(self, *events):
+        """
+        Updates the cached Panel object and returns a boolean value
+        indicating whether a rerender is required.
+        """
+        if self._panel is not None:
+            self._cleanup()
+            self._updates = self._get_params()
+            if self._updates is not None:
+                return False
+        self._panel = self.get_panel()
+        return True
 
 
-class hvScatterAppView(WebView):
+class hvAppView(AppView):
 
-    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.")
-
-    view_type = 'scatter'
-
-    x = param.String(doc="The column to render on the x-axis.")
-
-    y = param.String(doc="The column to render on the y-axis.")
-
-    streaming = param.Boolean(default=True, doc="""
-        Whether to stream new data to the plot or rerender the plot.""")
 
     def __init__(self, **params):
-        self._stream = None
-        self._linked_objs = []
-
-        #todo left and right cannot be none
         super().__init__(**params)
-
-    def get_panel(self):
-        kwargs = self._get_params()
-        #interactive? https://github.com/holoviz/panel/issues/1824
-        return pn.pane.HoloViews(**kwargs)
-
-    def get_data(self):
-        df = super().get_data()
-
-        return df
-
-    def get_plot(self, df):
-        """
-        Dataframe df must have columns x0, y0, x1, y1 (in this order) for coordinates
-        bottom-left (x0, y0) and top right (x1, y1). Optionally a fifth value-column can be provided for colors
-
-        Parameters
-        ----------
-        df
-
-        Returns
-        -------
-
-        """
-
-        func = partial(hv.Scatter, kdims=[self.x, self.y])
-        plot = hv.DynamicMap(func, streams=[self._stream])
-        plot = plot.apply.opts(**self.opts) if self.opts else plot
-
-        return plot
-
-    def _get_params(self):
-        df = self.get_data()
-        if df is None:
-            df = self.empty_df
-
-        if self.streaming:
-            self._stream = Pipe(data=df)
-        return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
+        self._stream = None
 
     def update(self, *events, invalidate_cache=True):
         """
@@ -149,25 +120,74 @@ class hvScatterAppView(WebView):
             return False
         if invalidate_cache:
             self._cache = None
-        if not self.streaming or self._stream is None:
-            upd = self._update_panel()
-            return upd
+        if self._stream is None:
+            return self._update_panel()
         if self.get_data() is not None:
             self._stream.send(self.get_data())
         return False
 
+    def get_panel(self):
+        kwargs = self._get_params()
+        #interactive? https://github.com/holoviz/panel/issues/1824
+        return pn.pane.HoloViews(**kwargs)
+
+    def _get_params(self):
+        df = self.get_data()
+
+        self._stream = Pipe(data=df)
+        return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
+
     @property
-    def empty_df(self):
-        dic = {self.x: [], self.y: []}
-        if 'c' in self.kwargs:
-            dic[self.kwargs['c']] = []
-        return pd.DataFrame(dic)
+    def panel(self):
+        if isinstance(self._panel, PaneBase):
+            pane = self._panel
+            if len(pane.layout) == 1 and pane._unpack:
+                return pane.layout[0]
+            return pane._layout
+        return self._panel
+
+
+class hvScatterAppView(hvAppView):
+
+    view_type = 'scatter'
+
+    x = param.String(doc="The column to render on the x-axis.")
+
+    y = param.String(doc="The column to render on the y-axis.")
+
+    def __init__(self, **params):
+        self._stream = None
+        super().__init__(**params)
+
+    def get_plot(self, df):
+        """
+
+        Parameters
+        ----------
+        df
+
+        Returns
+        -------
+
+        """
+
+        func = partial(hv.Scatter, kdims=[self.x], vdims=[self.y])
+        plot = hv.DynamicMap(func, streams=[self._stream])
+        plot = plot.apply.opts(**self.opts) if self.opts else plot
+
+        return plot
+
+
+    # @property
+    # def empty_df(self):
+    #     dic = {self.x: [], self.y: []}
+    #     if 'c' in self.kwargs:
+    #         dic[self.kwargs['c']] = []
+    #     return pd.DataFrame(dic)
 
 
 
-class hvRectangleAppView(WebView):
-
-    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.")
+class hvRectangleAppView(hvAppView):
 
     view_type = 'rectangles'
 
@@ -183,20 +203,10 @@ class hvRectangleAppView(WebView):
     step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
     margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
 
-    streaming = param.Boolean(default=True, doc="""
-        Whether to stream new data to the plot or rerender the plot.""")
-
     def __init__(self, **params):
-        self._stream = None
-        self._linked_objs = []
 
-        #todo left and right cannot be none
+        #todo left and right cannot be none?
         super().__init__(**params)
-
-    def get_panel(self):
-        kwargs = self._get_params()
-        #interactive? https://github.com/holoviz/panel/issues/1824
-        return pn.pane.HoloViews(**kwargs)
 
     def get_data(self):
         df = super().get_data()
@@ -239,51 +249,6 @@ class hvRectangleAppView(WebView):
         plot = plot.apply.opts(**self.opts) if self.opts else plot
 
         return plot
-
-    def _get_params(self):
-        df = self.get_data()
-        if df is None:
-            df = self.empty_df
-
-        if self.streaming:
-            self._stream = Pipe(data=df)
-        return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
-
-    def update(self, *events, invalidate_cache=True):
-        """
-        Triggers an update in the View.
-
-        Parameters
-        ----------
-        events: tuple
-            param events that may trigger an update.
-        invalidate_cache : bool
-            Whether to clear the View's cache.
-
-        Returns
-        -------
-        stale : bool
-            Whether the panel on the View is stale and needs to be
-            rerendered.
-        """
-        # Skip events triggered by a parameter change on this View
-        own_parameters = [self.param[p] for p in self.param]
-        own_events = events and all(
-            isinstance(e.obj, ParamFilter) and
-            (e.obj.parameter in own_parameters or
-            e.new is self._ls.selection_expr)
-            for e in events
-        )
-        if own_events:
-            return False
-        if invalidate_cache:
-            self._cache = None
-        if not self.streaming or self._stream is None:
-            upd = self._update_panel()
-            return upd
-        if self.get_data() is not None:
-            self._stream.send(self.get_data())
-        return False
 
 
     @property

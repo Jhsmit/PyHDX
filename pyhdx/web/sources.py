@@ -15,7 +15,7 @@ from lumen.sources import Source, cached_schema
 from pyhdx.plot import default_cmap_norm, CMAP_DEFAULTS
 
 
-class WebSource(Source):
+class AppSource(Source):
     """patched lumen source"""
 
     updated = param.Event()
@@ -53,7 +53,7 @@ class WebSource(Source):
         """
 
 
-class PyHDXSource(WebSource):
+class PyHDXSource(AppSource):
     tables = param.Dict({}, doc="Dictionary of tables in this Source")
 
     hdxm_objects = param.Dict({})
