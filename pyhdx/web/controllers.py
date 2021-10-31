@@ -19,12 +19,13 @@ from skimage.filters import threshold_multiotsu
 from pyhdx import VERSION_STRING
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
-    fit_gibbs_global_batch, PATIENCE, STOP_LOSS, EPOCHS, R1, R2, optimizer_defaults
+    fit_gibbs_global_batch, PATIENCE, STOP_LOSS, EPOCHS, R1, R2, optimizer_defaults, RatesFitResult
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
 from pyhdx.web.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.web.sources import DataSource, DataFrameSource
 from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
+from pyhdx.plot import CMAP_DEFAULTS
 from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
@@ -174,6 +175,26 @@ class CSVFileInputControl(ControlPanel):
 class DevTestControl(ControlPanel):
 
     btn = param.Action(lambda self: self._action_debug(), label='Debug')
+    cmap = param.Selector(default='viridis', objects=['viridis', 'inferno'])
+    norm = param.Selector(default=(0, 1.), objects=[(0, 1.), (1.,2.), (10, 50)])
+
+    @param.depends('cmap', watch=True)
+    def _cmaps_changed(self):
+        import proplot as pplt
+        new_cmap = pplt.Colormap(self.cmap)
+
+        opt = self.opts['rfu']
+        opt.cmap = new_cmap
+
+    @param.depends('norm', watch=True)
+    def _norm_changed(self):
+        vmin, vmax = self.norm
+        import proplot as pplt
+        new_norm = pplt.Norm('linear', vmin, vmax)
+
+        opt = self.opts['rfu']
+        opt.norm = new_norm
+
 
     def _action_debug(self):
         print('hola')
@@ -558,14 +579,12 @@ class InitialGuessControl(ControlPanel):
         name = self._guess_names.pop(future.key)
 
         results = future.result()
-        dfs = [result.output for result in results]
-        combined_results = pd.concat(dfs, axis=1,
-                                     keys=list(self.parent.data_objects.keys()),
-                                     names=['state_name', 'quantity'])
+        result_obj = RatesFitResult(results)
+        self.parent.src.add()
 
-        self.sources['dataframe'].add_df(combined_results, 'rates', name)
-        self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
-        self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available
+        #self.sources['dataframe'].add_df(combined_results, 'rates', name)
+        #self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
+        #self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available
         self.param['do_fit1'].constant = False
 
     def _action_fit(self):
@@ -638,8 +657,8 @@ class FitControl(ControlPanel):
         self.pbar1 = ASyncProgressBar() #tqdm?
         super(FitControl, self).__init__(parent, **params)
 
-        source = self.parent.sources['dataframe']
-        source.param.watch(self._source_updated, ['updated'])
+        # source = self.parent.sources['dataframe']
+        # source.param.watch(self._source_updated, ['updated'])
 
         self._current_jobs = 0
         self._max_jobs = 2  #todo config
@@ -839,7 +858,7 @@ class ClassificationControl(ControlPanel):
 
     # todo unify name for target field (target_data set)
     # When coupling param with the same name together there should be an option to exclude this behaviour
-    table = param.Selector(label='Target table')
+    quantity = param.Selector(label='Target Quantity')  # todo refactor to data type name??
     # fit_ID = param.Selector()  # generalize selecting widgets based on selected table
     # quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
 
@@ -858,8 +877,11 @@ class ClassificationControl(ControlPanel):
     #apply = param.Action(lambda self: self._action_apply())
     no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage')
 
+    live_preview = param.Boolean(default=True, doc='Toggle live preview on/off')
+
     color_set_name = param.String('', doc='Name for the color dataset to add')
-    add_colorset = param.Action(lambda self: self._action_add_colorset())
+    apply_colormap = param.Action(lambda self: self._action_apply_colormap())
+    restore_default = param.Action(lambda self: self._action_restore_default())
 
     #show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
     values = param.List(default=[], precedence=-1)
@@ -869,27 +891,16 @@ class ClassificationControl(ControlPanel):
         super(ClassificationControl, self).__init__(parent, **param)
 
         # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
+        # update to proplot cmaps?
         cc_cmaps = sorted(colorcet.cm.keys())
         mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
-        self.cmaps = {'matplotlib': mpl_cmaps, 'colorcet': cc_cmaps}
+        pyhdx_cmaps = CMAP_DEFAULTS
+        self.cmaps = {'matplotlib': mpl_cmaps, 'colorcet': cc_cmaps, 'pyhdx_default': pyhdx_cmaps}
         self.param['color_map'].objects = mpl_cmaps
 
         self._update_num_colors()
         self._update_num_values()
         self.excluded = ['library', 'color_map'] # excluded widgets based on choice of `mode`
-
-        views = [view for view in self.views.values() if any(isinstance(trs, ApplyCmapTransform) for trs in view.transforms)]
-        options = [view.table for view in views]
-
-        for view in views:
-            view.source.param.watch(self._sources_updated, 'updated')
-
-        self.param['table'].objects = options
-        if not self.table and options:
-            self.table = options[0]
-
-        self._table_updated()  # also updates box
-        #self.update_box()
 
     @property
     def own_widget_names(self):
@@ -901,12 +912,7 @@ class ClassificationControl(ControlPanel):
             precedence = self.param[name].precedence
             if (precedence is None or precedence > 0) and name not in self.excluded + ['name']:
                 initial_widgets.append(name)
-        #l1[1:1] = l2
-        select_widgets = [name for name in self.widgets.keys() if name.startswith('select')]
-        initial_widgets[1:1] = select_widgets
 
-        #value_widget_names = [f'value_{i}' for i in range(len(self.values))]
-        #color_widget_names = [f'color_{i}' for i in range(len(self.colors))]
         widget_names = initial_widgets + [f'value_{i}' for i in range(len(self.values))]
         if self.mode != 'Color map':
             widget_names += [f'color_{i}' for i in range(len(self.colors))]
@@ -922,43 +928,6 @@ class ClassificationControl(ControlPanel):
         return [
             ('self', self.own_widget_names),
                 ]
-
-    def _sources_updated(self, *events):
-        self._table_updated()
-
-    @param.depends('table', watch=True)
-    def _table_updated(self):
-        df = self.get_data()
-
-        #todo also get schema and check if this table is compatible (ie has numbers, not colors only)
-        if df.empty:
-            return
-        names = df.columns.names
-
-        # Remove old widgets (list comprehension)
-        old_widget_names = [key for key in self.widgets.keys() if key.startswith('select')]
-        [self.widgets.pop(key) for key in old_widget_names]
-
-        widget_dict = {}
-        for i, (name, options) in enumerate(zip(names, df.columns.levels)):
-            _opts = ['*'] + list(options) if i != len(names) - 1 else list(options)
-            #todo make function to determine defaults
-            if i == 0:
-                default = _opts[-1]
-            else:
-                default = 'deltaG' if 'deltaG' in _opts else _opts[0]
-            widget = pn.widgets.Select(name=name, options=_opts, value=default)
-            widget_dict[f'select_{i}'] = widget
-
-        self.widgets.update(widget_dict)
-        self.update_box()
-
-    def get_data(self):
-        """object pandas dataframe: returns current multindex dataframe"""
-        source = self.sources['dataframe']
-        df = source.get(self.table)
-
-        return df
 
     def get_selected_data(self):
         #todo move method to data source?
@@ -1055,14 +1024,16 @@ class ClassificationControl(ControlPanel):
         source.add_df(output_df, 'colors')
 
     @param.depends('color_map', 'values', 'colors', watch=True)
-    def _action_apply(self):
-        cmap, norm = self.get_cmap_and_norm()
+    def _preview_updated(self):
+        if self.live_preview:
+            cmap, norm = self.get_cmap_and_norm()
 
-        if cmap and norm:
-            #this needs to be updated to more generalized
-            transform = self.transforms['cmap_transform']
-            transform.cmap = cmap
-            transform.norm = norm
+            if cmap and norm:
+                #this needs to be updated to more generalized
+                print('todo apply')
+
+    def _action_apply_colormap(self):
+        pass
 
     def get_cmap_and_norm(self):
         norm_klass = mpl.colors.Normalize if not self.log_space else mpl.colors.LogNorm
