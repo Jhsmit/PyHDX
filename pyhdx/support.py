@@ -329,7 +329,7 @@ def rgb_to_hex(rgb_a):
 
     elif isinstance(rgb_a, np.ndarray):
         # todo: allow rgb arrays
-        assert rgb_a.shape[1] == 4
+        assert rgb_a.shape[-1] == 4
         if rgb_a.data.c_contiguous:
         #todo check for c-contigious
             rgba_array = rgb_a
@@ -339,7 +339,6 @@ def rgb_to_hex(rgb_a):
         raise TypeError(f"Invalid type for 'rgb_a': {rgb_a}")
 
     ints = rgba_array.astype(np.uint8).view(dtype=np.uint32).byteswap()
-    a = base_v(ints // 2**8, 16)
     padded = np.char.rjust(base_v(ints // 2**8, 16), 6, '0')
     result = np.char.add('#', padded).squeeze()
 
