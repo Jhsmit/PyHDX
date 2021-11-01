@@ -626,7 +626,7 @@ class FitControl(ControlPanel):
     Currently, repeated fitting overrides the old result.
     """
 
-    header = 'Fitting'
+    header = 'ΔG Fit'
 
     initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
 
