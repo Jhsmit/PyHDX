@@ -14,6 +14,7 @@ import pandas as pd
 import panel as pn
 import param
 from numpy.lib.recfunctions import append_fields
+from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
 from pyhdx import VERSION_STRING
@@ -26,7 +27,7 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.sources import DataSource, DataFrameSource
 from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
-from pyhdx.plot import CMAP_DEFAULTS
+from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm
 from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
@@ -328,7 +329,6 @@ class PeptideFileInputControl(ControlPanel):
 
     @param.depends('input_files', watch=True)
     def _read_files(self):
-        """"""
         if self.input_files:
             combined_df = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
             self._df = combined_df
@@ -864,11 +864,13 @@ class ClassificationControl(ControlPanel):
     # fit_ID = param.Selector()  # generalize selecting widgets based on selected table
     # quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
 
+    current_color_transform = param.String()
+
     mode = param.Selector(default='Colormap', objects=['Colormap', 'Continuous', 'Discrete'],
                           doc='Choose color mode (interpolation between selected colors).')#, 'ColorMap'])
-    num_colors = param.Integer(3, bounds=(1, 10), label='Number of colours',
+    num_colors = param.Integer(2, bounds=(1, 10), label='Number of colours',
                               doc='Number of classification colors.')
-    library = param.Selector(default='matplotlib', objects=['matplotlib', 'colorcet', 'pyhdx_default'])
+    library = param.Selector(default='pyhdx_default', objects=['pyhdx_default', 'user_defined', 'matplotlib', 'colorcet'])
     colormap = param.Selector()
     otsu_thd = param.Action(lambda self: self._action_otsu(), label='Otsu',
                             doc="Automatically perform thresholding based on Otsu's method.")
@@ -881,9 +883,8 @@ class ClassificationControl(ControlPanel):
 
     live_preview = param.Boolean(default=True, doc='Toggle live preview on/off')
 
-    color_set_name = param.String('', doc='Name for the color dataset to add')
-    apply_colormap = param.Action(lambda self: self._action_apply_colormap())
-    restore_default = param.Action(lambda self: self._action_restore_default())
+    color_transform_name = param.String('', doc='Name for the color transform to add')
+    apply_colormap = param.Action(lambda self: self._action_apply_colormap(), label='Update color transform')
 
     #show_thds = param.Boolean(True, label='Show Thresholds', doc='Toggle to show/hide threshold lines.')
     values = param.List(default=[], precedence=-1)
@@ -896,24 +897,39 @@ class ClassificationControl(ControlPanel):
         # update to proplot cmaps?
         cc_cmaps = sorted(colorcet.cm.keys())
         mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
-        pyhdx_cmaps = CMAP_DEFAULTS
-        self.cmaps = {'matplotlib': mpl_cmaps, 'colorcet': cc_cmaps, 'pyhdx_default': pyhdx_cmaps}
-        self.param['colormap'].objects = mpl_cmaps
+
+        self._scaling_factors = {'dG': 1e-3, 'ddG': 1e-3}
+
+        self._pyhdx_cmaps = {}  # Dict of pyhdx default colormaps
+        self._user_cmaps = {}
+        self.quantity_mapping = {}  # quantity: (cmap, norm)
+        for quantity in ['dG', 'rfu']:  # todo add others: [opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)]
+            cmap, norm = default_cmap_norm(quantity)
+            sclf = self._scaling_factors.get(quantity, 1.)
+            norm.vmin *= sclf
+            norm.vmax *= sclf
+            cmap.name = quantity + '_default'
+            self._pyhdx_cmaps[quantity + '_default'] = cmap
+            self.quantity_mapping[quantity] = (cmap, norm)
+
+        self.cmap_options = {
+            'matplotlib': mpl_cmaps, # list or dicts
+            'colorcet': cc_cmaps,
+            'pyhdx_default': self._pyhdx_cmaps,
+            'user_defined': self._user_cmaps
+        }
 
         self._update_num_colors()
         self._update_num_values()
+        self._update_library()
         self.excluded = ['otsu_thd', 'num_colors']
-
-#        self.excluded = ['library', 'color_map'] # excluded widgets based on choice of `mode`
 
         quantity_options = [opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)]
         self.param['quantity'].objects = quantity_options
         if self.quantity is None:
             self.quantity = quantity_options[0]
+
         self.update_box()
-
-
-
 
     @property
     def own_widget_names(self):
@@ -926,6 +942,7 @@ class ClassificationControl(ControlPanel):
             if (precedence is None or precedence > 0) and name not in self.excluded + ['name']:
                 initial_widgets.append(name)
 
+        #todo control color / value fields with param.add_parameter function
         widget_names = initial_widgets + [f'value_{i}' for i in range(len(self.values))]
         if self.mode != 'Colormap':
             widget_names += [f'color_{i}' for i in range(len(self.colors))]
@@ -934,7 +951,7 @@ class ClassificationControl(ControlPanel):
     #        return initial_widgets + #list(self.values_widgets.keys()) + list(self.colors_widgets.keys())
 
     def make_dict(self):
-        return self.generate_widgets(num_colors=pn.widgets.IntInput)
+        return self.generate_widgets(num_colors=pn.widgets.IntInput, current_color_transform=pn.widgets.StaticText)
 
     @property
     def _layout(self):
@@ -1007,59 +1024,71 @@ class ClassificationControl(ControlPanel):
             widget.value = thd
         self._update_bounds()
 
-    def _action_add_colorset(self):
-        if not self.color_set_name:
-            self.parent.logger.info('No name given tot the colorset')
-            return
-
-        source = self.sources['dataframe']
-        if self.color_set_name in source.tables.keys():  #todo update
-            self.parent.logger.info(f'Colorset with name {self.color_set_name} already present')
-            return
-
-        selected_df = self.get_selected_data()
-        cmap, norm = self.get_cmap_and_norm()
-
-        array = cmap(norm(selected_df), bytes=True)
-        colors_hex = rgb_to_hex(array.reshape(-1, 4))
-        output = colors_hex.reshape(array.shape[:-1])
-
-        output_df = pd.DataFrame(output, index=selected_df.index, columns=selected_df.columns)
-        if output_df.index.name == 'r_number':  # The selected dataset is a protein mappable
-            c_term = max([data_obj.coverage.protein.c_term for data_obj in self.parent.data_objects.values()])
-            n_term = min([data_obj.coverage.protein.n_term for data_obj in self.parent.data_objects.values()])
-
-            new_index = pd.RangeIndex(start=n_term, stop=c_term, name='r_number')
-            output_df = output_df.reindex(index=new_index, fill_value=self.no_coverage.upper())
-            output_df.rename_axis(columns={'fit_ID': 'color_ID'}, inplace=True)
-            output_df.columns = output_df.columns.set_levels([self.color_set_name], level=0)
-
-        source.add_df(output_df, 'colors')
-
     def _action_apply_colormap(self):
         print('joehoe')
+        if self.quantity is None:
+            return
+
         cmap, norm = self.get_cmap_and_norm()
         print(cmap, norm)
-        if cmap and norm and self.quantity:
-            # this needs to be updated to more generalized
-            print('todo apply')
+        if cmap and norm:
+            print('apply')
             print(cmap, norm)
-            #with # aggregate and execute at once:
+            cmap.name = self.color_transform_name
+            #with # aggregate and execute at once: #            with param.parameterized.discard_events(opt): ??
             opt = self.opts[self.quantity]
             opt.cmap = cmap
             opt.norm = norm
 
+            self.quantity_mapping[self.quantity] = (cmap, norm)
+            self._user_cmaps[cmap.name] = cmap
+
     @param.depends('colormap', 'values', 'colors', watch=True)
     def _preview_updated(self):
         if self.live_preview:
-            self._action_apply_colormap()
+            pass
+            #self._action_apply_colormap()
 
-    @param.depends('quantity')
+    @param.depends('quantity', watch=True)
     def _quantity_updated(self):
+        cmap, norm = self.quantity_mapping[self.quantity]
+
+        # with .. # todo accumulate events?
+
+        preview = self.live_preview
+
+        self.live_preview = False
+        self.mode = 'Colormap'
+
+        lib = 'pyhdx_default' if cmap.name in self._pyhdx_cmaps.keys() else 'user_defined'
+        self.library = lib
+        self.no_coverage = to_hex(cmap.get_bad(), keep_alpha=False)
+        self.colormap = cmap.name
+        self.color_transform_name = cmap.name
+        self.current_color_transform = cmap.name
+
+        thds = [norm.vmax, norm.vmin]
+        print(thds, cmap.name, self.quantity)
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
+        for thd, widget in zip(thds, widgets):
+            # Remove bounds, set values, update bounds
+            widget.start = None
+            widget.end = None
+            widget.value = thd
+        self._update_bounds()
+        self.live_preview = preview
+
+
         print('reload quantity settings')
 
     def get_cmap_and_norm(self):
         norm_klass = mpl.colors.Normalize # if not self.log_space else mpl.colors.LogNorm
+        # if self.colormap_name in self.cmaps['pyhdx_default']: # todo change
+        #     self.parent.logger.info(f"Colormap name {self.colormap_name} already exists")
+        #     return None, None
+
+        print('colormap is ', self.colormap)
+
         if len(self.values) < 2:
             return None, None
 
@@ -1079,15 +1108,22 @@ class ClassificationControl(ControlPanel):
             elif self.library == 'colorcet':
                 cmap = getattr(colorcet, 'm_' + self.colormap)
             elif self.library == 'pyhdx_default':
-                cmap, _norm = CMAP_DEFAULTS[self.quantity]
+                cmap = self._pyhdx_cmaps[self.colormap]
+            elif self.library == 'user_defined':
+                cmap = self._user_cmaps[self.colormap]
 
+        cmap.name = self.color_transform_name
         cmap.set_bad(self.no_coverage)
+
         return cmap, norm
 
     @param.depends('library', watch=True)
     def _update_library(self):
-        options = self.cmaps[self.library]
+        collection = self.cmap_options[self.library]
+        options = collection if isinstance(collection, list) else list(collection.keys())
         self.param['colormap'].objects = options
+        if self.colormap is None:
+            self.colormap = options[0]
 
     @param.depends('mode', watch=True)
     def _mode_updated(self):
