@@ -55,6 +55,11 @@ class AppSource(Source):
 
 class PyHDXSource(AppSource):
     tables = param.Dict({}, doc="Dictionary of tables in this Source")
+    # table options are (table_name, (opts)):
+    # peptides
+    # rfu_residues (rfu)
+    # rates
+    # dG_fits (dG)
 
     hdxm_objects = param.Dict({})
     rate_results = param.Dict({})  # dataframes?
@@ -96,11 +101,15 @@ class PyHDXSource(AppSource):
         combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'quantity'])
         self.tables['rfu_residues'] = combined
 
+        self.param.trigger('tables')
+
     @param.depends('dG_fits', watch=True)
     def _fit_results_updated(self):  #todo method name / result dicts names
         combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
                              keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])
         self.tables['dG_fits'] = combined
+
+        self.param.trigger('tables')
 
         # todo add d_exp etc
         #cached?:
@@ -110,6 +119,9 @@ class PyHDXSource(AppSource):
         combined = pd.concat([fit_result.output for fit_result in self.rate_results.values()], axis=1,
                              keys=self.rate_results.keys(), names=['guess_ID', 'state', 'quantity'])
         self.tables['rates'] = combined
+
+        self.param.trigger('tables')
+
 
     def get(self, table, *queries):
         df = self.tables[table]
