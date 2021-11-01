@@ -257,11 +257,8 @@ class hvRectangleAppView(hvAppView):
 
 
 class NGLView(View):
-    view_type = 'protein'
+    view_type = 'ngl'
 
-    #spin = param.Boolean(default=False)
-
-    #js_files = {'ngl': "https://cdn.jsdelivr.net/gh/arose/ngl@v2.0.0-dev.37/dist/ngl.js"}
 
     def __init__(self, **params):
         super(NGLView, self).__init__(**params)
