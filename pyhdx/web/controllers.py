@@ -28,7 +28,7 @@ from pyhdx.web.sources import DataSource, DataFrameSource
 from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
 from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm
-from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol
+from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol, apply_cmap
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
@@ -1438,11 +1438,6 @@ class FileExportControl(ControlPanel):
     def __init__(self, parent, **param):
         super(FileExportControl, self).__init__(parent, **param)
 
-        objects = list(self.sources['dataframe'].tables.keys())
-        self.param['table'].objects = objects
-        self.table = objects[0]
-        self.sources['dataframe'].param.watch(self._source_updated, 'updated')
-
     def make_dict(self):
         widgets = self.generate_widgets()
         widgets['export_tables'] = pn.widgets.FileDownload(
@@ -1450,10 +1445,23 @@ class FileExportControl(ControlPanel):
             callback=self.table_export_callback
         )
         widgets['export_pml'] = pn.widgets.FileDownload(label='Download pml scripts',
-                                                        callback=self.pml_export_callback,
+                                                        callback=self.pml_export_callback,  #todo PR? param.Action mapped to filedownload
+                                                        )
+        widgets['export_colors'] = pn.widgets.FileDownload(label='Download colors',
+                                                        callback=self.color_export_callback,
+                                                        # todo PR? param.Action mapped to filedownload
                                                         )
 
+
         return widgets
+
+    @param.depends('src.tables', watch=True)
+    def _tables_updated(self):
+        print("watcher watched")
+        options = list(self.src.tables.keys())
+        self.param['table'].objects = options
+        if not self.table:
+            self.table = options[0]
 
     @property
     def _layout(self):
@@ -1461,48 +1469,74 @@ class FileExportControl(ControlPanel):
             ('self', None)
         ]
 
-    def _source_updated(self, *events):
-        self.param['table'].objects = list(self.sources['dataframe'].tables.keys())
-        self._table_updated()
-
     @param.depends('table', 'export_format', watch=True)
     def _table_updated(self):
-        self.df = self.sources['dataframe'].get(self.table)
 
         ext = '.csv' if self.export_format == 'csv' else '.txt'
         self.widgets['export_tables'].filename = self.table + ext
 
-        if self.table == 'colors':
+        qty = self.table.split('_')[0]
+        cmap_opts = {k: opt for k, opt in self.opts.items() if isinstance(opt, CmapOpts)}
+        if qty in cmap_opts.keys():
             self.widgets['export_pml'].disabled = False
+            self.widgets['export_colors'].disabled = False
             self.widgets['export_pml'].filename = self.table + '_pml_scripts.zip'
+            self.widgets['export_colors'].filename = self.table + '_colors' + ext
         else:
             self.widgets['export_pml'].disabled = True
+            self.widgets['export_colors'].disabled = True
+
+    @pn.depends('table')  # param.depends?
+    def table_export_callback(self):
+        if self.table:
+            df = self.src.tables[self.table]
+            io = dataframe_to_stringio(df, fmt=self.export_format)
+            return io
+        else:
+            return None
 
     @pn.depends('table')
     def pml_export_callback(self):
-
         if self.table:
             #todo check if table is valid for pml conversion
 
+            color_df = self.get_color_df()
+
             bio = BytesIO()
             with zipfile.ZipFile(bio, 'w') as pml_zip:
-                for col_name in self.df.columns:
+                for col_name in color_df.columns:
                     name = col_name if isinstance(col_name, str) else '_'.join(col_name)
-                    colors = self.df[col_name]
+                    colors = color_df[col_name]
                     pml_script = series_to_pymol(colors)  # todo refactor pd_series_to_pymol?
                     pml_zip.writestr(name + '.pml', pml_script)
 
             bio.seek(0)
             return bio
 
-    @pn.depends('table')  # param.depends?
-    def table_export_callback(self):
+    def get_color_df(self):
+        df = self.src.tables[self.table]
+        qty = self.table.split('_')[0]
+        opt = self.opts[qty]
+        cmap = opt.cmap
+        norm = opt.norm
+        if qty == 'dG':
+            norm.vmin *= 1e-3
+            norm.vmax *= 1e-3
+
+            df = df.xs('deltaG', level=-1, axis=1)
+
+        color_df = apply_cmap(df, cmap, norm)
+
+        return color_df
+
+    @pn.depends('table')
+    def color_export_callback(self):
         if self.table:
-            io = dataframe_to_stringio(self.df, fmt=self.export_format)
+            df = self.get_color_df()
+            io = dataframe_to_stringio(df, fmt=self.export_format)
             return io
         else:
             return None
-
 
 class SingleMappingFileInputControl(MappingFileInputControl):
     """
