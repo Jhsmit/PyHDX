@@ -394,12 +394,17 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     return series_to_pymol(pd_series)
 
 
-def apply_cmap(pd_series, cmap, norm=None):
-    values = pd_series if norm is None else norm(pd_series)
+def apply_cmap(pd_series_or_df, cmap, norm=None):
+    values = pd_series_or_df if norm is None else norm(pd_series_or_df)
     rgb_colors = cmap(values, bytes=True)
     hex_colors = rgb_to_hex(rgb_colors)
 
-    return pd.Series(hex_colors, index=pd_series.index)
+    if isinstance(pd_series_or_df, pd.Series):
+        return pd.Series(hex_colors, index=pd_series_or_df.index)
+    elif isinstance(pd_series_or_df, pd.DataFrame):
+        return pd.DataFrame(hex_colors, index=pd_series_or_df.index, columns=pd_series_or_df.columns)
+
+
 
 
 def color_pymol(pd_series, cmd, model=None):
