@@ -256,39 +256,72 @@ class hvRectangleAppView(hvAppView):
         return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
 
 
-class NGLView(View):
+class NGLView(AppView):
     view_type = 'ngl'
 
+    table = param.Selector()  # make base class table also selector?
 
     def __init__(self, **params):
         super(NGLView, self).__init__(**params)
         self.ngl_view = NGL(sizing_mode='stretch_both')
 
+        self.widgets = {} # todo widgets from ngl_view
+
     def get_panel(self):
         return self.ngl_view
+
+    # def _update_panel(self, *events):
+    #     """
+    #     Updates the cached Panel object and returns a boolean value
+    #     indicating whether a rerender is required.
+    #     """
+    #     # rerednder is never required
+    #     if self._panel is not None:
+    #         self._cleanup()
+    #         self._updates = self._get_params()
+    #         if self._updates is not None:
+    #             return False
+    #     self._panel = self.get_panel()
+    #     return True
+
+    def _cleanup(self):
+        return None
+
+    def _get_params(self):
+        return None
 
     def update(self, *events, invalidate_cache=True):
         if invalidate_cache:
             self._cache = None
-        data = self.get_data()
-        if len(data.columns) > 1 or data.size < 1:
-            # invalid number of columns
-            self.ngl_view.color_list = [['white', "*"]]
-        else:
-            pd_series = data.iloc[:, 0]
-            grp = pd_series.groupby(pd_series)
-
-            color_list = []
-            for c, pd_series in grp:
-                result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
-
-                resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
-                color_list.append([c, resi])
-
-            self.ngl_view.color_list = color_list
+        # data = self.get_data()
+        # if len(data.columns) > 1 or data.size < 1:
+        #     # invalid number of columns
+        #     self.ngl_view.color_list = [['white', "*"]]
+        # else:
+        #     pd_series = data.iloc[:, 0]
+        #     grp = pd_series.groupby(pd_series)
+        #
+        #     color_list = []
+        #     for c, pd_series in grp:
+        #         result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+        #
+        #         resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
+        #         color_list.append([c, resi])
+        #
+        #     self.ngl_view.color_list = color_list
 
         # update panel?
         return self._update_panel()
+
+    @property
+    def panel(self):  # why the panebase unpack?
+        if isinstance(self._panel, PaneBase):
+            pane = self._panel
+            if len(pane.layout) == 1 and pane._unpack:
+                return pane.layout[0]
+            return pane._layout
+        return self._panel
+
 
 
 class LoggingView(View):

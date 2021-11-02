@@ -204,6 +204,11 @@ class NGL(ReactiveHTML):
         objects=EXTENSIONS,
     )
 
+    background_color = param.Color(
+        default='#F7F7F7',
+        doc='Color to use for the background'
+    )
+
     representation = param.Selector(
         default="ball+stick",
         objects=REPRESENTATIONS,
@@ -230,8 +235,9 @@ class NGL(ReactiveHTML):
     """
     _scripts = {
         'render': """
-            var stage = new NGL.Stage(ngl_stage)
+            var stage = new NGL.Stage(ngl_stage)        
             state._stage = stage
+            state._stage.setParameters({ backgroundColor: data.background_color})
             stage.handleResize();
         """,
         'object': """
@@ -242,6 +248,9 @@ class NGL(ReactiveHTML):
             """,
         'custom_color_scheme': """
             self.setParameters()
+        """,
+        'background_color': """
+        state._stage.setParameters({ backgroundColor: data.background_color})
         """,
         'setParameters': """
             if (state._stage.compList.length !== 0) {
