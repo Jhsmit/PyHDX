@@ -2,6 +2,7 @@ import operator
 import urllib.request
 import zipfile
 from collections import namedtuple
+from copy import copy
 from io import StringIO, BytesIO
 from pathlib import Path
 
@@ -9,6 +10,7 @@ import colorcet
 import dask
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import proplot as pplt
 import numpy as np
 import pandas as pd
 import panel as pn
@@ -27,7 +29,7 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.sources import DataSource, DataFrameSource
 from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
-from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm
+from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm, dG_scatter_figure
 from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol, apply_cmap
 
 HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
@@ -1433,13 +1435,21 @@ class FileExportControl(ControlPanel):
     export_format = param.Selector(default='csv', objects=['csv', 'pprint'],
                                    doc="Format of the exported tables."
                                        "'csv' is machine-readable, 'pprint' is human-readable format")
+
+    figure = param.Selector(default='dG', objects=['dG'])
+    figure_selection = param.Selector(label='Selection')
+    figure_format = param.Selector(default='png', objects=['png', 'pdf', 'svg', 'eps'])
+
     #todo add color param an dlink with protein viewer color
 
     def __init__(self, parent, **param):
         super(FileExportControl, self).__init__(parent, **param)
 
+        self._figure_updated()
+
     def make_dict(self):
         widgets = self.generate_widgets()
+
         widgets['export_tables'] = pn.widgets.FileDownload(
             label='Download table',
             callback=self.table_export_callback
@@ -1452,8 +1462,16 @@ class FileExportControl(ControlPanel):
                                                         # todo PR? param.Action mapped to filedownload
                                                         )
 
+        widgets['export_figure'] = pn.widgets.FileDownload(label='Download figure',
+                                                        callback=self.figure_export_callback,
+                                                        # todo PR? param.Action mapped to filedownload
+                                                        )
 
-        return widgets
+        widget_order = ['table', 'export_format', 'export_tables', 'export_pml', 'export_colors', 'figure',
+                        'figure_selection', 'figure_format', 'export_figure']
+        final_widgets = {w: widgets[w] for w in widget_order}
+
+        return final_widgets
 
     @param.depends('src.tables', watch=True)
     def _tables_updated(self):
@@ -1537,6 +1555,63 @@ class FileExportControl(ControlPanel):
             return io
         else:
             return None
+
+    @pn.depends('figure', 'figure_format', watch=True)
+    def _figure_updated(self):
+        # generalize more when other plot options are introduced
+
+        if not self.figure:
+            return
+
+        if self.figure == 'dG':
+            if 'dG_fits' not in self.src.tables.keys():
+                return
+
+            df = self.src.tables['dG_fits']
+            options = list(df.columns.unique(level=0))
+            self.param['figure_selection'].objects = options
+            if not self.figure_selection:
+                self.figure_selection = options[0]
+
+    @pn.depends('figure_selection', 'figure_format', watch=True)
+    def _figure_filename_updated(self):
+        fname = f'dG_scatter_{self.figure_selection}.{self.figure_format}'
+
+        self.widgets['export_figure'].filename = fname
+
+    @pn.depends('figure')
+    def figure_export_callback(self):
+
+        self.widgets['export_figure'].loading = True
+
+        if not self.figure:
+            return None
+
+        if self.figure == 'dG':
+            if 'dG_fits' not in self.src.tables.keys():
+                return None
+
+            df = self.src.tables['dG_fits']
+            sub_df = df[self.figure_selection]
+
+            opts = self.opts['dG']
+
+            norm = copy(opts.norm)
+            norm.vmin *= 1e3
+            norm.vmax *= 1e3
+
+            fig, axes, cbars = dG_scatter_figure(sub_df, cmap=opts.cmap, norm=norm)
+
+            bio = BytesIO()
+            fig.savefig(bio, format=self.figure_format)
+            bio.seek(0)
+
+        self.widgets['export_figure'].loading = False
+
+        return bio
+
+
+
 
 class SingleMappingFileInputControl(MappingFileInputControl):
     """
