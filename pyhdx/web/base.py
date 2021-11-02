@@ -270,6 +270,7 @@ class ControlPanel(PanelBase):
 
     def make_list(self):
         """override this method to modify mapping of dict to list"""
+        raise DeprecationWarning('not sued anymore')
         return list(self.widget_dict.values())
 
     def make_dict(self):
