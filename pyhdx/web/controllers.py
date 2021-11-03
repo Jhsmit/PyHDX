@@ -1275,8 +1275,8 @@ class ProteinControl(ControlPanel):
     @property
     def _layout(self):
         return [('self', self.own_widget_names),
-                ('filters.ngl_color_id', None),
-                ('filters.ngl_state_name', None),
+                # ('filters.ngl_color_id', None),
+                # ('filters.ngl_state_name', None),
                 ]
 
     def make_dict(self):
