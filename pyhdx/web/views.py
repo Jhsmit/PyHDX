@@ -17,6 +17,7 @@ from panel.pane.base import PaneBase
 
 from pyhdx.support import autowrap
 from pyhdx.web.base import BokehFigurePanel, FigurePanel, MIN_BORDER_LEFT
+from pyhdx.web.filters import AppFilter
 from pyhdx.web.sources import AppSource
 from pyhdx.web.widgets import LoggingMarkdown, NGL
 
@@ -28,12 +29,11 @@ class AppView(param.Parameterized):
 
     Inspired by Holoviz Lumen's View objects"""
 
-
     filters = param.List(constant=True, doc="""
         A list of Filter object providing the query parameters for the
         Source.""")
 
-    source = param.ClassSelector(class_=AppSource, constant=True, doc="""
+    source = param.ClassSelector(class_=(AppSource, AppFilter), constant=True, doc="""
         The Source to query for the data.""")
 
     table = param.String(doc="The table being visualized.")
@@ -65,10 +65,11 @@ class AppView(param.Parameterized):
         # if self._cache is not None:
         #     return self._cache
 
-        queries = [filt.query for filt in self.filters]
-        data = self.source.get(self.table, *queries)
+        # queries = [filt.query for filt in self.filters]
+        # data = self.source.get(self.table, *queries)
+        df = self.source.get()
 
-        return data
+        return df
 
     def _update_panel(self, *events):
         """
@@ -210,6 +211,8 @@ class hvRectangleAppView(hvAppView):
 
     def get_data(self):
         df = super().get_data()
+
+        #todo this nonsense below should be the action some kind of filter
 
         wrap = self.wrap or autowrap(df[self.left].to_numpy(dtype=int), df[self.right].to_numpy(dtype=int), margin=self.margin, step=self.step)
 

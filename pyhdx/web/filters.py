@@ -2,38 +2,83 @@ from lumen.filters import Filter
 from lumen.sources import Source
 from param.parameterized import default_label_formatter
 import param
+
+from pyhdx.web.sources import AppSource
 from pyhdx.web.widgets import ColoredStaticText
 import panel as pn
 
+class AppFilterBase(param.Parameterized):
 
-class WebAppFilter(Filter):
-    """
+    """these filters get the data from source"""
 
-    """
 
-    source = param.ClassSelector(Source)
 
-    # maybe instead of making filters co-dependent the second filter should have a DerivedSource
-    # but we'll deal with this later
-    #  ^ this was as long time ago
-    filters = param.List()
-
-    transforms = param.List()
+    widgets = param.Dict(default={})
 
     updated = param.Event()
 
-    pd_function = param.String(doc='Pandas function which this filter applies to the DataFrame ')
+    redrawn = param.Event(doc="event gets triggered when widgets are changed and the controller needs to redraw them")
 
     def __init__(self, **params):
         super().__init__(**params)
+
+    def get(self):
+        """method called to get the dataframe"""
+        return None
+
+
+class AppSourceFilter(AppFilterBase):
+    """filter which picks the correct table from the source"""
+
+    source = param.ClassSelector(class_=AppSource)
+
+    table = param.Selector(default=None, doc="""
+      The table being filtered. """)
+
+    def __init__(self, **params):
+        super().__init__(**params)
+
+        self.widgets = {'table': pn.pane.panel(self.param.table)}
+
+    def get(self):
+        df = self.source.get(self.table)
+        return df
+
+    @param.depends('source.updated', 'table', watch=True)
+    def update(self):
+        self.updated = True
+
+
+
+class AppFilter(AppFilterBase):
+    """filter which acts on previous filters in a chain. source is also afilter"""
+    source = param.ClassSelector(class_=AppFilterBase)
+
+    def get(self):
+        df = self.source.get()
+
+        return df
+
+
+class AppFilterOld(AppFilterBase):
+    """
+
+    """
+
+    widgets = param.Dict(default={})
+
+    pd_function = param.String(doc='Pandas function which this filter applies to the DataFrame ')
+
+    def __init__(self, table_select=False, **params):
+        super().__init__(**params)
+
+        if table_select:
+            self._update_table_select()
+            self.widgets = {'table': pn.pane.panel(self.param.table)}
+            self.param.watch(self.update, 'table')
+
         # self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         # super().__init__(**{k: v for k, v in params.items() if k in self.param})
-
-        if self.source:
-            self.source.param.watch(self.update, 'updated')
-
-        for filt in self.filters:
-            filt.param.watch(self.update, 'updated')
 
     def get_data(self):
         """Equivalent to view's get_data method"""
@@ -45,9 +90,19 @@ class WebAppFilter(Filter):
 
         return data
 
-    @param.depends('value', watch=True)
-    def update(self, *events):
+    def _update_table_select(self):
+        options = self.source.get_tables()
+        self.param['table'].objects = options
+        if not self.table:
+            self.table = options[0]
+
+    @param.depends('source.updated', watch=True)
+    def update(self):
+        #todo table spec
         """gets called when the source event triggers"""
+
+        self._update_table_select()
+
         self.updated = True
 
     # def _get_params(self):
@@ -62,72 +117,8 @@ class WebAppFilter(Filter):
     def query(self):
         return self.pd_function, self.pd_kwargs
 
-class TransformFilter(WebAppFilter):
-    pd_function = param.String('transform')
 
-
-class StackFilter(WebAppFilter):
-    pd_function = 'stack'
-
-    level = param.Integer(-1)  #actually int, str, or list of these, default -1 (last level)
-    #level = param.ClassSelector(_class=[int, str, list])  # where list is list of (str | int)
-
-    dropna = param.Boolean(True)
-
-    @property
-    def pd_kwargs(self):
-        """kwargs to pass to pandas function to apply filter"""
-        #todo get_params func which finds the correct params here
-        return dict(level=self.level, dropna=self.dropna)
-
-#todo some kind of class that can do multiple of these combined?
-
-class GenericFilter(WebAppFilter):
-    pd_function = param.String()
-
-    def __init__(self, **params):
-        self.kwargs = {k: v for k, v in params.items() if k not in self.param}
-        super().__init__(**{k: v for k, v in params.items() if k in self.param})
-
-    @property
-    def pd_kwargs(self):
-        """kwargs to pass to pandas functin to apply filter"""
-        return self.kwargs
-
-
-class RescaleFilter(WebAppFilter):
-    """Rescale a single column"""
-
-    pd_function = 'assign'
-
-    column = param.String(doc='Name of the column to rescale')
-
-    scale_factor = param.Number(1.)
-
-    @property
-    def pd_kwargs(self):
-        """kwargs to pass to pandas function to apply filter"""
-        return {self.column: lambda x: x[self.column]*self.scale_factor}
-
-
-
-class PivotFilter(WebAppFilter):
-    pd_function = 'pivot'
-
-    index = param.ClassSelector(class_=[str, list])
-
-    columns = param.ClassSelector(class_=[str, list])
-
-    values = param.ClassSelector(class_=[str, list])
-
-    @property
-    def pd_kwargs(self):
-        """kwargs to pass to pandas function to apply filter"""
-        #todo get_params func which finds the correct params here
-        return dict(index=self.index, columns=self.columns, values=self.values)
-
-
-class CrossSectionFilter(WebAppFilter):
+class CrossSectionFilter(AppFilter):
 
     pd_function = 'xs'
 
@@ -148,28 +139,72 @@ class CrossSectionFilter(WebAppFilter):
 
     def __init__(self, **params):
         super().__init__(**params)
+        self.index = None  # index is the df index which determines the selector's options
+        # or just call update on init?
+        self.update()
+        # df = self.get_data()
+        # self.index = None#self.df.columns if self.axis else self.df.index
+        # self._names = self.names or self.index.names
+        #
+        # # either has a widgets dict or panel property  ( probably we're going for widgets only?)
+        # widgets = {name: pn.widgets.Select(name=name) for name in self.names[:n_levels]}
+        # self.widgets.update(**widgets)
+        # self.selectors = list(widgets.values())  # selectors is selectors minus the optional table selector
+        # for selector in self.selectors:
+        #     selector.param.watch(self._selector_changed, ['value'], onlychanged=True)
+        #
+        # options = list(self.index.get_level_values(0).unique())
+        # if self.empty_select:
+        #     options = ['None'] + options
+        # self.selectors[0].options = options
+        # self.selectors[0].value = options[0]
 
-        self.df = self.get_data()
-        self.index = self.df.columns if self.axis else self.df.index
-        self.names = self.names or self.index.names
-        n_levels = self.n_levels or len(self.names)
+    #todo should rerender widgets upon source updated (perhaps)
 
-        # either has a widgets dict or panel property
-        self.widgets = {name: pn.widgets.Select(name=name) for name in self.names[:n_levels]}
+    @param.depends('source.updated', watch=True)
+    def update(self):
+        #todo only redraw if only options are changed
+
+        old_index = self.index
+        df = self.source.get()
+        self.index = df.columns if self.axis else df.index
+        self._names = self.names or self.index.names
+
+        if old_index is not None and self.index.nlevels == old_index:
+            # no redraw needed, only update selectors options
+            options = list(self.index.unique(level=0))
+            self.selectors[0].options = options
+            self.selectors[0].trigger('value')  # is this how it works?
+            for name, selector in zip(self._names, self.selecotors):
+                selector.name = name  # todo requires testing if the names are really updated or not
+        else:
+            self.redraw()
+
+        self.updated = True
+
+    def redraw(self):
+        # create new widgets
+        n_levels = self.n_levels or len(self._names)
+        self.widgets = {name: pn.widgets.Select(name=name) for name in self._names[:n_levels]}
+        #self.widgets.update(**widgets)
         self.selectors = list(self.widgets.values())
         for selector in self.selectors:
             selector.param.watch(self._selector_changed, ['value'], onlychanged=True)
 
         options = list(self.index.get_level_values(0).unique())
-        if self.empty_select:
+        if self.empty_select:  # todo use Nonetype? -> allow_none kwarg for Select?
             options = ['None'] + options
         self.selectors[0].options = options
         self.selectors[0].value = options[0]
 
-    def update(self, *events):
-        self.df = self.get_data()
-        self.index = self.df.columns if self.axis else self.df.index  #assuming names stay the same
-        super().update(*events)
+        self.redrawn = True
+
+    #todo cache df?
+    def get(self):
+        df = self.source.get()
+        df = df.xs(**self.pd_kwargs)
+
+        return df
 
     def _selector_changed(self, *events):
         for event in events:
@@ -183,7 +218,7 @@ class CrossSectionFilter(WebAppFilter):
                 key = [value if value != 'None' else slice(None) for value in values]
                 level = list(range(current_index+1))
                 bools, current_columns = self.index.get_loc_level(key=key, level=level)
-                options = list(current_columns.get_level_values(0).unique())
+                options = list(current_columns.get_level_values(0).unique())   # current_columns.unique(level=0)
                 if self.empty_select:
                     options = ['None'] + options
                 next_selector.options = options
@@ -206,7 +241,74 @@ class CrossSectionFilter(WebAppFilter):
         return dict(key=self.key, axis=self.axis, level=self.level, drop_level=self.drop_level)
 
 
-class WebAppWidgetFilter(WebAppFilter):
+class TransformFilter(AppFilter):
+    pd_function = param.String('transform')
+
+
+class StackFilter(AppFilter):
+    pd_function = 'stack'
+
+    level = param.Integer(-1)  #actually int, str, or list of these, default -1 (last level)
+    #level = param.ClassSelector(_class=[int, str, list])  # where list is list of (str | int)
+
+    dropna = param.Boolean(True)
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas function to apply filter"""
+        #todo get_params func which finds the correct params here
+        return dict(level=self.level, dropna=self.dropna)
+
+#todo some kind of class that can do multiple of these combined?
+
+class GenericFilter(AppFilter):
+    pd_function = param.String()
+
+    def __init__(self, **params):
+        self.kwargs = {k: v for k, v in params.items() if k not in self.param}
+        super().__init__(**{k: v for k, v in params.items() if k in self.param})
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas functin to apply filter"""
+        return self.kwargs
+
+
+class RescaleFilter(AppFilter):
+    """Rescale a single column"""
+
+    pd_function = 'assign'
+
+    column = param.String(doc='Name of the column to rescale')
+
+    scale_factor = param.Number(1.)
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas function to apply filter"""
+        return {self.column: lambda x: x[self.column]*self.scale_factor}
+
+
+class PivotFilter(AppFilter):
+    pd_function = 'pivot'
+
+    index = param.ClassSelector(class_=[str, list])
+
+    columns = param.ClassSelector(class_=[str, list])
+
+    values = param.ClassSelector(class_=[str, list])
+
+    @property
+    def pd_kwargs(self):
+        """kwargs to pass to pandas function to apply filter"""
+        #todo get_params func which finds the correct params here
+        return dict(index=self.index, columns=self.columns, values=self.values)
+
+
+
+
+
+class AppWidgetFilter(AppFilter):
 
     empty_select = param.Boolean(default=True)  # currently unused param
 
@@ -230,7 +332,7 @@ class WebAppWidgetFilter(WebAppFilter):
         return self.widget
 
 
-class UniqueValuesFilter(WebAppWidgetFilter):
+class UniqueValuesFilter(AppWidgetFilter):
     """
     Selects a column from the data specified by 'fierld' and returns a select with options the unique values in this
     column
@@ -279,7 +381,7 @@ class UniqueValuesFilter(WebAppWidgetFilter):
             return self.widget.value
 
 
-class MultiIndexSelectFilter(WebAppWidgetFilter):
+class MultiIndexSelectFilter(AppWidgetFilter):
     """
     Select sub-dataframes from column-multiindex dataframes by their top-level index
 

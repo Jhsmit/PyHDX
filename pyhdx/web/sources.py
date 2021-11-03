@@ -15,33 +15,33 @@ from lumen.sources import Source, cached_schema
 from pyhdx.plot import default_cmap_norm, CMAP_DEFAULTS
 
 
-class AppSource(Source):
+class AppSource(param.Parameterized):
     """patched lumen source"""
 
     updated = param.Event()
 
-
-    @classmethod
-    def _filter_dataframe(cls, df, *queries):
-        """
-        Filter the DataFrame.
-        Parameters
-        ----------
-        df : DataFrame
-           The DataFrame to filter
-        qeueries : list of tuple
-            A dictionary containing all the query parameters
-        Returns
-        -------
-        DataFrame
-            The filtered DataFrame
-        """
-
-        for query in queries:
-            query_func, kwargs = query
-            df = getattr(df, query_func)(**kwargs)
-
-        return df
+    #
+    # @classmethod
+    # def _filter_dataframe(cls, df, *queries):
+    #     """
+    #     Filter the DataFrame.
+    #     Parameters
+    #     ----------
+    #     df : DataFrame
+    #        The DataFrame to filter
+    #     qeueries : list of tuple
+    #         A dictionary containing all the query parameters
+    #     Returns
+    #     -------
+    #     DataFrame
+    #         The filtered DataFrame
+    #     """
+    #
+    #     for query in queries:
+    #         query_func, kwargs = query
+    #         df = getattr(df, query_func)(**kwargs)
+    #
+    #     return df
 
     def get_tables(self):
         """
@@ -52,15 +52,18 @@ class AppSource(Source):
             The list of available tables on this source.
         """
 
+        return []
+
 
 class PyHDXSource(AppSource):
     tables = param.Dict({}, doc="Dictionary of tables in this Source")
-    # table options are (table_name, (opts)):
+    # table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
     # peptides
     # rfu_residues (rfu)
     # rates
     # dG_fits (dG)
 
+    #data objects:
     hdxm_objects = param.Dict({})
     rate_results = param.Dict({})  # dataframes?
     dG_fits = param.Dict({})
@@ -123,11 +126,25 @@ class PyHDXSource(AppSource):
         self.param.trigger('tables')
 
 
-    def get(self, table, *queries):
+    def get(self, table):
         df = self.tables[table]
-        df = self._filter_dataframe(df, *queries)
 
         return df
+
+        # df = self._filter_dataframe(df, *queries)
+        #
+        # return df
+
+    def get_tables(self):
+        """
+        Returns the list of tables available on this source.
+        Returns
+        -------
+        list
+            The list of available tables on this source.
+        """
+
+        return list(self.tables.keys())
 
 
 class DataFrameSource(Source):
