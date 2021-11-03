@@ -49,7 +49,6 @@ class AppSourceFilter(AppFilterBase):
         self.updated = True
 
 
-
 class AppFilter(AppFilterBase):
     """filter which acts on previous filters in a chain. source is also afilter"""
     source = param.ClassSelector(class_=AppFilterBase)
@@ -268,6 +267,13 @@ class GenericFilter(AppFilter):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**{k: v for k, v in params.items() if k in self.param})
 
+    def get(self):
+        df = self.source.get()
+        func = getattr(df, self.pd_function)
+        df = func(**self.pd_kwargs)
+
+        return df
+
     @property
     def pd_kwargs(self):
         """kwargs to pass to pandas functin to apply filter"""
@@ -282,6 +288,12 @@ class RescaleFilter(AppFilter):
     column = param.String(doc='Name of the column to rescale')
 
     scale_factor = param.Number(1.)
+
+    def get(self):
+        df = self.source.get()
+        df = df.assign(**self.pd_kwargs)
+
+        return df
 
     @property
     def pd_kwargs(self):
@@ -303,9 +315,6 @@ class PivotFilter(AppFilter):
         """kwargs to pass to pandas function to apply filter"""
         #todo get_params func which finds the correct params here
         return dict(index=self.index, columns=self.columns, values=self.values)
-
-
-
 
 
 class AppWidgetFilter(AppFilter):
