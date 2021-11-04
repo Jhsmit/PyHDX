@@ -19,7 +19,7 @@ from pyhdx.support import autowrap
 from pyhdx.web.base import BokehFigurePanel, FigurePanel, MIN_BORDER_LEFT
 from pyhdx.web.filters import AppFilter
 from pyhdx.web.sources import AppSource
-from pyhdx.web.widgets import LoggingMarkdown, NGL
+from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
 
 import numpy as np
 
@@ -29,16 +29,21 @@ class AppView(param.Parameterized):
 
     Inspired by Holoviz Lumen's View objects"""
 
-    filters = param.List(constant=True, doc="""
-        A list of Filter object providing the query parameters for the
-        Source.""")
+    # filters = param.List(constant=True, doc="""
+    #     A list of Filter object providing the query parameters for the
+    #     Source.""")
 
-    source = param.ClassSelector(class_=(AppSource, AppFilter), constant=True, doc="""
+    source = param.ClassSelector(class_=(AppSource, AppFilter),
+                                 constant=True,
+                                 precedence=-1,
+                                 doc="""
         The Source to query for the data.""")
 
-    table = param.String(doc="The table being visualized.")
+    #table = param.String(doc="The table being visualized.")
 
-    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.")
+    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.",
+                      precedence=-1,
+                      constant=True)
 
     view_type = None
 
@@ -46,8 +51,38 @@ class AppView(param.Parameterized):
         super().__init__(**params)
         # todo allow for kwargs to be passed to DynamicMap's func
 
+        self.widgets = self.make_dict()
+
         self._panel = None
         self._updates = None
+
+    def make_dict(self):
+        #todo baseclass filter/controller/view with the same widget generation logic?
+        """dict of widgets to be shown
+        override this method to get custom mapping
+
+        """
+        return self.generate_widgets()
+
+    # @staticmethod
+    # def _make_widget(p):
+    #     """returns True is a widget should be made for parameter p"""
+    #     if p.precedence is None:
+    #         return True
+    #     elif p.precedence > 1:
+    #         return True
+    #     elif not (p.constant or p.readonly):
+    #         return True
+    #     else:
+    #         return False
+
+    def generate_widgets(self, **kwargs):
+        """returns a dict with keys parameter names and values default mapped widgets"""
+
+        names = [p for p in self.param if self.param[p].precedence is None or self.param[p].precedence > 1]
+        widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
+
+        return {k: v for k, v in zip(names[1:], widgets)}
 
     def get_data(self):
         """
@@ -65,8 +100,6 @@ class AppView(param.Parameterized):
         # if self._cache is not None:
         #     return self._cache
 
-        # queries = [filt.query for filt in self.filters]
-        # data = self.source.get(self.table, *queries)
         df = self.source.get()
 
         return df
@@ -152,7 +185,7 @@ class hvScatterAppView(hvAppView):
 
     view_type = 'scatter'
 
-    x = param.String(doc="The column to render on the x-axis.")
+    x = param.String(doc="The column to render on the x-axis.")  # todo these should be selectors
 
     y = param.String(doc="The column to render on the y-axis.")
 
@@ -185,7 +218,6 @@ class hvScatterAppView(hvAppView):
     #     if 'c' in self.kwargs:
     #         dic[self.kwargs['c']] = []
     #     return pd.DataFrame(dic)
-
 
 
 class hvRectangleAppView(hvAppView):
@@ -253,7 +285,6 @@ class hvRectangleAppView(hvAppView):
 
         return plot
 
-
     @property
     def empty_df(self):
         return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
@@ -262,13 +293,36 @@ class hvRectangleAppView(hvAppView):
 class NGLView(AppView):
     view_type = 'ngl'
 
-    table = param.Selector()  # make base class table also selector?
+    # todo additioal render options (fog etc)
+
+    representation = param.Selector(default='cartoon', objects=REPRESENTATIONS)
+
+    spin = param.Boolean(False)
+
+    color_scheme = param.Selector(default='custom', objects=COLOR_SCHEMES)
+
+    background_color = param.Color(default='#F7F7F7')
+
+    object = param.String('', doc='pdb string object', precedence=-1)
 
     def __init__(self, **params):
         super(NGLView, self).__init__(**params)
-        self.ngl_view = NGL(sizing_mode='stretch_both')
+        self.ngl_view = NGL(sizing_mode='stretch_both', #todo sanitize order
+                            extension='pdb',
+                            spin=self.spin,
+                            color_scheme=self.color_scheme,
+                            representation=self.representation,
+                            object=self.object,
 
-        self.widgets = {} # todo widgets from ngl_view
+                            )
+
+        params = self.param.params().keys() & self.ngl_view.param.params().keys() - {'name'}
+        self.param.watch(self._update_params, list(params))
+        # todo is there a better way to couple two params?
+
+    def _update_params(self, *events):
+        for event in events:
+            setattr(self.ngl_view, event.name, event.new)
 
     def get_panel(self):
         return self.ngl_view
@@ -296,7 +350,8 @@ class NGLView(AppView):
     def update(self, *events, invalidate_cache=True):
         if invalidate_cache:
             self._cache = None
-        # data = self.get_data()
+
+        data = self.get_data()
         # if len(data.columns) > 1 or data.size < 1:
         #     # invalid number of columns
         #     self.ngl_view.color_list = [['white', "*"]]

@@ -183,15 +183,25 @@ class ControlPanel(PanelBase):
 
         super(ControlPanel, self).__init__(**params)
 
+
+
         self.widgets = self.make_dict()  # atm on some objects this is a list, others dict
         self._box = self.make_box()  # _panel equivalent
+
+        if self._layout:
+            for widget_source, contents in self._layout:
+                if widget_source != 'self':
+                    _type, name = widget_source.split('.')
+                    if _type == 'filters':
+                        object = getattr(self, _type)[name]
+                        object.param.watch(self.update_box, ['redrawn'])
 
     @property
     def _layout(self):
         return None
 
     @property
-    def transforms(self):
+    def transforms(self):  # not used
         return self.parent.transforms
 
     @property
@@ -209,12 +219,16 @@ class ControlPanel(PanelBase):
     def make_box(self):
         return pn.Column(*self.widget_list, name=self.header)
 
-    def update_box(self):
+    def _update_box(self, *events):
+        self.update_box()
+
+    def update_box(self, *events):
         self._box[:] = self.widget_list
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
 
+        #todo respect precedence
         names = [p for p in self.param if self.param[p].precedence is None or self.param[p].precedence > 1]
         widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
 
@@ -225,9 +239,6 @@ class ControlPanel(PanelBase):
         """
 
         Example _layout definitions
-
-
-
 
         Returns
         -------

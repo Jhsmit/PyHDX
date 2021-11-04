@@ -3,6 +3,9 @@ import panel as pn
 from matplotlib.colors import Colormap, Normalize
 import proplot as pplt
 
+from pyhdx.support import apply_cmap
+
+
 class Opts(param.Parameterized):
 
     def __init__(self, **params):
@@ -35,12 +38,17 @@ class CmapOpts(Opts):
     cmap = param.ClassSelector(default=pplt.Colormap('viridis'), class_=Colormap)
     norm = param.ClassSelector(default=pplt.Norm('linear', 0., 1.), class_=Normalize)
     clim = param.Tuple((0., 1.), length=2)
+    sclf = param.Number(1., doc='scaling factor to apply')
 
     def __init__(self, **params):
         super().__init__(**params)
-        self._excluded_from_opts += ['norm']
+        self._excluded_from_opts += ['norm', 'sclf']  # perhaps use leading underscore to exclude?
         self._norm_updated()
 
     @param.depends('norm', watch=True)
     def _norm_updated(self):
         self.clim = self.norm.vmin, self.norm.vmax
+
+    def apply(self, data):
+        """apply cmap / norm to data (pd series or df)"""
+        return apply_cmap(data, self.cmap, self.norm)

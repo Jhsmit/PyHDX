@@ -40,8 +40,10 @@ class AppSourceFilter(AppFilterBase):
 
         self.widgets = {'table': pn.pane.panel(self.param.table)}
 
+    #todo allow auto generate widgets as in control panels /  views
+
     def get(self):
-        df = self.source.get(self.table)
+        df = self.source.get(self.table)  # returns None on KeyError
         return df
 
     @param.depends('source.updated', 'table', watch=True)
@@ -121,7 +123,7 @@ class CrossSectionFilter(AppFilter):
 
     pd_function = 'xs'
 
-    key = param.Tuple()
+    key = param.List()
 
     axis = param.Integer(1, bounds=[0, 1])
 
@@ -166,16 +168,21 @@ class CrossSectionFilter(AppFilter):
 
         old_index = self.index
         df = self.source.get()
+        if df is None:
+            return
+
         self.index = df.columns if self.axis else df.index
         self._names = self.names or self.index.names
 
-        if old_index is not None and self.index.nlevels == old_index:
+        if old_index is not None and self.index.nlevels == old_index.nlevels:
             # no redraw needed, only update selectors options
             options = list(self.index.unique(level=0))
             self.selectors[0].options = options
-            self.selectors[0].trigger('value')  # is this how it works?
-            for name, selector in zip(self._names, self.selecotors):
-                selector.name = name  # todo requires testing if the names are really updated or not
+            self.selectors[0].param.trigger('value')
+            for name, selector in zip(self._names, self.selectors):
+                selector.name = name  # todo requires testing if the names are really updated or not (they arent)
+                selector.label = name  # todo requires testing if the names are really updated or not
+                self.redrawn = True
         else:
             self.redraw()
 
@@ -201,9 +208,11 @@ class CrossSectionFilter(AppFilter):
     #todo cache df?
     def get(self):
         df = self.source.get()
-        df = df.xs(**self.pd_kwargs)
-
-        return df
+        if df is None:
+            return df
+        else:
+            df = df.xs(**self.pd_kwargs)
+            return df
 
     def _selector_changed(self, *events):
         for event in events:
@@ -228,7 +237,7 @@ class CrossSectionFilter(AppFilter):
 
         # set the df
         all_values = [selector.value for selector in self.selectors]
-        self.key = tuple([value if value != 'None' else slice(None) for value in all_values])
+        self.key = [value if value != 'None' else slice(None) for value in all_values]
         self.level = list(range(len(all_values)))
 
         #signal the change
@@ -237,8 +246,30 @@ class CrossSectionFilter(AppFilter):
     @property
     def pd_kwargs(self):
         """kwargs to pass to pandas function to apply filter"""
-        return dict(key=self.key, axis=self.axis, level=self.level, drop_level=self.drop_level)
+        return dict(key=tuple(self.key), axis=self.axis, level=self.level, drop_level=self.drop_level)
 
+
+class ApplyCmapOptFilter(AppFilter):
+
+    opts = param.Selector(doc='cmap opts dict to choose from', label='Color transform')
+
+    def __init__(self, opts_dict=None, **params):
+        super().__init__(**params)
+        self.param['opts'].objects = opts_dict
+
+        self.widgets = {'opts': pn.pane.panel(self.param.opts)}
+
+    def get(self):
+        pass
+        df = self.source.get()
+
+        #color_df = # opt.appl.y(df)
+
+
+class ConcatFilter(AppFilter):
+    """app filter which combines multiple dfs"""
+    def __init__(self, **params):
+        raise NotImplementedError()
 
 class TransformFilter(AppFilter):
     pd_function = param.String('transform')

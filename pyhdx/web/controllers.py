@@ -513,8 +513,7 @@ class InitialGuessControl(ControlPanel):
         super(InitialGuessControl, self).__init__(parent, **params)
         self.parent.param.watch(self._parent_datasets_updated, ['data_objects'])  #todo refactor
 
-        excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
-        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        self._excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         self.update_box()
 
         self._guess_names = {}
@@ -527,6 +526,10 @@ class InitialGuessControl(ControlPanel):
             # ('filters.select_index_rates_lv2', None),
                         ]
 
+    @property
+    def own_widget_names(self):
+        return [name for name in self.widgets.keys() if name not in self._excluded]
+
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
         widgets.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
@@ -536,12 +539,11 @@ class InitialGuessControl(ControlPanel):
     @param.depends('fitting_model', watch=True)
     def _fitting_model_updated(self):
         if self.fitting_model == 'Half-life (λ)':
-            excluded = ['dataset', 'lower_bound', 'upper_bound', 'global_bounds']
+            self._excluded = ['dataset', 'lower_bound', 'upper_bound', 'global_bounds']
 
         elif self.fitting_model in ['Association', 'Dissociation']:
-            excluded = []
+            self._excluded = []
 
-        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
     @param.depends('global_bounds', watch=True)
@@ -1265,19 +1267,28 @@ class ProteinControl(ControlPanel):
     rcsb_id = param.String(doc='RCSB ID of protein to download')
     load_structure = param.Action(lambda self: self._action_load_structure())
 
+    test_btn = param.Action(lambda self: self._action_test())
+
     def __init__(self, parent, **params):
+        self._excluded = ['rcsb_id']
         super(ProteinControl, self).__init__(parent, **params)
 
-        excluded = ['rcsb_id']
-        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
     @property
     def _layout(self):
-        return [('self', self.own_widget_names),
+        return [('self', self.own_widget_names),  #always use this instead of none?
+                ('filters.protein_table', None),
+                ('filters.protein_select', None),
+                ('filters.protein_cmap', None),
+                ('views.protein', None)
                 # ('filters.ngl_color_id', None),
                 # ('filters.ngl_state_name', None),
                 ]
+
+    @property
+    def own_widget_names(self):
+        return [name for name in self.widgets.keys() if name not in self._excluded]
 
     def make_dict(self):
         return self.generate_widgets(file_binary=pn.widgets.FileInput(multiple=False, accept='.pdb'))
@@ -1285,18 +1296,27 @@ class ProteinControl(ControlPanel):
     @param.depends('input_mode', watch=True)
     def _update_input_mode(self):
         if self.input_mode == 'PDB File':
-            excluded = ['rcsb_id']
+            self._excluded = ['rcsb_id']
         elif self.input_mode == 'RCSB Download':
-            excluded = ['file_binary']
+            self._excluded = ['file_binary']
 
-        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
+        #self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
-    def _action_load_structure(self):
+    def _action_test(self):
+        f = self.filters['protein_select']
+        df = f.get()
+        print(df)
+
         view = self.views['protein']
+        print(view.ngl_view.representation)
+
+
+    def _action_load_structure(self):
+
         if self.input_mode == 'PDB File':
             pdb_string = self.file_binary.decode()
-            view.ngl_view.pdb_string = pdb_string
+
         elif self.input_mode == 'RCSB Download':
             if len(self.rcsb_id) != 4:
                 self.parent.logger.info(f"Invalid RCSB pdb id: {self.rcsb_id}")
@@ -1305,7 +1325,9 @@ class ProteinControl(ControlPanel):
             url = f'http://files.rcsb.org/download/{self.rcsb_id}.pdb'
             with urllib.request.urlopen(url) as response:
                 pdb_string = response.read().decode()
-                view.ngl_view.pdb_string = pdb_string
+
+        view = self.views['protein']
+        view.object = pdb_string
 
 
 class GraphControl(ControlPanel):
@@ -1620,7 +1642,6 @@ class FigureExportControl(ControlPanel):
             'ncols': self.ncols
         }
         return kwargs
-
 
     @pn.depends('figure_selection', 'figure_format', watch=True)
     def _figure_filename_updated(self):

@@ -222,7 +222,7 @@ class NGL(ReactiveHTML):
                                   objects=COLOR_SCHEMES)
 
     custom_color_scheme = param.List(
-        default=[["white", "*"]],
+        default=[["#258fdb", "*"]],
         doc="""
         A custom color scheme. See
         http://nglviewer.org/ngl/api/manual/coloring.html#custom-coloring.""",
@@ -239,6 +239,7 @@ class NGL(ReactiveHTML):
             state._stage = stage
             state._stage.setParameters({ backgroundColor: data.background_color})
             stage.handleResize();
+            self.updateStage()
         """,
         'object': """
             self.updateStage()

@@ -127,7 +127,7 @@ class PyHDXSource(AppSource):
 
 
     def get(self, table):
-        df = self.tables[table]
+        df = self.tables.get(table, None)
 
         return df
 
