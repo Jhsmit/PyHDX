@@ -15,7 +15,7 @@ from lumen.sources import Source, cached_schema
 from pyhdx.plot import default_cmap_norm, CMAP_DEFAULTS
 
 
-class AppSource(param.Parameterized):
+class AppSourceBase(param.Parameterized):
     """patched lumen source"""
 
     updated = param.Event()
@@ -55,7 +55,10 @@ class AppSource(param.Parameterized):
         return []
 
 
-class PyHDXSource(AppSource):
+class PyHDXSource(AppSourceBase):
+
+    _type = 'pyhdx'
+
     tables = param.Dict({}, doc="Dictionary of tables in this Source")
     # table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
     # peptides
@@ -67,7 +70,7 @@ class PyHDXSource(AppSource):
     hdxm_objects = param.Dict({})
     rate_results = param.Dict({})  # dataframes?
     dG_fits = param.Dict({})
-    cmaps = param.Dict(default=CMAP_DEFAULTS)
+    #cmaps = param.Dict(default=CMAP_DEFAULTS)
 
     def from_file(self):
         pass

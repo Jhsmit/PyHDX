@@ -1,6 +1,6 @@
 from pyhdx.fileIO import csv_to_dataframe
 from pathlib import Path
-from pyhdx.web.views import hvRectangleAppView
+from pyhdx.web.views import hvRectanglesAppView
 from pyhdx.web.transforms import PeptideLayoutTransform
 from pyhdx.web.filters import UniqueValuesFilter, MultiIndexSelectFilter
 from pyhdx.web.sources import DataFrameSource
@@ -38,10 +38,10 @@ slider_exposure_filter = UniqueValuesFilter(field='exposure', name='exposure_sli
                                             table='peptides', filters=[multiindex_select_filter], source=source)
 filters = [multiindex_select_filter, slider_exposure_filter]
 
-coverage = hvRectangleAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
-                              streaming=True,
-                              transforms=[peptides_transform],
-                              filters=[multiindex_select_filter, slider_exposure_filter])
+coverage = hvRectanglesAppView(source=source, name='coverage', table='peptides', opts=cmap_opts.opts,
+                               streaming=True,
+                               transforms=[peptides_transform],
+                               filters=[multiindex_select_filter, slider_exposure_filter])
 
 coverage.update()
 

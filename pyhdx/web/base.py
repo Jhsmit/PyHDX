@@ -5,7 +5,7 @@ from bokeh.plotting import figure
 from functools import partial
 from pathlib import Path
 
-from pyhdx.web.sources import AppSource
+from pyhdx.web.sources import AppSourceBase
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -175,10 +175,7 @@ class ControlPanel(PanelBase):
 
     header = 'Default Header'
 
-    src = param.ClassSelector(class_=AppSource, instantiate=False, precedence=-1)
-
     def __init__(self, parent, **params):
-        self.src = parent.src
         self.parent = parent
 
         super(ControlPanel, self).__init__(**params)
@@ -199,8 +196,8 @@ class ControlPanel(PanelBase):
         return None
 
     @property
-    def transforms(self):  # not used
-        return self.parent.transforms
+    def sources(self):
+        return self.parent.sources
 
     @property
     def filters(self):

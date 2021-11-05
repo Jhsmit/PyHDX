@@ -17,5 +17,5 @@ Main Application
 .. autoclass:: pyhdx.web.controllers.FitControl
 .. autoclass:: pyhdx.web.controllers.GraphControl
 .. autoclass:: pyhdx.web.controllers.ProteinControl
-.. autoclass:: pyhdx.web.controllers.ClassificationControl
+.. autoclass:: pyhdx.web.controllers.ColorTransformControl
 .. autoclass:: pyhdx.web.controllers.FileExportControl

@@ -14,7 +14,7 @@ from lumen.filters import FacetFilter
 from functools import partial
 from dask.distributed import Client
 
-from pyhdx.web.sources import PyHDXSource, AppSource
+from pyhdx.web.sources import PyHDXSource, AppSourceBase
 
 
 class MainController(param.Parameterized):
@@ -49,7 +49,6 @@ class MainController(param.Parameterized):
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
 
-    src = param.ClassSelector(AppSource)
     logger = param.ClassSelector(logging.Logger, doc="Logger object")
 
     def __init__(self, control_panels, client=False, **params):
@@ -73,12 +72,6 @@ class MainController(param.Parameterized):
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
         for view in self.views.values():
             view.update()
-
-    @param.depends('src.cmaps', watch=True)
-    def _update_cmaps(self):
-        #todo figure out which key in dict was updated
-        pass
-
 
     @property
     def panel(self):
@@ -108,30 +101,30 @@ class PyHDXController(MainController):
 
     """
 
-    data_objects = param.Dict(default={}, doc='Dictionary for all datasets (HDXMeasurement objects)') # todo refactor
+    #data_objects = param.Dict(default={}, doc='Dictionary for all datasets (HDXMeasurement objects)') # todo refactor
 
     # for guesses (nested): <fit name>: {state1: state2:, ...
     # for global fit (batch): <fit name>: fit_result_object
     # for global fit (series): <fit name>: {state1: <fit_result_object>, state2:....}
-    fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
+    #fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
 
     sample_name = param.String(doc='Name describing the selected protein(s) state')
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
-
-    @param.depends('data_objects', watch=True)
-    def _datasets_updated(self):
-        if len(self.data_objects) == 0:
-            self.sample_name = ''
-        elif len(self.data_objects) == 1:
-            self.sample_name = str(next(iter(self.data_objects.keys())))
-        elif len(self.data_objects) < 5:
-            self.sample_name = ', '.join(self.data_objects.keys())
-
-    @param.depends('sample_name', watch=True)
-    def _update_name(self):
-        self.template.header[0].title = VERSION_STRING + ': ' + self.sample_name
+    #
+    # @param.depends('data_objects', watch=True)
+    # def _datasets_updated(self):
+    #     if len(self.data_objects) == 0:
+    #         self.sample_name = ''
+    #     elif len(self.data_objects) == 1:
+    #         self.sample_name = str(next(iter(self.data_objects.keys())))
+    #     elif len(self.data_objects) < 5:
+    #         self.sample_name = ', '.join(self.data_objects.keys())
+    #
+    # @param.depends('sample_name', watch=True)
+    # def _update_name(self):
+    #     self.template.header[0].title = VERSION_STRING + ': ' + self.sample_name
 
     @property
     def hdx_set(self):

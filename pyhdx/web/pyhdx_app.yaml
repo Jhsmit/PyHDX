@@ -1,0 +1,141 @@
+config:
+  title: PyHDX app
+
+main_controller: pyhdx #todo implement
+
+sources:
+  main:
+    type: pyhdx
+
+filters:
+  peptide_src:
+    type: table_source
+    source: main
+    table: peptides
+  rates_src:
+    type: table_source
+    source: main
+    table: rates
+  dG_src:
+    type: table_source
+    source: main
+    table: dG_fits
+
+opts:
+  base:
+    type: generic
+    responsive: True
+    framewise: True
+    show_grid: True
+  scatter:
+    type: generic
+    size: 8
+  rfu:
+    type: cmap
+    field: rfu
+  dG:  # perhaps they need better names?
+    type: cmap
+    field: deltaG
+    sclf: 1.0e+3
+
+modules:
+  coverage:
+    filters:
+      coverage_select:
+        type: cross_section
+        source: peptide_src
+        n_levels: 2
+    opts:
+      coverage:
+        type: generic
+        color: rfu
+        colorbar: True
+        xlabel: Residue Number
+        ylabel : ''
+        yticks: 0
+#        tools:
+#          - hover
+    views:
+      coverage:
+        type: rectangles
+        source: coverage_select
+        opts:
+          - base
+          - coverage
+          - rfu
+        left: start
+        right: end
+        passthrough:
+          - rfu
+          - uptake_corrected
+          - sequence
+
+  rates:
+    filters:
+      rates_select:
+        type: cross_section
+        source: rates_src
+        n_levels: 2
+    opts:
+      rates:
+        type: generic
+        xlabel: Residue Number
+        ylabel: Rate (1/s)  # todo superscript
+        logy: True
+    views:
+      rates:
+        type: scatter
+        source: rates_select
+        opts:
+          - base
+          - scatter
+          - rates
+        x: r_number
+        y: rate
+
+  dG:
+    filters:
+      dG_fit_select:
+        type: cross_section
+        source: dG_src
+        n_levels: 2
+      dG_rescale:
+        type: rescale
+        source: dG_fit_select
+        scale_factor: 1.0e-3
+        column: deltaG
+    opts:
+      dG_axes:
+        type: generic
+        xlabel: Residue Number
+        ylabel: ΔG (kJ/mol)
+        invert_yaxis: True
+        colorbar: True
+
+    views:
+      gibbs: # todo rename dG??
+        type: scatter
+        source: dG_rescale
+        opts:
+          - base
+          - scatter
+          - dG_axes
+          - dG
+        x: r_number
+        y: deltaG
+
+controllers:
+  #- peptide_file_input  # todo by name ?
+  #- initial_guess
+  - fit
+  - color_transform
+
+  #tools:
+  #  coverage_hover:
+  #    type: HoverTool
+  #    tooltips:
+  #      #add tuple parser to yaml: https://stackoverflow.com/questions/39553008/how-to-read-a-python-tuple-using-pyyaml
+  #      - ("id", @index)
+  #      - (rfu, @rfu (@uptake_corrected D)
+  #      - [sequence, @sequence]  # or convert to tuple in constructor?
+

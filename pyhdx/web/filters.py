@@ -3,7 +3,7 @@ import panel as pn
 import param
 from param.parameterized import default_label_formatter
 
-from pyhdx.web.sources import AppSource
+from pyhdx.web.sources import AppSourceBase
 
 
 class AppFilterBase(param.Parameterized):
@@ -23,10 +23,13 @@ class AppFilterBase(param.Parameterized):
         """method called to get the dataframe"""
         return None
 
-class AppSourceFilter(AppFilterBase):  #todo rename to something that includes table
+
+class TableSourceFilter(AppFilterBase):  #todo rename to something that includes table
     """filter which picks the correct table from the source"""
 
-    source = param.ClassSelector(class_=AppSource)
+    _type = 'table_source'
+
+    source = param.ClassSelector(class_=AppSourceBase)
 
     table = param.Selector(default=None, doc="""
       The table being filtered. """)
@@ -40,7 +43,7 @@ class AppSourceFilter(AppFilterBase):  #todo rename to something that includes t
     #todo allow auto generate widgets as in control panels /  views
 
     def get(self):
-        df = self.source.get(self.table)  # returns None on KeyError
+        df = self.source.get(self.table)  # returns None on KeyError #todo change to source.get_table
         return df
 
     @param.depends('table', watch=True)
@@ -69,59 +72,9 @@ class AppFilter(AppFilterBase):
         return df
 
 
-# class AppFilterOld(AppFilterBase):
-#     """
-#
-#     """
-#
-#     widgets = param.Dict(default={})
-#
-#     pd_function = param.String(doc='Pandas function which this filter applies to the DataFrame ')
-#
-#     def __init__(self, table_select=False, **params):
-#         super().__init__(**params)
-#
-#         if table_select:
-#             self._update_table_select()
-#             self.widgets = {'table': pn.pane.panel(self.param.table)}
-#             self.param.watch(self.update, 'table')
-#
-#     def get_data(self):
-#         """Equivalent to view's get_data method"""
-#
-#         queries = [filt.query for filt in self.filters]
-#         data = self.source.get(self.table, *queries)
-#         for transform in self.transforms:
-#             data = transform.apply(data)
-#
-#         return data
-#
-#     def _update_table_select(self):
-#         options = self.source.get_tables()
-#         self.param['table'].objects = options
-#         if not self.table:
-#             self.table = options[0]
-#
-#     @param.depends('source.updated', watch=True)
-#     def update(self):
-#         #todo table spec
-#         """gets called when the source event triggers"""
-#
-#         self._update_table_select()
-#
-#         self.updated = True
-#
-#     @property
-#     def pd_kwargs(self):
-#         """kwargs to pass to pandas functin to apply filter"""
-#         return {}
-#
-#     @property
-#     def query(self):
-#         return self.pd_function, self.pd_kwargs
-
-
 class CrossSectionFilter(AppFilter):
+
+    _type = 'cross_section'
 
     pd_function = 'xs'
 
@@ -199,6 +152,7 @@ class CrossSectionFilter(AppFilter):
         if df is None:
             return df
         else:
+            kwargs = self.pd_kwargs
             df = df.xs(**self.pd_kwargs)
             return df
 
@@ -238,6 +192,8 @@ class CrossSectionFilter(AppFilter):
 
 
 class ApplyCmapOptFilter(AppFilter):
+
+    _type = 'apply_cmap_opt'
 
     opts = param.Selector(doc='cmap opts dict to choose from',
                           label='Color transform', objects=[])  #todo refactor to cmap_opt? color transform?
@@ -291,7 +247,10 @@ class ApplyCmapOptFilter(AppFilter):
 
         self.updated = True
 
+
 class GenericFilter(AppFilter):
+    _type = 'generic'
+
     pd_function = param.String()
 
     def __init__(self, **params):
@@ -314,6 +273,8 @@ class GenericFilter(AppFilter):
 class RescaleFilter(GenericFilter):
     """Rescale a single column"""
 
+    _type = 'rescale'
+
     pd_function = 'assign'
 
     column = param.String(doc='Name of the column to rescale')
@@ -333,6 +294,8 @@ class RescaleFilter(GenericFilter):
 
 
 class PivotFilter(GenericFilter):
+    _type = 'pivot'
+
     pd_function = 'pivot'
 
     index = param.ClassSelector(class_=[str, list])
@@ -348,6 +311,8 @@ class PivotFilter(GenericFilter):
         return dict(index=self.index, columns=self.columns, values=self.values)
 
 class StackFilter(GenericFilter):
+    _type = 'stack'
+
     pd_function = 'stack'
 
     level = param.Integer(-1)  #actually int, str, or list of these, default -1 (last level)

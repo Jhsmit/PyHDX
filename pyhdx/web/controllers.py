@@ -230,6 +230,9 @@ class PeptideFileInputControl(ControlPanel):
     analysis.
 
     """
+
+    _type = 'peptide_file_input'
+
     header = 'Peptide Input'
 
     input_files = param.List()
@@ -270,7 +273,7 @@ class PeptideFileInputControl(ControlPanel):
     def __init__(self, parent, **params):
         self._excluded = ['be_percent']
         super(PeptideFileInputControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._datasets_updated, ['data_objects']) # this for sure does not work
+#        self.parent.param.watch(self._datasets_updated, ['data_objects']) # this for sure does not work
 
         self.update_box()
 
@@ -475,7 +478,8 @@ class InitialGuessControl(ControlPanel):
     This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
     """
 
-    #todo remove lambda symbol although its really really funny
+    _type = 'initial_guess'
+
     header = 'Initial Guesses'
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
                                    doc='Choose method for determining initial guesses.')
@@ -494,7 +498,7 @@ class InitialGuessControl(ControlPanel):
         self.pbar2 = ASyncProgressBar()
         self._excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         super(InitialGuessControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._parent_datasets_updated, ['data_objects'])  #todo refactor
+#        self.parent.param.watch(self._parent_datasets_updated, ['data_objects'])  #todo refactor
 
         self.update_box()
 
@@ -613,6 +617,8 @@ class FitControl(ControlPanel):
 
     Currently, repeated fitting overrides the old result.
     """
+
+    _type = 'fit'
 
     header = 'ΔG Fit'
 
@@ -836,14 +842,16 @@ class FitControl(ControlPanel):
         return fit_kwargs
 
 
-class ClassificationControl(ControlPanel):
+class ColorTransformControl(ControlPanel):
     """
     This controller allows users classify 'mapping' datasets and assign them colors.
 
     Coloring can be either in discrete categories or as a continuous custom color map.
     """
 
-    header = 'Classification'
+    _type = 'color_transform'
+
+    header = 'Color Transform'
     # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
 
     # todo unify name for target field (target_data set)
@@ -881,7 +889,7 @@ class ClassificationControl(ControlPanel):
     def __init__(self, parent, **param):
         self._excluded = ['otsu_thd', 'num_colors']
 
-        super(ClassificationControl, self).__init__(parent, **param)
+        super(ColorTransformControl, self).__init__(parent, **param)
 
         # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
         # update to proplot cmaps?
@@ -1243,6 +1251,9 @@ class ClassificationControl(ControlPanel):
 
 
 class ProteinControl(ControlPanel):
+
+    _type = 'protein'
+
     header = 'Protein Control'
 
     input_mode = param.Selector(doc='Method of protein structure input', objects=['PDB File', 'RCSB Download'])

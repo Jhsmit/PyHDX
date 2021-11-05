@@ -18,13 +18,13 @@ from panel.pane.base import PaneBase
 from pyhdx.support import autowrap
 from pyhdx.web.base import BokehFigurePanel, FigurePanel, MIN_BORDER_LEFT
 from pyhdx.web.filters import AppFilter
-from pyhdx.web.sources import AppSource
+from pyhdx.web.sources import AppSourceBase
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
 
 import numpy as np
 
 
-class AppView(param.Parameterized):
+class AppViewBase(param.Parameterized):
     """Base view object.
 
     Inspired by Holoviz Lumen's View objects"""
@@ -33,7 +33,7 @@ class AppView(param.Parameterized):
     #     A list of Filter object providing the query parameters for the
     #     Source.""")
 
-    source = param.ClassSelector(class_=(AppSource, AppFilter),
+    source = param.ClassSelector(class_=(AppSourceBase, AppFilter),
                                  constant=True,
                                  precedence=-1,
                                  doc="""
@@ -119,7 +119,7 @@ class AppView(param.Parameterized):
         return {k: v for d in self.opts for k, v in d.opts.items()}
 
 
-class hvAppView(AppView):
+class hvAppView(AppViewBase):
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -184,7 +184,7 @@ class hvAppView(AppView):
 
 class hvScatterAppView(hvAppView):
 
-    view_type = 'scatter'
+    _type = 'scatter'
 
     x = param.String(doc="The column to render on the x-axis.")  # todo these should be selectors
 
@@ -221,9 +221,9 @@ class hvScatterAppView(hvAppView):
     #     return pd.DataFrame(dic)
 
 
-class hvRectangleAppView(hvAppView):
+class hvRectanglesAppView(hvAppView):
 
-    view_type = 'rectangles'
+    _type = 'rectangles'
 
     left = param.String('start', doc="Field name to use for left coordinate")
 
@@ -291,8 +291,8 @@ class hvRectangleAppView(hvAppView):
         return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
 
 
-class NGLView(AppView):
-    view_type = 'ngl'
+class NGLView(AppViewBase):
+    _type = 'ngl'
 
     # todo additioal render options (fog etc)
 

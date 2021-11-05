@@ -9,7 +9,8 @@ from pyhdx.plot import default_cmap_norm
 from pyhdx.support import apply_cmap
 
 
-class Opts(param.Parameterized):
+#todo baseclass widget generating thingy
+class OptsBase(param.Parameterized):
 
     updated = param.Event()
 
@@ -38,7 +39,9 @@ class Opts(param.Parameterized):
         return {k: v for k, v in zip(names[1:], widgets)}
 
 
-class GenericOpts(Opts):
+class GenericOpts(OptsBase):
+
+    _type = 'generic'
 
     def __init__(self, **params):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
@@ -50,7 +53,9 @@ class GenericOpts(Opts):
 
 
 
-class CmapOpts(Opts):
+class CmapOpts(OptsBase):
+
+    _type = 'cmap'
 
     cmap = param.ClassSelector(default=None, class_=Colormap)
 
@@ -74,6 +79,8 @@ class CmapOpts(Opts):
 
         if self.cmap is None and self.norm is None and self.field is not None:
             self.cmap, self.norm = default_cmap_norm(self.field)
+            self.norm.vmin /= self.sclf
+            self.norm.vmax /= self.sclf
         elif self.field is None:
             self.cmap = pplt.Colormap('viridis')
             self.norm = pplt.Norm('linear', 0., 1.)
