@@ -39,9 +39,9 @@ class AppView(param.Parameterized):
                                  doc="""
         The Source to query for the data.""")
 
-    opts = param.Dict(default={}, doc="HoloViews option to apply on the plot.",
-                      precedence=-1,
-                      constant=True)
+    opts = param.List(
+        default=[],
+        doc="list of opts objects to apply on the plot")
 
     dependencies = param.List(
         default=[],
@@ -113,6 +113,10 @@ class AppView(param.Parameterized):
                 return False
         self._panel = self.get_panel()
         return True
+
+    @property
+    def opts_dict(self):
+        return {k: v for d in self.opts for k, v in d.opts.items()}
 
 
 class hvAppView(AppView):
@@ -204,7 +208,7 @@ class hvScatterAppView(hvAppView):
 
         func = partial(hv.Scatter, kdims=[self.x], vdims=[self.y])
         plot = hv.DynamicMap(func, streams=[self._stream])
-        plot = plot.apply.opts(**self.opts) if self.opts else plot
+        plot = plot.apply.opts(**self.opts_dict)
 
         return plot
 
@@ -278,7 +282,7 @@ class hvRectangleAppView(hvAppView):
         """
 
         plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])
-        plot = plot.apply.opts(**self.opts) if self.opts else plot
+        plot = plot.apply.opts(**self.opts_dict)
 
         return plot
 
