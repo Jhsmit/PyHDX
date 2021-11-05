@@ -181,30 +181,10 @@ class CSVFileInputControl(ControlPanel):
 class DevTestControl(ControlPanel):
 
     btn = param.Action(lambda self: self._action_debug(), label='Debug')
-    cmap = param.Selector(default='viridis', objects=['viridis', 'inferno'])
-    norm = param.Selector(default=(0, 1.), objects=[(0, 1.), (1.,2.), (10, 50)])
-
-    @param.depends('cmap', watch=True)
-    def _cmaps_changed(self):
-        import proplot as pplt
-        new_cmap = pplt.Colormap(self.cmap)
-
-        opt = self.opts['rfu']
-        opt.cmap = new_cmap
-
-    @param.depends('norm', watch=True)
-    def _norm_changed(self):
-        vmin, vmax = self.norm
-        import proplot as pplt
-        new_norm = pplt.Norm('linear', vmin, vmax)
-
-        opt = self.opts['rfu']
-        opt.norm = new_norm
 
 
     def _action_debug(self):
         print('hola')
-
 
     @property
     def _layout(self):
@@ -288,14 +268,17 @@ class PeptideFileInputControl(ControlPanel):
     dataset_list = param.ObjectSelector(default=[], label='Datasets', doc='Lists available datasets')
 
     def __init__(self, parent, **params):
+        self._excluded = ['be_percent']
         super(PeptideFileInputControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._datasets_updated, ['data_objects'])
+        self.parent.param.watch(self._datasets_updated, ['data_objects']) # this for sure does not work
 
-        excluded = ['be_percent']
-        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
         self._df = None  # Numpy array with raw input data
+
+    @property
+    def own_widget_names(self):
+        return [name for name in self.widgets.keys() if name not in self._excluded]
 
     @property
     def _layout(self):
@@ -323,11 +306,10 @@ class PeptideFileInputControl(ControlPanel):
     def _update_be_mode(self):
         # todo @tejas: Add test
         if self.be_mode == 'FD Sample':
-            excluded = ['be_percent']
+            self._excluded = ['be_percent']
         elif self.be_mode == 'Flat percentage':
-            excluded = ['fd_state', 'fd_exposure']
+            self._excluded = ['fd_state', 'fd_exposure']
 
-        self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         #self._layout = {'self': widgets}
         self.update_box()
 
@@ -510,10 +492,10 @@ class InitialGuessControl(ControlPanel):
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()  #tqdm? https://github.com/holoviz/panel/pull/2079
         self.pbar2 = ASyncProgressBar()
+        self._excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         super(InitialGuessControl, self).__init__(parent, **params)
         self.parent.param.watch(self._parent_datasets_updated, ['data_objects'])  #todo refactor
 
-        self._excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         self.update_box()
 
         self._guess_names = {}
@@ -1682,358 +1664,6 @@ class FigureExportControl(ControlPanel):
         return bio
 
 
-class SingleMappingFileInputControl(MappingFileInputControl):
-    """
-    This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
-    mapped to a linear sequence.
-
-    The column should be tab separated with on the last header line (starts with '#') the names of the columns. Columns
-    should be tab-delimited.
-    """
-
-    def _action_add_dataset(self):
-        super()._action_add_dataset()
-        to_add_keys = set(self.parent.datasets.keys()) - set(self.parent.sources.keys())
-        for key in to_add_keys:
-            records = self.parent.datasets[key].to_records()
-            data_source = DataSource(records, tags=['comparison', 'mapping'], x='r_number',
-                                     renderer='circle', size=10)
-            self.parent.publish_data(key, data_source)
-
-
-class MatrixMappingFileInputControl(SingleMappingFileInputControl):
-    datapoints = param.ListSelector(doc='Select datapoints to include in the matrix')
-
-    def _action_add_dataset(self):
-        super()._action_add_dataset()
-
-        N = 20
-        img = np.empty((N, N), dtype=np.uint32)
-        view = img.view(dtype=np.uint8).reshape((N, N, 4))
-        for i in range(N):
-            for j in range(N):
-                view[i, j, 0] = int(i / N * 255)
-                view[i, j, 1] = 158
-                view[i, j, 2] = int(j / N * 255)
-                view[i, j, 3] = 255
-
-        values = np.random.random(img.shape)
-
-        img_ds_dict = {'img': [img], 'scores': [values]}
-        data_source = DataSource(img_ds_dict, tags=['image'], name='scores_image', x=0, y=0)
-
-        self.parent.publish_data('scores_image', data_source)
-
-    def make_list(self):
-        widget_list = super().make_list()
-        datapoints_widget = widget_list.pop()
-        widget_list.insert(3, datapoints_widget)
-        return widget_list
-
-    def _add_dataset(self):
-        full_dict = self.protein.to_dict()
-        data_dict = {k: v for k, v in full_dict.items() if k in self.datapoints}
-        data_dict['r_number'] = self.protein.index
-        protein = Protein(data_dict, index='r_number')
-        self.parent.datasets[self.dataset_name] = protein
-
-    @param.depends('input_file', watch=True)
-    def _input_file_updated(self):
-        super()._input_file_updated()
-        if self.input_file:
-            header_fields = self.protein.df.columns
-
-            float_fields = [f for f in header_fields if f.replace('.', '', 1).isdigit()]
-            self.param['datapoints'].objects = float_fields
-            self.datapoints = float_fields
-
-#        self.dataset_name = self.dataset_name or Path(self.widget_dict['input_file'].filename).stem
-
-
-class MatrixImageControl(ControlPanel):
-    """
-    This controller takes an input loaded matrix and converts it to an (rgba) interpolated rendered image
-
-    """
-
-
-class FDPeptideFileInputControl(PeptideFileInputControl):
-    # todo @tejas: Add test
-    # This requires making a test function with the full_deuteration_app in apps.py
-    def make_list(self):
-        parameters = ['add_button', 'clear_button', 'drop_first', 'load_button', 'd_percentage',
-                      'fd_state', 'fd_exposure', 'parse_button']
-        first_widgets = list([self.widget_dict[par] for par in parameters])
-        return self.file_selectors + first_widgets
-
-    def _action_parse(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
-        pmt = self.parent.peptides
-
-        data_states = pmt.data[pmt.data['state'] == self.fd_state]
-        data_exposure = data_states[data_states['exposure'] == self.fd_exposure]
-
-        scores = 100 * data_exposure['uptake'] / data_exposure['ex_residues']
-        data_final = append_fields(data_exposure, 'scores', data=scores, usemask=False)
-
-        # pmt.set_control((fd_state, fd_exposure))
-        series = HDXMeasurement(data_final)
-
-        self.parent.series = series
-
-        self.parent.logger.info(f"Loaded FD control '{self.exp_state}' with {len(series.coverage)} peptides")
-        self.parent.logger.info(f'Mean deuteration is {scores.mean()}%, std {scores.std()}%')
-
-
-class PeptideFoldingFileInputControl(PeptideFileInputControl):
-    # todo @tejas: Add test
-    # This requires making a test function with the folding in apps.py
-
-    be_mode = param.Selector(doc='Select method of normalization', label='Norm mode', objects=['Exp', 'Theory']
-                             , precedence=-1)
-    fd_state = param.Selector(doc='State used to normalize uptake', label='100% Control State')
-    fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='100% Control Exposure')
-    zero_state = param.Selector(doc='State used to zero uptake', label='0% Control State')
-    zero_exposure = param.Selector(doc='Exposure used to zero uptake', label='0% Control Exposure')
-
-    def make_dict(self):
-        return self.generate_widgets()
-
-    def make_list(self):
-        parameters = ['add_button', 'clear_button', 'drop_first', 'ignore_prolines', 'load_button',
-                      'fd_state', 'fd_exposure', 'zero_state', 'zero_exposure', 'exp_state',
-                      'exp_exposures', 'parse_button']
-        first_widgets = list([self.widget_dict[par] for par in parameters])
-        return self.file_selectors + first_widgets
-
-    def _action_load(self):
-        super()._action_load()
-        states = list(np.unique(self.parent.peptides.data['state']))
-        self.param['zero_state'].objects = states
-        self.zero_state = states[0]
-
-    @param.depends('fd_state', 'fd_exposure', watch=True)
-    def _update_experiment(self):
-        #TODO THIS needs to be updated to also incorporate the zero (?)
-        pm_dict = self.parent.peptides.return_by_name(self.fd_state, self.fd_exposure)
-        states = list(np.unique([v.state for v in pm_dict.values()]))
-        self.param['exp_state'].objects = states
-        self.exp_state = states[0] if not self.exp_state else self.exp_state
-
-    @param.depends('zero_state', watch=True)
-    def _update_zero_exposure(self):
-        b = self.parent.peptides.data['state'] == self.zero_state
-        data = self.parent.peptides.data[b]
-        exposures = list(np.unique(data['exposure']))
-        self.param['zero_exposure'].objects = exposures
-        if exposures:
-            self.control_exposure = exposures[0]
-
-    def _action_parse(self):
-        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
-        control_0 = self.zero_state, self.zero_exposure
-        self.parent.peptides.set_control((self.fd_state, self.fd_exposure), control_0=control_0)
-
-        data_states = self.parent.peptides.data[self.parent.peptides.data['state'] == self.exp_state]
-        data = data_states[np.isin(data_states['exposure'], self.exp_exposures)]
-
-        series = HDXMeasurement(data)
-        self.parent.series = series
-
-        self._publish_scores()
-
-        self.parent.logger.info(f'Loaded experiment state {self.exp_state} '
-                                f'({len(series)} timepoints, {len(series.coverage)} peptides each)')
-
-
-class DifferenceControl(ControlPanel):
-    """
-    This controller allows users to select two datasets from available datasets, choose a quantity to compare between,
-    and choose the type of operation between quantities (Subtract/Divide).
-
-    """
-    header = 'Differences'
-
-    dataset_1 = param.Selector(doc='First dataset to compare')
-    dataset_2 = param.Selector(doc='Second dataset to compare')
-
-    comparison_name = param.String()
-    operation = param.Selector(default='Subtract', objects=['Subtract', 'Divide'],
-                               doc='Select the operation to perform between the two datasets')
-
-    comparison_quantity = param.Selector(doc="Select a quantity to compare (column from input txt file)")
-    add_comparison = param.Action(lambda self: self._action_add_comparison(),
-                                  doc='Click to add this comparison to available comparisons')
-    comparison_list = param.ListSelector(doc='Lists available comparisons')
-    remove_comparison = param.Action(lambda self: self._action_remove_comparison(),
-                                     doc='Remove selected comparisons from the list')
-
-    def __init__(self, parent, **params):
-        super(DifferenceControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._datasets_updated, ['datasets'])
-
-    def _datasets_updated(self, events):
-        objects = list(self.parent.datasets.keys())
-
-        self.param['dataset_1'].objects = objects
-        if not self.dataset_1:
-            self.dataset_1 = objects[0]
-        self.param['dataset_2'].objects = objects
-        if not self.dataset_2:# or self.dataset_2 == objects[0]:  # dataset2 default to second dataset? toggle user modify?
-            self.dataset_2 = objects[0]
-
-    @param.depends('dataset_1', 'dataset_2', watch=True)
-    def _selection_updated(self):
-        if self.datasets:
-            unique_names = set.intersection(*[{name for name in protein.df.dtypes.index} for protein in self.datasets])
-            objects = [name for name in unique_names if np.issubdtype(self.protein_1[name].dtype, np.number)]
-            objects.sort()
-
-            # todo check for scara dtype
-            self.param['comparison_quantity'].objects = objects
-            if self.comparison_quantity is None:
-                self.comparison_quantity = objects[0]
-
-    @property
-    def protein_1(self):
-        """:class:`~pyhdx.models.Protein`: Protein object of dataset 1"""
-        try:
-            return self.parent.datasets[self.dataset_1]
-        except KeyError:
-            return None
-
-    @property
-    def protein_2(self):
-        """:class:`~pyhdx.models.Protein`: Protein object of dataset 2"""
-        try:
-            return self.parent.datasets[self.dataset_2]
-        except KeyError:
-            return None
-
-    @property
-    def datasets(self):
-        """:obj:`tuple`: Tuple with `(protein_1, protein_2)"""
-        datasets = (self.protein_1, self.protein_2)
-        if None in datasets:
-            return None
-        else:
-            return datasets
-
-    def _action_add_comparison(self):
-        if not self.comparison_name:
-            self.parent.logger.info('The added comparison needs to have a name')
-            return
-        if self.datasets is None:
-            return
-
-        op = {'Subtract': operator.sub, 'Divide': operator.truediv}[self.operation]
-        comparison = op(*[p[self.comparison_quantity] for p in self.datasets]).rename('comparison')
-        value1 = self.protein_1[self.comparison_quantity].rename('value1')
-        value2 = self.protein_2[self.comparison_quantity].rename('value2')
-        df = pd.concat([comparison, value1, value2], axis=1)
-
-        output = df.to_records()
-        data_source = DataSource(output, tags=['comparison', 'mapping'], x='r_number', y='comparison',
-                                 renderer='circle', size=10)
-        self.parent.publish_data(self.comparison_name, data_source)  # Triggers parent.sources param
-        self.comparison_name = ''
-
-    def _action_remove_comparison(self):
-        for comparison in self.comparison_list:
-            self.parent.sources.pop(comparison)   #Popping from dicts does not trigger param
-        self.parent.param.trigger('sources')
-
-    @param.depends('parent.sources', watch=True)
-    def _update_comparison_list(self):
-        objects = [name for name, d in self.parent.sources.items() if 'comparison' in d.tags]
-        self.param['comparison_list'].objects = objects
-
-
-class SingleControl(ControlPanel):
-    # todo @tejas: Add test
-
-    """
-    This controller allows users to select a dataset from available datasets, and choose a quantity to classify/visualize,
-    and add this quantity to the available datasets.
-    """
-
-    #todo subclass with DifferenceControl
-    #rename dataset_name
-    header = 'Datasets'
-
-    dataset = param.Selector(doc='Dataset')
-    dataset_name = param.String(doc='Name of the dataset to add')
-    quantity = param.Selector(doc="Select a quantity to plot (column from input txt file)")
-
-    add_dataset = param.Action(lambda self: self._action_add_dataset(),
-                               doc='Click to add this comparison to available comparisons')
-    dataset_list = param.ListSelector(doc='Lists available comparisons')
-    remove_dataset = param.Action(lambda self: self._action_remove_comparison(),
-                                  doc='Remove selected datasets from available datasets')
-
-    def __init__(self, parent, **params):
-        super(SingleControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._datasets_updated, ['datasets'])
-
-    def _datasets_updated(self, events):
-        objects = list(self.parent.datasets.keys())
-
-        self.param['dataset'].objects = objects
-        if not self.dataset:
-            self.dataset = objects[0]
-
-    @param.depends('dataset', watch=True)
-    def _selection_updated(self):
-        if self.dataset:
-            dataset = self.parent.datasets[self.dataset]
-            names = dataset.dtype.names
-            objects = [name for name in names if name != 'r_number']
-            self.param['quantity'].objects = objects
-            if self.quantity is None:
-                self.quantity = objects[0]
-
-    def _action_add_dataset(self):
-        if not self.dataset_name:
-            self.parent.logger.info('The added comparison needs to have a name')
-            return
-        if not self.dataset:
-            return
-
-        array = self.parent.datasets[self.dataset]
-        data_source = DataSource(array, tags=['comparison', 'mapping'], x='r_number', y=self.quantity,
-                                 renderer='circle', size=10)
-        self.parent.publish_data(self.dataset_name, data_source)  # Triggers parent.sources param
-        self.comparison_name = ''
-
-    def _action_remove_comparison(self):
-        for ds in self.dataset_list:
-            self.parent.sources.pop(ds)   #Popping from dicts does not trigger param
-        self.parent.param.trigger('sources')
-
-    @param.depends('parent.sources', watch=True)
-    def _update_dataset_list(self):
-        objects = [name for name, d in self.parent.sources.items()]
-        self.param['dataset_list'].objects = objects
-
-
-class FDCoverageControl(CoverageControl):
-    def make_list(self):
-        lst = super(CoverageControl, self).make_list()
-        return lst[:-1]
-
-
-class FoldingFitting(InitialGuessControl):
-    fitting_model = param.Selector(default='Dissociation', objects=['Dissociation'],
-                                   doc='Choose method for determining initial guesses.')
-
-    def make_list(self):
-        self.widget_dict.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
-        parameters = ['fitting_model', 'lower_bound', 'upper_bound', 'do_fit1', 'pbar1']
-
-        widget_list = list([self.widget_dict[par] for par in parameters])
-        return widget_list
-
-
 class FitResultControl(ControlPanel):
     # @tejas skip test, currently bugged, issue #182
 
@@ -2099,144 +1729,6 @@ class FitResultControl(ControlPanel):
             dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
             data_source = DataSource(dic, x='time', y='uptake', tags=['uptake_curve'], renderer=renderer, color=color)
             self.parent.publish_data(name, data_source)
-
-
-class ColoringControl(ClassificationControl):
-    # WIP class, skip tests
-
-
-    def make_dict(self):
-        widgets_dict = super().make_dict()
-        widgets_dict.pop('quantity')
-
-        return widgets_dict
-
-    @param.depends('values', 'colors', 'target', 'quantity', watch=True)
-    def _get_colors(self):
-        # todo this part is repeated
-        if np.all(self.values == 0):
-            return
-        elif np.any(np.diff(self.values) > 0):  # Skip applying colors when not strictly monotonic descending
-            return
-        elif not self.target:
-            return
-        elif 'scores_image' not in self.parent.sources.keys():
-            return
-
-        tgt_source = self.parent.sources[self.target] # full array including nan entries
-        r_number = tgt_source.source.data['r_number']
-        assert np.all(np.diff(r_number) == 1)
-
-
-        headers = [f for f in tgt_source.source.data.keys() if f.replace('.', '', 1).isdigit()]
-
-        headers.sort(key=float)
-        timepoints = np.array([float(f) for f in headers])
-        N_interpolate = 500
-        interp_timepoints = np.linspace(0, timepoints.max(), num=N_interpolate, endpoint=True)
-        data_array = np.stack([tgt_source.source.data[k] for k in headers])
-
-        array = np.stack([np.interp(interp_timepoints, timepoints, data) for data in data_array.T]).T
-
-
-        colors_hex = self._calc_colors(array.flatten())  # colors are in hex format
-        if colors_hex is None:  # this is the colors not between 0 and 1 bug / error
-            return
-
-        colors_hex[colors_hex == 'nan'] = '#8c8c8c'
-        colors_rgba = np.array([hex_to_rgba(h) for h in colors_hex])
-
-        shape = (N_interpolate, len(r_number))
-        img = np.empty(shape, dtype=np.uint32)
-        view = img.view(dtype=np.uint8).reshape(*shape, 4)
-        view[:] = colors_rgba.reshape(*shape, 4)
-
-        img_source = self.parent.sources['scores_image']
-        img_source.render_kwargs['dw'] = r_number.max()
-        img_source.render_kwargs['dh'] = timepoints.max()
-        img_source.source.data.update(img=[img], scores=[array])
-
-
-        #self.parent.sources[self.target].source.data['color'] = colors
-
-
-class DifferenceFileExportControl(FileExportControl):
-    """
-    This controller allows users to export and download datasets.
-
-    'Mappable' datasets (with r_number column) can be exported as .pml pymol script, which colors protein structures
-    based on their 'color' column.
-
-    """
-
-    accepted_tags = ['mapping']
-    #todo include comparison info (x vs y) in output
-
-    def _sources_updated(self, *events):  #refactor _parent_sources_updated on classificationcontrol
-        data_sources = [k for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)]
-        self.param['target'].objects = list(data_sources)
-
-        # Set target if its not set already
-        if not self.target and data_sources:
-            self.target = data_sources[-1]
-
-    @pn.depends('target', watch=True)
-    def _update_filename(self):
-        self.export_linear_download.filename = self.target + '_linear.txt'
-        if 'r_number' in self.export_dict.keys():
-            self.pml_script_download.filename = self.target + '_pymol.pml'
-
-
-class OptionsControl(ControlPanel):
-    """The controller is used for various settings."""
-
-    header = 'Options'
-
-    #todo this should be a component (mixin?) for apps who dont have these figures
-    link_xrange = param.Boolean(True, doc='Link the X range of the coverage figure and other linear mapping figures.', constant=False)
-    log_level = param.Selector(default='DEBUG', objects=['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'OFF', 'TRACE'],
-                               doc='Set the logging level.')
-
-    def __init__(self, parent, **param):
-        super(OptionsControl, self).__init__(parent, **param)
-
-    @property
-    def enabled(self):
-        return self.master_figure is not None and self.client_figures is not None
-
-    @param.depends('link_xrange', watch=True)
-    def _update_link(self):
-        if self.enabled:
-            if self.link_xrange:
-                self._link()
-            else:
-                self._unlink()
-
-    @property
-    def client_figures(self):
-        client_names = ['RateFigure', 'PFactFigure']
-        return [self.parent.figure_panels[name].figure for name in client_names]
-
-    @property
-    def master_figure(self):
-        return self.parent.figure_panels['CoverageFigure'].figure
-
-    @property
-    def figures(self):
-        return [self.master_figure] + self.client_figures
-
-    def _unlink(self):
-        for fig in self.figures:
-            fig.x_range.js_property_callbacks.pop('change:start')
-            fig.x_range.js_property_callbacks.pop('change:end')
-
-    def _link(self):
-        for client in self.client_figures:
-            self.master_figure.x_range.js_link('start',  client.x_range, 'start')
-            self.master_figure.x_range.js_link('end', client.x_range, 'end')
-
-            client.x_range.js_link('start', self.master_figure.x_range, 'start')
-            client.x_range.js_link('end', self.master_figure.x_range, 'end')
 
 
 class DeveloperControl(ControlPanel):
