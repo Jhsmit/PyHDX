@@ -40,9 +40,9 @@ class Opts(param.Parameterized):
 
 class CmapOpts(Opts):
 
-    cmap = param.ClassSelector(default=pplt.Colormap('viridis'), class_=Colormap)
+    cmap = param.ClassSelector(default=None, class_=Colormap)
 
-    norm = param.ClassSelector(default=pplt.Norm('linear', 0., 1.), class_=Normalize)
+    norm = param.ClassSelector(default=None, class_=Normalize)
     # the stored norm here is the scaled one
     # scale factor is applied to apply norm to rescaled data
 
@@ -55,13 +55,13 @@ class CmapOpts(Opts):
     def __init__(self, **params):
         super().__init__(**params)
         self._excluded_from_opts += ['norm', 'sclf']  # perhaps use leading underscore to exclude?
-        self._norm_updated()
 
         if self.cmap is None and self.norm is None and self.field is not None:
             self.cmap, self.norm = default_cmap_norm(self.field)
         elif self.field is None:
             self.cmap = pplt.Colormap('viridis')
             self.norm = pplt.Norm('linear', 0., 1.)
+        self._norm_updated()
 
     @property
     def opts(self):
