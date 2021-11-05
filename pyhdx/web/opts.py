@@ -38,6 +38,18 @@ class Opts(param.Parameterized):
         return {k: v for k, v in zip(names[1:], widgets)}
 
 
+class GenericOpts(Opts):
+
+    def __init__(self, **params):
+        self.kwargs = {k: v for k, v in params.items() if k not in self.param}
+        super().__init__(**{k: v for k, v in params.items() if k in self.param})
+
+    @property
+    def opts(self):
+        return self.kwargs
+
+
+
 class CmapOpts(Opts):
 
     cmap = param.ClassSelector(default=None, class_=Colormap)
@@ -53,6 +65,9 @@ class CmapOpts(Opts):
     field = param.String(doc="optional field on which cmap works")
 
     def __init__(self, **params):
+        cmap = params.pop('cmap', None)
+        cmap = pplt.Colormap(cmap) if cmap else cmap
+        params['cmap'] = cmap
         super().__init__(**params)
         self._excluded_from_opts += ['norm', 'sclf']  # perhaps use leading underscore to exclude?
 
