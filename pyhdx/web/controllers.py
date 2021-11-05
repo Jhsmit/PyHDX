@@ -897,6 +897,8 @@ class ClassificationControl(ControlPanel):
     colors = param.List(default=[], precedence=-1)
 
     def __init__(self, parent, **param):
+        self._excluded = ['otsu_thd', 'num_colors']
+
         super(ClassificationControl, self).__init__(parent, **param)
 
         # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
@@ -928,7 +930,6 @@ class ClassificationControl(ControlPanel):
         self._update_num_colors()
         self._update_num_values()
         self._update_library()
-        self.excluded = ['otsu_thd', 'num_colors']
 
         quantity_options = [opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)]
         self.param['quantity'].objects = quantity_options
@@ -945,7 +946,7 @@ class ClassificationControl(ControlPanel):
         initial_widgets = []
         for name in self.param:
             precedence = self.param[name].precedence
-            if (precedence is None or precedence > 0) and name not in self.excluded + ['name']:
+            if (precedence is None or precedence > 0) and name not in self._excluded + ['name']:
                 initial_widgets.append(name)
 
         #todo control color / value fields with param.add_parameter function

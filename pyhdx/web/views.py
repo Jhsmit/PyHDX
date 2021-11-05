@@ -45,16 +45,27 @@ class AppView(param.Parameterized):
                       precedence=-1,
                       constant=True)
 
+    dependencies = param.List(
+        default=[],
+        precedence=-1,
+        doc="Additional dependencies which trigger update when their `updated` event fires")
+
     view_type = None
 
     def __init__(self, **params):
         super().__init__(**params)
         # todo allow for kwargs to be passed to DynamicMap's func
 
+        for dep in self.dependencies:
+            dep.param.watch(self._update, ['updated'])
+
         self.widgets = self.make_dict()
 
         self._panel = None
-        self._updates = None
+        self._updates = None  # what does this do?
+
+    def _update(self, *events):
+        self.update()  # todo or just catch events in the update function?  (probably this)
 
     def make_dict(self):
         #todo baseclass filter/controller/view with the same widget generation logic?
@@ -125,7 +136,8 @@ class hvAppView(AppView):
         super().__init__(**params)
         self._stream = None
 
-    def update(self, *events, invalidate_cache=True):
+    @param.depends('source.updated', watch=True)  # no watch? # todo cache / checking if updates are needed?
+    def update(self):
         """
         Triggers an update in the View.
 
@@ -143,17 +155,17 @@ class hvAppView(AppView):
             rerendered.
         """
         # Skip events triggered by a parameter change on this View
-        own_parameters = [self.param[p] for p in self.param]
-        own_events = events and all(
-            isinstance(e.obj, ParamFilter) and
-            (e.obj.parameter in own_parameters or
-            e.new is self._ls.selection_expr)
-            for e in events
-        )
-        if own_events:
-            return False
-        if invalidate_cache:
-            self._cache = None
+        # own_parameters = [self.param[p] for p in self.param]
+        # own_events = events and all(
+        #     isinstance(e.obj, ParamFilter) and
+        #     (e.obj.parameter in own_parameters or
+        #     e.new is self._ls.selection_expr)
+        #     for e in events
+        # )
+        # if own_events:
+        #     return False
+        # if invalidate_cache:
+        #     self._cache = None
         if self._stream is None:
             return self._update_panel()
         if self.get_data() is not None:
@@ -301,6 +313,8 @@ class NGLView(AppView):
 
     color_scheme = param.Selector(default='custom', objects=COLOR_SCHEMES)
 
+    custom_color_scheme = param.List(precedence=-1)
+
     background_color = param.Color(default='#F7F7F7')
 
     object = param.String('', doc='pdb string object', precedence=-1)
@@ -347,29 +361,43 @@ class NGLView(AppView):
     def _get_params(self):
         return None
 
-    def update(self, *events, invalidate_cache=True):
-        if invalidate_cache:
-            self._cache = None
+    @param.depends('source.updated', watch=True)
+    def update(self):
+        # if invalidate_cache:
+        #     self._cache = None
 
-        data = self.get_data()
-        # if len(data.columns) > 1 or data.size < 1:
-        #     # invalid number of columns
-        #     self.ngl_view.color_list = [['white', "*"]]
-        # else:
-        #     pd_series = data.iloc[:, 0]
-        #     grp = pd_series.groupby(pd_series)
-        #
-        #     color_list = []
-        #     for c, pd_series in grp:
-        #         result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
-        #
-        #         resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
-        #         color_list.append([c, resi])
-        #
-        #     self.ngl_view.color_list = color_list
+        colors = self.get_data()
+        print('colors', colors)
+        if colors is not None:
+            grp = colors.groupby(colors)
 
-        # update panel?
-        return self._update_panel()
+            color_list = []
+            for c, pd_series in grp:
+                result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+
+                resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
+                color_list.append([c, resi])
+
+            self.custom_color_scheme = color_list
+
+            # if len(data.columns) > 1 or data.size < 1:
+            #     # invalid number of columns
+            #     self.ngl_view.color_list = [['white', "*"]]
+            # else:
+            #     pd_series = data.iloc[:, 0]
+            #     grp = pd_series.groupby(pd_series)
+            #
+            #     color_list = []
+            #     for c, pd_series in grp:
+            #         result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+            #
+            #         resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
+            #         color_list.append([c, resi])
+            #
+            #     self.ngl_view.color_list = color_list
+
+            # update panel?
+        return self._update_panel()  # what does this do? redraws is not redrawn?
 
     @property
     def panel(self):  # why the panebase unpack?

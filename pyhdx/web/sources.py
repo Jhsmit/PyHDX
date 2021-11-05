@@ -101,7 +101,7 @@ class PyHDXSource(AppSource):
 
         #RFU per residue per exposure
         dfs = [hdxm.rfu_residues for hdxm in self.hdxm_objects.values()]
-        combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'quantity'])
+        combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'exposure'])
         self.tables['rfu_residues'] = combined
 
         self.param.trigger('tables')
@@ -124,7 +124,6 @@ class PyHDXSource(AppSource):
         self.tables['rates'] = combined
 
         self.param.trigger('tables')
-
 
     def get(self, table):
         df = self.tables.get(table, None)

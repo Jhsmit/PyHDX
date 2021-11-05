@@ -665,7 +665,7 @@ def default_cmap_norm(datatype):
     elif datatype in ['deltadeltaG', 'ddG']:
         return get_cmap_norm_preset('PRGn', -10e3, 10e3)
     elif datatype == 'rfu':
-        norm = pplt.Norm('linear', 0, 1)
+        norm = pplt.Norm('linear', 0, 1., clip=True)
         cmap = pplt.Colormap('turbo')
         return cmap, norm
     elif datatype == 'mse':

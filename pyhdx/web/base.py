@@ -183,8 +183,6 @@ class ControlPanel(PanelBase):
 
         super(ControlPanel, self).__init__(**params)
 
-
-
         self.widgets = self.make_dict()  # atm on some objects this is a list, others dict
         self._box = self.make_box()  # _panel equivalent
 

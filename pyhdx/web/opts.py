@@ -1,12 +1,17 @@
+from copy import copy
+
 import param
 import panel as pn
 from matplotlib.colors import Colormap, Normalize
 import proplot as pplt
 
+from pyhdx.plot import default_cmap_norm
 from pyhdx.support import apply_cmap
 
 
 class Opts(param.Parameterized):
+
+    updated = param.Event()
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -36,14 +41,33 @@ class Opts(param.Parameterized):
 class CmapOpts(Opts):
 
     cmap = param.ClassSelector(default=pplt.Colormap('viridis'), class_=Colormap)
+
     norm = param.ClassSelector(default=pplt.Norm('linear', 0., 1.), class_=Normalize)
+    # the stored norm here is the scaled one
+    # scale factor is applied to apply norm to rescaled data
+
     clim = param.Tuple((0., 1.), length=2)
+
     sclf = param.Number(1., doc='scaling factor to apply')
+
+    field = param.String(doc="optional field on which cmap works")
 
     def __init__(self, **params):
         super().__init__(**params)
         self._excluded_from_opts += ['norm', 'sclf']  # perhaps use leading underscore to exclude?
         self._norm_updated()
+
+        if self.cmap is None and self.norm is None and self.field is not None:
+            self.cmap, self.norm = default_cmap_norm(self.field)
+        elif self.field is None:
+            self.cmap = pplt.Colormap('viridis')
+            self.norm = pplt.Norm('linear', 0., 1.)
+
+    @property
+    def opts(self):
+        names = ['cmap', 'clim']
+        opts = {name: self.param[name] for name in names}
+        return opts
 
     @param.depends('norm', watch=True)
     def _norm_updated(self):
@@ -51,4 +75,11 @@ class CmapOpts(Opts):
 
     def apply(self, data):
         """apply cmap / norm to data (pd series or df)"""
-        return apply_cmap(data, self.cmap, self.norm)
+        norm = copy(self.norm)
+        norm.vmin *= self.sclf
+        norm.vmax *= self.sclf
+        return apply_cmap(data, self.cmap, norm)
+
+    @param.depends('norm', 'cmap', watch=True)
+    def update(self):
+        self.updated = True

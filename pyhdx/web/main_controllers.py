@@ -63,15 +63,13 @@ class MainController(param.Parameterized):
         self.template = None   # Panel template
         self.future_queue = []  # queue of tuples: (future, callback)
 
-        for filt in self.filters.values():
-            if isinstance(filt, FacetFilter):
-                continue
-            filt.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
+        # for filt in self.filters.values():
+        #     if isinstance(filt, FacetFilter):
+        #         continue
+        #     filt.param.watch(partial(self._rerender, invalidate_cache=True), 'updated')
 
         # for opt in self.opts.values():
         #     opt.param.watch(self._update_views, 'updated')
-
-
 
         self._update_views()
         self.start()
@@ -82,7 +80,7 @@ class MainController(param.Parameterized):
 
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
         for view in self.views.values():
-            view.update(invalidate_cache=invalidate_cache)
+            view.update()
 
     @param.depends('src.cmaps', watch=True)
     def _update_cmaps(self):

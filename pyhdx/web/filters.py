@@ -6,12 +6,11 @@ import param
 from pyhdx.web.sources import AppSource
 from pyhdx.web.widgets import ColoredStaticText
 import panel as pn
+import pandas as pd
 
 class AppFilterBase(param.Parameterized):
 
     """these filters get the data from source"""
-
-
 
     widgets = param.Dict(default={})
 
@@ -27,7 +26,7 @@ class AppFilterBase(param.Parameterized):
         return None
 
 
-class AppSourceFilter(AppFilterBase):
+class AppSourceFilter(AppFilterBase):  #todo rename to something that includes table
     """filter which picks the correct table from the source"""
 
     source = param.ClassSelector(class_=AppSource)
@@ -35,7 +34,8 @@ class AppSourceFilter(AppFilterBase):
     table = param.Selector(default=None, doc="""
       The table being filtered. """)
 
-    def __init__(self, **params):
+    def __init__(self, table_options=None, **params):
+        self.table_options = table_options
         super().__init__(**params)
 
         self.widgets = {'table': pn.pane.panel(self.param.table)}
@@ -46,8 +46,20 @@ class AppSourceFilter(AppFilterBase):
         df = self.source.get(self.table)  # returns None on KeyError
         return df
 
-    @param.depends('source.updated', 'table', watch=True)
+    @param.depends('table', watch=True)
+    def _table_updated(self):
+        self.updated = True
+
+    @param.depends('source.updated', watch=True)  # todo split
+    #TODO NEXT TIME: Figure out table populations
     def update(self):
+        options = self.source.get_tables()
+        if self.table_options:
+            options = [t for t in options if t in self.table_options]
+        #with param.parameterized.discard_events(self):  # no triggers from setting table, manual with updated=True
+        self.param['table'].objects = options
+        if not self.table and options:  # todo more nonsense as in filters?
+            self.table = options[0]
         self.updated = True
 
 
@@ -127,7 +139,7 @@ class CrossSectionFilter(AppFilter):
 
     axis = param.Integer(1, bounds=[0, 1])
 
-    n_levels = param.Integer(None, doc="Number of levels")
+    n_levels = param.Integer(0, doc="Number of levels. negative to count from the back of the list")
 
     level = param.List()
 
@@ -190,9 +202,14 @@ class CrossSectionFilter(AppFilter):
 
     def redraw(self):
         # create new widgets
-        n_levels = self.n_levels or len(self._names)
-        self.widgets = {name: pn.widgets.Select(name=name) for name in self._names[:n_levels]}
-        #self.widgets.update(**widgets)
+
+        if self.n_levels <= 0:
+            n_levels = len(self._names) + self.n_levels
+        else:
+            n_levels = self.n_levels
+
+        self.widgets = {name: pn.widgets.Select(name=default_label_formatter(name)) for name in self._names[:n_levels]}
+
         self.selectors = list(self.widgets.values())
         for selector in self.selectors:
             selector.param.watch(self._selector_changed, ['value'], onlychanged=True)
@@ -215,6 +232,7 @@ class CrossSectionFilter(AppFilter):
             return df
 
     def _selector_changed(self, *events):
+        #this sends multiple updated events as it triggers changes in other selectors
         for event in events:
             current_index = self.selectors.index(event.obj)  # Index of the selector which was changed
 
@@ -241,6 +259,7 @@ class CrossSectionFilter(AppFilter):
         self.level = list(range(len(all_values)))
 
         #signal the change
+        print('selector event', events[0])
         self.updated = True
 
     @property
@@ -251,17 +270,74 @@ class CrossSectionFilter(AppFilter):
 
 class ApplyCmapOptFilter(AppFilter):
 
-    opts = param.Selector(doc='cmap opts dict to choose from', label='Color transform')
+    opts = param.Selector(doc='cmap opts dict to choose from',
+                          label='Color transform', objects=[])  #todo refactor to cmap_opt? color transform?
 
-    def __init__(self, opts_dict=None, **params):
+    def __init__(self, opts_dict=None, opts_mapping=None,**params):
+        self._opts_dict = opts_dict  #dict of opt.name: opt
+        self._opts_mapping = opts_mapping  # optional mapping of pd series field to possible opts
         super().__init__(**params)
-        self.param['opts'].objects = opts_dict
-
+        #self.param['opts'].objects = listopts_dict
         self.widgets = {'opts': pn.pane.panel(self.param.opts)}
 
     def get(self):
-        pass
-        df = self.source.get()
+        if self.opts is None:
+            return None
+        else:
+            df = self.source.get()  #todo refactor df to data as it can also be a series?
+            if df.columns.size != 1:
+                raise ValueError("Invalid number of columns, must be 1")
+
+            pd_series = df[df.columns[0]]
+            print(pd_series)
+            opts_obj = self._opts_dict[self.opts]
+            print(opts_obj.cmap, opts_obj.norm)
+            if pd.api.types.is_numeric_dtype(pd_series):
+                colors = opts_obj.apply(pd_series)
+
+                return colors
+            else:
+                return None
+            # print(self.opts)
+            # print('joehoe')
+        #self.opts.apply
+
+    @param.depends('opts', watch=True)
+    def _opts_changed(self):
+        print('updated', self.opts)
+        self.updated = True  # opts options are the same but selection changed, signal
+
+    @param.depends('source.updated', watch=True)
+    def update(self):
+        pd_series = self.source.get()
+        print('source updated')
+        #todo just show all, later deal with setting the correct one? (infer from previous filter setting)
+        if pd_series is None:
+           # with param.parameterized.discard_events(self):
+            self.param['opts'].objects = []
+            self.opts = None
+        else:
+            # all_opts = list(self._opts_dict.keys())
+            # if self._opts_mapping:
+            #     accepted_opts = self._opts_mapping.get(pd_series.name, [])
+            #     options = [o for o in all_opts if o in accepted_opts]
+            # else:
+            #     options = all_opts
+            options = list(self._opts_dict.keys())
+            # with turn off param triggers, then update!
+           # with param.parameterized.discard_events(self):
+            self.param['opts'].objects = options  # TODO: pr/issue:? when setting objects which does not include the current setting selector is not reset?
+            if self.opts is None and options:
+                self.opts = options[0]
+            elif self.opts not in options and options:  #todo or
+                self.opts = options[0]
+            elif not options:
+                self.opts = None
+            print(self.opts)
+            print('if the above is delta G sth is wrong')
+
+        self.updated = True
+           # with param.parameterized.discard_events(self):
 
         #color_df = # opt.appl.y(df)
 
