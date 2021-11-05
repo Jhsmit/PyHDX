@@ -65,6 +65,7 @@ class CmapOpts(Opts):
     field = param.String(doc="optional field on which cmap works")
 
     def __init__(self, **params):
+        # todo from_spec constructor method for this kind of logic
         cmap = params.pop('cmap', None)
         cmap = pplt.Colormap(cmap) if cmap else cmap
         params['cmap'] = cmap
