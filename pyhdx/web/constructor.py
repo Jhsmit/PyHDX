@@ -62,7 +62,7 @@ class AppConstructor(param.Parameterized):
         classes = {}
         for key, cls in base_classes.items():
             base_cls = base_classes[key]
-            all_classes = list([cls for cls in gen_subclasses(base_cls) if hasattr(cls, '_type')])
+            all_classes = list([cls for cls in gen_subclasses(base_cls) if hasattr(cls, '_type')]) # or check for None on _type
             types = [cls._type for cls in all_classes]
             if len(types) != len(set(types)):
                 print([item for item, count in collections.Counter(types).items() if count > 1])
@@ -78,7 +78,6 @@ class AppConstructor(param.Parameterized):
             func = getattr(self, f'add_{section[:-1]}')  # Remove trailing s to get correct adder function
             d = yaml_dict.get(section, {})
             for name, spec in d.items():
-                print(name)
                 if 'type' not in spec:
                     raise KeyError(f"The field 'type' is not specified for {section[:-1]} {name!r}")
                 _type = spec.pop('type')
