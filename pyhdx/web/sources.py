@@ -65,6 +65,7 @@ class PyHDXSource(AppSourceBase):
     # rfu_residues (rfu)
     # rates
     # dG_fits (dG)
+    # ddG_comparison
 
     #data objects:
     hdxm_objects = param.Dict({})

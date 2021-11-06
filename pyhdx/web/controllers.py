@@ -853,6 +853,69 @@ class FitControl(ControlPanel):
         return fit_kwargs
 
 
+class ComparisonControl(ControlPanel):
+    _type = 'comparison'
+
+    header = 'Comparison (ΔΔG)'
+
+    reference_state = param.Selector(
+        doc='Which of the states to use as reference'
+    )
+
+    comparison_name = param.String(
+        default='ddG_1',
+        doc="Name for the comparison table"
+    )
+
+    add_comparison = param.Action(lambda self: self._action_add_comparison())
+
+    def __init__(self, parent, **params):
+        super().__init__(parent, **params)
+
+        self.parent.filters['ddG_fit_select'].param.watch(self._source_updated, 'updated')
+        self._df = None
+        self._source_updated()  # todo filter source does not trigger updated when init
+
+    @property
+    def _layout(self):
+        return [
+            ('filters.ddG_fit_select', None),
+            ('self', None)
+        ]
+
+    def get(self):
+        df = self.filters['ddG_fit_select'].get()
+        return df
+
+    def _source_updated(self, *events):
+        self._df = self.get()
+        options = list(self._df.columns.unique(level=0))
+        self.param['reference_state'].objects = options
+        if self.reference_state is None and options:
+            self.reference_state = options[0]
+
+    def _action_add_comparison(self):
+        current_df = self.parent.sources['main'].get('ddG_comparison')
+        if current_df is not None and self.comparison_name in current_df.columns.get_level_values(level=0):
+            print('name already exists')  # todo parent.logger
+            return
+
+        reference = self._df[self.reference_state]['deltaG']
+        test = self._df.xs('deltaG', axis=1, level=1).drop(self.reference_state, axis=1)
+        compare = test.subtract(reference, axis=0)
+
+        columns = pd.MultiIndex.from_product([[self.comparison_name], compare.columns], names=['name', 'state'])
+        compare.columns = columns
+
+        if current_df is not None:
+            new_df = pd.concat([current_df, compare], axis=1)
+        else:
+            new_df = compare
+
+        self.parent.sources['main'].tables['ddG_comparison'] = new_df
+        self.parent.sources['main'].param.trigger('tables')
+
+
 class ColorTransformControl(ControlPanel):
     """
     This controller allows users classify 'mapping' datasets and assign them colors.
