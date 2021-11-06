@@ -128,6 +128,13 @@ class AppConstructor(param.Parameterized):
             elif k == 'opts':
                 v = [v] if isinstance(v, str) else v  # allow singly opt by str
                 resolved[k] = [self.opts[vi] for vi in v]
+            elif k == 'dependencies':  # dependencies are opts/filters/controllers? (anything with .updated event)
+                all_objects = []
+                for type_, obj_list in v.items():
+                    for obj in obj_list:
+                        all_objects.append(getattr(self, type_)[obj])
+                resolved[k] = all_objects
+
 
             else:
                 resolved[k] = v
