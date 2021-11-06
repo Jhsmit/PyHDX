@@ -20,6 +20,11 @@ filters:
     type: table_source
     source: main
     table: dG_fits
+  ddG_src:
+    type: table_source
+    source: main
+    table: ddG_comparison
+
 
 opts:
   base:
@@ -36,6 +41,10 @@ opts:
   dG:  # perhaps they need better names?
     type: cmap
     field: deltaG
+    sclf: 1.0e+3
+  ddG:
+    type: cmap
+    field: ddG
     sclf: 1.0e+3
 
 modules:
@@ -110,6 +119,7 @@ modules:
         xlabel: Residue Number
         ylabel: ΔG (kJ/mol)
         invert_yaxis: True
+        color: deltaG
         colorbar: True
 
     views:
@@ -124,11 +134,54 @@ modules:
         x: r_number
         y: deltaG
 
+  ddG_view:
+    filters:
+      ddG_comparison_select:
+        type: cross_section
+        source: ddG_src
+        n_levels: 2
+      ddG_rescale:
+        type: rescale
+        source: ddG_comparison_select
+        scale_factor: 1.0e-3   # TODO sclf vs scale_factor
+        column: ddG  # todo expand columns to include qty
+    opts:
+      ddG_axes:
+        type: generic
+        xlabel: Residue Number
+        ylabel: ΔΔG (kJ/mol)
+        invert_yaxis: True # todo find out of symmetric around zero constraint is possible
+        color: ddG
+        colorbar: True
+    views:
+      ddG:
+        type: scatter
+        source: ddG_rescale
+        opts:
+          - base
+          - scatter
+          - ddG_axes
+          - ddG  # = cmap, raname
+        x: r_number
+        y: ddG
+
+
+  ddG_control:
+    filters:
+      ddG_fit_select:
+        type: cross_section
+        source: dG_src
+        n_levels: 1
+
 controllers:
   #- peptide_file_input  # todo by name ?
   #- initial_guess
+  - dev
   - fit
+  - comparison
   - color_transform
+  - file_export
+  - figure_export
 
   #tools:
   #  coverage_hover:
@@ -139,3 +192,6 @@ controllers:
   #      - (rfu, @rfu (@uptake_corrected D)
   #      - [sequence, @sequence]  # or convert to tuple in constructor?
 
+
+# opts factory from mixins?
+# combined opts?

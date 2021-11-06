@@ -904,7 +904,9 @@ class ComparisonControl(ControlPanel):
         test = self._df.xs('deltaG', axis=1, level=1).drop(self.reference_state, axis=1)
         compare = test.subtract(reference, axis=0)
 
-        columns = pd.MultiIndex.from_product([[self.comparison_name], compare.columns], names=['name', 'state'])
+        columns = pd.MultiIndex.from_product(
+            [[self.comparison_name], compare.columns, ['ddG']],
+            names=['name', 'state', 'quantity'])
         compare.columns = columns
 
         if current_df is not None:
@@ -975,7 +977,7 @@ class ColorTransformControl(ControlPanel):
         self._pyhdx_cmaps = {}  # Dict of pyhdx default colormaps
         self._user_cmaps = {}
         self.quantity_mapping = {}  # quantity: (cmap, norm)
-        for quantity in ['dG', 'rfu']:  # todo add others: [opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)]
+        for quantity in ['dG', 'rfu', 'ddG']:  # todo add others: [opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)]
             cmap, norm = default_cmap_norm(quantity)
             sclf = self._scaling_factors.get(quantity, 1.)
             norm.vmin *= sclf
