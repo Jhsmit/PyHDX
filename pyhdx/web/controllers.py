@@ -180,11 +180,22 @@ class CSVFileInputControl(ControlPanel):
 
 class DevTestControl(ControlPanel):
 
+    _type = 'dev'
+
     btn = param.Action(lambda self: self._action_debug(), label='Debug')
 
 
     def _action_debug(self):
-        print('hola')
+        filters = self.filters
+        sources = self.sources
+        views = self.views
+        opts = self.opts
+        opt = self.opts['dG']
+
+        tables = self.sources['main'].tables
+
+
+        print('break')
 
     @property
     def _layout(self):
