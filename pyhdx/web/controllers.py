@@ -1398,122 +1398,10 @@ class ProteinControl(ControlPanel):
         view.object = pdb_string
 
 
-class GraphControl(ControlPanel):
-    header = 'Graph Control'
-
-    spin = param.Boolean(default=False, doc='Spin the protein object')
-
-    state_name = param.Selector(doc="Name of the currently selected state")
-    fit_id = param.Selector(doc="Name of the currently selected fit ID")
-    peptide_index = param.Selector(doc="Index of the currently selected peptide")
-
-    def __init__(self, parent, **params):
-        super(GraphControl, self).__init__(parent, **params)
-        source = self.sources['dataframe']
-        source.param.watch(self._source_updated, 'updated')
-
-    def make_dict(self):
-        widgets = {
-            'general': pn.pane.Markdown('### General'),
-            'coverage': pn.pane.Markdown('### Coverage'),
-            'peptide': pn.pane.Markdown('### Peptide'),
-            'losses': pn.pane.Markdown('### Losses'),
-            'debugging': pn.pane.Markdown('### Debugging'),
-
-        }
-
-        return {**widgets, **self.generate_widgets()}
-
-    def _source_updated(self, *events):
-        source = self.sources['dataframe']
-        table = source.get('global_fit')
-        fit_id_options = list(table.columns.get_level_values(0).unique())
-        self.param['fit_id'].objects = fit_id_options
-        if not self.fit_id and fit_id_options:
-            self.fit_id = fit_id_options[0]
-
-        table = source.get('peptides')
-        state_name_options = list(table.columns.get_level_values(0).unique())
-
-        self.param['state_name'].objects = state_name_options
-        if not self.state_name and state_name_options:
-            self.state_name = state_name_options[0]
-
-    @param.depends('state_name', watch=True)
-    def _update_state_name(self):
-        #https://param.holoviz.org/reference.html#param.parameterized.batch_watch
-
-        dwarfs = ['coverage_state_name', 'coverage_mse_state_name', 'peptide_d_exp_state_name', 'peptide_d_calc_state_name',
-                  'deltaG_state_name', 'rates_state_name', 'ngl_state_name']  # there really are 7
-
-        # one filter to rule them all, one filter to find them,
-        # one filter to bring them all, and in the darkness bind them;
-        # in the Land of Mordor where the shadows lie.
-        for dwarf in dwarfs:
-            filt = self.filters[dwarf]
-            filt.value = self.state_name
-
-        # If current fit result was done as single, also update the state for the losses graph
-        losses_filt = self.filters['losses_state_name']
-        if self.state_name in losses_filt.param['value'].objects:
-            losses_filt.value = self.state_name
-
-
-        # Update possible choices for peptide selection depending on selected state
-        source = self.sources['dataframe']
-        table = source.get('peptides')
-        unique_vals = table[self.state_name]['start_end'].unique()
-        peptide_options = list(range(len(unique_vals)))
-        self.param['peptide_index'].objects = peptide_options
-        if self.peptide_index is not None and peptide_options:
-            self.peptide_index = peptide_options[0]
-
-    @param.depends('fit_id', watch=True)
-    def _update_fit_id(self):
-        elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id', 'losses_fit_id']
-        for elf in elves:
-            filt = self.filters[elf]
-            filt.value = self.fit_id
-
-        # perhaps this is faster?
-        # widget = self.widget.clone()
-        # self.widget.link(widget, value='value', bidirectional=True)
-
-    @param.depends('peptide_index', watch=True)
-    def _update_peptide_index(self):
-        hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
-        for hobbit in hobbits:
-            filt = self.filters[hobbit]
-            filt.value = self.peptide_index
-
-    @property
-    def _layout(self):
-        return [
-            # ('self', ['coverage']),
-            # ('filters.select_index', None),
-            # ('filters.exposure_slider', None),
-            # ('opts.cmap', None),
-            ('self', ['general']),
-            ('self', ['fit_id', 'state_name']),
-            ('self', ['coverage']),
-            ('filters.coverage_exposure', None),
-            ('self', ['peptide', 'peptide_index']),
-            ('self', ['losses']),
-            ('filters.losses_state_name', None),
-            # ('self', ['debugging']),
-            # ('filters.deltaG_fit_id', None),
-            # ('filters.coverage_mse_fit_id', None),
-        ]
-
-    @param.depends('spin', watch=True)
-    def _spin_updated(self):
-        view = self.views['protein']
-        view.ngl_view.spin = self.spin
-
-
 class FileExportControl(ControlPanel):
-    # todo check if docstring is true
+
     """
+    <outdated docstring>
     This controller allows users to export and download datasets.
 
     All datasets can be exported as .txt tables.
@@ -1522,17 +1410,18 @@ class FileExportControl(ControlPanel):
 
     """
 
+    _type = 'file_export'
+
     header = "File Export"
+
     table = param.Selector(label='Target dataset', doc='Name of the dataset to export')
     export_format = param.Selector(default='csv', objects=['csv', 'pprint'],
                                    doc="Format of the exported tables."
                                        "'csv' is machine-readable, 'pprint' is human-readable format")
 
-
-    #todo add color param an dlink with protein viewer color
-
     def __init__(self, parent, **param):
         super(FileExportControl, self).__init__(parent, **param)
+        self.sources['main'].param.watch(self._tables_updated, ['tables'])
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -1555,9 +1444,8 @@ class FileExportControl(ControlPanel):
 
         return final_widgets
 
-    @param.depends('src.tables', watch=True)
-    def _tables_updated(self):
-        options = list(self.src.tables.keys())
+    def _tables_updated(self, *events):
+        options = list(self.sources['main'].tables.keys())
         self.param['table'].objects = options
         if not self.table:
             self.table = options[0]
@@ -1588,7 +1476,7 @@ class FileExportControl(ControlPanel):
     @pn.depends('table')  # param.depends?
     def table_export_callback(self):
         if self.table:
-            df = self.src.tables[self.table]
+            df = self.sources['main'].tables[self.table]
             io = dataframe_to_stringio(df, fmt=self.export_format)
             return io
         else:
@@ -1613,7 +1501,7 @@ class FileExportControl(ControlPanel):
             return bio
 
     def get_color_df(self):
-        df = self.src.tables[self.table]
+        df = self.sources['main'].tables[self.table]
         qty = self.table.split('_')[0]
         opt = self.opts[qty]
         cmap = opt.cmap
@@ -1750,6 +1638,122 @@ class FigureExportControl(ControlPanel):
         self.widgets['export_figure'].loading = False
 
         return bio
+
+
+class GraphControl(ControlPanel):
+    header = 'Graph Control'
+
+    spin = param.Boolean(default=False, doc='Spin the protein object')
+
+    state_name = param.Selector(doc="Name of the currently selected state")
+    fit_id = param.Selector(doc="Name of the currently selected fit ID")
+    peptide_index = param.Selector(doc="Index of the currently selected peptide")
+
+    def __init__(self, parent, **params):
+        super(GraphControl, self).__init__(parent, **params)
+        source = self.sources['dataframe']
+        source.param.watch(self._source_updated, 'updated')
+
+    def make_dict(self):
+        widgets = {
+            'general': pn.pane.Markdown('### General'),
+            'coverage': pn.pane.Markdown('### Coverage'),
+            'peptide': pn.pane.Markdown('### Peptide'),
+            'losses': pn.pane.Markdown('### Losses'),
+            'debugging': pn.pane.Markdown('### Debugging'),
+
+        }
+
+        return {**widgets, **self.generate_widgets()}
+
+    def _source_updated(self, *events):
+        source = self.sources['dataframe']
+        table = source.get('global_fit')
+        fit_id_options = list(table.columns.get_level_values(0).unique())
+        self.param['fit_id'].objects = fit_id_options
+        if not self.fit_id and fit_id_options:
+            self.fit_id = fit_id_options[0]
+
+        table = source.get('peptides')
+        state_name_options = list(table.columns.get_level_values(0).unique())
+
+        self.param['state_name'].objects = state_name_options
+        if not self.state_name and state_name_options:
+            self.state_name = state_name_options[0]
+
+    @param.depends('state_name', watch=True)
+    def _update_state_name(self):
+        #https://param.holoviz.org/reference.html#param.parameterized.batch_watch
+
+        dwarfs = ['coverage_state_name', 'coverage_mse_state_name', 'peptide_d_exp_state_name', 'peptide_d_calc_state_name',
+                  'deltaG_state_name', 'rates_state_name', 'ngl_state_name']  # there really are 7
+
+        # one filter to rule them all, one filter to find them,
+        # one filter to bring them all, and in the darkness bind them;
+        # in the Land of Mordor where the shadows lie.
+        for dwarf in dwarfs:
+            filt = self.filters[dwarf]
+            filt.value = self.state_name
+
+        # If current fit result was done as single, also update the state for the losses graph
+        losses_filt = self.filters['losses_state_name']
+        if self.state_name in losses_filt.param['value'].objects:
+            losses_filt.value = self.state_name
+
+
+        # Update possible choices for peptide selection depending on selected state
+        source = self.sources['dataframe']
+        table = source.get('peptides')
+        unique_vals = table[self.state_name]['start_end'].unique()
+        peptide_options = list(range(len(unique_vals)))
+        self.param['peptide_index'].objects = peptide_options
+        if self.peptide_index is not None and peptide_options:
+            self.peptide_index = peptide_options[0]
+
+    @param.depends('fit_id', watch=True)
+    def _update_fit_id(self):
+        elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id', 'losses_fit_id']
+        for elf in elves:
+            filt = self.filters[elf]
+            filt.value = self.fit_id
+
+        # perhaps this is faster?
+        # widget = self.widget.clone()
+        # self.widget.link(widget, value='value', bidirectional=True)
+
+    @param.depends('peptide_index', watch=True)
+    def _update_peptide_index(self):
+        hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
+        for hobbit in hobbits:
+            filt = self.filters[hobbit]
+            filt.value = self.peptide_index
+
+    @property
+    def _layout(self):
+        return [
+            # ('self', ['coverage']),
+            # ('filters.select_index', None),
+            # ('filters.exposure_slider', None),
+            # ('opts.cmap', None),
+            ('self', ['general']),
+            ('self', ['fit_id', 'state_name']),
+            ('self', ['coverage']),
+            ('filters.coverage_exposure', None),
+            ('self', ['peptide', 'peptide_index']),
+            ('self', ['losses']),
+            ('filters.losses_state_name', None),
+            # ('self', ['debugging']),
+            # ('filters.deltaG_fit_id', None),
+            # ('filters.coverage_mse_fit_id', None),
+        ]
+
+    @param.depends('spin', watch=True)
+    def _spin_updated(self):
+        view = self.views['protein']
+        view.ngl_view.spin = self.spin
+
+
+
 
 
 class FitResultControl(ControlPanel):
