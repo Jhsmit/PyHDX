@@ -195,17 +195,24 @@ class ApplyCmapOptFilter(AppFilter):
 
     _type = 'apply_cmap_opt'
 
-    opts = param.Selector(doc='cmap opts dict to choose from',
-                          label='Color transform', objects=[])  #todo refactor to cmap_opt? color transform?
+    opts = param.Selector(doc='cmap opts list to choose from',
+                          label='Color transform', objects=[],
+                          )  #todo refactor to cmap_opt? color transform?
 
-    def __init__(self, opts_dict=None, opts_mapping=None,**params):
-        self._opts_dict = opts_dict  #dict of opt.name: opt
-        self._opts_mapping = opts_mapping  # optional mapping of pd series field to possible opts
+    #@clasmethod
+    #def check_args(... )  #todo method for constructor to see if the supplied kwargs are correct for this object
+
+    def __init__(self, opts, **params): #opts: list of opts objects
+        self._opts_dict = {o.name: o for o in opts}
+        opts = list(self._opts_dict.keys())
+        params['opts'] = opts
+        #self._opts_mapping = opts_mapping  # optional mapping of pd series field to possible opts
         super().__init__(**params)
         self.widgets = {'opts': pn.pane.panel(self.param.opts)}
 
     def get(self):
         if self.opts is None:
+            raise ValueError('opts cannot be none')
             return None
         else:
             df = self.source.get()  #todo refactor df to data as it can also be a series?
@@ -234,7 +241,7 @@ class ApplyCmapOptFilter(AppFilter):
             self.param['opts'].objects = []
             self.opts = None
         else:
-            options = list(self._opts_dict.keys())
+            options = list(self._opts_dict.keys())  # this needs updating as opts_dict is static
             # with turn off param triggers, then update (unexpected results)
            # with param.parameterized.discard_events(self):
             self.param['opts'].objects = options  # TODO: pr/issue:? when setting objects which does not include the current setting selector is not reset?
