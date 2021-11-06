@@ -78,6 +78,7 @@ class AppConstructor(param.Parameterized):
             func = getattr(self, f'add_{section[:-1]}')  # Remove trailing s to get correct adder function
             d = yaml_dict.get(section, {})
             for name, spec in d.items():
+                # todo move to classmethod on object which checks spec/kwargs
                 if 'type' not in spec:
                     raise KeyError(f"The field 'type' is not specified for {section[:-1]} {name!r}")
                 _type = spec.pop('type')

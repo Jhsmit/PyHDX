@@ -461,9 +461,6 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
 
 
-# todo class DataManagerControl()
-
-
 class CoverageControl(ControlPanel):
     header = 'Coverage'
 
@@ -1348,7 +1345,7 @@ class ProteinControl(ControlPanel):
     @property
     def _layout(self):
         return [('self', self.own_widget_names),  #always use this instead of none?
-                ('filters.protein_table', None),
+                ('filters.protein_src', None),
                 ('filters.protein_select', None),
                 ('filters.protein_cmap', None),
                 ('views.protein', None)
