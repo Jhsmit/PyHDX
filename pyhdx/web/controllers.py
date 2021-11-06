@@ -1639,6 +1639,9 @@ class FileExportControl(ControlPanel):
 
 
 class FigureExportControl(ControlPanel):
+
+    _type = 'figure_export'
+
     header = "Figure Export"
 
     figure = param.Selector(default='dG', objects=['dG'])
@@ -1691,10 +1694,10 @@ class FigureExportControl(ControlPanel):
             return
 
         if self.figure == 'dG':
-            if 'dG_fits' not in self.src.tables.keys():
+            if 'dG_fits' not in self.sources['main'].tables.keys():
                 return
 
-            df = self.src.tables['dG_fits']
+            df = self.sources['main'].tables['dG_fits']
             options = list(df.columns.unique(level=0))
             self.param['figure_selection'].objects = options
             if not self.figure_selection:
@@ -1726,10 +1729,10 @@ class FigureExportControl(ControlPanel):
             return None
 
         if self.figure == 'dG':
-            if 'dG_fits' not in self.src.tables.keys():
+            if 'dG_fits' not in self.sources['main'].tables.keys():
                 return None
 
-            df = self.src.tables['dG_fits']
+            df = self.sources['main'].tables['dG_fits']
             sub_df = df[self.figure_selection]
 
             opts = self.opts['dG']
