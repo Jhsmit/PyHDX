@@ -259,7 +259,8 @@ class ControlPanel(PanelBase):
                 if isinstance(contents, list):
                     for item in contents:
                         widget_list.append(object.widgets[item])
-
+                elif isinstance(contents, str):
+                    widget_list.append(object.widgets[contents])
                 elif contents is None:
                     if hasattr(object, 'widgets'):
                         for item in object.widgets.values():
