@@ -29,7 +29,7 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.sources import DataSource, DataFrameSource
 from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
-from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm, dG_scatter_figure
+from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm, dG_scatter_figure, ddG_scatter_figure
 from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol, apply_cmap
 from pyhdx.config import cfg
 
@@ -1339,7 +1339,7 @@ class ProteinControl(ControlPanel):
                 # ('filters.ngl_state_name', None),
                 ]
 
-    @property
+    @property  #todo in baseclass?
     def own_widget_names(self):
         return [name for name in self.widgets.keys() if name not in self._excluded]
 
@@ -1515,7 +1515,9 @@ class FigureExportControl(ControlPanel):
 
     header = "Figure Export"
 
-    figure = param.Selector(default='dG', objects=['dG'])
+    figure = param.Selector(default='dG_scatter', objects=['dG_scatter'])
+
+    reference = param.Selector(allow_None=True)
 
     figure_selection = param.Selector(label='Selection')
 
@@ -1541,8 +1543,18 @@ class FigureExportControl(ControlPanel):
     )
 
     def __init__(self, parent, **param):
+        self._excluded = []
         super(FigureExportControl, self).__init__(parent, **param)
         self._figure_updated()
+
+    @property
+    def _layout(self):
+        return [('self', self.own_widget_names),  #TODO always use this instead of none?
+                ]
+
+    @property  #todo in baseclass?
+    def own_widget_names(self):
+        return [name for name in self.widgets.keys() if name not in self._excluded]
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -1552,19 +1564,19 @@ class FigureExportControl(ControlPanel):
             callback=self.figure_export_callback,
         )
 
-        widget_order = ['figure', 'figure_selection', 'figure_format', 'ncols', 'aspect', 'width', 'export_figure']
+        widget_order = ['figure', 'reference', 'figure_selection', 'figure_format', 'ncols', 'aspect', 'width',
+                        'export_figure']
         final_widgets = {w: widgets[w] for w in widget_order}
 
         return final_widgets
 
-    @pn.depends('figure', 'figure_format', watch=True)
+    @pn.depends('figure', watch=True)
     def _figure_updated(self):
         # generalize more when other plot options are introduced
-
         if not self.figure:
             return
 
-        if self.figure == 'dG':
+        if self.figure == 'dG_scatter':
             if 'dG_fits' not in self.sources['main'].tables.keys():
                 return
 
@@ -1574,7 +1586,72 @@ class FigureExportControl(ControlPanel):
             if not self.figure_selection:
                 self.figure_selection = options[0]
 
-            self.aspect = cfg.getfloat('plotting', 'deltaG_aspect')
+            self.aspect = cfg.getfloat('plotting', 'deltaG_aspect')  # todo refactor to dG
+            options = list(df.columns.unique(level=1))
+            self.param['reference'].objects = [None] + options
+
+            self._excluded = []
+
+        # if self.figure == 'ddG_scatter':  # this is the same(ish) as dG
+        #     df = self.sources['main'].tables['dG_fits']  # todo: get_table?
+        #     options = list(df.columns.unique(level=0))
+        #     self.param['figure_selection'].objects = options
+        #     if not self.figure_selection:
+        #         self.figure_selection = options[0]
+        #
+        #     self.aspect = cfg.getfloat('plotting', 'deltaG_aspect')  # todo refactor dG
+        #     self._excluded = []
+
+        self.update_box()
+
+    @pn.depends('figure_selection', watch=True)
+    def _figure_selection_updated(self):  # selection is usually Fit ID
+        df = self.sources['main'].tables['dG_fits'][self.figure_selection]
+        options = list(df.columns.unique(level=0))
+        self.param['reference'].objects = [None] + options
+        if not self.reference and options:
+            self.reference = options[0]
+
+    @pn.depends('figure', 'figure_selection', 'figure_format', watch=True)
+    def _figure_filename_updated(self):
+        fname = f'{self.figure}_{self.figure_selection}.{self.figure_format}'
+
+        self.widgets['export_figure'].filename = fname
+
+    @pn.depends('figure')
+    def figure_export_callback(self):
+        self.widgets['export_figure'].loading = True
+
+        if not self.figure:
+            return None
+
+        if self.figure == 'dG_scatter':
+            if 'dG_fits' not in self.sources['main'].tables.keys():
+                print('TODO logging table  is empty')
+                return None
+
+            df = self.sources['main'].tables['dG_fits']
+            sub_df = df[self.figure_selection]
+
+            if self.reference is None:
+                opts = self.opts['dG']
+
+                fig, axes, cbars = dG_scatter_figure(sub_df, cmap=opts.cmap, norm=opts.norm, **self.figure_kwargs)
+
+            else:
+                opts = self.opts['ddG']
+
+                fig, axes, cbar = ddG_scatter_figure(sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm,
+
+                                                     **self.figure_kwargs)
+        bio = BytesIO()
+        fig.savefig(bio, format=self.figure_format)
+        bio.seek(0)
+
+
+        self.widgets['export_figure'].loading = False
+
+        return bio
 
     @property
     def figure_kwargs(self):
@@ -1585,38 +1662,6 @@ class FigureExportControl(ControlPanel):
         }
         return kwargs
 
-    @pn.depends('figure_selection', 'figure_format', watch=True)
-    def _figure_filename_updated(self):
-        fname = f'dG_scatter_{self.figure_selection}.{self.figure_format}'
-
-        self.widgets['export_figure'].filename = fname
-
-    @pn.depends('figure')
-    def figure_export_callback(self):
-
-        self.widgets['export_figure'].loading = True
-
-        if not self.figure:
-            return None
-
-        if self.figure == 'dG':
-            if 'dG_fits' not in self.sources['main'].tables.keys():
-                return None
-
-            df = self.sources['main'].tables['dG_fits']
-            sub_df = df[self.figure_selection]
-
-            opts = self.opts['dG']
-
-            fig, axes, cbars = dG_scatter_figure(sub_df, cmap=opts.cmap, norm=opts.norm, **self.figure_kwargs)
-
-            bio = BytesIO()
-            fig.savefig(bio, format=self.figure_format)
-            bio.seek(0)
-
-        self.widgets['export_figure'].loading = False
-
-        return bio
 
 
 class GraphControl(ControlPanel):

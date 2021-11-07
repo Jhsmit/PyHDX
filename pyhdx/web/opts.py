@@ -69,7 +69,7 @@ class CmapOpts(OptsBase):
 
     field = param.String(doc="field on which cmap works")
 
-    def __init__(self, rename=True, invert=True, **params):
+    def __init__(self, rename=True, invert=False, **params):
         # todo from_spec constructor method for this kind of logic
         cmap = params.pop('cmap', None)
         cmap = pplt.Colormap(cmap) if cmap else cmap
@@ -78,7 +78,7 @@ class CmapOpts(OptsBase):
         self._excluded_from_opts += ['norm', 'sclf']  # perhaps use leading underscore to exclude?
 
         if self.cmap is None and self.norm is None and self.field is not None:
-            self.cmap, norm = default_cmap_norm(self.field)
+            cmap, norm = default_cmap_norm(self.field)
         elif self.field is None:
             cmap = pplt.Colormap('viridis')
             norm = pplt.Norm('linear', 0., 1.)
