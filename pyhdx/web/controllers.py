@@ -1182,7 +1182,7 @@ class ColorTransformControl(ControlPanel):
         collection = self.cmap_options[self.library]
         options = collection if isinstance(collection, list) else list(collection.keys())
         self.param['colormap'].objects = options
-        if self.colormap is None:
+        if self.colormap is None or self.colormap not in options:  # todo how can it not be in options?
             self.colormap = options[0]
 
     @param.depends('mode', watch=True)
@@ -1724,6 +1724,7 @@ class SessionManagerControl(ControlPanel):
             df = csv_to_dataframe(bio)
             src.tables[name.split('.')[0]] = df
 
+        src.param.trigger('tables')
         src.updated = True
 
     def _reset_session(self):
@@ -1740,6 +1741,7 @@ class SessionManagerControl(ControlPanel):
             src.dG_fits = {}
 
         src.tables = {}  # are there any dependies on this?
+
 
 class GraphControl(ControlPanel):
     header = 'Graph Control'

@@ -72,7 +72,6 @@ class AppFilter(AppFilterBase):
 
     def get(self):
         df = self.source.get()
-
         return df
 
     @param.depends('source.updated', watch=True)

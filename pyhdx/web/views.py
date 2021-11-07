@@ -41,7 +41,7 @@ class AppViewBase(param.Parameterized):
 
     opts = param.List(
         default=[],
-        doc="list of opts objects to apply on the plot")
+        doc="list of opts dicts to apply on the plot")
 
     dependencies = param.List(
         default=[],
@@ -168,6 +168,8 @@ class hvAppView(AppViewBase):
 
     def _get_params(self):
         df = self.get_data()
+        if df is None:
+            df = self.empty_df
 
         self._stream = Pipe(data=df)
         return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
@@ -215,8 +217,8 @@ class hvScatterAppView(hvAppView):
     @property
     def empty_df(self):
         dic = {self.x: [], self.y: []}
-        if 'c' in self.kwargs:
-            dic[self.kwargs['c']] = []
+        if 'color' in self.opts_dict:
+            dic[self.opts_dict['color']] = []
         return pd.DataFrame(dic)
 
 
