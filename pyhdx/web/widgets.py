@@ -228,7 +228,7 @@ class NGL(ReactiveHTML):
         http://nglviewer.org/ngl/api/manual/coloring.html#custom-coloring.""",
     )
 
-    spin = param.Boolean(False)  # todo add rock
+    effect = param.Selector(default=None, objects=[None, 'spin', 'rock'], allow_None=True)
 
     _template = """
     <div id="ngl_stage" style="width:100%; height:100%;"></div>
@@ -277,8 +277,15 @@ class NGL(ReactiveHTML):
             component.removeAllRepresentations();
             component.addRepresentation(data.representation, parameters);
             """,
-        'spin': """
-            state._stage.setSpin(data.spin);
+        'effect': """
+            if (data.effect==="spin"){
+                state._stage.setSpin(true);
+            } else if (data.effect==="rock"){
+                state._stage.setRock(true);
+            } else {
+                state._stage.setSpin(false);
+                state._stage.setRock(false);
+            }
             """,
         'updateStage': """
             parameters = self.getParameters();

@@ -298,7 +298,7 @@ class NGLView(AppViewBase):
 
     representation = param.Selector(default='cartoon', objects=REPRESENTATIONS)
 
-    spin = param.Boolean(False)
+    effect = param.Selector(default=None, objects=[None, 'spin', 'rock'], allow_None=True)
 
     color_scheme = param.Selector(default='custom', objects=COLOR_SCHEMES)
 
@@ -312,7 +312,7 @@ class NGLView(AppViewBase):
         super(NGLView, self).__init__(**params)
         self.ngl_view = NGL(sizing_mode='stretch_both', #todo sanitize order
                             extension='pdb',
-                            spin=self.spin,
+                            effect=self.effect,
                             color_scheme=self.color_scheme,
                             representation=self.representation,
                             object=self.object,
