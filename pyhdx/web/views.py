@@ -212,60 +212,22 @@ class hvScatterAppView(hvAppView):
 
         return plot
 
-
-    # @property
-    # def empty_df(self):
-    #     dic = {self.x: [], self.y: []}
-    #     if 'c' in self.kwargs:
-    #         dic[self.kwargs['c']] = []
-    #     return pd.DataFrame(dic)
+    @property
+    def empty_df(self):
+        dic = {self.x: [], self.y: []}
+        if 'c' in self.kwargs:
+            dic[self.kwargs['c']] = []
+        return pd.DataFrame(dic)
 
 
 class hvRectanglesAppView(hvAppView):
 
     _type = 'rectangles'
 
-    left = param.String('start', doc="Field name to use for left coordinate")
-
-    right = param.String('stop', doc="Field name to use for for the right coordinate")
-
-    height = param.Integer(1, doc="Height of the rectangles", constant=True)
-
-    passthrough = param.List()
-
-    wrap = param.Integer(None, doc="Number of peptides to go down on y axis before wrapping back around to the top")
-    step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
-    margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
-
     def __init__(self, **params):
 
         #todo left and right cannot be none?
         super().__init__(**params)
-
-    def get_data(self):
-        df = super().get_data()
-
-        #todo this nonsense below should be the action some kind of filter
-
-        wrap = self.wrap or autowrap(df[self.left].to_numpy(dtype=int), df[self.right].to_numpy(dtype=int), margin=self.margin, step=self.step)
-
-        # Order of columns determines their role, not the names
-        columns = ['x0', 'y0', 'x1', 'y1']  # bottom-left (x0, y0) and top right (x1, y1)
-        output_table = pd.DataFrame(index=df.index, columns=columns)
-        output_table['x0'] = df[self.left] - 0.5
-        output_table['x1'] = df[self.right] - 0.5
-        cycle = itertools.cycle(range(self.height*wrap, 0, -self.height))  # Starts at y top, cycles with wrap
-        yvals = np.array(list(itertools.islice(cycle, len(df)))) # Repeat cycle until the correct length
-        output_table['y0'] = yvals - self.height
-        output_table['y1'] = yvals
-
-        if self.passthrough:
-            for item in self.passthrough:
-                assert item not in ['value', 'index'], "Invalid field name, 'index' and 'value' names are reserved"
-                output_table[item] = df[item]
-        output_table['index'] = df.index
-
-        return output_table
 
     def get_plot(self, df):
         """
@@ -281,7 +243,7 @@ class hvRectanglesAppView(hvAppView):
 
         """
 
-        plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])
+        plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])  # todo kdims?
         plot = plot.apply.opts(**self.opts_dict)
 
         return plot

@@ -1,8 +1,12 @@
+import itertools
+
+import numpy as np
 import pandas as pd
 import panel as pn
 import param
 from param.parameterized import default_label_formatter
 
+from pyhdx.support import autowrap
 from pyhdx.web.sources import AppSourceBase
 
 
@@ -70,6 +74,10 @@ class AppFilter(AppFilterBase):
         df = self.source.get()
 
         return df
+
+    @param.depends('source.updated', watch=True)
+    def update(self):
+        self.updated = True
 
 
 class CrossSectionFilter(AppFilter):
@@ -255,6 +263,55 @@ class ApplyCmapOptFilter(AppFilter):
         self.updated = True
 
 
+class RectangleLayoutFilter(AppFilter):
+    """
+    Takes data with peptide start, end positions and transforms it to bottom, left, right, top positions of rectangles.
+
+    By default, for a given interval start, end (inclusive, exclusive) a rectangle is returned with a height of spanning from
+    (start - 0.5) to (end - 0.5)
+
+    """
+
+    _type = 'rectangle_layout'
+
+    left = param.String('start', doc="Field name to use for left coordinate")
+    right = param.String('end', doc="Field name to use for for the right coordinate")
+
+    height = param.Integer(1, doc="Height of the rectangles", constant=True)
+    value = param.String(None, doc="Optional field name to pass through as value column")
+    passthrough = param.List([], doc="Optional field names to pass through (for hovertools)")
+
+    wrap = param.Integer(doc="Amount of peptides to plot on the y axis before wrapping around to y axis top")
+    step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
+    margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
+
+    def get(self):
+        df = self.source.get()
+
+        if not self.wrap:
+            wrap = autowrap(df[self.left].to_numpy(dtype=int), df[self.right].to_numpy(dtype=int),  # todo fix types to be ints in the df
+                            margin=self.margin, step=self.step)
+
+        # Order of columns determines their role, not the names
+        columns = ['x0', 'y0', 'x1', 'y1']  # bottom-left (x0, y0) and top right (x1, y1)
+        output_table = pd.DataFrame(index=df.index, columns=columns)
+        output_table['x0'] = df[self.left] - 0.5
+        output_table['x1'] = df[self.right] - 0.5
+        cycle = itertools.cycle(range(self.height*wrap, 0, -self.height))  # Starts at y top, cyles with wrap
+        yvals = np.array(list(itertools.islice(cycle, len(df)))) # Repeat cycle until the correct length
+        output_table['y0'] = yvals - self.height
+        output_table['y1'] = yvals
+
+
+        if self.passthrough:
+            for item in self.passthrough:
+                assert item not in ['value', 'index'], "Invalid field name, 'index' and 'value' names are reserved"
+                output_table[item] = df[item]
+        output_table['index'] = df.index
+
+        return output_table
+
+
 class GenericFilter(AppFilter):
     _type = 'generic'
 
@@ -298,6 +355,8 @@ class RescaleFilter(GenericFilter):
     def pd_kwargs(self):
         """kwargs to pass to pandas function to apply filter"""
         return {self.column: lambda x: x[self.column]*self.scale_factor}
+
+
 
 
 class PivotFilter(GenericFilter):
