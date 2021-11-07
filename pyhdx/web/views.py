@@ -224,6 +224,16 @@ class hvRectanglesAppView(hvAppView):
 
     _type = 'rectangles'
 
+    x0 = param.String('x0')
+
+    x1 = param.String('x1')
+
+    y0 = param.String('y0')
+
+    y1 = param.String('y1')
+
+    value = param.String('value')
+
     def __init__(self, **params):
 
         #todo left and right cannot be none?
@@ -243,14 +253,17 @@ class hvRectanglesAppView(hvAppView):
 
         """
 
-        plot = hv.DynamicMap(hv.Rectangles, streams=[self._stream])  # todo kdims?
+        func = partial(hv.Rectangles,
+                       kdims=[self.x0, self.y0, self.x1, self.y1],
+                       vdims=[self.value])
+        plot = hv.DynamicMap(func, streams=[self._stream])
         plot = plot.apply.opts(**self.opts_dict)
 
         return plot
 
     @property
     def empty_df(self):
-        return pd.DataFrame([[0] * 5], columns=['x0', 'x1', 'y0', 'y1', 'value'])
+        return pd.DataFrame([[0] * 5], columns=[self.x0, self.y0, self.x1, self.y1, self.value])
 
 
 class NGLView(AppViewBase):
