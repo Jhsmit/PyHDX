@@ -1,6 +1,8 @@
 import collections
+import logging
 
 import param
+from distributed import Client
 
 from pyhdx.support import gen_subclasses
 from pyhdx.web.filters import *
@@ -26,10 +28,15 @@ class AppConstructor(param.Parameterized):
 
     ctrl_class = param.ClassSelector(class_=MainController, instantiate=False)
 
+    logger = param.ClassSelector(default=None, class_=logging.Logger, doc="Logger object")
+
+    client = param.ClassSelector(default=None, class_=Client)
+
     def __init__(self, **params):
         super().__init__(**params)
 
         self.classes = self.find_classes()
+       # self._logger_counters = {}
 
     def parse(self, yaml_dict):
         self._parse_sections(yaml_dict)
@@ -46,6 +53,7 @@ class AppConstructor(param.Parameterized):
             filters=self.filters,
             opts=self.opts,
             views=self.views,
+            logger=self.logger,
             client=default_client(),
             **kwargs  # todo yaml these
         )
@@ -78,7 +86,7 @@ class AppConstructor(param.Parameterized):
             func = getattr(self, f'add_{section[:-1]}')  # Remove trailing s to get correct adder function
             d = yaml_dict.get(section, {})
             for name, spec in d.items():
-                # todo move to classmethod on object which checks spec/kwargs
+                # todo move to classmethod on object which checks spec/kwargs  (also prevents logger from needing a source)
                 if 'type' not in spec:
                     raise KeyError(f"The field 'type' is not specified for {section[:-1]} {name!r}")
                 _type = spec.pop('type')
@@ -112,7 +120,20 @@ class AppConstructor(param.Parameterized):
         obj = class_(name=name, **kwargs)
         self.views[name] = obj
 
+    # def get_logger(self, name):
+    #     # todo add app name
+    #     count = self._logger_counters.get(name, 0)
+    #
+    #     dt = datetime.datetime.now().strftime('%Y%m%d')
+    #     logger = logging.getLogger(f'{name}.{dt}_{count}')
+    #     logger.setLevel(logging.DEBUG)
+    #     sys.stderr = StreamToLogger(logger, logging.DEBUG)
+    #
+    #     self._logger_counters[name] = count + 1
+    #     wrapper.logger = logger
+
     def contruct(self):
+        #todo allow logger to be able to construct multipe diffent apps
         ctrl = PyHDXController(
 
         )
@@ -124,8 +145,12 @@ class AppConstructor(param.Parameterized):
         resolved = {}
         for k, v in kwargs.items():
             if k == 'source':
-                obj = self.sources.get(v, None) or self.filters.get(v)
-                resolved[k] = obj
+                # temporary:
+                if v is None:
+                    resolved[k] = v
+                else:
+                    obj = self.sources.get(v, None) or self.filters.get(v)
+                    resolved[k] = obj
             elif k == 'opts':
                 v = [v] if isinstance(v, str) else v  # allow singly opt by str
                 resolved[k] = [self.opts[vi] for vi in v]
@@ -135,7 +160,9 @@ class AppConstructor(param.Parameterized):
                     for obj in obj_list:
                         all_objects.append(getattr(self, type_)[obj])
                 resolved[k] = all_objects
-
+            elif k == 'logger':
+                # v : something v
+                resolved[k] = self.logger
 
             else:
                 resolved[k] = v

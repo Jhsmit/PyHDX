@@ -197,6 +197,8 @@ class DevTestControl(ControlPanel):
 
         tables = self.sources['main'].tables
 
+        self.parent.logger.info('Info log')
+        self.parent.logger.debug('Debug log')
 
         print('break')
 

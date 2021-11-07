@@ -114,7 +114,7 @@ class AppViewBase(param.Parameterized):
         self._panel = self.get_panel()
         return True
 
-    @property
+    @property  # todo move to init?
     def opts_dict(self):
         return {k: v for d in self.opts for k, v in d.opts.items()}
 
@@ -340,8 +340,8 @@ class NGLView(AppViewBase):
         return self._panel
 
 
-class LoggingView(View):
-    view_type = 'logging'
+class LoggingView(AppViewBase):
+    _type = 'logging'
 
     logger = param.ClassSelector(logging.Logger, doc='Logger object to show in Log view')
 
@@ -349,7 +349,8 @@ class LoggingView(View):
 
     def __init__(self, *args, **params):
         super(LoggingView, self).__init__(**params)
-        self.markdown = LoggingMarkdown('### Log Window \n', sizing_mode='stretch_both')
+        title = self.opts_dict.get('title', 'Log Window')
+        self.markdown = LoggingMarkdown(f'### {title} \n', sizing_mode='stretch_both')
 
         self.sh = logging.StreamHandler(self.markdown)
         self.sh.terminator = '  \n'
