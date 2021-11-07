@@ -1769,6 +1769,7 @@ class GraphControl(ControlPanel):
         widgets = {
             'general': pn.pane.Markdown('### General'),
             'coverage': pn.pane.Markdown('### Coverage'),
+            'rfu': pn.pane.Markdown('### RFU'),
             'rates': pn.pane.Markdown('### Rates'),
             'dG': pn.pane.Markdown('### ΔG'),
             'ddG': pn.pane.Markdown('### ΔΔG'),
@@ -1783,6 +1784,8 @@ class GraphControl(ControlPanel):
         return [
             ('self', 'coverage'),
             ('filters.coverage_select', None),
+            ('self', 'rfu'),
+            ('filters.rfu_select', None),
             ('self', 'rates'),
             ('filters.rates_select', None),
             ('self', 'dG'),

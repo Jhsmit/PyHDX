@@ -100,6 +100,11 @@ class CrossSectionFilter(AppFilter):
     empty_select = param.Boolean(default=False, doc="""
         Add an option to Select widgets to indicate no filtering.""")
 
+    # stepwise = param.Boolean(
+    #     default=False,
+    #     doc='Apply xs stepwise (one call per level)'
+    # )
+
     def __init__(self, **params):
         super().__init__(**params)
         self.index = None  # index is the df index which determines the selector's options
@@ -160,10 +165,12 @@ class CrossSectionFilter(AppFilter):
             return df
         else:
             kwargs = self.pd_kwargs
-            # print(self.name)
-            # print(df)
-            # print(self.pd_kwargs)
-            df = df.xs(**self.pd_kwargs)
+            # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
+            df = df.xs(**kwargs)
+            if self.drop_level and self.axis == 1 and df.columns.nlevels > 1:
+                df.columns = df.columns.droplevel()
+            elif self.drop_level and self.axis == 0:
+                df.index = df.index.droplevel()
             return df
 
     def _selector_changed(self, *events):
@@ -324,6 +331,8 @@ class GenericFilter(AppFilter):
 
     def get(self):
         df = self.source.get()
+        if df is None:
+            return df
         func = getattr(df, self.pd_function)
         df = func(**self.pd_kwargs)
 
@@ -333,6 +342,34 @@ class GenericFilter(AppFilter):
     def pd_kwargs(self):
         """kwargs to pass to pandas functin to apply filter"""
         return self.kwargs
+
+
+class RenameFilter(GenericFilter):
+    _type = 'rename'
+
+    pd_function = 'rename'
+
+    def __init__(self, **params):
+        self.kwargs = {k: v for k, v in params.items() if k not in self.param}
+        super().__init__(**params)
+
+    def get(self):
+        df = self.source.get()
+        kwargs = self.pd_kwargs.copy()
+        columns = kwargs.pop('columns', None)
+        if isinstance(columns, list):
+            columns = {old: new for old, new in zip(df.columns, columns)}
+        # todo same for index/rows?
+        func = getattr(df, self.pd_function)
+        df = func(columns=columns, **kwargs)
+
+        return df
+
+
+class ResetIndexFilter(GenericFilter):
+    _type = 'reset_index'
+
+    pd_function = 'reset_index'
 
 
 class RescaleFilter(GenericFilter):
@@ -358,8 +395,6 @@ class RescaleFilter(GenericFilter):
     def pd_kwargs(self):
         """kwargs to pass to pandas function to apply filter"""
         return {self.column: lambda x: x[self.column]*self.scale_factor}
-
-
 
 
 class PivotFilter(GenericFilter):

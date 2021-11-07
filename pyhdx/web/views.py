@@ -188,9 +188,9 @@ class hvScatterAppView(hvAppView):
 
     _type = 'scatter'
 
-    x = param.String(doc="The column to render on the x-axis.")  # todo these should be selectors
+    x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
 
-    y = param.String(doc="The column to render on the y-axis.")
+    y = param.String(None, doc="The column to render on the y-axis.")
 
     def __init__(self, **params):
         self._stream = None
@@ -208,7 +208,10 @@ class hvScatterAppView(hvAppView):
 
         """
 
-        func = partial(hv.Scatter, kdims=[self.x], vdims=[self.y])
+        kdims = [self.x] if self.x is not None else None
+        vdims = [self.y] if self.y is not None else None
+
+        func = partial(hv.Scatter, kdims=kdims, vdims=vdims)
         plot = hv.DynamicMap(func, streams=[self._stream])
         plot = plot.apply.opts(**self.opts_dict)
 
