@@ -67,7 +67,7 @@ class PyHDXSource(AppSourceBase):
     # dG_fits (dG)
     # ddG_comparison
 
-    #data objects:
+    #data objects: (perhaps these should be on the main controller? to make the source more general / serialiable?
     hdxm_objects = param.Dict({})
     rate_results = param.Dict({})  # dataframes?
     dG_fits = param.Dict({})
@@ -101,14 +101,15 @@ class PyHDXSource(AppSourceBase):
             .reorder_levels(['state', 'exposure', 'quantity'], axis=1) \
             .sort_index(axis=1)
 
-        self.tables['peptides'] = pivoted
+        self.tables['peptides'] = pivoted  # level 3 multiindex
 
         #RFU per residue per exposure
         dfs = [hdxm.rfu_residues for hdxm in self.hdxm_objects.values()]
         combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'exposure'])
         self.tables['rfu_residues'] = combined
 
-        self.param.trigger('tables')
+        # todo this erorrs: self.param.trigger('tables')
+        self.updated = True
 
     @param.depends('dG_fits', watch=True)
     def _fit_results_updated(self):  #todo method name / result dicts names
@@ -116,7 +117,7 @@ class PyHDXSource(AppSourceBase):
                              keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])
         self.tables['dG_fits'] = combined
 
-        self.param.trigger('tables')
+        self.updated = True
 
         # todo add d_exp etc
         #cached?:
@@ -127,16 +128,12 @@ class PyHDXSource(AppSourceBase):
                              keys=self.rate_results.keys(), names=['guess_ID', 'state', 'quantity'])
         self.tables['rates'] = combined
 
-        self.param.trigger('tables')
+        self.updated = True
 
     def get(self, table):
         df = self.tables.get(table, None)
 
         return df
-
-        # df = self._filter_dataframe(df, *queries)
-        #
-        # return df
 
     def get_tables(self):
         """

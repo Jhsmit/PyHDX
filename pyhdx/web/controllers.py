@@ -511,11 +511,15 @@ class InitialGuessControl(ControlPanel):
         self.pbar2 = ASyncProgressBar()
         self._excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
         super(InitialGuessControl, self).__init__(parent, **params)
-#        self.parent.param.watch(self._parent_datasets_updated, ['data_objects'])  #todo refactor
+        self.src.param.watch(self._parent_hdxm_objects_updated, ['hdxm_objects'])  #todo refactor
 
         self.update_box()
 
         self._guess_names = {}
+
+    @property
+    def src(self):
+        return self.sources['main']
 
     @property
     def _layout(self):
@@ -525,7 +529,7 @@ class InitialGuessControl(ControlPanel):
             # ('filters.select_index_rates_lv2', None),
                         ]
 
-    @property
+    @property  # todo base class
     def own_widget_names(self):
         return [name for name in self.widgets.keys() if name not in self._excluded]
 
@@ -566,18 +570,18 @@ class InitialGuessControl(ControlPanel):
         if not self.global_bounds:
             self.bounds[self.dataset] = (self.lower_bound, self.upper_bound)
 
-    def _parent_datasets_updated(self, events):
-        if len(self.parent.data_objects) > 0:
+    def _parent_hdxm_objects_updated(self, events):
+        if len(self.src.hdxm_objects) > 0:
             self.param['do_fit1'].constant = False
 
         # keys to remove:
-        for k in self.bounds.keys() - self.parent.data_objects.keys():
+        for k in self.bounds.keys() - self.src.hdxm_objects.keys():
             self.bounds.pop(k)
         # keys to add:
-        for k in self.parent.data_objects.keys() - self.bounds.keys():
-            self.bounds[k] = get_bounds(self.parent.data_objects[k].timepoints)
+        for k in self.src.hdxm_objects.keys() - self.bounds.keys():
+            self.bounds[k] = get_bounds(self.src.hdxm_objects[k].timepoints)
 
-        options = list(self.parent.data_objects.keys())
+        options = list(self.src.hdxm_objects.keys())
         self.param['dataset'].objects = options
         if not self.dataset:
             self.dataset = options[0]
@@ -587,26 +591,27 @@ class InitialGuessControl(ControlPanel):
 
         results = future.result()
         result_obj = RatesFitResult(results)
-        self.parent.src.add()
+        self.src.add(result_obj, name)
 
-        #self.sources['dataframe'].add_df(combined_results, 'rates', name)
-        #self.parent.fit_results[name] = {k: v for k, v in zip(self.parent.data_objects.keys(), results)}
-        #self.parent.param.trigger('data_objects')  # Informs other fittings that initial guesses are now available
         self.param['do_fit1'].constant = False
+        self.widgets['do_fit1'].loading = False
 
     def _action_fit(self):
-        if len(self.parent.data_objects) == 0:
+        if len(self.src.hdxm_objects) == 0: # (Should be impossible as button is locked)
             self.parent.logger.info('No datasets loaded')
             return
 
-        if self.guess_name in itertools.chain(self.parent.fit_results.keys(), self._guess_names.values()):
+        src = self.sources['main']  # todo property base class?
+
+        if self.guess_name in itertools.chain(src.rate_results.keys(), self._guess_names.values()):
             self.parent.logger.info(f"Guess with name {self.guess_name} already in use")
             return
 
-        self.parent.logger.debug('Start initial guess fit')
+        self.parent.logger.info('Started initial guess fit')
         self.param['do_fit1'].constant = True
+        self.widgets['do_fit1'].loading = True
 
-        num_samples = len(self.parent.data_objects)
+        num_samples = len(self.src.hdxm_objects)
         if self.fitting_model.lower() in ['association', 'dissociation']:
             if self.global_bounds:
                 bounds = [(self.lower_bound, self.upper_bound)]*num_samples
@@ -614,9 +619,9 @@ class InitialGuessControl(ControlPanel):
                 bounds = self.bounds.values()
 
             futures = self.parent.client.map(fit_rates_weighted_average,
-                                             self.parent.data_objects.values(), bounds, client='worker_client')
+                                             self.self.src.hdxm_objects.values(), bounds, client='worker_client')
         elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
-            futures = self.parent.client.map(fit_rates_half_time_interpolate, self.parent.data_objects.values())
+            futures = self.parent.client.map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
 
         dask_future = self.parent.client.submit(lambda args: args, futures)  #combine multiple futures into one future
         self._guess_names[dask_future.key] = self.guess_name
