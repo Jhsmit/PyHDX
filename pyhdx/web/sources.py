@@ -4,7 +4,7 @@ import numpy as np
 
 from pyhdx import TorchFitResult
 from pyhdx.fitting import GenericFitResult, KineticsFitResult, RatesFitResult
-from pyhdx.models import Protein, HDXMeasurement
+from pyhdx.models import Protein, HDXMeasurement, HDXMeasurementSet
 import pandas as pd
 from lumen.util import get_dataframe_schema
 
@@ -90,6 +90,10 @@ class PyHDXSource(AppSourceBase):
             self.param.trigger('rate_results')
         else:
             raise ValueError(f"Unsupported object {obj!r}")
+
+    @property
+    def hdx_set(self):
+        return HDXMeasurementSet(list(self.hdxm_objects.values()))
 
     @param.depends('hdxm_objects', watch=True)
     def _hdxm_objects_updated(self):

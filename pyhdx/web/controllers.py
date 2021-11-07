@@ -642,7 +642,7 @@ class FitControl(ControlPanel):
 
     initial_guess = param.Selector(doc='Name of dataset to use for initial guesses.')
 
-    fit_mode = param.Selector(default='Batch', objects=['Batch', 'Single'])
+    fit_mode = param.Selector(default='Batch', objects=['Batch', 'Single'], constant=True)
 
     stop_loss = param.Number(STOP_LOSS, bounds=(0, None),
                              doc='Threshold loss difference below which to stop fitting.')
@@ -671,17 +671,18 @@ class FitControl(ControlPanel):
         self.pbar1 = ASyncProgressBar() #tqdm?
         super(FitControl, self).__init__(parent, **params)
 
-        # source = self.parent.sources['dataframe']
-        # source.param.watch(self._source_updated, ['updated'])
+        self.src.param.watch(self._source_updated, ['updated'])
 
         self._current_jobs = 0
         self._max_jobs = 2  #todo config
         self._fit_names = {}
 
-    def _source_updated(self, *events):
-        table = self.parent.sources['dataframe'].get('rates')
+    @property
+    def src(self):
+        return self.sources['main']
 
-        objects = list(table.columns.levels[0])
+    def _source_updated(self, *events):
+        objects = list(self.src.rate_results.keys())
         if objects:
             self.param['do_fit'].constant = False
 
@@ -693,7 +694,7 @@ class FitControl(ControlPanel):
 
     @param.depends('fit_mode', watch=True)
     def _fit_mode_updated(self):
-        if self.fit_mode == 'Batch' and len(self.parent.data_objects) > 1:
+        if self.fit_mode == 'Batch' and len(self.src.hdxm_objects) > 1:
             self.param['r2'].constant = False
         else:
             self.param['r2'].constant = True
@@ -706,7 +707,7 @@ class FitControl(ControlPanel):
 
         self.parent.logger.info(f'Finished PyTorch fit: {name}')
 
-        # List of single fit results
+        # List of single fit results  (Currently outdated)
         if isinstance(result, list):
             self.parent.fit_results[name] = list(result)
             output_dfs = {fit_result.hdxm_set.name: fit_result.output for fit_result in result}
@@ -723,8 +724,8 @@ class FitControl(ControlPanel):
                 dfs[single_result.hdxm_set.name] = pd.DataFrame(data_dict)
             mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
 
-        #todo d calc for single fits
-        #todo losses for single fits
+            #todo d calc for single fits
+            #todo losses for single fits
 
             # Create d_calc dataframe
             # -----------------------
@@ -756,69 +757,66 @@ class FitControl(ControlPanel):
 
 
         else:  # one batchfit result
-            self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
-            df = result.output
-            # df.index.name = 'peptide index'
-
-            # Create MSE losses df (per peptide, summed over timepoints)
-            # -----------------------
-            mse = result.get_mse()
-            dfs = {}
-            for mse_sample, hdxm in zip(mse, result.hdxm_set):
-                peptide_data = hdxm[0].data
-                mse_sum = np.sum(mse_sample, axis=1)
-                # Indexing of mse_sum with Np to account for zero-padding
-                data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum[:hdxm.Np]}
-                dfs[hdxm.name] = pd.DataFrame(data_dict)
-
-            mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
-
-            self.parent.logger.info('Finished PyTorch fit')
-
-            # Create d_calc dataframe
-            # -----------------------
-            tp_flat = result.hdxm_set.timepoints.flatten()
-            elem = tp_flat[np.nonzero(tp_flat)]
-
-            time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
-            stacked = np.stack([time_vec for i in range(result.hdxm_set.Ns)])
-            d_calc = result(stacked)
-
-            state_dfs = {}
-            for hdxm, d_calc_state in zip(result.hdxm_set, d_calc):
-                peptide_dfs = []
-                pm_data = hdxm[0].data
-                for d_peptide, idx in zip(d_calc_state, pm_data.index):
-                    peptide_id = f"{pm_data.loc[idx, 'start']}_{pm_data.loc[idx, 'end']}"
-                    data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
-                    peptide_dfs.append(pd.DataFrame(data_dict))
-                state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
-            d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
-
-            # Create losses/epoch dataframe
-            # -----------------------------
-            losses_df = result.losses.copy()
-            losses_df.columns = pd.MultiIndex.from_product(
-                [['All states'], losses_df.columns],
-                names=['state_name', 'quantity']
-            )
+            self.src.add(result, name)
+            # self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
+            # df = result.output
+            # # df.index.name = 'peptide index'
+            #
+            # # Create MSE losses df (per peptide, summed over timepoints)
+            # # -----------------------
+            # mse = result.get_mse()
+            # dfs = {}
+            # for mse_sample, hdxm in zip(mse, result.hdxm_set):
+            #     peptide_data = hdxm[0].data
+            #     mse_sum = np.sum(mse_sample, axis=1)
+            #     # Indexing of mse_sum with Np to account for zero-padding
+            #     data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum[:hdxm.Np]}
+            #     dfs[hdxm.name] = pd.DataFrame(data_dict)
+            #
+            # mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
+            #
+            # self.parent.logger.info('Finished PyTorch fit')
+            #
+            # # Create d_calc dataframe
+            # # -----------------------
+            # tp_flat = result.hdxm_set.timepoints.flatten()
+            # elem = tp_flat[np.nonzero(tp_flat)]
+            #
+            # time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
+            # stacked = np.stack([time_vec for i in range(result.hdxm_set.Ns)])
+            # d_calc = result(stacked)
+            #
+            # state_dfs = {}
+            # for hdxm, d_calc_state in zip(result.hdxm_set, d_calc):
+            #     peptide_dfs = []
+            #     pm_data = hdxm[0].data
+            #     for d_peptide, idx in zip(d_calc_state, pm_data.index):
+            #         peptide_id = f"{pm_data.loc[idx, 'start']}_{pm_data.loc[idx, 'end']}"
+            #         data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
+            #         peptide_dfs.append(pd.DataFrame(data_dict))
+            #     state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
+            # d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
+            #
+            # # Create losses/epoch dataframe
+            # # -----------------------------
+            # losses_df = result.losses.copy()
+            # losses_df.columns = pd.MultiIndex.from_product(
+            #     [['All states'], losses_df.columns],
+            #     names=['state_name', 'quantity']
+            # )
 
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
             self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
                                     f"({result.regularization_percentage:.1f}%)")
 
-        self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
-        self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
-        self.parent.sources['dataframe'].add_df(d_calc_df, 'd_calc', names=[name])
-        self.parent.sources['dataframe'].add_df(losses_df, 'losses', names=[name])
-
-
-
-        self.parent.param.trigger('fit_results')
+        # self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
+        # self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
+        # self.parent.sources['dataframe'].add_df(d_calc_df, 'd_calc', names=[name])
+        # self.parent.sources['dataframe'].add_df(losses_df, 'losses', names=[name])
 
     def _action_fit(self):
-        if self.fit_name in itertools.chain(self.parent.fit_results.keys(), self._fit_names.values()):
+        if self.fit_name in itertools.chain(self.src.dG_fits.keys(), self._fit_names.values()):
             self.parent.logger.info(f"Fit result with name {self.fit_name} already in use")
             return
 
@@ -830,16 +828,16 @@ class FitControl(ControlPanel):
 
         self.parent.logger.info(f'Current number of active jobs: {self._current_jobs}')
         if self.fit_mode == 'Batch':
-            hdx_set = self.parent.hdx_set
-            rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess)
+            hdx_set = self.src.hdx_set
+            rates_df = self.src.rate_results[self.initial_guess].output
 
             rates_guess = [rates_df[state]['rate'] for state in hdx_set.names]
             gibbs_guess = hdx_set.guess_deltaG(rates_guess)
 
             dask_future = self.parent.client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
         else:
-            data_objs = self.parent.data_objects.values()
-            rates_df = self.sources['dataframe'].get('rates', fit_ID=self.initial_guess)
+            data_objs = self.src.hdxm_objects.values()
+            rates_df = self.src.rate_results[self.initial_guess].output
             gibbs_guesses = [data_obj.guess_deltaG(rates_df[data_obj.name]['rate']) for data_obj in data_objs]
             futures = self.parent.client.map(fit_gibbs_global, data_objs, gibbs_guesses, **self.fit_kwargs)
 
