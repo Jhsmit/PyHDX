@@ -1,8 +1,10 @@
 import operator
+import sys
 import urllib.request
 import zipfile
 from collections import namedtuple
 from copy import copy
+from datetime import datetime
 from io import StringIO, BytesIO
 from pathlib import Path
 
@@ -1661,6 +1663,82 @@ class FigureExportControl(ControlPanel):
             kwargs['ncols'] = self.ncols
         return kwargs
 
+
+class SessionManagerControl(ControlPanel):
+    _type = 'session_manager'
+
+    header = 'Session Manager'
+
+    session_file = param.Parameter()
+
+    load_session = param.Action(lambda self: self._load_session())
+
+    reset_session = param.Action(lambda self: self._reset_session())
+
+    def make_dict(self):
+        widgets = self.generate_widgets(session_file=pn.widgets.FileInput)
+
+        widgets['export_session'] = pn.widgets.FileDownload(
+            label='Export session',
+            callback=self.export_session_callback,
+            filename='PyHDX_session.zip'
+        )
+
+        names = ['session_file', 'load_session', 'export_session', 'reset_session']
+        widgets = {name: widgets[name] for name in names}
+
+        return widgets
+
+    def export_session_callback(self):
+        dt = datetime.today().strftime('%Y%m%d_%H%M')
+        self.widgets['export_session'].filename = f'{dt}_PyHDX_session.zip'
+        bio = BytesIO()
+        with zipfile.ZipFile(bio, 'w') as session_zip:
+            for name, table in self.sources['main'].tables.items():
+                sio = dataframe_to_stringio(table)
+                session_zip.writestr(name + '.csv', sio.getvalue())
+
+        bio.seek(0)
+        return bio
+
+    def _load_session(self):
+        if self.session_file is None:
+            return None
+
+        if sys.getsizeof(self.session_file) > 5.e8:
+            print('logging: too large')
+            return None
+
+        bio = BytesIO(self.session_file)
+
+        session_zip = zipfile.ZipFile(bio)
+        session_zip.printdir()
+        names = set(session_zip.namelist())
+        accepted_names = {'rfu_residues.csv', 'rates.csv', 'peptides.csv', 'dG_fits.csv', 'ddG_comparison.csv'}
+
+        self._reset()
+        src = self.sources['main']
+        for name in names & accepted_names:
+            bio = BytesIO(session_zip.read(name))
+            df = csv_to_dataframe(bio)
+            src.tables[name.split('.')[0]] = df
+
+        src.updated = True
+
+    def _reset_session(self):
+        self._reset()
+        self.sources['main'].updated = True
+
+        # todo for ctrl in cotrollers ctrl.reset()?
+
+    def _reset(self):
+        src = self.sources['main']
+        with param.parameterized.discard_events(src):
+            src.hdxm_objects = {}
+            src.rate_results = {}
+            src.dG_fits = {}
+
+        src.tables = {}  # are there any dependies on this?
 
 class GraphControl(ControlPanel):
     header = 'Graph Control'
