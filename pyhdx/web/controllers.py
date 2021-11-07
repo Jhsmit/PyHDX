@@ -1362,7 +1362,7 @@ class ProteinControl(ControlPanel):
         print(df)
 
         view = self.views['protein']
-        print(view.ngl_view.representation)
+        print(view._ngl.representation)
 
 
     def _action_load_structure(self):
@@ -1774,7 +1774,7 @@ class GraphControl(ControlPanel):
     @param.depends('spin', watch=True)
     def _spin_updated(self):
         view = self.views['protein']
-        view.ngl_view.spin = self.spin
+        view._ngl.spin = self.spin
 
 
 

@@ -134,7 +134,7 @@ def init_dashboard():
 
 
     ngl = ctrl.views['protein']
-    ngl.ngl_view.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
+    ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
 
 #     fit_control.fit_mode = 'Batch'
 #     fit_control._action_fit()

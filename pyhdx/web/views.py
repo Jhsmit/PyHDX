@@ -310,25 +310,25 @@ class NGLView(AppViewBase):
 
     def __init__(self, **params):
         super(NGLView, self).__init__(**params)
-        self.ngl_view = NGL(sizing_mode='stretch_both', #todo sanitize order
-                            extension='pdb',
-                            effect=self.effect,
-                            color_scheme=self.color_scheme,
-                            representation=self.representation,
-                            object=self.object,
+        self._ngl = NGL(sizing_mode='stretch_both',  #todo sanitize order
+                        extension='pdb',
+                        effect=self.effect,
+                        color_scheme=self.color_scheme,
+                        representation=self.representation,
+                        object=self.object,
 
-                            )
+                        )
 
-        params = self.param.params().keys() & self.ngl_view.param.params().keys() - {'name'}
+        params = self.param.params().keys() & self._ngl.param.params().keys() - {'name'}
         self.param.watch(self._update_params, list(params))
         # todo is there a better way to couple two params?
 
     def _update_params(self, *events):
         for event in events:
-            setattr(self.ngl_view, event.name, event.new)
+            setattr(self._ngl, event.name, event.new)
 
     def get_panel(self):
-        return self.ngl_view
+        return self._ngl
 
     def _cleanup(self):
         return None
