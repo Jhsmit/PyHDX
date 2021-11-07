@@ -3,7 +3,7 @@ import torch as t
 import torch.nn as nn
 import numpy as np
 from numpy.lib.recfunctions import stack_arrays
-from io import StringIO
+from io import StringIO, BytesIO
 import pandas as pd
 import pyhdx
 import yaml
@@ -85,6 +85,7 @@ def read_header(file_obj, comment='#'):
 
     while True:
         line = file_obj.readline()
+        line = line.decode() if isinstance(line, bytes) else line
         if line.startswith(comment):
             header.append(line)
         else:
@@ -93,10 +94,9 @@ def read_header(file_obj, comment='#'):
 
 
 def parse_header(filepath_or_buffer, comment='#'):
-    if isinstance(filepath_or_buffer, StringIO):
+    if isinstance(filepath_or_buffer, (StringIO, BytesIO)):
         header = read_header(filepath_or_buffer, comment=comment)
         filepath_or_buffer.seek(0)
-
     else:
         with open(filepath_or_buffer, 'r') as file_obj:
             header = read_header(file_obj, comment=comment)
