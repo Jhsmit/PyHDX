@@ -889,10 +889,11 @@ class ComparisonControl(ControlPanel):
 
     def _source_updated(self, *events):
         self._df = self.get()
-        options = list(self._df.columns.unique(level=0))
-        self.param['reference_state'].objects = options
-        if self.reference_state is None and options:
-            self.reference_state = options[0]
+        if self._df is not None:
+            options = list(self._df.columns.unique(level=0))
+            self.param['reference_state'].objects = options
+            if self.reference_state is None and options:
+                self.reference_state = options[0]
 
     def _action_add_comparison(self):
         current_df = self.parent.sources['main'].get('ddG_comparison')
@@ -1433,7 +1434,7 @@ class FileExportControl(ControlPanel):
     def _tables_updated(self, *events):
         options = list(self.sources['main'].tables.keys())
         self.param['table'].objects = options
-        if not self.table:
+        if not self.table and options:
             self.table = options[0]
 
     @property

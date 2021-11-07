@@ -214,27 +214,25 @@ class ApplyCmapOptFilter(AppFilter):
         self._opts_dict = {o.name: o for o in opts}
         opts = list(self._opts_dict.keys())
         params['opts'] = opts
-        #self._opts_mapping = opts_mapping  # optional mapping of pd series field to possible opts
         super().__init__(**params)
         self.widgets = {'opts': pn.pane.panel(self.param.opts)}
 
     def get(self):
-        if self.opts is None:
-            raise ValueError('opts cannot be none')
+        df = self.source.get()  #todo refactor df to data as it can also be a series?
+        if df is None:
             return None
+
+        if df.columns.size != 1:
+            raise ValueError("Invalid number of columns, must be 1")
+
+        pd_series = df[df.columns[0]]
+        opts_obj = self._opts_dict[self.opts]
+        if pd.api.types.is_numeric_dtype(pd_series):
+            colors = opts_obj.apply(pd_series)
+
+            return colors
         else:
-            df = self.source.get()  #todo refactor df to data as it can also be a series?
-            if df.columns.size != 1:
-                raise ValueError("Invalid number of columns, must be 1")
-
-            pd_series = df[df.columns[0]]
-            opts_obj = self._opts_dict[self.opts]
-            if pd.api.types.is_numeric_dtype(pd_series):
-                colors = opts_obj.apply(pd_series)
-
-                return colors
-            else:
-                return None
+            return None
 
     @param.depends('opts', watch=True)
     def _opts_changed(self):
@@ -287,6 +285,8 @@ class RectangleLayoutFilter(AppFilter):
 
     def get(self):
         df = self.source.get()
+        if df is None:
+            return None
 
         if not self.wrap:
             wrap = autowrap(df[self.left].to_numpy(dtype=int), df[self.right].to_numpy(dtype=int),  # todo fix types to be ints in the df
