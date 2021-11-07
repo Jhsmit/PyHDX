@@ -922,6 +922,7 @@ class ComparisonControl(ControlPanel):
 
         self.parent.sources['main'].tables['ddG_comparison'] = new_df
         self.parent.sources['main'].param.trigger('tables')
+        self.parent.sources['main'].updated = True
 
 
 class ColorTransformControl(ControlPanel):
@@ -1749,30 +1750,61 @@ class SessionManagerControl(ControlPanel):
 
 
 class GraphControl(ControlPanel):
+    _type = 'graph'
+
     header = 'Graph Control'
 
     spin = param.Boolean(default=False, doc='Spin the protein object')
 
-    state_name = param.Selector(doc="Name of the currently selected state")
+    state = param.Selector(doc="Name of the currently selected state")
     fit_id = param.Selector(doc="Name of the currently selected fit ID")
     peptide_index = param.Selector(doc="Index of the currently selected peptide")
 
     def __init__(self, parent, **params):
         super(GraphControl, self).__init__(parent, **params)
-        source = self.sources['dataframe']
-        source.param.watch(self._source_updated, 'updated')
+        #source = self.sources['dataframe']
+        self.src.param.watch(self._hdxm_objects_updated, 'hdxm_objects')
+
+        # widget = self.widgets['state']
+        # target = self.filters['dG_fit_select'].selectors[0]
+        # widget.link(target, value='value')
+
+    @property
+    def src(self):
+        return self.sources['main']
 
     def make_dict(self):
         widgets = {
             'general': pn.pane.Markdown('### General'),
             'coverage': pn.pane.Markdown('### Coverage'),
-            'peptide': pn.pane.Markdown('### Peptide'),
-            'losses': pn.pane.Markdown('### Losses'),
-            'debugging': pn.pane.Markdown('### Debugging'),
+            'rates': pn.pane.Markdown('### Rates'),
+            'dG': pn.pane.Markdown('### ΔG'),
+            'ddG': pn.pane.Markdown('### ΔΔG'),
+            #'debugging': pn.pane.Markdown('### Debugging'),
 
         }
 
         return {**widgets, **self.generate_widgets()}
+
+    @property
+    def _layout(self):
+        return [
+            ('self', 'coverage'),
+            ('filters.coverage_select', None),
+            ('self', 'rates'),
+            ('filters.rates_select', None),
+            ('self', 'dG'),
+            ('filters.dG_fit_select', None),
+            ('self', 'ddG'),
+            ('filters.ddG_comparison_select', None),
+
+        ]
+
+    def _hdxm_objects_updated(self, *events):
+        options = list(self.src.hdxm_objects.keys())
+        self.param['state'].objects = options
+        if self.state is None and options:
+            self.state = options[0]
 
     def _source_updated(self, *events):
         source = self.sources['dataframe']
@@ -1789,7 +1821,7 @@ class GraphControl(ControlPanel):
         if not self.state_name and state_name_options:
             self.state_name = state_name_options[0]
 
-    @param.depends('state_name', watch=True)
+    #@param.depends('state_name', watch=True)
     def _update_state_name(self):
         #https://param.holoviz.org/reference.html#param.parameterized.batch_watch
 
@@ -1818,114 +1850,25 @@ class GraphControl(ControlPanel):
         if self.peptide_index is not None and peptide_options:
             self.peptide_index = peptide_options[0]
 
-    @param.depends('fit_id', watch=True)
-    def _update_fit_id(self):
-        elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id', 'losses_fit_id']
-        for elf in elves:
-            filt = self.filters[elf]
-            filt.value = self.fit_id
-
-        # perhaps this is faster?
-        # widget = self.widget.clone()
-        # self.widget.link(widget, value='value', bidirectional=True)
-
-    @param.depends('peptide_index', watch=True)
-    def _update_peptide_index(self):
-        hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
-        for hobbit in hobbits:
-            filt = self.filters[hobbit]
-            filt.value = self.peptide_index
-
-    @property
-    def _layout(self):
-        return [
-            # ('self', ['coverage']),
-            # ('filters.select_index', None),
-            # ('filters.exposure_slider', None),
-            # ('opts.cmap', None),
-            ('self', ['general']),
-            ('self', ['fit_id', 'state_name']),
-            ('self', ['coverage']),
-            ('filters.coverage_exposure', None),
-            ('self', ['peptide', 'peptide_index']),
-            ('self', ['losses']),
-            ('filters.losses_state_name', None),
-            # ('self', ['debugging']),
-            # ('filters.deltaG_fit_id', None),
-            # ('filters.coverage_mse_fit_id', None),
-        ]
-
-    @param.depends('spin', watch=True)
-    def _spin_updated(self):
-        view = self.views['protein']
-        view._ngl.spin = self.spin
+    # @param.depends('fit_id', watch=True)
+    # def _update_fit_id(self):
+    #     elves = ['coverage_mse_fit_id', 'peptide_d_calc_fit_id', 'deltaG_fit_id', 'losses_fit_id']
+    #     for elf in elves:
+    #         filt = self.filters[elf]
+    #         filt.value = self.fit_id
+    #
+    #     # perhaps this is faster?
+    #     # widget = self.widget.clone()
+    #     # self.widget.link(widget, value='value', bidirectional=True)
+    #
+    # @param.depends('peptide_index', watch=True)
+    # def _update_peptide_index(self):
+    #     hobbits = ['peptide_d_exp_select', 'peptide_d_calc_select']
+    #     for hobbit in hobbits:
+    #         filt = self.filters[hobbit]
+    #         filt.value = self.peptide_index
 
 
-class FitResultControl(ControlPanel):
-    # @tejas skip test, currently bugged, issue #182
-
-    """
-    This controller allows users to view to fit result and how it describes the uptake of every peptide.
-    """
-
-    header = 'Fit Results'
-
-    peptide_index = param.Integer(0, bounds=(0, None),
-                                 doc='Index of the peptide to display.')
-    x_axis_type = param.Selector(default='Log', objects=['Linear', 'Log'],
-                                 doc='Choose whether to plot the x axis as Logarithmic axis or Linear.')
-
-    def __init__(self, parent, **param):
-        super(FitResultControl, self).__init__(parent, **param)
-
-        self.d_uptake = {}  ## Dictionary of arrays (N_p, N_t) with results of fit result model calls
-        #todo why does still still exists should it not just be dataobjects??
-        # --> because they need to be calcualted only once and then dataobjects are generated per index
-        # can be improved probably (by putting all data in data source a priory?
-
-        self.parent.param.watch(self._series_updated, ['datasets']) #todo refactor
-        self.parent.param.watch(self._fit_results_updated, ['fit_results'])
-
-    def _series_updated(self, *events):
-        pass
-        #
-        # self.param['peptide_index'].bounds = (0, len(self.parent.series.coverage.data) - 1)
-        # self.d_uptake['uptake_corrected'] = self.parent.series.uptake_corrected.T
-        # self._update_sources()
-
-    @property
-    def fit_timepoints(self):
-        time = np.logspace(-2, np.log10(self.parent.series.timepoints.max()), num=250)
-        time = np.insert(time, 0, 0.)
-        return time
-
-    def _fit_results_updated(self, *events):
-        accepted_fitresults = ['fr_pfact']
-        #todo wrappertje which checks with a cached previous version of this particular param what the changes are even it a manual trigger
-        for name, fit_result in self.parent.fit_results.items():
-            if name in accepted_fitresults:
-                D_upt = fit_result(self.fit_timepoints)
-                self.d_uptake[name] = D_upt
-            else:
-                continue
-        # push results to graph
-            self._update_sources()
-
-    @param.depends('peptide_index', watch=True)
-    def _update_sources(self):
-        for name, array in self.d_uptake.items():
-            if name == 'uptake_corrected':  ## this is the raw data
-                timepoints = self.parent.series.timepoints
-                renderer = 'circle'
-                color = '#000000'
-            else:
-                timepoints = self.fit_timepoints
-                renderer = 'line'
-                color = '#bd0d1f'  #todo css / default color cycle per Figure Panel?
-
-            dic = {'time': timepoints, 'uptake': array[self.peptide_index, :]}
-            data_source = DataSource(dic, x='time', y='uptake', tags=['uptake_curve'], renderer=renderer, color=color)
-            self.parent.publish_data(name, data_source)
 
 
 class DeveloperControl(ControlPanel):
