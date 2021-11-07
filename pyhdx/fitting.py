@@ -83,7 +83,6 @@ def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
     -------
 
 
-
     """
     bounds = bounds or get_bounds(hdxm.timepoints)
 

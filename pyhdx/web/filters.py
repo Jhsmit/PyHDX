@@ -160,6 +160,9 @@ class CrossSectionFilter(AppFilter):
             return df
         else:
             kwargs = self.pd_kwargs
+            # print(self.name)
+            # print(df)
+            # print(self.pd_kwargs)
             df = df.xs(**self.pd_kwargs)
             return df
 
@@ -300,7 +303,6 @@ class RectangleLayoutFilter(AppFilter):
         yvals = np.array(list(itertools.islice(cycle, len(df)))) # Repeat cycle until the correct length
         output_table['y0'] = yvals - self.height
         output_table['y1'] = yvals
-
 
         if self.passthrough:
             for item in self.passthrough:

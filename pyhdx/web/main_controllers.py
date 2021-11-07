@@ -43,6 +43,7 @@ class MainController(param.Parameterized):
         Dictionary with :class:`~pyhdx.panel.base.FigurePanel` instances (__name__ as keys)
 
     """
+
     sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
     transforms = param.Dict({}, doc='Dictionary of transforms')
     filters = param.Dict({}, doc="Dictionary of filters")
@@ -100,13 +101,6 @@ class PyHDXController(MainController):
     Main controller for PyHDX web application.
 
     """
-
-    #data_objects = param.Dict(default={}, doc='Dictionary for all datasets (HDXMeasurement objects)') # todo refactor
-
-    # for guesses (nested): <fit name>: {state1: state2:, ...
-    # for global fit (batch): <fit name>: fit_result_object
-    # for global fit (series): <fit name>: {state1: <fit_result_object>, state2:....}
-    #fit_results = param.Dict({}, doc='Dictionary of fit results', precedence=-1)
 
     sample_name = param.String(doc='Name describing the selected protein(s) state')
 
