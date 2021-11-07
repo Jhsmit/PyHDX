@@ -542,6 +542,7 @@ def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=N
         ref = data[reference_state, field]
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
+        # todo sort?
 
         cmap_default, norm_default = default_cmap_norm('ddG')
     else:
@@ -563,7 +564,7 @@ def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=N
     ncols = 1
     nrows = 1
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
-    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'rainbow_aspect'))
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'rainbowclouds_aspect'))
 
     boxplot_width = 0.1
     orientation = 'vertical'
@@ -589,9 +590,9 @@ def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=N
     ax.format(xlim=(-0.75, len(f_data) - 0.5), ylabel=label, yticklabelloc='left', ytickloc='left',
               ylim=ax.get_ylim()[::-1])
 
-    add_cbar(ax, cmap, norm)
+    cbar = add_cbar(ax, cmap, norm)
 
-    return fig, ax
+    return fig, ax, cbar
 
 
 def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):

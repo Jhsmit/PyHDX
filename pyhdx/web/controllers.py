@@ -29,7 +29,8 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.sources import DataSource, DataFrameSource
 from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
-from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm, dG_scatter_figure, ddG_scatter_figure
+from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm, dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
+    rainbowclouds_figure
 from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol, apply_cmap
 from pyhdx.config import cfg
 
@@ -1335,8 +1336,6 @@ class ProteinControl(ControlPanel):
                 ('filters.protein_select', None),
                 ('filters.protein_cmap', None),
                 ('views.protein', None)
-                # ('filters.ngl_color_id', None),
-                # ('filters.ngl_state_name', None),
                 ]
 
     @property  #todo in baseclass?
@@ -1363,7 +1362,6 @@ class ProteinControl(ControlPanel):
 
         view = self.views['protein']
         print(view._ngl.representation)
-
 
     def _action_load_structure(self):
 
@@ -1515,7 +1513,7 @@ class FigureExportControl(ControlPanel):
 
     header = "Figure Export"
 
-    figure = param.Selector(default='dG_scatter', objects=['dG_scatter'])
+    figure = param.Selector(default='scatter', objects=['scatter', 'linear_bars', 'rainbowclouds'])
 
     reference = param.Selector(allow_None=True)
 
@@ -1576,31 +1574,27 @@ class FigureExportControl(ControlPanel):
         if not self.figure:
             return
 
-        if self.figure == 'dG_scatter':
-            if 'dG_fits' not in self.sources['main'].tables.keys():
-                return
+        if 'dG_fits' not in self.sources['main'].tables.keys():
+            return
 
+        if self.figure in ['scatter', 'linear_bars', 'rainbowclouds']:  # currently this is always true
             df = self.sources['main'].tables['dG_fits']
             options = list(df.columns.unique(level=0))
             self.param['figure_selection'].objects = options
             if not self.figure_selection:
                 self.figure_selection = options[0]
 
-            self.aspect = cfg.getfloat('plotting', 'deltaG_aspect')  # todo refactor to dG
             options = list(df.columns.unique(level=1))
             self.param['reference'].objects = [None] + options
 
             self._excluded = []
 
-        # if self.figure == 'ddG_scatter':  # this is the same(ish) as dG
-        #     df = self.sources['main'].tables['dG_fits']  # todo: get_table?
-        #     options = list(df.columns.unique(level=0))
-        #     self.param['figure_selection'].objects = options
-        #     if not self.figure_selection:
-        #         self.figure_selection = options[0]
-        #
-        #     self.aspect = cfg.getfloat('plotting', 'deltaG_aspect')  # todo refactor dG
-        #     self._excluded = []
+        if self.figure == 'scatter':
+            self.aspect = cfg.getfloat('plotting', 'deltaG_aspect')  # todo refactor to dG
+            self._excluded = []
+        else:
+            self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')
+            self._excluded = ['ncols']
 
         self.update_box()
 
@@ -1614,7 +1608,8 @@ class FigureExportControl(ControlPanel):
 
     @pn.depends('figure', 'figure_selection', 'figure_format', watch=True)
     def _figure_filename_updated(self):
-        fname = f'{self.figure}_{self.figure_selection}.{self.figure_format}'
+        qty = 'dG' if self.reference is None else 'ddG'
+        fname = f'{self.figure}_{qty}_{self.figure_selection}.{self.figure_format}'
 
         self.widgets['export_figure'].filename = fname
 
@@ -1625,29 +1620,32 @@ class FigureExportControl(ControlPanel):
         if not self.figure:
             return None
 
-        if self.figure == 'dG_scatter':
-            if 'dG_fits' not in self.sources['main'].tables.keys():
-                print('TODO logging table  is empty')
-                return None
+        if 'dG_fits' not in self.sources['main'].tables.keys():
+            print('TODO logging table  is empty')
+            return None
 
-            df = self.sources['main'].tables['dG_fits']
-            sub_df = df[self.figure_selection]
+        df = self.sources['main'].tables['dG_fits']
+        sub_df = df[self.figure_selection]
 
+        if self.figure == 'scatter':
             if self.reference is None:
                 opts = self.opts['dG']
-
                 fig, axes, cbars = dG_scatter_figure(sub_df, cmap=opts.cmap, norm=opts.norm, **self.figure_kwargs)
 
             else:
                 opts = self.opts['ddG']
-
                 fig, axes, cbar = ddG_scatter_figure(sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm,
-
                                                      **self.figure_kwargs)
+        elif self.figure == 'linear_bars':
+            opts = self.opts['ddG'] if self.reference else self.opts['dG']
+            fig, axes = linear_bars_figure(sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm)
+        elif self.figure == 'rainbowclouds':
+            opts = self.opts['ddG'] if self.reference else self.opts['dG']
+            fig, axes, cbar = rainbowclouds_figure(sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm)
+
         bio = BytesIO()
         fig.savefig(bio, format=self.figure_format)
         bio.seek(0)
-
 
         self.widgets['export_figure'].loading = False
 
@@ -1658,10 +1656,10 @@ class FigureExportControl(ControlPanel):
         kwargs = {
             'width': self.width,
             'aspect': self.aspect,
-            'ncols': self.ncols
         }
+        if self.figure == 'scatter':
+            kwargs['ncols'] = self.ncols
         return kwargs
-
 
 
 class GraphControl(ControlPanel):
@@ -1775,9 +1773,6 @@ class GraphControl(ControlPanel):
     def _spin_updated(self):
         view = self.views['protein']
         view._ngl.spin = self.spin
-
-
-
 
 
 class FitResultControl(ControlPanel):
