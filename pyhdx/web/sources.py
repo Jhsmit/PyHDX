@@ -99,6 +99,7 @@ class PyHDXSource(AppSourceBase):
     def _hdxm_objects_updated(self):
         combined = pd.concat([hdxm.data for hdxm in self.hdxm_objects.values()], axis=1,
                              keys=self.hdxm_objects.keys(), names=['state', 'quantity'])  #todo 'state' or 'name' or 'protein_state'?
+        # todo catch valueerror duplicate entries
         pivoted = combined \
             .stack(level=0) \
             .pivot(index='id', columns=['state', 'exposure']) \

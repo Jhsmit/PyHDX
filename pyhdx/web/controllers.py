@@ -284,7 +284,7 @@ class PeptideFileInputControl(ControlPanel):
     dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
-    dataset_list = param.ObjectSelector(default=[], label='Datasets', doc='Lists available datasets')
+    #dataset_list = param.ObjectSelector(default=[], label='Datasets', doc='Lists available datasets')
 
     def __init__(self, parent, **params):
         self._excluded = ['be_percent']
@@ -294,6 +294,10 @@ class PeptideFileInputControl(ControlPanel):
         self.update_box()
 
         self._df = None  # Numpy array with raw input data
+
+    @property
+    def src(self):
+        return self.sources['main']
 
     @property
     def own_widget_names(self):
@@ -416,7 +420,7 @@ class PeptideFileInputControl(ControlPanel):
         if self._df is None:
             self.parent.logger.info("No data loaded")
             return
-        elif self.dataset_list and self.dataset_name in self.dataset_list:
+        elif self.dataset_name in self.src.hdxm_objects.keys():
             self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
             return
 
@@ -437,21 +441,9 @@ class PeptideFileInputControl(ControlPanel):
         hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
                               name=self.dataset_name, temperature=self.temperature, pH=self.pH)
 
-        self.parent.data_objects[self.dataset_name] = hdxm
-        self.parent.param.trigger('data_objects')  # Trigger update
+        self.src.add(hdxm, self.dataset_name)
 
-        df = hdxm.data
-        df['start_end'] = [str(s) + '_' + str(e) for s, e in zip(df['start'], df['end'])]
-        df['id'] = df.index % hdxm.Np
-        target_source = self.parent.sources['dataframe']
-        target_source.add_df(df, 'peptides', self.dataset_name)
 
-        index = pd.Index(hdxm.coverage.r_number, name='r_number')
-        df = pd.DataFrame(hdxm.rfu_residues, index=index, columns=hdxm.timepoints)  # already is this
-        target_source = self.parent.sources['dataframe']
-        target_source.add_df(df, 'rfu', self.dataset_name)
-
-        self.dataset_list.append(self.dataset_name)
 
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')
