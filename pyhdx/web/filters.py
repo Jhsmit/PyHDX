@@ -345,8 +345,10 @@ class RescaleFilter(GenericFilter):
 
     scale_factor = param.Number(1.)
 
-    def get(self):
+    def get(self):  # todo perhaps some kind of decorator that returns nonealwasy?
         df = self.source.get()
+        if df is None:
+            return None
         df = df.assign(**self.pd_kwargs)
 
         return df
