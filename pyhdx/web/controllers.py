@@ -969,19 +969,15 @@ class ColorTransformControl(ControlPanel):
         cc_cmaps = sorted(colorcet.cm.keys())
         mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
 
-        self._scaling_factors = {'dG': 1e-3, 'ddG': 1e-3}
-
         self._pyhdx_cmaps = {}  # Dict of pyhdx default colormaps
         self._user_cmaps = {}
+        cmap_opts = [opt for opt in self.opts.values() if isinstance(opt, CmapOpts)]
         self.quantity_mapping = {}  # quantity: (cmap, norm)
-        for quantity in ['dG', 'rfu', 'ddG']:  # todo add others: [opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)]
-            cmap, norm = default_cmap_norm(quantity)
-            sclf = self._scaling_factors.get(quantity, 1.)
-            norm.vmin *= sclf
-            norm.vmax *= sclf
-            cmap.name = quantity + '_default'
-            self._pyhdx_cmaps[quantity + '_default'] = cmap
-            self.quantity_mapping[quantity] = (cmap, norm)
+        for opt in cmap_opts:
+            cmap, norm = opt.cmap, opt.norm_scaled
+            self._pyhdx_cmaps[cmap.name] = cmap
+            field = {'deltaG': 'dG'}.get(opt.field, opt.field)  # rename to dG in fit output files
+            self.quantity_mapping[field] = (cmap, norm)
 
         self.cmap_options = {
             'matplotlib': mpl_cmaps, # list or dicts
@@ -1005,7 +1001,6 @@ class ColorTransformControl(ControlPanel):
     def own_widget_names(self):
         """returns a list of names of widgets in self.widgets to be laid out in controller card"""
 
-        # initial_widgets = [name for name in self.widgets.keys() if name not in self.excluded]
         initial_widgets = []
         for name in self.param:
             precedence = self.param[name].precedence
@@ -1018,7 +1013,6 @@ class ColorTransformControl(ControlPanel):
             widget_names += [f'color_{i}' for i in range(len(self.colors))]
         return widget_names
 
-    #        return initial_widgets + #list(self.values_widgets.keys()) + list(self.colors_widgets.keys())
 
     def make_dict(self):
         return self.generate_widgets(num_colors=pn.widgets.IntInput, current_color_transform=pn.widgets.StaticText)
@@ -1095,20 +1089,16 @@ class ColorTransformControl(ControlPanel):
         self._update_bounds()
 
     def _action_apply_colormap(self):
-        print('joehoe')
         if self.quantity is None:
             return
 
         cmap, norm = self.get_cmap_and_norm()
-        print(cmap, norm)
         if cmap and norm:
-            print('apply')
-            print(cmap, norm)
             cmap.name = self.color_transform_name
             #with # aggregate and execute at once: #            with param.parameterized.discard_events(opt): ??
             opt = self.opts[self.quantity]
             opt.cmap = cmap
-            opt.norm = norm
+            opt.norm_scaled = norm  # perhaps setter for norm such that externally it behaves as a rescaled thingy?
 
             self.quantity_mapping[self.quantity] = (cmap, norm)
             self._user_cmaps[cmap.name] = cmap
@@ -1138,7 +1128,6 @@ class ColorTransformControl(ControlPanel):
         self.current_color_transform = cmap.name
 
         thds = [norm.vmax, norm.vmin]
-        print(thds, cmap.name, self.quantity)
         widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
         for thd, widget in zip(thds, widgets):
             # Remove bounds, set values, update bounds
@@ -1147,9 +1136,6 @@ class ColorTransformControl(ControlPanel):
             widget.value = thd
         self._update_bounds()
         self.live_preview = preview
-
-
-        print('reload quantity settings')
 
     def get_cmap_and_norm(self):
         norm_klass = mpl.colors.Normalize # if not self.log_space else mpl.colors.LogNorm
@@ -1421,6 +1407,7 @@ class FileExportControl(ControlPanel):
     def __init__(self, parent, **param):
         super(FileExportControl, self).__init__(parent, **param)
         self.sources['main'].param.watch(self._tables_updated, ['tables'])
+        self._tables_updated()  # todo shouldnt be necessary
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -1506,9 +1493,6 @@ class FileExportControl(ControlPanel):
         cmap = opt.cmap
         norm = opt.norm
         if qty == 'dG':
-            norm.vmin *= 1e-3
-            norm.vmax *= 1e-3
-
             df = df.xs('deltaG', level=-1, axis=1)
 
         color_df = apply_cmap(df, cmap, norm)
@@ -1624,11 +1608,7 @@ class FigureExportControl(ControlPanel):
 
             opts = self.opts['dG']
 
-            norm = copy(opts.norm)
-            norm.vmin *= 1e3
-            norm.vmax *= 1e3
-
-            fig, axes, cbars = dG_scatter_figure(sub_df, cmap=opts.cmap, norm=norm, **self.figure_kwargs)
+            fig, axes, cbars = dG_scatter_figure(sub_df, cmap=opts.cmap, norm=opts.norm, **self.figure_kwargs)
 
             bio = BytesIO()
             fig.savefig(bio, format=self.figure_format)

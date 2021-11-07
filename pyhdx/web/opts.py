@@ -60,16 +60,16 @@ class CmapOpts(OptsBase):
     cmap = param.ClassSelector(default=None, class_=Colormap)
 
     norm = param.ClassSelector(default=None, class_=Normalize)
-    # the stored norm here is the scaled one
-    # scale factor is applied to apply norm to rescaled data
+    # the stored norm here is the unscaled one
+    # scale factor is applied to clim and norm_scaled
 
     clim = param.Tuple((0., 1.), length=2)
 
-    sclf = param.Number(1., doc='scaling factor to apply')
+    sclf = param.Number(1., doc='scaling factor to apply')  # curent: 1e+3
 
-    field = param.String(doc="optional field on which cmap works")
+    field = param.String(doc="field on which cmap works")
 
-    def __init__(self, **params):
+    def __init__(self, rename=True, invert=True, **params):
         # todo from_spec constructor method for this kind of logic
         cmap = params.pop('cmap', None)
         cmap = pplt.Colormap(cmap) if cmap else cmap
@@ -78,13 +78,24 @@ class CmapOpts(OptsBase):
         self._excluded_from_opts += ['norm', 'sclf']  # perhaps use leading underscore to exclude?
 
         if self.cmap is None and self.norm is None and self.field is not None:
-            self.cmap, self.norm = default_cmap_norm(self.field)
-            self.norm.vmin /= self.sclf
-            self.norm.vmax /= self.sclf
+            self.cmap, norm = default_cmap_norm(self.field)
         elif self.field is None:
-            self.cmap = pplt.Colormap('viridis')
-            self.norm = pplt.Norm('linear', 0., 1.)
-        self._norm_updated()
+            cmap = pplt.Colormap('viridis')
+            norm = pplt.Norm('linear', 0., 1.)
+
+        self.norm = norm
+        self._cmap = cmap  # unreversed cmap
+
+        if rename:
+            cmap.name = self.field + '_default'
+        if invert:
+            cmap = cmap.reversed()
+
+        self.cmap = cmap
+
+        #self._norm_updated()
+
+        #self.cmap = self.cmap.reversed()
 
     @property
     def opts(self):
@@ -92,16 +103,35 @@ class CmapOpts(OptsBase):
         opts = {name: self.param[name] for name in names}
         return opts
 
-    @param.depends('norm', watch=True)
-    def _norm_updated(self):
-        self.clim = self.norm.vmin, self.norm.vmax
-
-    def apply(self, data):
-        """apply cmap / norm to data (pd series or df)"""
+    @property
+    def norm_scaled(self):
         norm = copy(self.norm)
         norm.vmin *= self.sclf
         norm.vmax *= self.sclf
-        return apply_cmap(data, self.cmap, norm)
+
+        return norm
+
+    @norm_scaled.setter
+    def norm_scaled(self, norm):
+        _norm = copy(norm)
+        _norm.vmin /= self.sclf
+        _norm.vmax /= self.sclf
+
+        self.norm = _norm
+
+    @param.depends('norm', watch=True)
+    def _norm_updated(self):
+        self.clim = self.norm.vmin*self.sclf, self.norm.vmax*self.sclf
+        # todo invert bool?
+        #self.clim = self.norm.vmax*self.sclf, self.norm.vmin*self.sclf,
+
+
+    def apply(self, data):
+        """apply cmap / norm to data (pd series or df)"""
+        # norm = copy(self.norm)
+        # norm.vmin *= self.sclf
+        # norm.vmax *= self.sclf
+        return apply_cmap(data, self.cmap, self.norm)
 
     @param.depends('norm', 'cmap', watch=True)
     def update(self):
