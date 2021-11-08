@@ -167,10 +167,10 @@ class CrossSectionFilter(AppFilter):
             kwargs = self.pd_kwargs
             # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
             df = df.xs(**kwargs)
-            if self.drop_level and self.axis == 1 and df.columns.nlevels > 1:
-                df.columns = df.columns.droplevel()
-            elif self.drop_level and self.axis == 0:
-                df.index = df.index.droplevel()
+            # if self.drop_level and self.axis == 1 and df.columns.nlevels > 1:
+            #     df.columns = df.columns.droplevel()
+            # elif self.drop_level and self.axis == 0:
+            #     df.index = df.index.droplevel()
             return df
 
     def _selector_changed(self, *events):
@@ -342,6 +342,12 @@ class GenericFilter(AppFilter):
     def pd_kwargs(self):
         """kwargs to pass to pandas functin to apply filter"""
         return self.kwargs
+
+
+class DropLevelFilter(GenericFilter):
+    _type = 'droplevel'
+
+    pd_function = 'droplevel'
 
 
 class RenameFilter(GenericFilter):

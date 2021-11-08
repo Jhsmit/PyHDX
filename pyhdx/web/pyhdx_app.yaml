@@ -12,6 +12,10 @@ filters:
     type: table_source
     source: main
     table: peptides
+  rfu_src:
+    type: table_source
+    source: main
+    table: rfu_residues
   rates_src:
     type: table_source
     source: main
@@ -24,7 +28,13 @@ filters:
     type: table_source
     source: main
     table: ddG_comparison
-
+  protein_src:  # table source which exposued widget which can be used to select which table to use for colors
+    type: table_source
+    source: main
+    table_options:
+      - rfu_residues
+      - dG_fits
+      - ddG_comparison
 
 opts:
   base:
@@ -41,19 +51,50 @@ opts:
   dG:  # perhaps they need better names?
     type: cmap
     field: deltaG
-    sclf: 1.0e+3
+    sclf: 1.0e-3
   ddG:
     type: cmap
     field: ddG
-    sclf: 1.0e+3
+    sclf: 1.0e-3
+  info_log:
+    type: generic
+    title: Log Window
+  debug_log:
+    type: generic
+    title: Debug Log
+
+views:
+  logging_info:
+    type: logging
+    source: None
+    logger: pyhdx
+    level: 20
+    opts:
+      - info_log
+  logging_debug:
+    type: logging
+    source: None
+    logger: pyhdx
+    level: 10
+    opts:
+      - debug_log
 
 modules:
-  coverage:
+  coverage_view:
     filters:
       coverage_select:
         type: cross_section
         source: peptide_src
         n_levels: 2
+      coverage_rectangles:
+        type: rectangle_layout
+        source: coverage_select
+        left: start
+        right: end
+        passthrough:
+          - rfu
+          - uptake_corrected
+          - sequence
     opts:
       coverage:
         type: generic
@@ -62,22 +103,55 @@ modules:
         xlabel: Residue Number
         ylabel : ''
         yticks: 0
+        title: Peptide coverage
 #        tools:
 #          - hover
     views:
       coverage:
         type: rectangles
-        source: coverage_select
+        source: coverage_rectangles
         opts:
           - base
           - coverage
           - rfu
-        left: start
-        right: end
-        passthrough:
+        value: rfu
+
+  rfu:
+    filters:
+      rfu_select:
+        type: cross_section
+        source: rfu_src
+        n_levels: 0
+      rfu_droplevel:
+        type: droplevel
+        source: rfu_select
+        level: 0
+        axis: 1
+      rfu_rename:
+        type: rename
+        source: rfu_droplevel
+        columns:
           - rfu
-          - uptake_corrected
-          - sequence
+    opts:
+      rfu_scatter:
+        type: generic
+        xlabel: Residue Number
+        ylabel: RFU
+        title: RFU Scatter
+        color: rfu
+        colorbar: True
+    views:
+      rfu_scatter:
+        type: scatter
+        source: rfu_rename
+        x: r_number
+        y: rfu
+        opts:
+          - base
+          - scatter
+          - rfu_scatter
+          - rfu  # rename rfu_cmap
+        #x: r_number
 
   rates:
     filters:
@@ -89,7 +163,8 @@ modules:
       rates:
         type: generic
         xlabel: Residue Number
-        ylabel: Rate (1/s)  # todo superscript
+        ylabel: Rate (s⁻¹)  # todo superscript
+        title: Approximate H/D rates
         logy: True
     views:
       rates:
@@ -118,10 +193,10 @@ modules:
         type: generic
         xlabel: Residue Number
         ylabel: ΔG (kJ/mol)
+        title: ΔG Scatterplot
         invert_yaxis: True
         color: deltaG
         colorbar: True
-
     views:
       gibbs: # todo rename dG??
         type: scatter
@@ -150,6 +225,7 @@ modules:
         type: generic
         xlabel: Residue Number
         ylabel: ΔΔG (kJ/mol)
+        title: ΔΔG Scatterplot
         invert_yaxis: True # todo find out of symmetric around zero constraint is possible
         color: ddG
         colorbar: True
@@ -165,7 +241,28 @@ modules:
         x: r_number
         y: ddG
 
-
+  # todo manual field for temporari things which cannot be yaml'd
+  protein_view:
+    filters:
+      protein_select:
+        type: cross_section
+        source: protein_src
+      protein_cmap:
+        type: apply_cmap_opt
+        source: protein_select
+        opts:
+          - rfu  #cmap opts, -> renmame
+          - dG
+          - ddG
+    views:
+      protein:  #NGL?
+        type: ngl
+        source: protein_cmap
+        dependencies:
+          opts:
+            - rfu
+            - dG
+            - ddG
   ddG_control:
     filters:
       ddG_fit_select:
@@ -177,11 +274,16 @@ controllers:
   #- peptide_file_input  # todo by name ?
   #- initial_guess
   - dev
+  - peptide_file_input
+  - initial_guess
   - fit
   - comparison
   - color_transform
+  - protein  #rename: NGL?
+  - graph
   - file_export
   - figure_export
+  - session_manager
 
   #tools:
   #  coverage_hover:
