@@ -361,6 +361,8 @@ class RenameFilter(GenericFilter):
 
     def get(self):
         df = self.source.get()
+        if df is None:
+            return None
         kwargs = self.pd_kwargs.copy()
         columns = kwargs.pop('columns', None)
         if isinstance(columns, list):

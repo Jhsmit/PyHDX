@@ -183,6 +183,8 @@ class CSVFileInputControl(ControlPanel):
 
 class DevTestControl(ControlPanel):
 
+    header = 'Debug'
+
     _type = 'dev'
 
     btn = param.Action(lambda self: self._action_debug(), label='Debug')
@@ -895,7 +897,7 @@ class ComparisonControl(ControlPanel):
     def _action_add_comparison(self):
         current_df = self.parent.sources['main'].get('ddG_comparison')
         if current_df is not None and self.comparison_name in current_df.columns.get_level_values(level=0):
-            print('name already exists')  # todo parent.logger
+            self.parent.logger.info(f"Comparison name {self.comparison_name!r} already exists")
             return
 
         reference = self._df[self.reference_state]['deltaG']
@@ -1144,8 +1146,6 @@ class ColorTransformControl(ControlPanel):
         # if self.colormap_name in self.cmaps['pyhdx_default']: # todo change
         #     self.parent.logger.info(f"Colormap name {self.colormap_name} already exists")
         #     return None, None
-
-        print('colormap is ', self.colormap)
 
         if len(self.values) < 2:
             return None, None
@@ -1612,7 +1612,7 @@ class FigureExportControl(ControlPanel):
             return None
 
         if 'dG_fits' not in self.sources['main'].tables.keys():
-            print('TODO logging table  is empty')
+            self.parent.logger.info("No ΔG fits results available")
             return None
 
         df = self.sources['main'].tables['dG_fits']
@@ -1695,7 +1695,7 @@ class SessionManagerControl(ControlPanel):
             return None
 
         if sys.getsizeof(self.session_file) > 5.e8:
-            print('logging: too large')
+            self.parent.logger.info("Uploaded file is too large, maximum is 500 MB")
             return None
 
         bio = BytesIO(self.session_file)
@@ -1853,75 +1853,3 @@ class GraphControl(ControlPanel):
     #         filt = self.filters[hobbit]
     #         filt.value = self.peptide_index
 
-
-
-
-class DeveloperControl(ControlPanel):
-    """Controller with debugging options"""
-
-    header = 'Developer Options'
-    test_logging = param.Action(lambda self: self._action_test_logging())
-    breakpoint_btn = param.Action(lambda self: self._action_break())
-    test_btn = param.Action(lambda self: self._action_test())
-    trigger_btn = param.Action(lambda self: self._action_trigger())
-    print_btn = param.Action(lambda self: self._action_print())
-    runtime_warning = param.Action(lambda self: self._action_runtime())
-
-    def __init__(self, parent, **params):
-        super(DeveloperControl, self).__init__(parent, **params)
-
-    def _action_test_logging(self):
-        print(self.parent.logger)
-        self.parent.logger.debug('TEST DEBUG MESSAGE')
-        #logging.info('THis is some info')
-        for i in range(20):
-            self.parent.logger.info('dit is een test123')
-
-    def _action_print(self):
-
-        hdx_set = self.parent.hdx_set
-        print(hdx_set.names)
-        guess = self.parent.control_panels['FitControl']
-        rates_df = self.sources['dataframe'].get('rates', fit_ID=guess.initial_guess)
-        print(guess.initial_guess)
-        print(rates_df)
-
-        rates_guess = [rates_df[state]['rate'] for state in hdx_set.names]
-        gibbs_guess = hdx_set.guess_deltaG(rates_guess)
-
-    def _action_break(self):
-        main_ctrl = self.parent
-        control_panels = main_ctrl.control_panels
-        views = main_ctrl.views
-        sources = main_ctrl.sources
-
-        mse_view = views['coverage_mse']
-        data = mse_view.get_data()
-        print('mse')
-        print(data)
-
-        coverage_view = views['coverage']
-        data = coverage_view.get_data()
-        print('coverage')
-        print(data)
-
-
-        print('Time for a break')
-
-    def _action_test(self):
-        src_file = r'C:\Users\jhsmi\pp\PyHDX\tests\test_data\ecSecB_torch_fit.txt'
-        array = txt_to_np(src_file)
-        data_dict = {name: array[name] for name in array.dtype.names}
-
-        data_dict['color'] = np.full_like(array, fill_value=DEFAULT_COLORS['pfact'], dtype='<U7')
-        data_source = DataSource(data_dict, x='r_number', tags=['mapping', 'pfact', 'deltaG'],
-                                 renderer='circle', size=10, name='global_fit')
-
-        self.parent.publish_data('global_fit', data_source)
-
-    def _action_trigger(self):
-        deltaG_figure = self.parent.figure_panels['DeltaGFigure']
-        deltaG_figure.bk_pane.param.trigger('object')
-
-    def _action_runtime(self):
-        result = np.mean([])

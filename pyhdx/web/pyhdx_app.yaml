@@ -293,7 +293,3 @@ controllers:
   #      - ("id", @index)
   #      - (rfu, @rfu (@uptake_corrected D)
   #      - [sequence, @sequence]  # or convert to tuple in constructor?
-
-
-# opts factory from mixins?
-# combined opts?
