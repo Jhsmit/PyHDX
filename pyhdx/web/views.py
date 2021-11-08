@@ -11,12 +11,9 @@ import param
 from bokeh.models import HoverTool, Span, Rect, Whisker
 from bokeh.models.formatters import NumeralTickFormatter
 from bokeh.plotting import figure
-from lumen.filters import ParamFilter
-from lumen.views import hvPlotView, View
 from panel.pane.base import PaneBase
 
 from pyhdx.support import autowrap
-from pyhdx.web.base import BokehFigurePanel, FigurePanel, MIN_BORDER_LEFT
 from pyhdx.web.filters import AppFilter
 from pyhdx.web.sources import AppSourceBase
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES

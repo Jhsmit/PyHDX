@@ -123,7 +123,7 @@ class GoldenElvis(object):
 
         #return template
 
-    def view(self, fig_panel, title=None, width=None, height=None):  #fig_panel is a lumen view instance
+    def view(self, fig_panel, title=None, width=None, height=None):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.

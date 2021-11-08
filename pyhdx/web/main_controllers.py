@@ -7,10 +7,6 @@ from pyhdx import VERSION_STRING
 from pyhdx.models import HDXMeasurementSet
 from panel.template import BaseTemplate
 
-
-from lumen.sources import Source
-from lumen.filters import FacetFilter
-
 from functools import partial
 from dask.distributed import Client
 

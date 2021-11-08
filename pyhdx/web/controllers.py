@@ -28,8 +28,6 @@ from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interp
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
 from pyhdx.web.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
-from pyhdx.web.sources import DataSource, DataFrameSource
-from pyhdx.web.transforms import ApplyCmapTransform
 from pyhdx.web.widgets import ASyncProgressBar
 from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm, dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
     rainbowclouds_figure
@@ -1852,4 +1850,3 @@ class GraphControl(ControlPanel):
     #     for hobbit in hobbits:
     #         filt = self.filters[hobbit]
     #         filt.value = self.peptide_index
-

@@ -1,11 +1,9 @@
-import param
-import panel as pn
-from lumen import View
-from bokeh.plotting import figure
 from functools import partial
 from pathlib import Path
 
-from pyhdx.web.sources import AppSourceBase
+import panel as pn
+import param
+from bokeh.plotting import figure
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
