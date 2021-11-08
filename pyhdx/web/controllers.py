@@ -1322,8 +1322,6 @@ class ProteinControl(ControlPanel):
     rcsb_id = param.String(doc='RCSB ID of protein to download')
     load_structure = param.Action(lambda self: self._action_load_structure())
 
-    test_btn = param.Action(lambda self: self._action_test())
-
     def __init__(self, parent, **params):
         self._excluded = ['rcsb_id']
         super(ProteinControl, self).__init__(parent, **params)
@@ -1355,14 +1353,6 @@ class ProteinControl(ControlPanel):
 
         #self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
-
-    def _action_test(self):
-        f = self.filters['protein_select']
-        df = f.get()
-        print(df)
-
-        view = self.views['protein']
-        print(view._ngl.representation)
 
     def _action_load_structure(self):
 

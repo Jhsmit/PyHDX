@@ -41,7 +41,8 @@ class AppViewBase(param.Parameterized):
 
     opts = param.List(
         default=[],
-        doc="list of opts dicts to apply on the plot")
+        doc="list of opts dicts to apply on the plot",
+        precedence=-1)
 
     dependencies = param.List(
         default=[],
