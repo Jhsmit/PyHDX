@@ -27,7 +27,7 @@ torch.manual_seed(43)
 class TestMainGUISecB(object):
     @classmethod
     def setup_class(cls):
-        cls.fpath =input_dir / 'ecSecB_apo.csv'
+        cls.fpath = input_dir / 'ecSecB_apo.csv'
         cls.pmt = PeptideMasterTable(read_dynamx(cls.fpath))
 
         cls.state = 'SecB WT apo'
@@ -36,8 +36,7 @@ class TestMainGUISecB(object):
 
         state_data = cls.pmt.get_state(cls.state)
         cls.temperature, cls.pH = 273.15 + 30, 8.
-        cls.series = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
-        cls.prot_fit_result = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
+        cls.hdxm = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
 
         cfg = ConfigurationSettings()
         cfg.set('cluster', 'scheduler_address', f'127.0.0.1:{test_port}')
@@ -47,7 +46,8 @@ class TestMainGUISecB(object):
         with open(self.fpath, 'rb') as f:
             binary = f.read()
 
-        ctrl = main_app()
+        ctrl, tmpl = main_app()
+        src = ctrl.sources['main']
         file_input_control = ctrl.control_panels['PeptideFileInputControl']
 
         file_input_control.input_files = [binary]
@@ -62,39 +62,14 @@ class TestMainGUISecB(object):
         assert file_input_control.exp_exposures == timepoints
         file_input_control._action_add_dataset()
 
-        assert self.state in ctrl.data_objects
-        hdxm = ctrl.data_objects[self.state]
+        assert self.state in src.hdxm_objects
+        hdxm = src.hdxm_objects[self.state]
 
         assert hdxm.Nt == 7
         assert hdxm.Np == 63
         assert hdxm.Nr == 146
 
-        file_input_control.input_files = [binary]
-        assert file_input_control.fd_state == 'Full deuteration control'
-        assert file_input_control.fd_state == self.control[0]
-        assert file_input_control.fd_exposure == self.control[1]
-
-        file_input_control.exp_state = self.state
-        timepoints = list(np.array([0.0, 0.5, 1.0, 5.0, 100.000008])*60)
-        file_input_control.exp_exposures = timepoints
-        print('second add')
-        #file_input_control.dataset_name = 'test123'
-        # Add dataset with the name name
-        file_input_control._action_add_dataset()
-        assert len(ctrl.data_objects) == 1
-
-        name = 'second_dataset'
-        file_input_control.dataset_name = name
-        file_input_control._action_add_dataset()
-
-        assert name in ctrl.data_objects
-        hdxm = ctrl.data_objects[name]
-
-        assert hdxm.Nt == 5
-        assert hdxm.Np == 63
-        assert hdxm.Nr == 146
-
-        assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.521232427211)
+        assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.5405487325857496)
 
     @pytest.mark.skip(reason="Hangs in GitHub Actions")
     def test_batch_mode(self):
@@ -196,8 +171,10 @@ class TestMainGUISecB(object):
         # assert renderer.data_source.name == f'coverage_{self.series.state}'
 
     def test_initial_guesses_and_fit(self):
-        ctrl = main_app(client=None)
-        ctrl.data_objects[self.series.name] = self.series
+        ctrl, tmpl = main_app()
+        src = ctrl.sources['main']
+        src.add(self.hdxm, self.hdxm.name)
+
 
         ctrl.control_panels['InitialGuessControl']._action_fit()
 
@@ -208,68 +185,3 @@ class TestMainGUISecB(object):
         # fit_control.epochs = 10
         # fit_control._do_fitting()
         #
-        # deltaG_figure = ctrl.figure_panels['DeltaGFigure']
-        # renderer = deltaG_figure.figure.renderers[0]
-        # assert renderer.data_source.name == 'global_fit'
-
-    def test_file_download_output(self):
-        ctrl = main_app()
-
-        # todo Add tests
-        # ctrl.series = self.series
-        # ctrl.publish_data('global_fit', self.ds_fit)
-        #
-        # f_export = ctrl.control_panels['FileExportControl']
-        # f_export.target = 'global_fit'
-        # pml = f_export._make_pml('sadf')
-        #
-        # assert pml == TEST_PML
-        #
-        # io = f_export.linear_export_callback()
-        # val = io.getvalue()
-        #
-        # assert val.count('\n') == 148
-
-
-@pytest.mark.skip(reason="Diff app needs overhaul to lumen framework")
-class TestDiffApp(object):
-    @classmethod
-    def setup_class(cls):
-        cls.fpath = directory / 'test_data' / 'ecSecB_torch_fit.csv'
-
-        with open(cls.fpath, 'rb') as f_obj:
-            cls.file_binary = f_obj.read()
-
-    def test_app(self):
-        ctrl = diff_app()
-
-        f_input = ctrl.control_panels['MappingFileInputControl']
-        f_input.widget_dict['input_file'].filename = str(self.fpath)
-        f_input.input_file = self.file_binary
-        assert f_input.dataset_name == 'ecSecB_torch_fit'
-        f_input.dataset_name = 'DS1'
-        f_input._action_add_dataset()
-        assert f_input.input_file == b''
-        assert f_input.dataset_name == ''
-
-        f_input = ctrl.control_panels['MappingFileInputControl']
-        f_input.widget_dict['input_file'].filename = str(self.fpath)
-        f_input.input_file = self.file_binary
-        f_input.dataset_name = 'DS2'
-        f_input._action_add_dataset()
-
-        diff = ctrl.control_panels['DifferenceControl']
-        diff.dataset_1 = 'DS1'
-        diff.dataset_2 = 'DS2'
-
-        comparison_name = 'Diff_ds1_ds2'
-        diff.comparison_name = comparison_name
-        quantity_objects = diff.param['comparison_quantity'].objects
-        assert quantity_objects == sorted(['_deltaG', 'covariance', 'deltaG', 'pfact'])
-
-        diff.comparison_quantity = 'deltaG'
-        diff._action_add_comparison()
-        assert diff.comparison_name == ''
-        assert comparison_name in ctrl.sources.keys()
-        assert diff.comparison_list is None
-#
