@@ -1,18 +1,12 @@
+import pandas as pd
 import param
-from bokeh.models import ColumnDataSource
-import numpy as np
 
 from pyhdx import TorchFitResult
-from pyhdx.fitting import GenericFitResult, KineticsFitResult, RatesFitResult
-from pyhdx.models import Protein, HDXMeasurement, HDXMeasurementSet
-import pandas as pd
-from lumen.util import get_dataframe_schema
+from pyhdx.fitting import RatesFitResult
+from pyhdx.models import HDXMeasurement, HDXMeasurementSet
+
 
 #todo refactor module to models?
-
-from lumen.sources import Source, cached_schema
-
-from pyhdx.plot import default_cmap_norm, CMAP_DEFAULTS
 
 
 class AppSourceBase(param.Parameterized):

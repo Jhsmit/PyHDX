@@ -1,17 +1,16 @@
 import collections
 import logging
 
-import param
 from distributed import Client
 
+from pyhdx.local_cluster import default_client
 from pyhdx.support import gen_subclasses
+from pyhdx.web.controllers import *
 from pyhdx.web.filters import *
+from pyhdx.web.main_controllers import PyHDXController, MainController
 from pyhdx.web.opts import OptsBase
 from pyhdx.web.sources import *
-from pyhdx.web.main_controllers import PyHDXController, MainController
-from pyhdx.web.controllers import *
 from pyhdx.web.views import AppViewBase
-from pyhdx.local_cluster import default_client
 
 
 class AppConstructor(param.Parameterized):

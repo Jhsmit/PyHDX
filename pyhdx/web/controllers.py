@@ -1,41 +1,33 @@
-import operator
+import sys
 import sys
 import urllib.request
 import zipfile
 from collections import namedtuple
-from copy import copy
 from datetime import datetime
 from io import StringIO, BytesIO
 from pathlib import Path
 
 import colorcet
-import dask
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import proplot as pplt
 import numpy as np
 import pandas as pd
 import panel as pn
 import param
-from numpy.lib.recfunctions import append_fields
 from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
-from pyhdx import VERSION_STRING
+from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
     fit_gibbs_global_batch, PATIENCE, STOP_LOSS, EPOCHS, R1, R2, optimizer_defaults, RatesFitResult
-from pyhdx.models import PeptideMasterTable, HDXMeasurement, Protein, array_intersection
-from pyhdx.web.base import ControlPanel, DEFAULT_COLORS, DEFAULT_CLASS_COLORS
+from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection
+from pyhdx.plot import dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
+    rainbowclouds_figure
+from pyhdx.support import series_to_pymol, apply_cmap
+from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.widgets import ASyncProgressBar
-from pyhdx.plot import CMAP_DEFAULTS, default_cmap_norm, dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
-    rainbowclouds_figure
-from pyhdx.support import rgb_to_hex, hex_to_rgba, series_to_pymol, apply_cmap
-from pyhdx.config import cfg
-
-
-HalfLifeFitResult = namedtuple('HalfLifeFitResult', ['output'])
 
 
 class MappingFileInputControl(ControlPanel):

@@ -26,10 +26,6 @@ class AppViewBase(param.Parameterized):
 
     Inspired by Holoviz Lumen's View objects"""
 
-    # filters = param.List(constant=True, doc="""
-    #     A list of Filter object providing the query parameters for the
-    #     Source.""")
-
     source = param.ClassSelector(class_=(AppSourceBase, AppFilter),
                                  constant=True,
                                  precedence=-1,

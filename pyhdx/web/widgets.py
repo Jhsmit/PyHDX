@@ -1,16 +1,10 @@
-import param
-from panel.reactive import ReactiveHTML
-from panel.widgets.input import Widget, _BkTextInput, StaticText
-from panel.widgets import Spinner
-from panel.util import as_unicode
-from panel.pane import HTML, Markdown
 import panel as pn
+import param
 from dask.distributed import as_completed
-from bokeh.models import LayoutDOM
-from bokeh.core.properties import String, Bool, List
-from bokeh.models import LayoutDOM
-from bokeh.util.compiler import TypeScript
-import pathlib
+from panel.pane import HTML, Markdown
+from panel.reactive import ReactiveHTML
+from panel.util import as_unicode
+from panel.widgets.input import _BkTextInput, StaticText
 
 
 class NumericInput(pn.widgets.input.Widget):
