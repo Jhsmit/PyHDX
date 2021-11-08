@@ -4,22 +4,19 @@ Run local_cluster.py in anothor thread
 
 """
 
-from pyhdx.fileIO import read_dynamx, csv_to_dataframe
-from pyhdx import PeptideMasterTable
-import pickle
-from pyhdx.web.apps import main_app
-from pyhdx.web.base import DEFAULT_COLORS, STATIC_DIR
-from pyhdx.web.utils import load_state
-from pyhdx.web.sources import DataSource
-from pyhdx.batch_processing import yaml_to_hdxm
-from pyhdx.fileIO import csv_to_protein
-import panel as pn
-import numpy as np
-from pathlib import Path
-import pandas as pd
-import yaml
 import sys
+from pathlib import Path
 
+import pandas as pd
+import panel as pn
+import yaml
+
+from pyhdx.batch_processing import yaml_to_hdxm
+from pyhdx.fileIO import csv_to_dataframe
+from pyhdx.fileIO import csv_to_protein
+from pyhdx.web.apps import main_app
+from pyhdx.web.base import STATIC_DIR
+from pyhdx.web.utils import load_state
 
 sys._excepthook = sys.excepthook
 
@@ -170,7 +167,7 @@ def init_dashboard():
 #pn.state.onload(reload_tables)
 pn.state.onload(init_dashboard)
 
-
+print(__name__)
 
 if __name__ == '__main__':
     # sys._excepthook = sys.excepthook
@@ -199,4 +196,10 @@ if __name__ == '__main__':
 
     pn.serve(tmpl, show=True, static_dirs={'pyhdx': STATIC_DIR})
 
+elif __name__.startswith('bokeh_app'):
+    tmpl.servable()
+
 #ctrl.template.servable()
+
+
+# panel serve --show --autoreload --static-dirs pyhdx=C:\Users\jhsmi\pp\PyHDX\pyhdx\web\static
