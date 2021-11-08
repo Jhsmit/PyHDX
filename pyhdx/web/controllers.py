@@ -1,3 +1,4 @@
+import itertools
 import sys
 import sys
 import urllib.request
@@ -30,147 +31,6 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.widgets import ASyncProgressBar
 
 
-class MappingFileInputControl(ControlPanel):
-    """
-    This controller allows users to upload *.txt files where quantities (protection factors, Gibbs free energy, etc) are
-    mapped to a linear sequence. The data is then used further downstream to generate binary comparisons between datasets.
-
-    The column should be tab separated with on the last header line (starts with '#') the names of the columns. Columns
-    should be tab-delimited.
-    """
-    header = 'File Input'
-
-    input_file = param.Parameter(default=None, doc='Input file to add to available datasets')
-    dataset_name = param.String(doc='Name for the dataset to add. Defaults to filename')
-    offset = param.Integer(default=0, doc="Offset to add to the file's r_number column")
-    add_dataset = param.Action(lambda self: self._action_add_dataset(),
-                               doc='Add the dataset to available datasets')
-    datasets_list = param.ListSelector(doc='Current datasets', label='Datasets')
-    remove_dataset = param.Action(lambda self: self._action_remove_dataset(),
-                                  doc='Remove selected datasets')
-
-    def __init__(self, parent, **params):
-        super(MappingFileInputControl, self).__init__(parent, **params)
-        self.parent.param.watch(self._datasets_updated, ['datasets'])
-
-    def make_dict(self):
-        return self.generate_widgets(input_file=pn.widgets.FileInput)
-
-    @param.depends('input_file', watch=True)
-    def _input_file_updated(self):
-        self.dataset_name = self.dataset_name or Path(self.widget_dict['input_file'].filename).stem
-
-    @property
-    def protein(self):
-        """The protein object from the currently selected file in the file widget"""
-
-        try:
-            sio = StringIO(self.input_file.decode())
-        except UnicodeDecodeError:
-            self.parent.logger.info('Invalid file type, supplied file is not a text file')
-            return None
-        try:
-            sio.seek(0)
-            protein = txt_to_protein(sio)
-        except KeyError:
-            sio.seek(0)
-            protein = csv_to_protein(sio)
-        return protein
-
-    def _add_dataset(self):
-        self.parent.datasets[self.dataset_name] = self.protein
-
-    #todo refactor dataset to protein_something
-    def _action_add_dataset(self):
-        if self.dataset_name in self.parent.datasets.keys():
-            self.parent.logger.info(f'Dataset {self.dataset_name} already added')
-        elif not self.dataset_name:
-            self.parent.logger.info('The added comparison needs to have a name')
-        elif not self.input_file:
-            self.parent.logger.info('Empty or no file selected')
-        elif self.protein is not None:
-            self._add_dataset()
-            self.parent.param.trigger('datasets')
-
-        self.widget_dict['input_file'].filename = ''
-        self.widget_dict['input_file'].value = b''
-
-        self.dataset_name = ''
-
-    def _action_remove_dataset(self):
-        if self.datasets_list is not None:
-            for dataset_name in self.datasets_list:
-                self.parent.datasets.pop(dataset_name)
-            self.parent.param.trigger('datasets')
-
-    def _datasets_updated(self, events):
-        self.param['datasets_list'].objects = list(self.parent.datasets.keys())
-
-
-import itertools
-cmap_cycle = itertools.cycle(['gray','PiYG', 'jet'])
-
-
-class CSVFileInputControl(ControlPanel):
-    input_file = param.Parameter()
-    load_file = param.Action(lambda self: self._action_load())
-    temp_new_data = param.Action(lambda self: self._action_new_data())
-    temp_new_cmap = param.Action(lambda self: self._action_new_cmap())
-
-    temp_update_filter = param.Action(lambda self: self._action_exposure())
-    temp_cmap_rect = param.Action(lambda self: self._action_cmap_rect())
-
-    #cmap_obj = param.ObjectSelector(default='viridis', objects=['viridis', 'plasma', 'magma'])
-
-
-    def make_dict(self):
-        return self.generate_widgets(input_file=pn.widgets.FileInput(accept='.csv,.txt'))
-
-    def _action_load(self):
-        sio = StringIO(self.input_file.decode('UTF-8'))
-        df = csv_to_dataframe(sio)
-        source = DataFrameSource(df=df)
-
-    def _action_new_data(self):
-
-        source = self.parent.sources['torch_fit']
-        table = source.get('torch_fit')
-
-        size = len(table)
-
-        new_data = 40e3*np.random.rand(size)
-
-        table['deltaG'] = new_data
-
-        self.parent.update()
-
-    def _action_new_cmap(self):
-        cmap_name = np.random.choice(['viridis', 'inferno', 'plasma'])
-        cmap = mpl.cm.get_cmap(cmap_name)
-
-        transform = self.parent.transforms['cmap']
-        transform.cmap = cmap
-
-        self.parent.update()
-
-    def _action_exposure(self):
-        filter = self.parent.filters['exposure']
-        filter.widget.value = 0.
-
-        self.parent.update()
-
-    def _action_cmap_rect(self):
-        new_cmap = next(cmap_cycle)
-
-        rect_view = self.parent.figure_panels['rect_plot']
-        rect_view.opts['cmap'] = new_cmap
-
-        self.parent.update()
-
-        item = self.parent.rows['rect_plot'][0]
-        #item.param.trigger('object')
-
-
 class DevTestControl(ControlPanel):
 
     header = 'Debug'
@@ -178,7 +38,6 @@ class DevTestControl(ControlPanel):
     _type = 'dev'
 
     btn = param.Action(lambda self: self._action_debug(), label='Debug')
-
 
     def _action_debug(self):
         filters = self.filters
@@ -200,35 +59,6 @@ class DevTestControl(ControlPanel):
             ('self', None),
             ('filters.coverage_select', None),
         ]
-
-
-class TestFileInputControl(ControlPanel):
-    input_file = param.Parameter()
-    load_file = param.Action(lambda self: self._action_load())
-
-
-    _layout = {
-        'self': None,
-        'filters.exposure_slider': None
-    }
-
-    def __init__(self, parent, **params):
-        super().__init__(parent, **params)
-        # todo property and list of tuples
-        self._layout = {
-            'self': None,
-            'filters.exposure_slider': None
-        }
-
-        self.update_box()
-
-    def make_dict(self):
-        return self.generate_widgets(input_file=pn.widgets.FileInput(accept='.csv,.txt'))
-
-    def _action_load(self):
-        sio = StringIO(self.input_file.decode('UTF-8'))
-        df = csv_to_dataframe(sio)
-        source = DataFrameSource(df=df)
 
 
 class PeptideFileInputControl(ControlPanel):
@@ -281,11 +111,10 @@ class PeptideFileInputControl(ControlPanel):
     def __init__(self, parent, **params):
         self._excluded = ['be_percent']
         super(PeptideFileInputControl, self).__init__(parent, **params)
-#        self.parent.param.watch(self._datasets_updated, ['data_objects']) # this for sure does not work
 
         self.update_box()
 
-        self._df = None  # Numpy array with raw input data
+        self._df = None  # Numpy array with raw input data (or is pd.Dataframe?)
 
     @property
     def src(self):
@@ -325,7 +154,6 @@ class PeptideFileInputControl(ControlPanel):
         elif self.be_mode == 'Flat percentage':
             self._excluded = ['fd_state', 'fd_exposure']
 
-        #self._layout = {'self': widgets}
         self.update_box()
 
     @param.depends('input_files', watch=True)
@@ -434,9 +262,6 @@ class PeptideFileInputControl(ControlPanel):
                               name=self.dataset_name, temperature=self.temperature, pH=self.pH)
 
         self.src.add(hdxm, self.dataset_name)
-
-
-
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
                                 f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')
         self.parent.logger.info(f'Average coverage: {hdxm.coverage.percent_coverage:.3}%, '
@@ -448,26 +273,6 @@ class PeptideFileInputControl(ControlPanel):
             self.parent.datasets.pop(name)
 
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
-
-
-class CoverageControl(ControlPanel):
-    header = 'Coverage'
-
-    #temp_new_data = param.Action(lambda self: self._action_new_data())
-
-    def __init__(self, parent, **params):
-        super().__init__(parent, **params)
-
-        self.update_box()
-
-    @property
-    def _layout(self):
-        return [
-            # ('filters.coverage_state_name', None),
-            # ('filters.coverage_exposure', None),
-            ('opts.cmap', None),
-            #('self', None)
-        ]
 
 
 class InitialGuessControl(ControlPanel):
@@ -509,9 +314,7 @@ class InitialGuessControl(ControlPanel):
     def _layout(self):
         return [
             ('self', self.own_widget_names),
-            # ('filters.select_index_rates_lv1', None),
-            # ('filters.select_index_rates_lv2', None),
-                        ]
+        ]
 
     @property  # todo base class
     def own_widget_names(self):
@@ -548,13 +351,10 @@ class InitialGuessControl(ControlPanel):
 
     @param.depends('lower_bound', 'upper_bound', watch=True)
     def _bounds_updated(self):
-        # if self.global_bounds:
-        #     for k in self.bounds.keys():
-        #         self.bounds[k] = (self.lower_bound, self.upper_bound)
         if not self.global_bounds:
             self.bounds[self.dataset] = (self.lower_bound, self.upper_bound)
 
-    def _parent_hdxm_objects_updated(self, events):
+    def _parent_hdxm_objects_updated(self, *events):
         if len(self.src.hdxm_objects) > 0:
             self.param['do_fit1'].constant = False
 
@@ -919,11 +719,10 @@ class ColorTransformControl(ControlPanel):
     _type = 'color_transform'
 
     header = 'Color Transform'
-    # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
 
     # todo unify name for target field (target_data set)
     # When coupling param with the same name together there should be an option to exclude this behaviour
-    quantity = param.Selector(label='Target Quantity')  # todo refactor to data type name??
+    quantity = param.Selector(label='Target Quantity')  # todo refactor cmapopt / color transform??
     # fit_ID = param.Selector()  # generalize selecting widgets based on selected table
     # quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
 
@@ -955,7 +754,6 @@ class ColorTransformControl(ControlPanel):
 
     def __init__(self, parent, **param):
         self._excluded = ['otsu_thd', 'num_colors']
-
         super(ColorTransformControl, self).__init__(parent, **param)
 
         # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
@@ -992,6 +790,10 @@ class ColorTransformControl(ControlPanel):
         self.update_box()
 
     @property
+    def src(self):
+        return self.sources['main']
+
+    @property
     def own_widget_names(self):
         """returns a list of names of widgets in self.widgets to be laid out in controller card"""
 
@@ -1007,7 +809,6 @@ class ColorTransformControl(ControlPanel):
             widget_names += [f'color_{i}' for i in range(len(self.colors))]
         return widget_names
 
-
     def make_dict(self):
         return self.generate_widgets(num_colors=pn.widgets.IntInput, current_color_transform=pn.widgets.StaticText)
 
@@ -1018,23 +819,23 @@ class ColorTransformControl(ControlPanel):
                 ]
 
     def get_selected_data(self):
-        #todo move method to data source?
-        df = self.get_data()
-        selected_fields = [widget.value for name, widget in self.widgets.items() if name.startswith('select')]
-        bools_list = [df.columns.get_level_values(i) == value for i, value in enumerate(selected_fields) if
-                      value != '*']
+        #todo rfu residues peptides should be expanded one more dim to add quantity column level on top
+        if self.quantity is None:
+            self.parent.logger.info("No quantity selected to derive colormap thresholds from")
+            return None
 
-        if len(bools_list) == 0:
-            bools = np.ones(len(df.columns)).astype(bool)
-        elif len(bools_list) == 1:
-            bools = np.array(bools_list).flatten()
-        else:
-            bools_array = np.array(bools_list)
-            bools = np.product(bools_array, axis=0).astype(bool)
+        # get the table key corresponding to the selected cmap quantity
+        table_key = next(iter((k for k in self.src.tables.keys() if k.startswith(self.quantity))))
 
-        selected_df = df.iloc[:, bools]
+        table = self.src.get(table_key)
+        if table is None:
+            self.parent.logger.info(f"Table corresponding to {self.quantity!r} is empty")
+            return None
 
-        return selected_df
+        field = self.opts[self.quantity].field
+        df = table.xs(field, level=-1) if field != 'rfu' else table # todo fix when fixing rfu dataframe
+
+        return df
 
     def get_values(self):
         """return numpy array with only the values from selected dataframe, nan omitted"""
@@ -1051,16 +852,15 @@ class ColorTransformControl(ControlPanel):
         if not values.size:
             return
 
-        func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
+        #func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
+        func = lambda x: x
         thds = threshold_multiotsu(func(values), classes=self.num_colors)
         widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
         for thd, widget in zip(thds[::-1], widgets):  # Values from high to low
             widget.start = None
             widget.end = None
-            widget.value = np.exp(thd) if self.log_space else thd
+            widget.value = thd #np.exp(thd) if self.log_space else thd
         self._update_bounds()
-
-        #self._get_colors()
 
     def _action_linear(self):
         i = 1 if self.mode == 'Discrete' else 0
@@ -1132,7 +932,9 @@ class ColorTransformControl(ControlPanel):
         self.live_preview = preview
 
     def get_cmap_and_norm(self):
-        norm_klass = mpl.colors.Normalize # if not self.log_space else mpl.colors.LogNorm
+        norm_klass = mpl.colors.Normalize
+
+        # if not self.log_space else mpl.colors.LogNorm
         # if self.colormap_name in self.cmaps['pyhdx_default']: # todo change
         #     self.parent.logger.info(f"Colormap name {self.colormap_name} already exists")
         #     return None, None
@@ -1145,10 +947,12 @@ class ColorTransformControl(ControlPanel):
                 return None, None
             cmap = mpl.colors.ListedColormap(self.colors)
             norm = mpl.colors.BoundaryNorm(self.values[::-1], self.num_colors, extend='both') #todo refactor values to thd_values
+
         elif self.mode == 'Continuous':
             norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
             positions = norm(self.values[::-1])
             cmap = mpl.colors.LinearSegmentedColormap.from_list('custom_cmap', list(zip(positions, self.colors)))
+
         elif self.mode == 'Colormap':
             norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
             if self.library == 'matplotlib':
@@ -1176,14 +980,14 @@ class ColorTransformControl(ControlPanel):
     @param.depends('mode', watch=True)
     def _mode_updated(self):
         if self.mode == 'Discrete':
-            self.excluded = ['library', 'colormap']
+            self._excluded = ['library', 'colormap']
     #        self.num_colors = max(3, self.num_colors)
     #        self.param['num_colors'].bounds = (3, None)
         elif self.mode == 'Continuous':
-            self.excluded = ['library', 'colormap', 'otsu_thd']
+            self._excluded = ['library', 'colormap', 'otsu_thd']
       #      self.param['num_colors'].bounds = (2, None)
         elif self.mode == 'Colormap':
-            self.excluded = ['otsu_thd', 'num_colors']
+            self._excluded = ['otsu_thd', 'num_colors']
             self.num_colors = 2
 
         #todo adjust add/ remove color widgets methods
