@@ -12,7 +12,7 @@ import panel as pn
 import yaml
 
 from pyhdx.batch_processing import yaml_to_hdxm
-from pyhdx.fileIO import csv_to_dataframe
+from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import STATIC_DIR
@@ -51,6 +51,7 @@ test_dir = directory / 'test_data'
 
 fpath_1 = root_dir / 'tests' / 'test_data' / 'ecSecB_apo.csv'
 fpath_2 = root_dir / 'tests' / 'test_data' / 'ecSecB_dimer.csv'
+fitresult_dir = root_dir / 'tests' / 'test_data' / 'output' / 'ecsecb_tetramer_dimer'
 
 yaml_dict = yaml.safe_load(Path(data_dir / 'data_states.yaml').read_text())
 pdb_string = (test_dir / '1qyn.pdb').read_text()
@@ -115,18 +116,13 @@ def reload_dashboard():
                      skiprows=3)
     source.add_df(df, ds)
 
-
-
-
 def init_dashboard():
     for k, v in yaml_dict.items():
         load_state(ctrl, v, data_dir=data_dir, name=k)
 
-
-
     # initial_guess = ctrl.control_panels['InitialGuessControl']
     # initial_guess._action_fit()
-
+    src = ctrl.sources['main']
     fit_control = ctrl.control_panels['FitControl']
     fit_control.epochs = 10
 
@@ -143,6 +139,8 @@ def init_dashboard():
 
     ctrl.views['protein'].object = pdb_string
 
+    fit_result = load_fitresult(fitresult_dir)
+    src.add(fit_result, 'fit_1')
 
 #     fit_control.fit_mode = 'Batch'
 #     fit_control._action_fit()
@@ -166,8 +164,6 @@ def init_dashboard():
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
 pn.state.onload(init_dashboard)
-
-print(__name__)
 
 if __name__ == '__main__':
     # sys._excepthook = sys.excepthook
