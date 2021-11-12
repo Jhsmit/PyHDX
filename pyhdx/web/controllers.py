@@ -1189,8 +1189,8 @@ class FileExportControl(ControlPanel):
 
     def __init__(self, parent, **param):
         super(FileExportControl, self).__init__(parent, **param)
-        self.sources['main'].param.watch(self._tables_updated, ['tables'])
-        self._tables_updated()  # todo shouldnt be necessary
+        self.sources['main'].param.watch(self._tables_updated, ['tables', 'updated'])  #todo make up your mind: trigger tables or updated?
+        #self._tables_updated()  # todo shouldnt be necessary
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -1328,6 +1328,8 @@ class FigureExportControl(ControlPanel):
     def __init__(self, parent, **param):
         self._excluded = []
         super(FigureExportControl, self).__init__(parent, **param)
+        self.sources['main'].param.watch(self._figure_updated, ['tables', 'updated'])
+
         self._figure_updated()
 
     @property
@@ -1354,7 +1356,7 @@ class FigureExportControl(ControlPanel):
         return final_widgets
 
     @pn.depends('figure', watch=True)
-    def _figure_updated(self):
+    def _figure_updated(self, *events):
         # generalize more when other plot options are introduced
         if not self.figure:
             return
