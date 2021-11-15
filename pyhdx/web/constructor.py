@@ -10,6 +10,7 @@ from pyhdx.web.filters import *
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import OptsBase
 from pyhdx.web.sources import *
+from pyhdx.web.tools import supported_tools
 from pyhdx.web.views import AppViewBase
 
 
@@ -21,9 +22,9 @@ class AppConstructor(param.Parameterized):
 
     opts = param.Dict(default={})
 
-    views = param.Dict(default={})
+    tools = param.Dict(default={})
 
-    #controllers = param.Dict(default={}) #?
+    views = param.Dict(default={})
 
     loggers = param.Dict(default={})
 
@@ -37,7 +38,7 @@ class AppConstructor(param.Parameterized):
 
     def parse(self, yaml_dict, **kwargs):
         self._parse_sections(yaml_dict)
-        for name, dic in yaml_dict['modules'].items():
+        for name, dic in yaml_dict.get('modules', {}).items():
             self._parse_sections(dic)
 
         d = yaml_dict['controllers']
@@ -70,18 +71,21 @@ class AppConstructor(param.Parameterized):
         classes = {}
         for key, cls in base_classes.items():
             base_cls = base_classes[key]
-            all_classes = list([cls for cls in gen_subclasses(base_cls) if hasattr(cls, '_type')]) # or check for None on _type
+            all_classes = list([cls for cls in gen_subclasses(base_cls) if getattr(cls, '_type', None)])
+            all_classes.append(base_cls)
             types = [cls._type for cls in all_classes]
             if len(types) != len(set(types)):
-                print([item for item, count in collections.Counter(types).items() if count > 1])
-                raise ValueError
+                duplicate_items = [item for item, count in collections.Counter(types).items() if count > 1]
+                raise ValueError(f"Multiple implementations of {key!r} found with the same type: {duplicate_items}")
             class_dict = {cls._type: cls for cls in all_classes}
             classes[key] = class_dict
+
+        classes['tool'] = supported_tools
 
         return classes
 
     def _parse_sections(self, yaml_dict):
-        sections = ['sources', 'filters', 'opts', 'views']
+        sections = ['sources', 'filters', 'tools', 'opts', 'views']
         for section in sections:
             func = getattr(self, f'add_{section[:-1]}')  # Remove trailing s to get correct adder function
             d = yaml_dict.get(section, {})
@@ -101,10 +105,14 @@ class AppConstructor(param.Parameterized):
         self.filters[name] = obj
 
     def add_tool(self, name, _type, **kwargs):
-        pass
+        kwargs = self._resolve_kwargs(**kwargs)
+        class_ = self._resolve_class(_type, 'tool')
+        obj = class_(**kwargs)
+        self.tools[name] = obj
 
     def add_opt(self, name, _type, **kwargs):
         class_ = self._resolve_class(_type, 'opt')
+        kwargs = self._resolve_kwargs(**kwargs)
         obj = class_(name=name, **kwargs)
         self.opts[name] = obj
 
@@ -131,11 +139,14 @@ class AppConstructor(param.Parameterized):
                 if v is None:
                     resolved[k] = v
                 else:
-                    obj = self.sources.get(v, None) or self.filters.get(v)
+                    obj = self.sources.get(v) or self.filters.get(v)  # can be none in case of logging
                     resolved[k] = obj
             elif k == 'opts':
                 v = [v] if isinstance(v, str) else v  # allow singly opt by str
                 resolved[k] = [self.opts[vi] for vi in v]
+            elif k == 'tools':
+                v = [v] if isinstance(v, str) else v  # allow singly opt by str
+                resolved[k] = [self.tools[vi] for vi in v]
             elif k == 'dependencies':  # dependencies are opts/filters/controllers? (anything with .updated event)
                 all_objects = []
                 for type_, obj_list in v.items():

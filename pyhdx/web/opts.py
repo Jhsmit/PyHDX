@@ -12,11 +12,13 @@ from pyhdx.support import apply_cmap
 #todo baseclass widget generating thingy
 class OptsBase(param.Parameterized):
 
+    _type = None
+
     updated = param.Event()
 
     def __init__(self, **params):
         super().__init__(**params)
-        self._excluded_from_opts = ['name']
+        self._excluded_from_opts = ['name']  # todo remove this and opts property
 
         self.widgets = self.generate_widgets()
 

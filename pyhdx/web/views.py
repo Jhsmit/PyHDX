@@ -14,7 +14,7 @@ from bokeh.plotting import figure
 from panel.pane.base import PaneBase
 
 from pyhdx.support import autowrap
-from pyhdx.web.filters import AppFilter
+from pyhdx.web.filters import AppFilterBase
 from pyhdx.web.sources import AppSourceBase
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
 
@@ -26,7 +26,9 @@ class AppViewBase(param.Parameterized):
 
     Inspired by Holoviz Lumen's View objects"""
 
-    source = param.ClassSelector(class_=(AppSourceBase, AppFilter),
+    _type = None
+
+    source = param.ClassSelector(class_=(AppSourceBase, AppFilterBase),
                                  constant=True,
                                  precedence=-1,
                                  doc="""
@@ -41,8 +43,6 @@ class AppViewBase(param.Parameterized):
         default=[],
         precedence=-1,
         doc="Additional dependencies which trigger update when their `updated` event fires")
-
-    view_type = None
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -114,6 +114,8 @@ class AppViewBase(param.Parameterized):
 
 
 class hvAppView(AppViewBase):
+
+    _type = None
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -213,7 +215,7 @@ class hvScatterAppView(hvAppView):
 
     @property
     def empty_df(self):
-        dic = {self.x: [], self.y: []}
+        dic = {self.x or 'x': [], self.y or 'y': []}
         if 'color' in self.opts_dict:
             dic[self.opts_dict['color']] = []
         return pd.DataFrame(dic)
@@ -231,7 +233,7 @@ class hvRectanglesAppView(hvAppView):
 
     y1 = param.String('y1')
 
-    value = param.String('value')
+    vdims = param.List(['value'])
 
     def __init__(self, **params):
 
@@ -253,16 +255,21 @@ class hvRectanglesAppView(hvAppView):
         """
 
         func = partial(hv.Rectangles,
-                       kdims=[self.x0, self.y0, self.x1, self.y1],
-                       vdims=[self.value])
+                       kdims=self.kdims,
+                       vdims=self.vdims)
         plot = hv.DynamicMap(func, streams=[self._stream])
         plot = plot.apply.opts(**self.opts_dict)
 
         return plot
 
     @property
+    def kdims(self):
+        return [self.x0, self.y0, self.x1, self.y1]
+
+    @property
     def empty_df(self):
-        return pd.DataFrame([[0] * 5], columns=[self.x0, self.y0, self.x1, self.y1, self.value])
+        columns = self.kdims + self.vdims
+        return pd.DataFrame([[0] * len(columns)], columns=columns)
 
 
 class NGLView(AppViewBase):

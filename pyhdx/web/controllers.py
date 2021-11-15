@@ -37,7 +37,10 @@ class DevTestControl(ControlPanel):
 
     _type = 'dev'
 
-    btn = param.Action(lambda self: self._action_debug(), label='Debug')
+    debug_btn = param.Action(lambda self: self._action_debug(), label='Debug')
+
+    test_btn = param.Action(lambda self: self._action_test(), label='Test')
+
 
     def _action_debug(self):
         filters = self.filters
@@ -53,11 +56,16 @@ class DevTestControl(ControlPanel):
 
         print('break')
 
+    def _action_test(self):
+        view = self.views['coverage']
+        df = view.get_data()
+
+        print(df)
+
     @property
     def _layout(self):
         return [
             ('self', None),
-            ('filters.coverage_select', None),
         ]
 
 

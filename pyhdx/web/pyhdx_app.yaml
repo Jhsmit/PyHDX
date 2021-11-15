@@ -65,6 +65,41 @@ opts:
     type: generic
     title: Debug Log
 
+tools:
+  coverage_hover:
+    type: hover
+    tooltips:
+      - ['id', '$index']
+      - ['RFU', '@rfu']
+      - ['D (corrected)', '@uptake_corrected']
+      - ['sequence', '@sequence']
+  rfu_hover:
+    type: hover
+    tooltips:
+      - ['Residue', '@r_number']
+      - ['RFU', '@rfu']
+    # mode: vline
+    #only show closest hit:
+    #https://stackoverflow.com/questions/36434562/displaying-only-one-tooltip-when-using-the-hovertool-tool
+    #https://github.com/bokeh/bokeh/issues/9087
+  rates_hover:
+    type: hover
+    tooltips:
+      - ['Residue', '@r_number']
+      - ['Rate', '@rate s⁻¹']
+    #mode: vline
+  dG_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'ΔG', '@deltaG kJ/mol' ]
+    #mode: vline
+  ddG_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'ΔΔG', '@ddG kJ/mol' ]
+
 views:
   logging_info:
     type: logging
@@ -106,8 +141,8 @@ modules:
         ylabel : ''
         yticks: 0
         title: Peptide coverage
-#        tools:
-#          - hover
+        tools:
+          - coverage_hover
     views:
       coverage:
         type: rectangles
@@ -116,7 +151,10 @@ modules:
           - base
           - coverage
           - rfu
-        value: rfu
+        vdims:
+          - rfu
+          - uptake_corrected
+          - sequence
 
   rfu:
     filters:
@@ -142,6 +180,8 @@ modules:
         title: RFU Scatter
         color: rfu
         colorbar: True
+        tools:
+          - rfu_hover
     views:
       rfu_scatter:
         type: scatter
@@ -168,6 +208,8 @@ modules:
         ylabel: Rate (s⁻¹)  # todo superscript
         title: Approximate H/D rates
         logy: True
+        tools:
+          - rates_hover
     views:
       rates:
         type: scatter
@@ -199,6 +241,8 @@ modules:
         invert_yaxis: True
         color: deltaG
         colorbar: True
+        tools:
+          - dG_hover
     views:
       gibbs: # todo rename dG??
         type: scatter
@@ -231,6 +275,8 @@ modules:
         invert_yaxis: True # todo find out of symmetric around zero constraint is possible
         color: ddG
         colorbar: True
+        tools:
+          - ddG_hover
     views:
       ddG:
         type: scatter
@@ -286,12 +332,3 @@ controllers:
   - file_export
   - figure_export
   - session_manager
-
-  #tools:
-  #  coverage_hover:
-  #    type: HoverTool
-  #    tooltips:
-  #      #add tuple parser to yaml: https://stackoverflow.com/questions/39553008/how-to-read-a-python-tuple-using-pyyaml
-  #      - ("id", @index)
-  #      - (rfu, @rfu (@uptake_corrected D)
-  #      - [sequence, @sequence]  # or convert to tuple in constructor?

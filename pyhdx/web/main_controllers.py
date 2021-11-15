@@ -40,6 +40,8 @@ class MainController(param.Parameterized):
 
     """
 
+    _type = 'base'
+
     sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
     filters = param.Dict({}, doc="Dictionary of filters")
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")

@@ -10,32 +10,32 @@ from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 
 
 class AppSourceBase(param.Parameterized):
-    """patched lumen source"""
+    """Base class for sources"""
+
+    _type = 'base'
 
     updated = param.Event()
 
-    #
-    # @classmethod
-    # def _filter_dataframe(cls, df, *queries):
-    #     """
-    #     Filter the DataFrame.
-    #     Parameters
-    #     ----------
-    #     df : DataFrame
-    #        The DataFrame to filter
-    #     qeueries : list of tuple
-    #         A dictionary containing all the query parameters
-    #     Returns
-    #     -------
-    #     DataFrame
-    #         The filtered DataFrame
-    #     """
-    #
-    #     for query in queries:
-    #         query_func, kwargs = query
-    #         df = getattr(df, query_func)(**kwargs)
-    #
-    #     return df
+    def get(self):
+        raise NotImplementedError()
+
+
+class TableSource(AppSourceBase):
+
+    tables = param.Dict({})
+
+    _type = 'table'
+
+    def get(self):
+        if len(self.tables) == 1:
+            return next(iter(self.tables.values))
+        else:
+            raise ValueError("TableSource has multiple tables, use `get_table`")
+
+    def get_table(self, table):
+        df = self.tables.get(table, None)
+
+        return df
 
     def get_tables(self):
         """
@@ -46,14 +46,13 @@ class AppSourceBase(param.Parameterized):
             The list of available tables on this source.
         """
 
-        return []
+        return list(self.tables.keys())
 
 
-class PyHDXSource(AppSourceBase):
+class PyHDXSource(TableSource):
 
     _type = 'pyhdx'
 
-    tables = param.Dict({}, doc="Dictionary of tables in this Source")
     # table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
     # peptides
     # rfu_residues (rfu)
@@ -129,18 +128,4 @@ class PyHDXSource(AppSourceBase):
 
         self.updated = True
 
-    def get(self, table):
-        df = self.tables.get(table, None)
 
-        return df
-
-    def get_tables(self):
-        """
-        Returns the list of tables available on this source.
-        Returns
-        -------
-        list
-            The list of available tables on this source.
-        """
-
-        return list(self.tables.keys())

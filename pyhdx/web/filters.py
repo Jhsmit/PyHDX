@@ -11,8 +11,9 @@ from pyhdx.web.sources import AppSourceBase
 
 
 class AppFilterBase(param.Parameterized):
-
     """these filters get the data from source"""
+
+    _type = 'base'
 
     widgets = param.Dict(default={})
 
@@ -47,7 +48,7 @@ class TableSourceFilter(AppFilterBase):  #todo rename to something that includes
     #todo allow auto generate widgets as in control panels /  views
 
     def get(self):
-        df = self.source.get(self.table)  # returns None on KeyError #todo change to source.get_table
+        df = self.source.get_table(self.table)  # returns None on KeyError #todo change to source.get_table
         return df
 
     @param.depends('table', watch=True)
@@ -67,7 +68,10 @@ class TableSourceFilter(AppFilterBase):  #todo rename to something that includes
 
 
 class AppFilter(AppFilterBase):
-    """filter which acts on previous filters in a chain. source is also afilter"""
+    """filter which acts on previous filters in a chain. source is also a filter"""
+
+    _type = None  # None type cannot be used in apps directly
+
     source = param.ClassSelector(class_=AppFilterBase)
 
     def get(self):
