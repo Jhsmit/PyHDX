@@ -1,7 +1,9 @@
 config:
   title: PyHDX app
 
-main_controller: pyhdx #todo implement
+main_controller:
+  type: pyhdx
+  #kwargs: ...
 
 sources:
   main:

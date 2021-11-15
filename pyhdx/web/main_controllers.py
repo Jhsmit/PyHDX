@@ -41,7 +41,6 @@ class MainController(param.Parameterized):
     """
 
     sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
-    transforms = param.Dict({}, doc='Dictionary of transforms')
     filters = param.Dict({}, doc="Dictionary of filters")
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
@@ -98,6 +97,8 @@ class PyHDXController(MainController):
 
     """
 
+    _type = 'pyhdx'
+
     sample_name = param.String(doc='Name describing the selected protein(s) state')
 
     def __init__(self, *args, **kwargs):
@@ -116,18 +117,3 @@ class PyHDXController(MainController):
     # def _update_name(self):
     #     self.template.header[0].title = VERSION_STRING + ': ' + self.sample_name
 
-    @property
-    def hdx_set(self):
-        """Returns combined HDXMeasurementSet of all currently added data objects"""
-        #todo when alignments are added in, update this as (fixed) attribute
-
-        return HDXMeasurementSet(list(self.data_objects.values()))
-
-
-class ComparisonController(MainController):
-    """
-    Main controller for binary comparison web application.
-    """
-
-    datasets = param.Dict(default={}, doc='Dictionary for all datasets')
-    comparisons = param.Dict(default={}, doc='Dictionary for all comparisons (should be in sources)')

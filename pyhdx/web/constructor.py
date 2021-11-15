@@ -37,7 +37,7 @@ class AppConstructor(param.Parameterized):
         self.classes = self.find_classes()
        # self._logger_counters = {}
 
-    def parse(self, yaml_dict):
+    def parse(self, yaml_dict, **kwargs):
         self._parse_sections(yaml_dict)
         for name, dic in yaml_dict['modules'].items():
             self._parse_sections(dic)
@@ -45,8 +45,10 @@ class AppConstructor(param.Parameterized):
         d = yaml_dict['controllers']
         self.controllers = {name: self._resolve_class(name, 'controller') for name in d}
 
-    def make_ctrl(self, **kwargs):
-        ctrl = PyHDXController(  # todo ctrl_class from yaml
+        main_ctrl = yaml_dict['main_controller']
+        _type = main_ctrl.pop('type')
+        main_ctrl_class = self._resolve_class(_type, 'main')
+        ctrl = main_ctrl_class(
             self.controllers.values(),
             sources=self.sources,
             filters=self.filters,
@@ -54,18 +56,34 @@ class AppConstructor(param.Parameterized):
             views=self.views,
             logger=self.logger,
             client=default_client(),
-            **kwargs  # todo yaml these
+            **kwargs, **main_ctrl
         )
 
         return ctrl
+    #
+    # def make_ctrl(self, **kwargs):
+    #     ctrl = PyHDXController(  # todo ctrl_class from yaml
+    #         self.controllers.values(),
+    #         sources=self.sources,
+    #         filters=self.filters,
+    #         opts=self.opts,
+    #         views=self.views,
+    #         logger=self.logger,
+    #         client=default_client(),
+    #         **kwargs  # todo yaml these
+    #     )
+
+        # return ctrl
 
     @staticmethod
     def find_classes():
-        base_classes = {'filter': AppFilterBase,
-                        'source': AppSourceBase,
-                        'view': AppViewBase,
-                        'opt': OptsBase,
-                        'controller': ControlPanel}
+        base_classes = {
+            'main': MainController,
+            'filter': AppFilterBase,
+            'source': AppSourceBase,
+            'view': AppViewBase,
+            'opt': OptsBase,
+            'controller': ControlPanel}
         classes = {}
         for key, cls in base_classes.items():
             base_cls = base_classes[key]
@@ -93,29 +111,29 @@ class AppConstructor(param.Parameterized):
                     raise KeyError(f"The field 'source' is not specified for {section[:-1]} {name!r}")
                 func(name, _type, **spec)
 
-    def add_filter(self, name, class_, **kwargs):
+    def add_filter(self, name, _type, **kwargs):
         kwargs = self._resolve_kwargs(**kwargs)
-        class_ = self._resolve_class(class_, 'filter')
+        class_ = self._resolve_class(_type, 'filter')
         obj = class_(name=name, **kwargs)
         self.filters[name] = obj
 
-    def add_tool(self, name, class_, **kwargs):
+    def add_tool(self, name, _type, **kwargs):
         pass
 
-    def add_opt(self, name, class_, **kwargs):
-        class_ = self._resolve_class(class_, 'opt')
+    def add_opt(self, name, _type, **kwargs):
+        class_ = self._resolve_class(_type, 'opt')
         obj = class_(name=name, **kwargs)
         self.opts[name] = obj
 
-    def add_source(self, name, class_, **kwargs):
-        class_ = self._resolve_class(class_, 'source')
+    def add_source(self, name, _type, **kwargs):
+        class_ = self._resolve_class(_type, 'source')
         obj = class_(name=name, **kwargs)
 
         self.sources[name] = obj
 
-    def add_view(self, name, class_, **kwargs):
+    def add_view(self, name, _type, **kwargs):
         kwargs = self._resolve_kwargs(**kwargs)
-        class_ = self._resolve_class(class_, 'view')
+        class_ = self._resolve_class(_type, 'view')
         obj = class_(name=name, **kwargs)
         self.views[name] = obj
 
@@ -131,14 +149,8 @@ class AppConstructor(param.Parameterized):
     #     self._logger_counters[name] = count + 1
     #     wrapper.logger = logger
 
-    def contruct(self):
-        #todo allow logger to be able to construct multipe diffent apps
-        ctrl = PyHDXController(
-
-        )
-
-    def _resolve_class(self, name, type_):
-        return self.classes[type_][name]
+    def _resolve_class(self, _type, cls):
+        return self.classes[cls][_type]
 
     def _resolve_kwargs(self, **kwargs):
         resolved = {}
@@ -167,24 +179,6 @@ class AppConstructor(param.Parameterized):
                 resolved[k] = v
 
         return resolved
-
-
-class PyHDXConstructor(param.Parameterized):
-
-    def __init__(self, **params):
-        self.ctrl = PyHDXController
-
-        super().__init__(**params)
-
-
-
-    def add_coverage_figure(self):
-        self.add_filter(TableSourceFilter, name='peptide_src',
-                        source='main',  # todo if not source then use the one and only source?
-                        table='peptides')
-        self.add_filter(CrossSectionFilter, name='coverage_select',
-                        source='peptide_src',
-                        n_levels=2,)
 
 
 

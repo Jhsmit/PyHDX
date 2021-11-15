@@ -3,6 +3,7 @@ import time
 from pyhdx.config import cfg
 import argparse
 
+
 def default_client(timeout='2s'):
     """Return Dask client at scheduler adress as defined by the global config"""
     scheduler_address = cfg.get('cluster', 'scheduler_address')

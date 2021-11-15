@@ -11,15 +11,12 @@ from pyhdx.web.log import logger
 
 @logger('pyhdx')
 def main_app():
-
     cwd = Path(__file__).parent.resolve()
     yaml_dict = yaml.safe_load((cwd / 'pyhdx_app.yaml').read_text(encoding='utf-8'))
 
     ctr = AppConstructor(logger=main_app.logger)
-    self = ctr
 
-    ctr.parse(yaml_dict)
-    ctrl = ctr.make_ctrl()
+    ctrl = ctr.parse(yaml_dict)
 
     ctrl.start()
 
