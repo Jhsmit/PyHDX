@@ -168,8 +168,10 @@ class BokehFigurePanel(FigurePanel):
         return self.bk_pane
 
 
-class ControlPanel(PanelBase):
+class ControlPanel(param.Parameterized):
     """base class for left control pannels"""
+
+    _type = None
 
     header = 'Default Header'
 
