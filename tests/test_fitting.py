@@ -61,6 +61,7 @@ class TestSecBDataFit(object):
         # todo additional tests:
         #  result = fit_rates_half_time_interpolate()
 
+    @pytest.mark.skip(reason="Hangs on GitHub Actions on Ubuntu")
     def test_dtype_cuda(self):
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
