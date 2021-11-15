@@ -7,7 +7,7 @@ from pyhdx.local_cluster import default_client
 from pyhdx.support import gen_subclasses
 from pyhdx.web.controllers import *
 from pyhdx.web.filters import *
-from pyhdx.web.main_controllers import PyHDXController, MainController
+from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import OptsBase
 from pyhdx.web.sources import *
 from pyhdx.web.views import AppViewBase
@@ -23,19 +23,17 @@ class AppConstructor(param.Parameterized):
 
     views = param.Dict(default={})
 
-    controllers = param.Dict(default={}) #?
+    #controllers = param.Dict(default={}) #?
+
+    loggers = param.Dict(default={})
 
     ctrl_class = param.ClassSelector(class_=MainController, instantiate=False)
-
-    logger = param.ClassSelector(default=None, class_=logging.Logger, doc="Logger object")
 
     client = param.ClassSelector(default=None, class_=Client)
 
     def __init__(self, **params):
         super().__init__(**params)
-
         self.classes = self.find_classes()
-       # self._logger_counters = {}
 
     def parse(self, yaml_dict, **kwargs):
         self._parse_sections(yaml_dict)
@@ -54,26 +52,11 @@ class AppConstructor(param.Parameterized):
             filters=self.filters,
             opts=self.opts,
             views=self.views,
-            logger=self.logger,
             client=default_client(),
             **kwargs, **main_ctrl
         )
 
         return ctrl
-    #
-    # def make_ctrl(self, **kwargs):
-    #     ctrl = PyHDXController(  # todo ctrl_class from yaml
-    #         self.controllers.values(),
-    #         sources=self.sources,
-    #         filters=self.filters,
-    #         opts=self.opts,
-    #         views=self.views,
-    #         logger=self.logger,
-    #         client=default_client(),
-    #         **kwargs  # todo yaml these
-    #     )
-
-        # return ctrl
 
     @staticmethod
     def find_classes():
@@ -137,18 +120,6 @@ class AppConstructor(param.Parameterized):
         obj = class_(name=name, **kwargs)
         self.views[name] = obj
 
-    # def get_logger(self, name):
-    #     # todo add app name
-    #     count = self._logger_counters.get(name, 0)
-    #
-    #     dt = datetime.datetime.now().strftime('%Y%m%d')
-    #     logger = logging.getLogger(f'{name}.{dt}_{count}')
-    #     logger.setLevel(logging.DEBUG)
-    #     sys.stderr = StreamToLogger(logger, logging.DEBUG)
-    #
-    #     self._logger_counters[name] = count + 1
-    #     wrapper.logger = logger
-
     def _resolve_class(self, _type, cls):
         return self.classes[cls][_type]
 
@@ -172,8 +143,7 @@ class AppConstructor(param.Parameterized):
                         all_objects.append(getattr(self, type_)[obj])
                 resolved[k] = all_objects
             elif k == 'logger':
-                # v : something v
-                resolved[k] = self.logger
+                resolved[k] = self.loggers[v]
 
             else:
                 resolved[k] = v

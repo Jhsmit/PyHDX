@@ -14,7 +14,7 @@ def main_app():
     cwd = Path(__file__).parent.resolve()
     yaml_dict = yaml.safe_load((cwd / 'pyhdx_app.yaml').read_text(encoding='utf-8'))
 
-    ctr = AppConstructor(logger=main_app.logger)
+    ctr = AppConstructor(loggers={'pyhdx': main_app.logger})
 
     ctrl = ctr.parse(yaml_dict)
 
