@@ -602,6 +602,8 @@ class FitControl(ControlPanel):
             self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
                                     f"({result.regularization_percentage:.1f}%)")
 
+        self.widgets['do_fit'].loading = False
+
         # self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
         # self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
         # self.parent.sources['dataframe'].add_df(d_calc_df, 'd_calc', names=[name])
@@ -614,9 +616,12 @@ class FitControl(ControlPanel):
 
         self.parent.logger.info('Started PyTorch fit')
 
-        self._current_jobs += 1
-        if self._current_jobs >= self._max_jobs:
-            self.widgets['do_fit'].constant = True
+
+        # self._current_jobs += 1
+        # if self._current_jobs >= self._max_jobs:
+        #     self.widgets['do_fit'].constant = True
+
+        self.widgets['do_fit'].loading = True
 
         self.parent.logger.info(f'Current number of active jobs: {self._current_jobs}')
         if self.fit_mode == 'Batch':
