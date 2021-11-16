@@ -169,7 +169,7 @@ modules:
         type: droplevel
         source: rfu_select
         level: 0
-        axis: 1
+        axis: 1   # todo expand columns to include qty (perhaps this already done)
       rfu_rename:
         type: rename
         source: rfu_droplevel
@@ -274,7 +274,6 @@ modules:
           - gibbs
           - gibbs_errors
 
-
   ddG_view:
     filters:
       ddG_comparison_select:
@@ -285,7 +284,9 @@ modules:
         type: rescale
         source: ddG_comparison_select
         scale_factor: 1.0e-3   # TODO sclf vs scale_factor
-        column: ddG  # todo expand columns to include qty
+        columns:
+        - ddG  # todo expand columns to include qty
+        - covariance
     opts:
       ddG_axes:
         type: generic
@@ -308,6 +309,20 @@ modules:
           - ddG  # = cmap, raname
         x: r_number
         y: ddG
+      ddG_errors:
+        type: errorbars
+        source: ddG_rescale
+        opts:
+          - base
+          - errorbars
+        pos: r_number
+        value: ddG
+        err: covariance
+      ddG_overlay:
+        type: overlay
+        views:
+          - ddG
+          - ddG_errors
 
   # todo manual field for temporari things which cannot be yaml'd
   protein_view:

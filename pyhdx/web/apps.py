@@ -33,7 +33,7 @@ def main_app():
         'logging_info',
         'logging_debug',
         'protein',
-        'ddG',
+        'ddG_overlay',
         'rates',
         'gibbs_overlay'
         ]
@@ -50,7 +50,7 @@ def main_app():
         ('RFU', views['rfu_scatter'].panel),
         ('Rates', views['rates'].panel),
         ('ΔG', views['gibbs_overlay'].panel),
-        ('ΔΔG', views['ddG'].panel),
+        ('ΔΔG', views['ddG_overlay'].panel),
     )
 
     log_tab = pn.Tabs(
