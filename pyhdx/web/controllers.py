@@ -28,7 +28,7 @@ from pyhdx.plot import dG_scatter_figure, ddG_scatter_figure, linear_bars_figure
 from pyhdx.support import series_to_pymol, apply_cmap
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
-from pyhdx.web.widgets import ASyncProgressBar
+from pyhdx.web.widgets import ASyncProgressBar, CallbackProgress
 
 
 class DevTestControl(ControlPanel):
@@ -469,6 +469,12 @@ class FitControl(ControlPanel):
         self._max_jobs = 2  #todo config
         self._fit_names = {}
 
+    def make_dict(self):
+        widgets = self.generate_widgets()
+        # widgets['progress'] = CallbackProgress()
+
+        return widgets
+
     @property
     def src(self):
         return self.sources['main']
@@ -603,6 +609,7 @@ class FitControl(ControlPanel):
                                     f"({result.regularization_percentage:.1f}%)")
 
         self.widgets['do_fit'].loading = False
+        #self.widgets['progress'].max = self.epochs
 
         # self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
         # self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
@@ -616,12 +623,12 @@ class FitControl(ControlPanel):
 
         self.parent.logger.info('Started PyTorch fit')
 
-
         # self._current_jobs += 1
         # if self._current_jobs >= self._max_jobs:
         #     self.widgets['do_fit'].constant = True
 
         self.widgets['do_fit'].loading = True
+        #self.widgets['progress'].max = self.epochs
 
         self.parent.logger.info(f'Current number of active jobs: {self._current_jobs}')
         if self.fit_mode == 'Batch':
@@ -648,7 +655,8 @@ class FitControl(ControlPanel):
     @property
     def fit_kwargs(self):
         fit_kwargs = dict(r1=self.r1, lr=self.learning_rate, momentum=self.momentum, nesterov=self.nesterov,
-                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss)
+                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss,
+                          callbacks=[self.widgets['progress'].callback])
         if self.fit_mode == 'Batch':
             fit_kwargs['r2'] = self.r2
 

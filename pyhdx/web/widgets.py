@@ -338,3 +338,15 @@ class ASyncProgressBar(param.Parameterized):
             return pn.widgets.Progress(active=True, value=self.value, align="center", sizing_mode="stretch_width")
         else:
             return None
+
+
+class CallbackProgress(pn.widgets.Progress):
+
+    # this does not work as the worker is a different thread/process
+    # see: https://distributed.readthedocs.io/en/latest/scheduling-state.html
+    # and: https://stackoverflow.com/questions/44014988/how-to-get-information-about-a-particular-dask-task
+
+    # also, when using ThreadPoolExecutor, the whole story becomes again different
+
+    def callback(self, epoch, model, optimizer_obj):
+        self.value = epoch
