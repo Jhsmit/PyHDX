@@ -687,6 +687,10 @@ class ComparisonControl(ControlPanel):
         self._source_updated()  # todo filter source does not trigger updated when init
 
     @property
+    def src(self):
+        return self.sources['main']
+
+    @property
     def _layout(self):
         return [
             ('filters.ddG_fit_select', None),
@@ -706,27 +710,38 @@ class ComparisonControl(ControlPanel):
                 self.reference_state = options[0]
 
     def _action_add_comparison(self):
-        current_df = self.parent.sources['main'].get('ddG_comparison')
+        current_df = self.src.get_table('ddG_comparison')
         if current_df is not None and self.comparison_name in current_df.columns.get_level_values(level=0):
             self.parent.logger.info(f"Comparison name {self.comparison_name!r} already exists")
             return
 
         reference = self._df[self.reference_state]['deltaG']
         test = self._df.xs('deltaG', axis=1, level=1).drop(self.reference_state, axis=1)
-        compare = test.subtract(reference, axis=0)
+        #todo repeated code in plot.ddG_scatter_figure
+        ddG = test.subtract(reference, axis=0)
 
         columns = pd.MultiIndex.from_product(
-            [[self.comparison_name], compare.columns, ['ddG']],
+            [[self.comparison_name], ddG.columns, ['ddG']],
             names=['name', 'state', 'quantity'])
-        compare.columns = columns
+        ddG.columns = columns
+
+        cov_ref = self._df[self.reference_state, 'covariance'] ** 2
+        cov_test = self._df.xs('covariance', axis=1, level=1).drop(self.reference_state, axis=1) ** 2
+        cov = cov_test.add(cov_ref, axis=0).pow(0.5)
+        columns = pd.MultiIndex.from_product(
+            [[self.comparison_name], cov.columns, ['covariance']],
+            names=['name', 'state', 'quantity'])
+        cov.columns = columns
+
+        combined = pd.concat([ddG, cov], axis=1)
 
         if current_df is not None:
-            new_df = pd.concat([current_df, compare], axis=1)
+            new_df = pd.concat([current_df, combined], axis=1)
         else:
-            new_df = compare
+            new_df = combined
 
         self.parent.sources['main'].tables['ddG_comparison'] = new_df
-        self.parent.sources['main'].param.trigger('tables')
+        self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
         self.parent.sources['main'].updated = True
 
 
@@ -1509,6 +1524,7 @@ class SessionManagerControl(ControlPanel):
 
     def _load_session(self):
         if self.session_file is None:
+            self.parent.logger.info("No session file selected")
             return None
 
         if sys.getsizeof(self.session_file) > 5.e8:
@@ -1517,6 +1533,9 @@ class SessionManagerControl(ControlPanel):
 
         bio = BytesIO(self.session_file)
 
+        # todo: put pdb file in a source (PDBFileSource?)
+        # write / read it to/from zipfile
+        # make view read it
         session_zip = zipfile.ZipFile(bio)
         session_zip.printdir()
         names = set(session_zip.namelist())
@@ -1524,13 +1543,17 @@ class SessionManagerControl(ControlPanel):
 
         self._reset()
         src = self.sources['main']
-        for name in names & accepted_names:
+        tables = names & accepted_names
+        for name in tables:
             bio = BytesIO(session_zip.read(name))
             df = csv_to_dataframe(bio)
             src.tables[name.split('.')[0]] = df
 
-        src.param.trigger('tables')
+        src.param.trigger('tables')  #todo do not trigger tables?
         src.updated = True
+
+        self.parent.logger.info(f"Successfully loaded PyHDX session file: {self.widgets['session_file'].filename}")
+        self.parent.logger.info(f"Containing the following tables: {' ,'.join(tables)}")
 
     def _reset_session(self):
         self._reset()

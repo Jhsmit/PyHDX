@@ -46,6 +46,8 @@ opts:
     show_grid: True
   errorbars:
     type: generic
+    line_alpha: 0.5
+    line_color: '#8c8c8c'
     apply_ranges: False
   scatter:
     type: generic
