@@ -47,13 +47,11 @@ class MainController(param.Parameterized):
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
 
-    logger = param.ClassSelector(logging.Logger, doc="Logger object")
+    loggers = param.Dict({}, doc="Dictionary of loggers")
 
     def __init__(self, control_panels, client=False, **params):
         super(MainController, self).__init__(**params)
         self.client = client if client else Client()
-        if self.logger is None:
-            self.logger = logging.getLogger(str(id(self)))
 
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
@@ -105,17 +103,9 @@ class PyHDXController(MainController):
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
-    #
-    # @param.depends('data_objects', watch=True)
-    # def _datasets_updated(self):
-    #     if len(self.data_objects) == 0:
-    #         self.sample_name = ''
-    #     elif len(self.data_objects) == 1:
-    #         self.sample_name = str(next(iter(self.data_objects.keys())))
-    #     elif len(self.data_objects) < 5:
-    #         self.sample_name = ', '.join(self.data_objects.keys())
-    #
-    # @param.depends('sample_name', watch=True)
-    # def _update_name(self):
-    #     self.template.header[0].title = VERSION_STRING + ': ' + self.sample_name
+
+    @property
+    def logger(self):
+        return self.loggers['pyhdx']
+
 

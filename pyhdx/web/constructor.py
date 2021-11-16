@@ -53,6 +53,7 @@ class AppConstructor(param.Parameterized):
             filters=self.filters,
             opts=self.opts,
             views=self.views,
+            loggers=self.loggers,
             client=default_client(),
             **kwargs, **main_ctrl
         )
