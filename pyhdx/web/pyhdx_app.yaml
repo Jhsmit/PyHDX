@@ -44,6 +44,9 @@ opts:
     responsive: True
     framewise: True
     show_grid: True
+  errorbars:
+    type: generic
+    apply_ranges: False
   scatter:
     type: generic
     size: 8
@@ -231,7 +234,9 @@ modules:
         type: rescale
         source: dG_fit_select
         scale_factor: 1.0e-3
-        column: deltaG
+        columns:
+        - deltaG
+        - covariance
     opts:
       dG_axes:
         type: generic
@@ -241,8 +246,8 @@ modules:
         invert_yaxis: True
         color: deltaG
         colorbar: True
-        tools:
-          - dG_hover
+#        tools:
+#          - dG_hover
     views:
       gibbs: # todo rename dG??
         type: scatter
@@ -254,6 +259,21 @@ modules:
           - dG
         x: r_number
         y: deltaG
+      gibbs_errors:
+        type: errorbars
+        source: dG_rescale
+        opts:
+          - base
+          - errorbars
+        pos: r_number
+        value: deltaG
+        err: covariance
+      gibbs_overlay:
+        type: overlay
+        views:
+          - gibbs
+          - gibbs_errors
+
 
   ddG_view:
     filters:

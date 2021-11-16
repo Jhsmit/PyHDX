@@ -35,7 +35,7 @@ def main_app():
         'protein',
         'ddG',
         'rates',
-        'gibbs'
+        'gibbs_overlay'
         ]
 
     views = {v: ctrl.views[v] for v in views_names}
@@ -49,7 +49,7 @@ def main_app():
     scatter_tab = pn.Tabs(
         ('RFU', views['rfu_scatter'].panel),
         ('Rates', views['rates'].panel),
-        ('ΔG', views['gibbs'].panel),
+        ('ΔG', views['gibbs_overlay'].panel),
         ('ΔΔG', views['ddG'].panel),
     )
 

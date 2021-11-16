@@ -655,8 +655,8 @@ class FitControl(ControlPanel):
     @property
     def fit_kwargs(self):
         fit_kwargs = dict(r1=self.r1, lr=self.learning_rate, momentum=self.momentum, nesterov=self.nesterov,
-                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss,
-                          callbacks=[self.widgets['progress'].callback])
+                          epochs=self.epochs, patience=self.stop_patience, stop_loss=self.stop_loss,)
+                          #callbacks=[self.widgets['progress'].callback])
         if self.fit_mode == 'Batch':
             fit_kwargs['r2'] = self.r2
 

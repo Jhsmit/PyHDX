@@ -42,13 +42,13 @@ class AppConstructor(param.Parameterized):
             self._parse_sections(dic)
 
         d = yaml_dict['controllers']
-        self.controllers = {name: self._resolve_class(name, 'controller') for name in d}
+        controllers = {name: self._resolve_class(name, 'controller') for name in d}
 
         main_ctrl = yaml_dict['main_controller']
         _type = main_ctrl.pop('type')
         main_ctrl_class = self._resolve_class(_type, 'main')
         ctrl = main_ctrl_class(
-            self.controllers.values(),
+            controllers.values(),
             sources=self.sources,
             filters=self.filters,
             opts=self.opts,
@@ -96,7 +96,8 @@ class AppConstructor(param.Parameterized):
                     raise KeyError(f"The field 'type' is not specified for {section[:-1]} {name!r}")
                 _type = spec.pop('type')
                 if section in ['filters', 'views'] and 'source' not in spec:
-                    raise KeyError(f"The field 'source' is not specified for {section[:-1]} {name!r}")
+                    #raise KeyError(f"The field 'source' is not specified for {section[:-1]} {name!r}")
+                    print(f"The field 'source' is not specified for {section[:-1]} {name!r}")
                 func(name, _type, **spec)
 
     def add_filter(self, name, _type, **kwargs):
@@ -143,10 +144,13 @@ class AppConstructor(param.Parameterized):
                     obj = self.sources.get(v) or self.filters.get(v)  # can be none in case of logging
                     resolved[k] = obj
             elif k == 'opts':
-                v = [v] if isinstance(v, str) else v  # allow singly opt by str
+                v = [v] if isinstance(v, str) else v  # allow single opt by str
                 resolved[k] = [self.opts[vi] for vi in v]
+            elif k == 'views':
+                v = [v] if isinstance(v, str) else v  # allow single view by str
+                resolved[k] = [self.views[vi] for vi in v]
             elif k == 'tools':
-                v = [v] if isinstance(v, str) else v  # allow singly opt by str
+                v = [v] if isinstance(v, str) else v  # allow single tool by str
                 resolved[k] = [self.tools[vi] for vi in v]
             elif k == 'dependencies':  # dependencies are opts/filters/controllers? (anything with .updated event)
                 all_objects = []

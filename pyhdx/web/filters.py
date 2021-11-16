@@ -391,7 +391,7 @@ class RescaleFilter(GenericFilter):
 
     pd_function = 'assign'
 
-    column = param.String(doc='Name of the column to rescale')
+    columns = param.List(doc='Name of the columns to rescale')
 
     scale_factor = param.Number(1.)
 
@@ -399,14 +399,15 @@ class RescaleFilter(GenericFilter):
         df = self.source.get()
         if df is None:
             return None
-        df = df.assign(**self.pd_kwargs)
+        for column in self.columns:
+            df = df.assign(**{column: lambda x: x[column]*self.scale_factor})
 
         return df
 
-    @property
-    def pd_kwargs(self):
-        """kwargs to pass to pandas function to apply filter"""
-        return {self.column: lambda x: x[self.column]*self.scale_factor}
+    # @property
+    # def pd_kwargs(self):
+    #     """kwargs to pass to pandas function to apply filter"""
+    #     return {column: lambda x: x[column]*self.scale_factor for column in self.columns}
 
 
 class PivotFilter(GenericFilter):

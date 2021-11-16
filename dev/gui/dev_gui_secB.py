@@ -134,13 +134,13 @@ def init_dashboard():
     fit_control.learning_rate = 100
 
 
-    # ngl = ctrl.views['protein']
-    # ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
+    ngl = ctrl.views['protein']
+    ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
 
-    ctrl.views['protein'].object = pdb_string
-
-    fit_result = load_fitresult(fitresult_dir)
-    src.add(fit_result, 'fit_1')
+    # ctrl.views['protein'].object = pdb_string
+    #
+    # fit_result = load_fitresult(fitresult_dir)
+    # src.add(fit_result, 'fit_1')
 
 #     fit_control.fit_mode = 'Batch'
 #     fit_control._action_fit()
@@ -162,8 +162,8 @@ def init_dashboard():
 
 #if __name__ == '__main__':
 #pn.state.onload(reload_dashboard)
-#pn.state.onload(reload_tables)
-pn.state.onload(init_dashboard)
+pn.state.onload(reload_tables)
+#pn.state.onload(init_dashboard)
 
 if __name__ == '__main__':
     # sys._excepthook = sys.excepthook

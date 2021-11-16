@@ -100,6 +100,8 @@ class AppViewBase(param.Parameterized):
         Updates the cached Panel object and returns a boolean value
         indicating whether a rerender is required.
         """
+
+        #todo clenaup
         if self._panel is not None:
             self._cleanup()
             self._updates = self._get_params()
@@ -168,7 +170,7 @@ class hvAppView(AppViewBase):
             df = self.empty_df
 
         self._stream = Pipe(data=df)
-        return dict(object=self.get_plot(df), sizing_mode='stretch_both')  # todo update sizing mode
+        return dict(object=self.get_plot(), sizing_mode='stretch_both')  # todo update sizing mode
 
     @property
     def panel(self):
@@ -192,7 +194,7 @@ class hvScatterAppView(hvAppView):
         self._stream = None
         super().__init__(**params)
 
-    def get_plot(self, df):
+    def get_plot(self):
         """
 
         Parameters
@@ -240,7 +242,7 @@ class hvRectanglesAppView(hvAppView):
         #todo left and right cannot be none?
         super().__init__(**params)
 
-    def get_plot(self, df):
+    def get_plot(self):
         """
         Dataframe df must have columns x0, y0, x1, y1 (in this order) for coordinates
         bottom-left (x0, y0) and top right (x1, y1). Optionally a fifth value-column can be provided for colors
@@ -258,7 +260,9 @@ class hvRectanglesAppView(hvAppView):
                        kdims=self.kdims,
                        vdims=self.vdims)
         plot = hv.DynamicMap(func, streams=[self._stream])
-        plot = plot.apply.opts(**self.opts_dict)
+
+        if self.opts_dict:
+            plot = plot.apply.opts(**self.opts_dict)
 
         return plot
 
@@ -270,6 +274,112 @@ class hvRectanglesAppView(hvAppView):
     def empty_df(self):
         columns = self.kdims + self.vdims
         return pd.DataFrame([[0] * len(columns)], columns=columns)
+
+
+class hvErrorBarsAppView(hvAppView):
+
+    _type = 'errorbars'
+
+    pos = param.String('x', doc='Positions of the errobars, x-values for vertical errorbars')
+
+    value = param.String('y', doc="Values of the samples, y-values for vertical errorbars")
+
+    err = param.String(None, doc="Error values in both directions")
+
+    err_pos = param.String(None, doc="Error values in positive direction")
+
+    err_neg = param.String(None, doc="Error values in negative direction")
+
+    horizontal = param.Boolean(False, doc='error bar direction')
+
+    def __init__(self, **params):
+
+        #todo left and right cannot be none?
+        super().__init__(**params)
+
+    def get_plot(self):
+        """
+        Dataframe df must have columns x0, y0, x1, y1 (in this order) for coordinates
+        bottom-left (x0, y0) and top right (x1, y1). Optionally a fifth value-column can be provided for colors
+
+        Parameters
+        ----------
+        df
+
+        Returns
+        -------
+
+        """
+
+        func = partial(hv.ErrorBars,
+                       kdims=self.kdims,
+                       vdims=self.vdims,
+                       horizontal=self.horizontal)
+        plot = hv.DynamicMap(func, streams=[self._stream])
+
+        if self.opts_dict:
+            plot = plot.apply.opts(**self.opts_dict)
+
+        return plot
+
+    @property
+    def vdims(self):
+        if self.err is not None and self.err_pos is None and self.err_neg is None:
+            return [self.value, self.err]
+        elif self.err is None and self.err_pos is not None and self.err_neg is not None:
+            return [self.value, self.err_pos, self.err_neg]
+        else:
+            raise ValueError("Must set either only 'err' or both 'err_pos' and 'err_neg'")
+
+    @property
+    def kdims(self):
+        return [self.pos]
+
+    @property
+    def empty_df(self):
+        columns = self.kdims + self.vdims
+        return pd.DataFrame([[0] * len(columns)], columns=columns)
+
+
+class hvOverlayView(AppViewBase):
+
+    _type = 'overlay'
+
+    views = param.List(
+        doc='List of view instances to make overlay'
+    )
+
+    def update(self):
+        self._update_panel()
+
+    def _cleanup(self):
+        pass
+
+    def get_plot(self):
+        items = [view.get_plot() for view in self.views]
+        plot = hv.Overlay(items).collate()  # todo is collate always needed? Does it always return a DynamicMap? -> generalize
+
+        if self.opts_dict:
+            plot = plot.apply.opts(**self.opts_dict)
+
+        return plot
+
+    def _get_params(self):
+        return dict(object=self.get_plot(), sizing_mode='stretch_both')
+
+    def get_panel(self):
+        kwargs = self._get_params()
+        #interactive? https://github.com/holoviz/panel/issues/1824
+        return pn.pane.HoloViews(**kwargs)
+
+    @property
+    def panel(self):
+        if isinstance(self._panel, PaneBase):
+            pane = self._panel
+            if len(pane.layout) == 1 and pane._unpack:
+                return pane.layout[0]
+            return pane._layout
+        return self._panel
 
 
 class NGLView(AppViewBase):
