@@ -246,8 +246,8 @@ modules:
         invert_yaxis: True
         color: deltaG
         colorbar: True
-#        tools:
-#          - dG_hover
+        tools:
+          - dG_hover
     views:
       gibbs: # todo rename dG??
         type: scatter

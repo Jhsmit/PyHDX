@@ -160,6 +160,9 @@ class AppConstructor(param.Parameterized):
                 resolved[k] = all_objects
             elif k == 'logger':
                 resolved[k] = self.loggers[v]
+            elif k == 'tooltips':
+                # workaround for pyyaml not reading tuples directly
+                resolved[k] = [tuple(item) for item in v]
 
             else:
                 resolved[k] = v
