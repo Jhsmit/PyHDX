@@ -53,7 +53,7 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
             with open(fpath, 'r') as f:
                 hdr = f.readline().strip('# \n\t')
 
-        names = [name.lower() for name in hdr.split(',')]
+        names = [name.lower().strip('\r\t\n') for name in hdr.split(',')]
         df = pd.read_csv(fpath, header=0, names=names)
         dfs.append(df)
 
