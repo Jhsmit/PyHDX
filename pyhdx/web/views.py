@@ -112,7 +112,21 @@ class AppViewBase(param.Parameterized):
 
     @property  # todo move to init?
     def opts_dict(self):
-        return {k: v for d in self.opts for k, v in d.opts.items()}
+        # Combine all opts and merge overlapping lists of opts
+        # (currently to merge hooks, might be unwanted behaviour for others)
+        opts_dict = {}
+        for d in self.opts: # Iterate over Opts on this view
+            for k, v in d.opts.items(): # Iterate over all dict items in the Opt
+                if k in opts_dict:
+                    if isinstance(v, list) and isinstance(opts_dict[k], list):
+                        combined_list = opts_dict[k] + v
+                        opts_dict[k] = combined_list
+                    else:
+                        raise ValueError(f"Overlapping key {k} in opt {d.name}")
+                else:
+                    opts_dict[k] = v
+
+        return opts_dict
 
 
 class hvAppView(AppViewBase):
@@ -162,7 +176,7 @@ class hvAppView(AppViewBase):
     def get_panel(self):
         kwargs = self._get_params()
         #interactive? https://github.com/holoviz/panel/issues/1824
-        return pn.pane.HoloViews(**kwargs)
+        return pn.pane.HoloViews(**kwargs)  #linked_axes=False??
 
     def _get_params(self):
         df = self.get_data()

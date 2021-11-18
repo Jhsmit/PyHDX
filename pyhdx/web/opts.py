@@ -1,4 +1,5 @@
 from copy import copy
+from functools import partial, reduce
 
 import param
 import panel as pn
@@ -45,14 +46,60 @@ class GenericOpts(OptsBase):
 
     _type = 'generic'
 
+    hooks = param.List()
+
     def __init__(self, **params):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**{k: v for k, v in params.items() if k in self.param})
 
+    def hooks_factory(self):
+        def hook(hooks, plot, element):
+            for hook_spec in hooks:
+                handle = plot.handles[hook_spec['handle']]
+                rsetattr(handle, hook_spec['attr'], hook_spec['value'])
+
+        f = partial(hook, self.hooks)
+
+        return f
+
     @property
     def opts(self):
-        return self.kwargs
+      #  self.kwargs.update({'hooks': [self.hooks_factory()]})
+        return {'hooks': [self.hooks_factory()], **self.kwargs}
 
+
+# https://stackoverflow.com/questions/31174295/getattr-and-setattr-on-nested-subobjects-chained-properties
+def rsetattr(obj, attr, val):
+    pre, _, post = attr.rpartition('.')
+    return setattr(rgetattr(obj, pre) if pre else obj, post, val)
+
+
+def rgetattr(obj, attr, *args):
+    def _getattr(obj, attr):
+        return getattr(obj, attr, *args)
+    return reduce(_getattr, [obj] + attr.split('.'))
+
+
+class HooksOpts(OptsBase):
+
+    _type = 'hooks'
+
+    hooks = param.List()
+
+    def hooks_factory(self):
+        def hook(hooks, plot, element):
+            for hook_spec in hooks:
+                handle = plot.handles[hook_spec['handle']]
+                rsetattr(handle, hook_spec['attr'], hook_spec['value'])
+
+        f = partial(hook, self.hooks)
+
+        return f
+
+    @property
+    def opts(self):
+        opts = {'hooks': [self.hooks_factory()]}
+        return opts
 
 
 class CmapOpts(OptsBase):
@@ -126,7 +173,6 @@ class CmapOpts(OptsBase):
         self.clim = self.norm.vmin*self.sclf, self.norm.vmax*self.sclf
         # todo invert bool?
         #self.clim = self.norm.vmax*self.sclf, self.norm.vmin*self.sclf,
-
 
     def apply(self, data):
         """apply cmap / norm to data (pd series or df)"""
