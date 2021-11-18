@@ -115,8 +115,8 @@ class AppViewBase(param.Parameterized):
         # Combine all opts and merge overlapping lists of opts
         # (currently to merge hooks, might be unwanted behaviour for others)
         opts_dict = {}
-        for d in self.opts: # Iterate over Opts on this view
-            for k, v in d.opts.items(): # Iterate over all dict items in the Opt
+        for d in self.opts:  # Iterate over Opts on this view
+            for k, v in d.opts.items():  # Iterate over all dict items in the Opt
                 if k in opts_dict:
                     if isinstance(v, list) and isinstance(opts_dict[k], list):
                         combined_list = opts_dict[k] + v
