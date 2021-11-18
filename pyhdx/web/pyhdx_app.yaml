@@ -49,6 +49,13 @@ opts:
     line_alpha: 0.5
     line_color: '#8c8c8c'
     apply_ranges: False
+    hooks:
+      - handle: glyph
+        attr: upper_head.line_color
+        value: '#8c8c8c'
+      - handle: glyph
+        attr: lower_head.line_color
+        value: '#8c8c8c'
   scatter:
     type: generic
     size: 8
