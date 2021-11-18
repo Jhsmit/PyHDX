@@ -509,10 +509,10 @@ def linear_bars_figure(data, reference=None, field='deltaG', norm=None, cmap=Non
     cmap_norm.vmin *= sclf
     cmap_norm.vmax *= sclf
 
-    if field == 'deltaG':
-        label = dG_ylabel
-    elif field == 'deltaG' and reference_state:
+    if reference and field == 'deltaG':
         label = ddG_ylabel
+    elif field == 'deltaG':
+        label = dG_ylabel
     else:
         label = ''
 
