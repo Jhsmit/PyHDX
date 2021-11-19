@@ -301,27 +301,34 @@ class RectangleLayoutFilter(AppFilter):
         if df is None:
             return None
 
+        df = df.dropna(subset=[self.left, self.right]).sort_values(by=[self.left, self.right])
+
+        # todo fix types to be ints in the df
+        left = df[self.left].to_numpy(dtype=int)
+        right = df[self.right].to_numpy(dtype=int)
+
         if not self.wrap:
-            wrap = autowrap(df[self.left].to_numpy(dtype=int), df[self.right].to_numpy(dtype=int),  # todo fix types to be ints in the df
-                            margin=self.margin, step=self.step)
+            wrap = autowrap(left, right, margin=self.margin, step=self.step)
+        else:
+            wrap = self.wrap
 
         # Order of columns determines their role, not the names
         columns = ['x0', 'y0', 'x1', 'y1']  # bottom-left (x0, y0) and top right (x1, y1)
-        output_table = pd.DataFrame(index=df.index, columns=columns)
-        output_table['x0'] = df[self.left] - 0.5
-        output_table['x1'] = df[self.right] - 0.5
+        output_df = pd.DataFrame(index=df.index, columns=columns)
+        output_df['x0'] = left - 0.5
+        output_df['x1'] = right - 0.5
         cycle = itertools.cycle(range(self.height*wrap, 0, -self.height))  # Starts at y top, cyles with wrap
         yvals = np.array(list(itertools.islice(cycle, len(df)))) # Repeat cycle until the correct length
-        output_table['y0'] = yvals - self.height
-        output_table['y1'] = yvals
+        output_df['y0'] = yvals - self.height
+        output_df['y1'] = yvals
 
         if self.passthrough:
             for item in self.passthrough:
                 assert item not in ['value', 'index'], "Invalid field name, 'index' and 'value' names are reserved"
-                output_table[item] = df[item]
-        output_table['index'] = df.index
+                output_df[item] = df[item]
+        output_df['index'] = df.index
 
-        return output_table
+        return output_df
 
 
 class GenericFilter(AppFilter):
