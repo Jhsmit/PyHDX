@@ -289,6 +289,8 @@ class PeptideMasterTable(object):
         data = self.data.query(f'state == "{state}"').copy()
         if 'uptake_corrected' in data.columns:
             data.dropna(subset=['uptake_corrected'], inplace=True)
+        if len(data) == 0:
+            raise ValueError(f"No data found for state {state!r}, options are: {', '.join(self.data['state'].unique())}")
 
         return data
 
