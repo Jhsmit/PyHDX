@@ -41,6 +41,9 @@ class DevTestControl(ControlPanel):
 
     test_btn = param.Action(lambda self: self._action_test(), label='Test')
 
+    @property
+    def src(self):
+        return self.sources['main']
 
     def _action_debug(self):
         filters = self.filters
@@ -1314,6 +1317,8 @@ class FileExportControl(ControlPanel):
         norm = opt.norm
         if qty == 'dG':
             df = df.xs('deltaG', level=-1, axis=1)
+        elif qty == 'ddG':
+            df = df.xs('ddG', level=-1, axis=1)
 
         color_df = apply_cmap(df, cmap, norm)
 
