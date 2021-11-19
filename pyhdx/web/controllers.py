@@ -114,12 +114,13 @@ class PeptideFileInputControl(ControlPanel):
     dataset_name = param.String()
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
-    #dataset_list = param.ObjectSelector(default=[], label='Datasets', doc='Lists available datasets')
+    hdxm_list = param.ListSelector(default=[], label='HDX Measurements',
+                                     doc='Lists added HDX-MS measurements', constant=True)
 
     def __init__(self, parent, **params):
         self._excluded = ['be_percent']
         super(PeptideFileInputControl, self).__init__(parent, **params)
-
+        self.src.param.watch( self._hdxm_objects_updated, ['hdxm_objects'])
         self.update_box()
 
         self._df = None  # Numpy array with raw input data (or is pd.Dataframe?)
@@ -237,10 +238,10 @@ class PeptideFileInputControl(ControlPanel):
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries['end']))
 
-    def _datasets_updated(self, events):
+    def _hdxm_objects_updated(self, events):
         # Update datasets widget as datasets on parents change
-        objects = list(self.parent.data_objects.keys())
-        self.param['dataset_list'].objects = objects
+        objects = list(self.src.hdxm_objects.keys())
+        self.param['hdxm_list'].objects = objects
 
     def _action_add_dataset(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
@@ -277,7 +278,7 @@ class PeptideFileInputControl(ControlPanel):
 
     def _action_remove_datasets(self):
         raise NotImplementedError('Removing datasets not implemented')
-        for name in self.dataset_list:
+        for name in self.hdxm_list:
             self.parent.datasets.pop(name)
 
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
