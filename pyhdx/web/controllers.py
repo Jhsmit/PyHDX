@@ -233,7 +233,7 @@ class PeptideFileInputControl(ControlPanel):
             exposures = []
 
         self.param['exp_exposures'].objects = exposures
-        self.exp_exposures = exposures
+        self.exp_exposures = [e for e in exposures if e != 0.]
 
         if not self.dataset_name or self.dataset_name in self.param['exp_state'].objects:
             self.dataset_name = self.exp_state
