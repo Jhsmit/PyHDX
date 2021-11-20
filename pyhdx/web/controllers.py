@@ -60,16 +60,41 @@ class DevTestControl(ControlPanel):
         print('break')
 
     def _action_test(self):
-        view = self.views['coverage']
-        df = view.get_data()
-
+        df = self.src.tables['peptides']
         print(df)
+        for c in df.columns:
+            print(repr(c[-1]))
+        print('howdoe')
+
+
 
     @property
     def _layout(self):
         return [
             ('self', None),
         ]
+
+
+class MWEControl(ControlPanel):
+    """Temporary controller for use in the MWE app"""
+
+    _type = 'mwe'
+
+    new_data = param.Action(lambda self: self._action_new_data())
+
+    @property
+    def src(self):
+        return self.sources['main']
+
+    def _action_new_data(self):
+        df = pd.DataFrame({
+            'x': np.random.normal(loc=3, scale=2, size=100),
+            'y': np.random.normal(loc=2, scale=0.3, size=100),
+            'yerr': np.random.uniform(0.2, 1., size=100)
+        })
+
+        self.src.tables['test_data'] = df
+        self.src.param.trigger('updated')
 
 
 class PeptideFileInputControl(ControlPanel):

@@ -71,7 +71,7 @@ class PyHDXSource(TableSource):
         # todo load hdxms first
         #then use those to reload dG results
 
-    def add(self, obj, name):
+    def add(self, obj, name):  # todo Name is None and use obj name?
         if isinstance(obj, HDXMeasurement):
             self.hdxm_objects[name] = obj
             self.param.trigger('hdxm_objects')
