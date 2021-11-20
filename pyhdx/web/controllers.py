@@ -456,7 +456,10 @@ class FitControl(ControlPanel):
                       doc='Value of the regularizer along residue axis.')
 
     r2 = param.Number(R2, bounds=(0, None), label='Regularizer 2 (sample axis)',
-                      doc='Value of the regularizer along sample axis.', constant=True)
+                      doc='Value of the regularizer along sample axis.')
+
+    reference = param.Selector(None, allow_None=True, label='R2 reference',
+                               doc='Select reference state to use in batch fitting')
 
     fit_name = param.String("Gibbs_fit_1", doc="Name for for the fit result")
 
@@ -465,6 +468,7 @@ class FitControl(ControlPanel):
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar() #tqdm?
+        self._excluded = []
         super(FitControl, self).__init__(parent, **params)
 
         self.src.param.watch(self._source_updated, ['updated'])
@@ -472,6 +476,16 @@ class FitControl(ControlPanel):
         self._current_jobs = 0
         self._max_jobs = 2  #todo config
         self._fit_names = {}
+
+    @property  # todo base class
+    def own_widget_names(self):
+        return [name for name in self.widgets.keys() if name not in self._excluded]
+
+    @property
+    def _layout(self):
+        return [
+            ('self', self.own_widget_names),
+        ]
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -484,22 +498,29 @@ class FitControl(ControlPanel):
         return self.sources['main']
 
     def _source_updated(self, *events):
-        objects = list(self.src.rate_results.keys())
-        if objects:
+        rate_objects = list(self.src.rate_results.keys())
+        if rate_objects:
             self.param['do_fit'].constant = False
 
+        self.param['initial_guess'].objects = rate_objects
+        if not self.initial_guess and rate_objects:
+            self.initial_guess = rate_objects[0]
+
+        hdxm_objects = [None] + list(self.src.hdxm_objects.keys())
+        self.param['reference'].objects = hdxm_objects
         self._fit_mode_updated()
 
-        self.param['initial_guess'].objects = objects
-        if not self.initial_guess and objects:
-            self.initial_guess = objects[0]
 
     @param.depends('fit_mode', watch=True)
     def _fit_mode_updated(self):
         if self.fit_mode == 'Batch' and len(self.src.hdxm_objects) > 1:
-            self.param['r2'].constant = False
+            #self.param['r2'].constant = False
+            self._excluded = []
         else:
-            self.param['r2'].constant = True
+            #self.param['r2'].constant = True
+            self._excluded = ['r2', 'reference']
+
+        self.update_box()
 
     def add_fit_result(self, future):
         #todo perhaps all these dfs should be in the future?
@@ -663,6 +684,7 @@ class FitControl(ControlPanel):
                           #callbacks=[self.widgets['progress'].callback])
         if self.fit_mode == 'Batch':
             fit_kwargs['r2'] = self.r2
+            fit_kwargs['reference'] = self.reference
 
         return fit_kwargs
 
