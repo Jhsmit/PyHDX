@@ -58,7 +58,7 @@ class TestMainGUISecB(object):
         file_input_control.fd_exposure = self.control[1]
 
         file_input_control.exp_state = self.state
-        timepoints = list(np.array([0.0, 0.167, 0.5, 1.0, 5.0, 10.0, 100.000008])*60)
+        timepoints = list(np.array([0.167, 0.5, 1.0, 5.0, 10.0, 100.000008])*60)
         assert file_input_control.exp_exposures == timepoints
         file_input_control._action_add_dataset()
 
