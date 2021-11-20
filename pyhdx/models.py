@@ -442,7 +442,7 @@ class Coverage(object):
 
     """
 
-    def __init__(self, data, c_term=0, n_term=1, sequence=''):
+    def __init__(self, data, n_term=1, c_term=None, sequence=''):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
         self.data = data.sort_values(['start', 'end'], axis=0)
@@ -452,7 +452,7 @@ class Coverage(object):
 
         if n_term:
             start = min(start, n_term)
-        if sequence and not c_term:
+        if sequence and c_term is None:
             c_term = len(sequence) + n_term - 1
         if c_term:
             if c_term + 1 < end:
@@ -653,7 +653,7 @@ class HDXMeasurement(object):
         index_intersection = reduce(pd.Index.intersection, [d.index for d in data_list])
         intersected_data = [df.loc[index_intersection].reset_index() for df in data_list]
 
-        cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [0, 1, ''])}
+        cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [None, 1, ''])}
 
         self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
