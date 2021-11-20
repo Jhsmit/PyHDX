@@ -65,11 +65,11 @@ class TestMainGUISecB(object):
         assert self.state in src.hdxm_objects
         hdxm = src.hdxm_objects[self.state]
 
-        assert hdxm.Nt == 7
+        assert hdxm.Nt == 6
         assert hdxm.Np == 63
         assert hdxm.Nr == 146
 
-        assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.5405487325857496)
+        assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.630640188016708)
 
     @pytest.mark.skip(reason="Hangs in GitHub Actions")
     def test_batch_mode(self):

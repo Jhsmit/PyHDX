@@ -35,7 +35,8 @@ def main_app():
         'protein',
         'ddG_overlay',
         'rates',
-        'gibbs_overlay'
+        'gibbs_overlay',
+        'peptide_scatter'
         ]
 
     views = {v: ctrl.views[v] for v in views_names}
@@ -58,8 +59,13 @@ def main_app():
         ('Debug log', views['logging_debug'].panel)
     )
 
+    peptide_tab = pn.Tabs(
+        ('Peptide', views['peptide_scatter'].panel)
+    )
+
     tmpl.main[0:3, 0:6] = cov_tab
     tmpl.main[0:3, 6:12] = scatter_tab
     tmpl.main[3:5, 0:6] = log_tab
+    tmpl.main[3:5, 6:12] = peptide_tab
 
     return ctrl, tmpl

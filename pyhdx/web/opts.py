@@ -65,8 +65,25 @@ class GenericOpts(OptsBase):
     @property
     def opts(self):
       #  self.kwargs.update({'hooks': [self.hooks_factory()]})
-        return {'hooks': [self.hooks_factory()], **self.kwargs}
+        return {'hooks': [self.hooks_factory()], **self._parse_kwargs(self.kwargs)}
 
+    @staticmethod
+    def _parse_kwargs(kwargs):
+        out = {}
+        for k, v in kwargs.items():
+            if k in ['xlim', 'ylim'] and isinstance(v, list):
+                out[k] = tuple(v)
+            elif k in ['padding'] and isinstance(v, list):
+                out[k] = to_tuple(v)
+            else:
+                out[k] = v
+
+        return out
+
+
+#https://stackoverflow.com/questions/27049998/convert-a-mixed-nested-list-to-a-nested-tuple/27050037#27050037
+def to_tuple(lst):
+    return tuple(to_tuple(i) if isinstance(i, list) else i for i in lst)
 
 # https://stackoverflow.com/questions/31174295/getattr-and-setattr-on-nested-subobjects-chained-properties
 def rsetattr(obj, attr, val):

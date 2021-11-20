@@ -434,6 +434,7 @@ class PivotFilter(GenericFilter):
         #todo get_params func which finds the correct params here
         return dict(index=self.index, columns=self.columns, values=self.values)
 
+
 class StackFilter(GenericFilter):
     _type = 'stack'
 
@@ -451,13 +452,39 @@ class StackFilter(GenericFilter):
         return dict(level=self.level, dropna=self.dropna)
 
 
-
 class ConcatFilter(AppFilter):
     """app filter which combines multiple dfs"""
     def __init__(self, **params):
         raise NotImplementedError()
 
+
 class TransformFilter(AppFilter):
     pd_function = param.String('transform')
     def __init__(self, **params):
         raise NotImplementedError()
+
+
+class PipeFilter(AppFilter):
+
+    """applies a list of pandas functions
+
+    (not exactly the same as df.pipe)
+
+    """
+
+    _type = 'pipe'
+
+    pipe = param.List()  # list of dicts
+
+    def get(self):
+        df = self.source.get()
+        if df is None:
+            return None
+        for d in self.pipe:
+            func = getattr(df, d['function'])
+            args = d.get('args', [])
+            kwargs = d.get('kwargs', {})
+
+            df = func(*args, **kwargs)
+
+        return df

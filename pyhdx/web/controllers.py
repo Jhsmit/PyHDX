@@ -1656,6 +1656,7 @@ class GraphControl(ControlPanel):
             'rates': pn.pane.Markdown('### Rates'),
             'dG': pn.pane.Markdown('### ΔG'),
             'ddG': pn.pane.Markdown('### ΔΔG'),
+            'peptide': pn.pane.Markdown('### Peptides')
             #'debugging': pn.pane.Markdown('### Debugging'),
 
         }
@@ -1675,6 +1676,8 @@ class GraphControl(ControlPanel):
             ('filters.dG_fit_select', None),
             ('self', 'ddG'),
             ('filters.ddG_comparison_select', None),
+            ('self', 'peptide'),
+            ('filters.peptide_select', None)
 
         ]
 

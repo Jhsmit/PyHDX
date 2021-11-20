@@ -173,7 +173,7 @@ modules:
       rfu_select:
         type: cross_section
         source: rfu_src
-        n_levels: 0
+        n_levels: 0  # todo change to -1?
       rfu_droplevel:
         type: droplevel
         source: rfu_select
@@ -232,6 +232,59 @@ modules:
           - rates
         x: r_number
         y: rate
+
+  peptides:
+    filters:
+      peptide_pipe:
+        type: pipe
+        source: peptide_src
+        pipe:
+          - function: xs
+            args:
+              - uptake_corrected
+            kwargs:
+              axis: 1
+              level: -1
+              drop_level: False
+          - function: stack
+            kwargs:
+              level: 1
+          - function: unstack
+            kwargs:
+              level: 0
+          - function: swaplevel
+            kwargs:
+              axis: 1
+          - function: dropna
+            kwargs:
+              axis: 0
+              how: all
+          - function: dropna
+            kwargs:
+              axis: 1
+              how: all
+      peptide_select:
+        type: cross_section
+        source: peptide_pipe
+        n_levels: -1
+    opts:
+      peptide_scatter:
+        type: generic
+        logx: True
+        ylim: [0, null]
+        xlabel: Exposure time (s)
+        ylabel: D-uptake (corrected)
+    views:
+      peptide_scatter:
+        type: scatter
+        source: peptide_select
+        x: exposure
+        y: uptake_corrected
+        opts:
+          - base
+          - scatter
+          - peptide_scatter
+
 
   dG:
     filters:
