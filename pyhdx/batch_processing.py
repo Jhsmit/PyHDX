@@ -66,8 +66,8 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
     temperature += t_offset
 
     sequence = yaml_dict.get('sequence', '')
-    c_term = yaml_dict.get('c_term', 0)
-    n_term = yaml_dict.get('n_term', 1)
+    c_term = yaml_dict.get('c_term')
+    n_term = yaml_dict.get('n_term') or 1
 
     if not (c_term or sequence):
         raise ValueError("Must specify either 'c_term' or 'sequence'")
