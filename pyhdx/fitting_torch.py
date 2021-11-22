@@ -123,7 +123,7 @@ class TorchFitResult(object):
         names = [hdxm.name for hdxm in self.hdxm_set.hdxm_list]
 
         dfs = [self.generate_output(hdxm, self.deltaG[g_column]) for hdxm, g_column in zip(self.hdxm_set, self.deltaG)]
-        df = pd.concat(dfs, keys=names, axis=1)
+        df = pd.concat(dfs, keys=names, names=['state', 'quantity'], axis=1)
 
         self.output = df
 
