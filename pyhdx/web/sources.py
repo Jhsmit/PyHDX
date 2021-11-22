@@ -97,6 +97,7 @@ class PyHDXSource(TableSource):
         # todo catch valueerror duplicate entries
         # todo this pivot reuses 'state' column entries which gives wrong 'state' in name in final index
         # should be user-entered state name
+        # also: make index dtype int
         pivoted = combined \
             .stack(level=0) \
             .pivot(index='id', columns=['state', 'exposure']) \
@@ -127,7 +128,7 @@ class PyHDXSource(TableSource):
             new = df
         self.tables['dG_fits'] = new
 
-        # Add calculated d-uptake values
+        # Add calculated d-uptake values (#todo add method on FitResults object that does this?)
         timepoints = fit_result.hdxm_set.timepoints
         tmin = np.log10(timepoints[np.nonzero(timepoints)].min())
         tmax = np.log10(timepoints.max())
@@ -150,9 +151,24 @@ class PyHDXSource(TableSource):
             new = pd.concat([current, df], axis=1)
         else:
             new = df
+        self.tables['d_calc'] = new
+
+
+        # Add losses df
+        df = fit_result.losses.copy()
+
+        tuples = [(name, column) for column in df.columns]  # losses df is not multiindex
+        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'loss_type'])
+        df.columns = columns
+
+        if 'loss' in self.tables:
+            current = self.tables['loss']
+            new = pd.concat([current, df], axis=1)
+        else:
+            new = df
+        self.tables['loss'] = new
 
         self.dG_fits[name] = fit_result
-        self.tables['d_calc'] = new
 
         self.updated = True
 

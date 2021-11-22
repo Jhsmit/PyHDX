@@ -38,6 +38,7 @@ def main_app():
         'gibbs_overlay',
         #'peptide_scatter',
         'peptide_overlay',
+        'loss_lines'
         ]
 
     views = {v: ctrl.views[v] for v in views_names}
@@ -61,7 +62,8 @@ def main_app():
     )
 
     peptide_tab = pn.Tabs(
-        ('Peptide', views['peptide_overlay'].panel)
+        ('Peptide', views['peptide_overlay'].panel),
+        ('Losses', views['loss_lines'].panel)
     )
 
     tmpl.main[0:3, 0:6] = cov_tab

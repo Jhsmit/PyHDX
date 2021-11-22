@@ -26,6 +26,10 @@ filters:
     type: table_source
     source: main
     table: dG_fits
+  loss_src:
+    type: table_source
+    source: main
+    table: loss
   d_calc_src:
     type: table_source
     source: main
@@ -48,6 +52,7 @@ opts:
     responsive: True
     framewise: True
     show_grid: True
+    shared_axes: False  # doesnt seem to do anything
   errorbars:
     type: generic
     line_alpha: 0.5
@@ -307,6 +312,20 @@ modules:
         views:
           - peptide_scatter
           - d_calc_line
+
+  loss:
+    filters:
+      loss_select:
+        type: cross_section
+        source: loss_src
+        n_levels: -1
+    views:
+      loss_lines:
+        type: hvplot
+        source: loss_select
+        kind: line
+        opts:
+          - base
 
   dG:
     filters:

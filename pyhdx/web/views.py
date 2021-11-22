@@ -11,6 +11,7 @@ import param
 from bokeh.models import HoverTool, Span, Rect, Whisker
 from bokeh.models.formatters import NumeralTickFormatter
 from bokeh.plotting import figure
+from hvplot import hvPlotTabular
 from panel.pane.base import PaneBase
 
 from pyhdx.support import autowrap
@@ -176,7 +177,7 @@ class hvAppView(AppViewBase):
     def get_panel(self):
         kwargs = self._get_params()
         #interactive? https://github.com/holoviz/panel/issues/1824
-        return pn.pane.HoloViews(**kwargs)  #linked_axes=False??
+        return pn.pane.HoloViews(linked_axes=False,  **kwargs)  #linked_axes=False??
 
     def _get_params(self):
         df = self.get_data()
@@ -195,6 +196,44 @@ class hvAppView(AppViewBase):
             return pane._layout
         return self._panel
 
+
+class hvPlotView(hvAppView):
+
+    _type = 'hvplot'
+
+    kind = param.String()
+
+    def __init__(self, **params):
+        self.kwargs = {k: v for k, v in params.items() if k not in self.param}
+        super().__init__(**{k: v for k, v in params.items() if k in self.param})        #baseclass??
+        self._stream = None
+
+    def get_plot(self):
+        """
+
+        Parameters
+        ----------
+        df
+
+        Returns
+        -------
+
+        """
+
+        def func(data, kind, **kwargs):
+            return getattr(hvPlotTabular(data), kind)(responsive=True, **kwargs)
+
+        pfunc = partial(func, kind=self.kind)
+
+        plot = hv.DynamicMap(pfunc, streams=[self._stream])
+        plot = plot.apply.opts(**self.opts_dict)
+
+        return plot
+
+    @property
+    def empty_df(self):
+        df = pd.DataFrame({'null': [np.nan], 'y2': [np.nan]})
+        return df
 
 class hvCurveLineView(hvAppView):
 
@@ -220,8 +259,6 @@ class hvCurveLineView(hvAppView):
         -------
 
         """
-        print(self.kdims)
-        print(self.vdims)
 
         func = partial(hv.Curve, kdims=self.kdims, vdims=self.vdims)
         plot = hv.DynamicMap(func, streams=[self._stream])
