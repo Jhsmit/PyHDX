@@ -389,7 +389,7 @@ def load_fitresult(fit_dir):
         fit_result = csv_to_dataframe(fit_dir)
         assert isinstance(hdxm, pyhdx.HDXMeasurement), 'No valid HDXMeasurement data object supplied'
     else:
-        raise ValueError("Invalid fit result directory specified")
+        raise ValueError("Specified fit result path is not a directory")
 
     fit_metadata = fit_result.attrs.pop('metadata')
     model_klass = getattr(import_module('pyhdx.fitting_torch'), fit_metadata['model_name'])
