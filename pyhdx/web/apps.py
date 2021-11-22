@@ -36,7 +36,8 @@ def main_app():
         'ddG_overlay',
         'rates',
         'gibbs_overlay',
-        'peptide_scatter'
+        #'peptide_scatter',
+        'peptide_overlay',
         ]
 
     views = {v: ctrl.views[v] for v in views_names}
@@ -60,7 +61,7 @@ def main_app():
     )
 
     peptide_tab = pn.Tabs(
-        ('Peptide', views['peptide_scatter'].panel)
+        ('Peptide', views['peptide_overlay'].panel)
     )
 
     tmpl.main[0:3, 0:6] = cov_tab

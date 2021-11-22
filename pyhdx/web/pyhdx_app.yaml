@@ -26,6 +26,10 @@ filters:
     type: table_source
     source: main
     table: dG_fits
+  d_calc_src:
+    type: table_source
+    source: main
+    table: d_calc
   ddG_src:
     type: table_source
     source: main
@@ -233,7 +237,7 @@ modules:
         x: r_number
         y: rate
 
-  peptides:
+  peptides:  # peptide tab with d_exp and d_calc
     filters:
       peptide_pipe:
         type: pipe
@@ -267,6 +271,10 @@ modules:
         type: cross_section
         source: peptide_pipe
         n_levels: -1
+      d_calc_select:
+        type: cross_section
+        source: d_calc_src
+        n_levels: -1
     opts:
       peptide_scatter:
         type: generic
@@ -274,6 +282,9 @@ modules:
         ylim: [0, null]
         xlabel: Exposure time (s)
         ylabel: D-uptake (corrected)
+      d_calc_line:
+        type: generic
+        color: black
     views:
       peptide_scatter:
         type: scatter
@@ -284,7 +295,18 @@ modules:
           - base
           - scatter
           - peptide_scatter
-
+      d_calc_line:
+        type: curve
+        source: d_calc_select
+        opts:
+          - d_calc_line  # todo allow definition of opts in place?
+        x: exposure
+        y: d_calc
+      peptide_overlay:
+        type: overlay
+        views:
+          - peptide_scatter
+          - d_calc_line
 
   dG:
     filters:

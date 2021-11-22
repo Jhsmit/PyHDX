@@ -1,5 +1,6 @@
 import pandas as pd
 import param
+import numpy as np
 
 from pyhdx import TorchFitResult
 from pyhdx.fitting import RatesFitResult
@@ -76,8 +77,9 @@ class PyHDXSource(TableSource):
             self.hdxm_objects[name] = obj
             self.param.trigger('hdxm_objects')
         elif isinstance(obj, TorchFitResult):
-            self.dG_fits[name] = obj
-            self.param.trigger('dG_fits')
+            #self.dG_fits[name] = obj
+            self._add_dG_fit(obj, name)
+            #self.param.trigger('dG_fits')
         elif isinstance(obj, RatesFitResult):
             self.rate_results[name] = obj
             self.param.trigger('rate_results')
@@ -89,10 +91,12 @@ class PyHDXSource(TableSource):
         return HDXMeasurementSet(list(self.hdxm_objects.values()))
 
     @param.depends('hdxm_objects', watch=True)
-    def _hdxm_objects_updated(self):
+    def _hdxm_objects_updated(self):  # todo change to hdxm object added?
         combined = pd.concat([hdxm.data for hdxm in self.hdxm_objects.values()], axis=1,
                              keys=self.hdxm_objects.keys(), names=['state', 'quantity'])  #todo 'state' or 'name' or 'protein_state'?
         # todo catch valueerror duplicate entries
+        # todo this pivot reuses 'state' column entries which gives wrong 'state' in name in final index
+        # should be user-entered state name
         pivoted = combined \
             .stack(level=0) \
             .pivot(index='id', columns=['state', 'exposure']) \
@@ -101,7 +105,7 @@ class PyHDXSource(TableSource):
 
         self.tables['peptides'] = pivoted  # level 3 multiindex
 
-        #RFU per residue per exposure
+        # RFU per residue per exposure
         dfs = [hdxm.rfu_residues for hdxm in self.hdxm_objects.values()]
         combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'exposure'])
         self.tables['rfu_residues'] = combined
@@ -109,7 +113,50 @@ class PyHDXSource(TableSource):
         # todo this erorrs: self.param.trigger('tables')
         self.updated = True
 
-    @param.depends('dG_fits', watch=True)
+    def _add_dG_fit(self, fit_result, name):
+        # Add deltaG values table (+ covariances etc)
+        df = fit_result.output.copy()
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
+        df.columns = columns
+
+        if 'dG_fits' in self.tables:
+            current = self.tables['dG_fits']
+            new = pd.concat([current, df], axis=1)
+        else:
+            new = df
+        self.tables['dG_fits'] = new
+
+        # Add calculated d-uptake values
+        timepoints = fit_result.hdxm_set.timepoints
+        tmin = np.log10(timepoints[np.nonzero(timepoints)].min())
+        tmax = np.log10(timepoints.max())
+        pad = 0.05 * (tmax - tmin)  # 5% padding percentage
+
+        tvec = np.logspace(tmin - pad, tmax + pad, num=100, endpoint=True)
+        d_calc = fit_result(tvec)
+
+        Ns, Np, Nt = d_calc.shape
+        reshaped = d_calc.reshape(Ns * Np, Nt)
+        columns = pd.MultiIndex.from_product(
+            [[name], fit_result.hdxm_set.names, np.arange(Np), ['d_calc']],
+            names=['Fit one', 'state', 'id', 'quantity'])
+        index = pd.Index(tvec, name='exposure')
+        df = pd.DataFrame(reshaped.T, index=index, columns=columns)
+        df = df.loc[:, (df != 0).any(axis=0)]  # remove zero columns, replace with NaN when possible
+
+        if 'd_calc' in self.tables:
+            current = self.tables['d_calc']
+            new = pd.concat([current, df], axis=1)
+        else:
+            new = df
+
+        self.dG_fits[name] = fit_result
+        self.tables['d_calc'] = new
+
+        self.updated = True
+
+#    @param.depends('dG_fits', watch=True)
     def _fit_results_updated(self):  #todo method name / result dicts names
         combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
                              keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])

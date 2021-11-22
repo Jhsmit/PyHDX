@@ -196,6 +196,53 @@ class hvAppView(AppViewBase):
         return self._panel
 
 
+class hvCurveLineView(hvAppView):
+
+    _type = 'curve'
+
+    x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
+
+    y = param.String(None, doc="The column to render on the y-axis.")
+
+    def __init__(self, **params):
+        #baseclass??
+        self._stream = None
+        super().__init__(**params)
+
+    def get_plot(self):
+        """
+
+        Parameters
+        ----------
+        df
+
+        Returns
+        -------
+
+        """
+        print(self.kdims)
+        print(self.vdims)
+
+        func = partial(hv.Curve, kdims=self.kdims, vdims=self.vdims)
+        plot = hv.DynamicMap(func, streams=[self._stream])
+        plot = plot.apply.opts(**self.opts_dict)
+
+        return plot
+
+    @property
+    def kdims(self):
+        return [self.x] if self.x is not None else None
+
+    @property
+    def vdims(self):
+        return [self.y] if self.y is not None else None
+
+    @property
+    def empty_df(self):
+        columns = (self.kdims or ['x']) + (self.vdims or ['y'])
+        return pd.DataFrame([[np.nan] * len(columns)], columns=columns)
+
+
 class hvScatterAppView(hvAppView):
 
     _type = 'scatter'
@@ -220,14 +267,19 @@ class hvScatterAppView(hvAppView):
 
         """
 
-        kdims = [self.x] if self.x is not None else None
-        vdims = [self.y] if self.y is not None else None
-
-        func = partial(hv.Scatter, kdims=kdims, vdims=vdims)
+        func = partial(hv.Scatter, kdims=self.kdims, vdims=self.vdims)
         plot = hv.DynamicMap(func, streams=[self._stream])
         plot = plot.apply.opts(**self.opts_dict)
 
         return plot
+
+    @property
+    def kdims(self):
+        return [self.x] if self.x is not None else None
+
+    @property
+    def vdims(self):
+        return [self.y] if self.y is not None else None
 
     @property
     def empty_df(self):

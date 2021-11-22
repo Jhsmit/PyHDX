@@ -535,7 +535,6 @@ class FitControl(ControlPanel):
         self.param['reference'].objects = hdxm_objects
         self._fit_mode_updated()
 
-
     @param.depends('fit_mode', watch=True)
     def _fit_mode_updated(self):
         if self.fit_mode == 'Batch' and len(self.src.hdxm_objects) > 1:
@@ -673,7 +672,7 @@ class FitControl(ControlPanel):
 
         self.parent.logger.info('Started PyTorch fit')
 
-        # self._current_jobs += 1
+        self._current_jobs += 1
         # if self._current_jobs >= self._max_jobs:
         #     self.widgets['do_fit'].constant = True
 
@@ -709,7 +708,7 @@ class FitControl(ControlPanel):
                           #callbacks=[self.widgets['progress'].callback])
         if self.fit_mode == 'Batch':
             fit_kwargs['r2'] = self.r2
-            fit_kwargs['reference'] = self.reference
+            fit_kwargs['r2_reference'] = self.reference
 
         return fit_kwargs
 
@@ -1656,7 +1655,8 @@ class GraphControl(ControlPanel):
             'rates': pn.pane.Markdown('### Rates'),
             'dG': pn.pane.Markdown('### ΔG'),
             'ddG': pn.pane.Markdown('### ΔΔG'),
-            'peptide': pn.pane.Markdown('### Peptides')
+            'peptide': pn.pane.Markdown('### Peptides'),
+            'd_calc_peptide': pn.pane.Markdown('### D calc')
             #'debugging': pn.pane.Markdown('### Debugging'),
 
         }
@@ -1677,7 +1677,9 @@ class GraphControl(ControlPanel):
             ('self', 'ddG'),
             ('filters.ddG_comparison_select', None),
             ('self', 'peptide'),
-            ('filters.peptide_select', None)
+            ('filters.peptide_select', None),
+            ('self', 'd_calc_peptide'),
+            ('filters.d_calc_select', None)
 
         ]
 
