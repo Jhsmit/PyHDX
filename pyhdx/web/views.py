@@ -221,7 +221,10 @@ class hvPlotView(hvAppView):
         """
 
         def func(data, kind, **kwargs):
-            return getattr(hvPlotTabular(data), kind)(responsive=True, **kwargs)
+            #return hvPlotTabular(data)(kind=kind, width=None, height=None, responsive=True, **kwargs)
+            return hvPlotTabular(data).line(responsive=True, **kwargs)
+
+            #return getattr(hvPlotTabular(data), kind)(responsive=True, **kwargs)
 
         pfunc = partial(func, kind=self.kind)
 
@@ -235,7 +238,8 @@ class hvPlotView(hvAppView):
         df = pd.DataFrame({'null': [np.nan], 'y2': [np.nan]})
         return df
 
-class hvCurveLineView(hvAppView):
+
+class hvCurveView(hvAppView):
 
     _type = 'curve'
 

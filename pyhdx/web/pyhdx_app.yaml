@@ -315,9 +315,14 @@ modules:
 
   loss:
     filters:
+      loss_sample:
+        type: sample
+        source: loss_src
+        axis: 0
+        n: 1000
       loss_select:
         type: cross_section
-        source: loss_src
+        source: loss_sample
         n_levels: -1
     views:
       loss_lines:

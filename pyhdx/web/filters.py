@@ -458,6 +458,52 @@ class ConcatFilter(AppFilter):
         raise NotImplementedError()
 
 
+class SampleFilter(AppFilter):
+    """subsamples dataframe along """
+
+    _type = 'sample'
+
+    n = param.Integer(None, bounds=(0, None),
+                      doc="Number of subsamples to return. Incompatible with frac")
+
+    frac = param.Number(None, bounds=(0., 1.),
+                        doc='Fraction of subsamples to return. Incompatible with n')
+
+    random = param.Boolean(False, doc='whether to sample randomly or equidistanly spaced')
+
+    axis = param.Number(0, inclusive_bounds=(0, 1))
+
+    def get(self):
+        df = self.source.get()
+        if df is None:
+            return None
+
+        if (self.frac is None) != (self.n is not None):
+            raise ValueError("Must specify either 'n' or 'frac'")
+
+        if self.random:
+            df = df.sample(
+                n=self.n,
+                frac=self.frac,
+                axis=self.axis)  # todo allow other kwargs?
+        else:
+            size = df.shape[self.axis]
+            if self.n is not None:
+                step = size // self.n
+            else:
+                step = int(1/self.frac)
+
+            slice_step = slice(None, None, step)
+            slice_all = slice(None)
+
+            col_slicer = slice_step if self.axis else slice_all
+            row_slicer = slice_all if self.axis else slice_step
+
+            df = df.iloc[row_slicer, col_slicer]
+
+        return df
+
+
 class TransformFilter(AppFilter):
     pd_function = param.String('transform')
     def __init__(self, **params):
