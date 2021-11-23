@@ -329,8 +329,14 @@ modules:
         type: hvplot
         source: loss_select
         kind: line
+        responsive: True
         opts:
           - base
+          - labels:
+              type: generic
+              xlabel: Number of Epochs
+              ylabel: Loss
+              xlim: [0, null]
 
   dG:
     filters:

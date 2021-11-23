@@ -12,6 +12,7 @@ from bokeh.models import HoverTool, Span, Rect, Whisker
 from bokeh.models.formatters import NumeralTickFormatter
 from bokeh.plotting import figure
 from hvplot import hvPlotTabular
+from hvplot.plotting.core import hvPlotBase
 from panel.pane.base import PaneBase
 
 from pyhdx.support import autowrap
@@ -221,12 +222,9 @@ class hvPlotView(hvAppView):
         """
 
         def func(data, kind, **kwargs):
-            #return hvPlotTabular(data)(kind=kind, width=None, height=None, responsive=True, **kwargs)
-            return hvPlotTabular(data).line(responsive=True, **kwargs)
+            return hvPlotTabular(data)(kind=kind, **kwargs)
 
-            #return getattr(hvPlotTabular(data), kind)(responsive=True, **kwargs)
-
-        pfunc = partial(func, kind=self.kind)
+        pfunc = partial(func, kind=self.kind, **self.kwargs)
 
         plot = hv.DynamicMap(pfunc, streams=[self._stream])
         plot = plot.apply.opts(**self.opts_dict)

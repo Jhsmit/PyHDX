@@ -13,6 +13,7 @@ from pyhdx.web.sources import *
 from pyhdx.web.tools import supported_tools
 from pyhdx.web.views import AppViewBase
 
+element_count = 0
 
 class AppConstructor(param.Parameterized):
 
@@ -88,52 +89,41 @@ class AppConstructor(param.Parameterized):
     def _parse_sections(self, yaml_dict):
         sections = ['sources', 'filters', 'tools', 'opts', 'views']
         for section in sections:
-            func = getattr(self, f'add_{section[:-1]}')  # Remove trailing s to get correct adder function
+            element = section[:-1]
+            element_dict = getattr(self, element + 's')
+
             d = yaml_dict.get(section, {})
             for name, spec in d.items():
+                if name in element_dict:
+                    raise ValueError(f"The element {element!r} with name {name!r} already exists")
                 # todo move to classmethod on object which checks spec/kwargs  (also prevents logger from needing a source)
                 if 'type' not in spec:
                     raise KeyError(f"The field 'type' is not specified for {section[:-1]} {name!r}")
-                _type = spec.pop('type')
+                #_type = spec.pop('type')
                 if section in ['filters', 'views'] and 'source' not in spec:
                     #raise KeyError(f"The field 'source' is not specified for {section[:-1]} {name!r}")
                     print(f"The field 'source' is not specified for {section[:-1]} {name!r}")
-                func(name, _type, **spec)
+                obj = self.create_element(name, element, **spec)
+                element_dict[name] = obj
 
-    def add_filter(self, name, _type, **kwargs):
-        kwargs = self._resolve_kwargs(**kwargs)
-        class_ = self._resolve_class(_type, 'filter')
+    def create_element(self, name, element, **spec):
+        global element_count
+
+        _type = spec.pop('type')
+        kwargs = self._resolve_kwargs(**spec)
+        class_ = self._resolve_class(_type, element)
         obj = class_(name=name, **kwargs)
-        self.filters[name] = obj
+        element_count += 1
 
-    def add_tool(self, name, _type, **kwargs):
-        kwargs = self._resolve_kwargs(**kwargs)
-        class_ = self._resolve_class(_type, 'tool')
-        obj = class_(**kwargs)
-        self.tools[name] = obj
-
-    def add_opt(self, name, _type, **kwargs):
-        class_ = self._resolve_class(_type, 'opt')
-        kwargs = self._resolve_kwargs(**kwargs)
-        obj = class_(name=name, **kwargs)
-        self.opts[name] = obj
-
-    def add_source(self, name, _type, **kwargs):
-        class_ = self._resolve_class(_type, 'source')
-        obj = class_(name=name, **kwargs)
-
-        self.sources[name] = obj
-
-    def add_view(self, name, _type, **kwargs):
-        kwargs = self._resolve_kwargs(**kwargs)
-        class_ = self._resolve_class(_type, 'view')
-        obj = class_(name=name, **kwargs)
-        self.views[name] = obj
+        return obj
+        #
 
     def _resolve_class(self, _type, cls):
         return self.classes[cls][_type]
 
     def _resolve_kwargs(self, **kwargs):
+        global element_count
+
         resolved = {}
         for k, v in kwargs.items():
             if k == 'source':
@@ -144,8 +134,19 @@ class AppConstructor(param.Parameterized):
                     obj = self.sources.get(v) or self.filters.get(v)  # can be none in case of logging
                     resolved[k] = obj
             elif k == 'opts':
-                v = [v] if isinstance(v, str) else v  # allow single opt by str
-                resolved[k] = [self.opts[vi] for vi in v]
+                v = [v] if isinstance(v, (str, dict)) else v  # allow single opt by str/dict (needs testing)
+                opts = []
+                for vi in v:
+                    if isinstance(vi, dict):  # in situ opt declaration
+                        if len(vi) != 1:
+                            raise ValueError("Opts ")
+                        name = next(iter(vi))  # get the first key
+                        obj = self.create_element(f'{name}_{element_count:05d}', 'opt', **vi[name])  # should these in situ opts be added to global opts? probably not or they should have nested names
+                        opts.append(obj)
+                    else:
+                        opts.append(self.opts[vi])
+
+                resolved[k] = opts#[self.opts[vi] for vi in v]
             elif k == 'views':
                 v = [v] if isinstance(v, str) else v  # allow single view by str
                 resolved[k] = [self.views[vi] for vi in v]
