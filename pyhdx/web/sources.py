@@ -93,7 +93,11 @@ class PyHDXSource(TableSource):
     @param.depends('hdxm_objects', watch=True)
     def _hdxm_objects_updated(self):  # todo change to hdxm object added?
         combined = pd.concat([hdxm.data for hdxm in self.hdxm_objects.values()], axis=1,
-                             keys=self.hdxm_objects.keys(), names=['state', 'quantity'])  #todo 'state' or 'name' or 'protein_state'?
+                             keys=self.hdxm_objects.keys()).convert_dtypes(convert_floating=False) #todo 'state' or 'name' or 'protein_state'?
+        # Assign names after as convert_dtypes has a bug: https://github.com/pandas-dev/pandas/issues/41435
+        combined.columns.names = ['state', 'quantity']
+
+
         # todo catch valueerror duplicate entries
         # todo this pivot reuses 'state' column entries which gives wrong 'state' in name in final index
         # should be user-entered state name
@@ -102,9 +106,9 @@ class PyHDXSource(TableSource):
             .stack(level=0) \
             .pivot(index='peptide_id', columns=['state', 'exposure']) \
             .reorder_levels(['state', 'exposure', 'quantity'], axis=1) \
-            .sort_index(axis=1)
+            .sort_index(axis=1)   # level 3 multiindex
 
-        self.tables['peptides'] = pivoted  # level 3 multiindex
+        self.tables['peptides'] = pivoted
 
         # RFU per residue per exposure
         dfs = [hdxm.rfu_residues for hdxm in self.hdxm_objects.values()]
@@ -142,7 +146,7 @@ class PyHDXSource(TableSource):
         reshaped = d_calc.reshape(Ns * Np, Nt)
         columns = pd.MultiIndex.from_product(
             [[name], fit_result.hdxm_set.names, np.arange(Np), ['d_calc']],
-            names=['Fit one', 'state', 'peptide_id', 'quantity'])
+            names=['fit_ID', 'state', 'peptide_id', 'quantity'])
         index = pd.Index(tvec, name='exposure')
         df = pd.DataFrame(reshaped.T, index=index, columns=columns)
         df = df.loc[:, (df != 0).any(axis=0)]  # remove zero columns, replace with NaN when possible
@@ -169,7 +173,6 @@ class PyHDXSource(TableSource):
         self.tables['loss'] = new
 
         #Add MSE per peptide df
-
         squared_errors = fit_result.get_squared_errors()
 
         dfs = {}
@@ -180,7 +183,9 @@ class PyHDXSource(TableSource):
             data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'peptide_mse': mse[:hdxm.Np]}
             dfs[hdxm.name] = pd.DataFrame(data_dict)
 
-        mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
+        # current bug: convert dtypes drop column names: https://github.com/pandas-dev/pandas/issues/41435
+        # use before assigning column names
+        mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1).convert_dtypes()
         mse_df.index.name = 'peptide_id'
         tuples = [(name, *tup) for tup in mse_df.columns]
         columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
