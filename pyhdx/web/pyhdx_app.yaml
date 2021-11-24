@@ -34,6 +34,10 @@ filters:
     type: table_source
     source: main
     table: d_calc
+  peptide_mse_src:
+    type: table_source
+    source: main
+    table: peptide_mse
   ddG_src:
     type: table_source
     source: main
@@ -90,10 +94,16 @@ tools:
   coverage_hover:
     type: hover
     tooltips:
-      - ['id', '$index']
+      - ['peptide_id', '$index']
       - ['RFU', '@rfu']
       - ['D (corrected)', '@uptake_corrected']
       - ['sequence', '@sequence']
+  peptide_mse_hover:
+    type: hover
+    tooltips:
+      - ['peptide_id', '$index']
+      - ['MSE', '@peptide_mse']
+      # todo sequence?
   rfu_hover:
     type: hover
     tooltips:
@@ -312,6 +322,39 @@ modules:
         views:
           - peptide_scatter
           - d_calc_line
+
+  peptide_mse:
+    filters:
+      peptide_mse_select:
+        type: cross_section
+        source: peptide_mse_src
+        n_levels: -1
+      peptide_mse_rectangles:
+        type: rectangle_layout
+        source: peptide_mse_select
+        left: start
+        right: end
+        passthrough:
+          - peptide_mse
+    views:
+      peptide_mse:
+        type: rectangles
+        source: peptide_mse_rectangles
+        opts:
+          - base
+          - labels:
+              type: generic
+              xlabel: Residue Number
+              ylabel: ''
+              yticks: 0
+              color: peptide_mse
+              colorbar: True
+              cmap: cividis
+              tools:
+                - peptide_mse_hover
+        vdims:
+          - peptide_mse
+
 
   loss:
     filters:

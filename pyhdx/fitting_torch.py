@@ -205,8 +205,8 @@ class TorchFitResult(object):
         dataframe_to_file(file_path, self.output, include_version=include_version, include_metadata=metadata,
                           fmt=fmt, **kwargs)
 
-    def get_mse(self):
-        """np.ndarray: Returns the mean squared error per peptide per timepoint. Output shape is Np x Nt"""
+    def get_squared_errors(self):
+        """np.ndarray: Returns the squared error per peptide per timepoint. Output shape is Ns x Np x Nt"""
 
         d_calc = self(self.hdxm_set.timepoints)
         mse = (d_calc - self.hdxm_set.d_exp) ** 2

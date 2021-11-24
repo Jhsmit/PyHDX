@@ -446,6 +446,7 @@ class Coverage(object):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
         self.data = data.sort_values(['start', 'end'], axis=0)
+        self.data.index.name = 'peptide_id' # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
 
         start = self.data['_start'].min()
         end = self.data['_end'].max()
@@ -665,8 +666,8 @@ class HDXMeasurement(object):
 
         self.data = pd.concat(intersected_data, axis=0, ignore_index=True).\
             sort_values(['start', 'end', 'sequence', 'exposure'])
-        self.data['id'] = self.data.index % self.Np
-        self.data.index.name = 'peptide_index'
+        self.data['peptide_id'] = self.data.index % self.Np
+        self.data.index.name = 'peptide_index'  # index is original index which continues along exposures
 
     def __str__(self):
         """
@@ -842,6 +843,7 @@ class HDXMeasurement(object):
             deltaG = np.log(p_guess) * constants.R * self.temperature
 
         # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+        # todo or use: df.interpolate(limit_direction="both") (pandas)
         bools = ~np.isfinite(deltaG)
         deltaG[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), deltaG[~bools])
 
@@ -1066,6 +1068,9 @@ class HDXMeasurementSet(object):
 
     def __iter__(self):
         return self.hdxm_list.__iter__()
+
+    def __getitem__(self, item):
+        return self.hdxm_list.__getitem__(item)
 
     @property
     def Ns(self):

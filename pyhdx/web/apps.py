@@ -36,6 +36,7 @@ def main_app():
         'ddG_overlay',
         'rates',
         'gibbs_overlay',
+        'peptide_mse',
         #'peptide_scatter',
         'peptide_overlay',
         'loss_lines'
@@ -46,7 +47,8 @@ def main_app():
 
     cov_tab = pn.Tabs(
         ('Coverage', views['coverage'].panel),
-        ('Protein', views['protein'].panel)
+        ('Protein', views['protein'].panel),
+        ('Peptide MSE', views['peptide_mse'].panel)
     )
 
     scatter_tab = pn.Tabs(

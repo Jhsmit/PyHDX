@@ -100,7 +100,7 @@ class PyHDXSource(TableSource):
         # also: make index dtype int
         pivoted = combined \
             .stack(level=0) \
-            .pivot(index='id', columns=['state', 'exposure']) \
+            .pivot(index='peptide_id', columns=['state', 'exposure']) \
             .reorder_levels(['state', 'exposure', 'quantity'], axis=1) \
             .sort_index(axis=1)
 
@@ -137,11 +137,12 @@ class PyHDXSource(TableSource):
         tvec = np.logspace(tmin - pad, tmax + pad, num=100, endpoint=True)
         d_calc = fit_result(tvec)
 
+        # Reshape the c_calc numpy array (Ns x Np x Nt to pandas dataframe (index: Ns, columns: multiiindex Ns, Np)
         Ns, Np, Nt = d_calc.shape
         reshaped = d_calc.reshape(Ns * Np, Nt)
         columns = pd.MultiIndex.from_product(
             [[name], fit_result.hdxm_set.names, np.arange(Np), ['d_calc']],
-            names=['Fit one', 'state', 'id', 'quantity'])
+            names=['Fit one', 'state', 'peptide_id', 'quantity'])
         index = pd.Index(tvec, name='exposure')
         df = pd.DataFrame(reshaped.T, index=index, columns=columns)
         df = df.loc[:, (df != 0).any(axis=0)]  # remove zero columns, replace with NaN when possible
@@ -152,7 +153,6 @@ class PyHDXSource(TableSource):
         else:
             new = df
         self.tables['d_calc'] = new
-
 
         # Add losses df
         df = fit_result.losses.copy()
@@ -167,6 +167,26 @@ class PyHDXSource(TableSource):
         else:
             new = df
         self.tables['loss'] = new
+
+        #Add MSE per peptide df
+
+        squared_errors = fit_result.get_squared_errors()
+
+        dfs = {}
+        for mse_sample, hdxm in zip(squared_errors, fit_result.hdxm_set):
+            peptide_data = hdxm[0].data
+            mse = np.mean(mse_sample, axis=1)
+            # Indexing of mse_sum with Np to account for zero-padding
+            data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'peptide_mse': mse[:hdxm.Np]}
+            dfs[hdxm.name] = pd.DataFrame(data_dict)
+
+        mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
+        mse_df.index.name = 'peptide_id'
+        tuples = [(name, *tup) for tup in mse_df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
+        mse_df.columns = columns
+
+        self.tables['peptide_mse'] = mse_df
 
         self.dG_fits[name] = fit_result
 
