@@ -713,10 +713,10 @@ class FitControl(ControlPanel):
         return fit_kwargs
 
 
-class ComparisonControl(ControlPanel):
-    _type = 'comparison'
+class DifferentialControl(ControlPanel):
+    _type = 'diff'
 
-    header = 'Comparison (ΔΔG)'
+    header = 'Differential HDX (ΔΔG)'
 
     reference_state = param.Selector(
         doc='Which of the states to use as reference'
@@ -770,9 +770,10 @@ class ComparisonControl(ControlPanel):
         #todo repeated code in plot.ddG_scatter_figure
         ddG = test.subtract(reference, axis=0)
 
+        names = ['comparison_name', 'comparison_state', 'quantity']
         columns = pd.MultiIndex.from_product(
             [[self.comparison_name], ddG.columns, ['ddG']],
-            names=['name', 'state', 'quantity'])
+            names=names)
         ddG.columns = columns
 
         cov_ref = self._df[self.reference_state, 'covariance'] ** 2
@@ -780,7 +781,7 @@ class ComparisonControl(ControlPanel):
         cov = cov_test.add(cov_ref, axis=0).pow(0.5)
         columns = pd.MultiIndex.from_product(
             [[self.comparison_name], cov.columns, ['covariance']],
-            names=['name', 'state', 'quantity'])
+            names=names)
         cov.columns = columns
 
         combined = pd.concat([ddG, cov], axis=1)

@@ -517,7 +517,7 @@ controllers:
   - peptide_file_input
   - initial_guess
   - fit
-  - comparison
+  - diff
   - color_transform
   - protein  #rename: NGL?
   - graph
