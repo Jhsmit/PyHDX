@@ -1629,58 +1629,89 @@ class GraphControl(ControlPanel):
 
     header = 'Graph Control'
 
-    spin = param.Boolean(default=False, doc='Spin the protein object')
-
-    state = param.Selector(doc="Name of the currently selected state")
-    fit_id = param.Selector(doc="Name of the currently selected fit ID")
-    peptide_index = param.Selector(doc="Index of the currently selected peptide")
-
     def __init__(self, parent, **params):
         super(GraphControl, self).__init__(parent, **params)
-        #source = self.sources['dataframe']
-        self.src.param.watch(self._hdxm_objects_updated, 'hdxm_objects')
+        self.widget_filters = [
+            'coverage_select',
+            'rfu_select',
+            'rates_select',
+            'dG_fit_select',
+            'ddG_comparison_select',
+            'peptide_select',
+            'd_calc_select',
+        ]  # list of names of filters which should be compressed/displayed
+        filters = [self.filters[f] for f in self.widget_filters]
+        for f in filters:
+            f.param.watch(self._filters_redrawn, 'redrawn')
 
-        # widget = self.widgets['state']
-        # target = self.filters['dG_fit_select'].selectors[0]
-        # widget.link(target, value='value')
+    def _filters_redrawn(self, *events):
+        # todo they may all/multiple redraw at the same time so this gets called multiple times
+        widgets = self.make_dict()
+        filter_widgets = self._link_widgets()
+
+        self.widgets = {**widgets, **filter_widgets}
+        self.update_box()
+
+    def _link_widgets(self):
+        filter_dict = {flt: self.filters[flt].widgets.keys() for flt in self.widget_filters}
+        grouped = {}
+        for k, v in filter_dict.items():
+            for vi in v:
+                if vi in grouped.keys():
+                    grouped[vi].append(k)
+                else:
+                    grouped[vi] = [k]
+
+        output_widgets = {}
+        for widget_name, filters in grouped.items():
+            if len(filters) > 1:
+                master_widget = self.filters[filters[0]].widgets[widget_name]
+                client_widgets = [self.filters[filt].widgets[widget_name] for filt in filters[1:]]
+                for client in client_widgets:
+                    master_widget.link(client, value='value')
+
+                output_widgets[widget_name] = master_widget
+            else:
+                output_widgets[widget_name] = self.filters[filters[0]].widgets[widget_name]
+        return output_widgets
 
     @property
     def src(self):
         return self.sources['main']
 
-    def make_dict(self):
-        widgets = {
-            'general': pn.pane.Markdown('### General'),
-            'coverage': pn.pane.Markdown('### Coverage'),
-            'rfu': pn.pane.Markdown('### RFU'),
-            'rates': pn.pane.Markdown('### Rates'),
-            'dG': pn.pane.Markdown('### ΔG'),
-            'ddG': pn.pane.Markdown('### ΔΔG'),
-            'peptide': pn.pane.Markdown('### Peptides'),
-            'd_calc_peptide': pn.pane.Markdown('### D calc')
-            #'debugging': pn.pane.Markdown('### Debugging'),
-
-        }
-
-        return {**widgets, **self.generate_widgets()}
+    # def make_dict(self):
+    #     widgets = {
+    #         'general': pn.pane.Markdown('### General'),
+    #         'coverage': pn.pane.Markdown('### Coverage'),
+    #         'rfu': pn.pane.Markdown('### RFU'),
+    #         'rates': pn.pane.Markdown('### Rates'),
+    #         'dG': pn.pane.Markdown('### ΔG'),
+    #         'ddG': pn.pane.Markdown('### ΔΔG'),
+    #         'peptide': pn.pane.Markdown('### Peptides'),
+    #         'd_calc_peptide': pn.pane.Markdown('### D calc')
+    #         #'debugging': pn.pane.Markdown('### Debugging'),
+    #
+    #     }
+    #
+    #     return {**widgets, **self.generate_widgets()}
 
     @property
     def _layout(self):
         return [
-            ('self', 'coverage'),
-            ('filters.coverage_select', None),
-            ('self', 'rfu'),
-            ('filters.rfu_select', None),
-            ('self', 'rates'),
-            ('filters.rates_select', None),
-            ('self', 'dG'),
-            ('filters.dG_fit_select', None),
-            ('self', 'ddG'),
-            ('filters.ddG_comparison_select', None),
-            ('self', 'peptide'),
-            ('filters.peptide_select', None),
-            ('self', 'd_calc_peptide'),
-            ('filters.d_calc_select', None)
+            ('self', None),
+            # ('filters.coverage_select', None),
+            # ('self', 'rfu'),
+            # ('filters.rfu_select', None),
+            # ('self', 'rates'),
+            # ('filters.rates_select', None),
+            # ('self', 'dG'),
+            # ('filters.dG_fit_select', None),
+            # ('self', 'ddG'),
+            # ('filters.ddG_comparison_select', None),
+            # ('self', 'peptide'),
+            # ('filters.peptide_select', None),
+            # ('self', 'd_calc_peptide'),
+            # ('filters.d_calc_select', None)
 
         ]
 

@@ -97,7 +97,7 @@ class CrossSectionFilter(AppFilter):
 
     level = param.List()
 
-    drop_level = param.Boolean(True)
+    drop_level = param.Boolean(True)  # note that there is a probable? bug when the xs result has one column not all levels are dropped
 
     names = param.List(None, doc="List of label names for widgets")
 

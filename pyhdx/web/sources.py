@@ -7,9 +7,6 @@ from pyhdx.fitting import RatesFitResult
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 
 
-#todo refactor module to models?
-
-
 class AppSourceBase(param.Parameterized):
     """Base class for sources"""
 
@@ -51,7 +48,6 @@ class TableSource(AppSourceBase):
 
 
 class PyHDXSource(TableSource):
-
     _type = 'pyhdx'
 
     # table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
@@ -59,13 +55,13 @@ class PyHDXSource(TableSource):
     # rfu_residues (rfu)
     # rates
     # dG_fits (dG)
-    # ddG_comparison
+    # ddG_comparison (ddG)
+    # d_calc
+    # peptide_mse (has colormap but not user configurable)
 
-    #data objects: (perhaps these should be on the main controller? to make the source more general / serialiable?
     hdxm_objects = param.Dict({})
     rate_results = param.Dict({})  # dataframes?
     dG_fits = param.Dict({})
-    #cmaps = param.Dict(default=CMAP_DEFAULTS)
 
     def from_file(self):
         pass
@@ -74,12 +70,9 @@ class PyHDXSource(TableSource):
 
     def add(self, obj, name):  # todo Name is None and use obj name?
         if isinstance(obj, HDXMeasurement):
-            self.hdxm_objects[name] = obj
-            self.param.trigger('hdxm_objects')
+            self._add_hdxm_object(obj, name)
         elif isinstance(obj, TorchFitResult):
-            #self.dG_fits[name] = obj
             self._add_dG_fit(obj, name)
-            #self.param.trigger('dG_fits')
         elif isinstance(obj, RatesFitResult):
             self.rate_results[name] = obj
             self.param.trigger('rate_results')
@@ -90,32 +83,22 @@ class PyHDXSource(TableSource):
     def hdx_set(self):
         return HDXMeasurementSet(list(self.hdxm_objects.values()))
 
-    @param.depends('hdxm_objects', watch=True)
-    def _hdxm_objects_updated(self):  # todo change to hdxm object added?
-        combined = pd.concat([hdxm.data for hdxm in self.hdxm_objects.values()], axis=1,
-                             keys=self.hdxm_objects.keys()).convert_dtypes(convert_floating=False) #todo 'state' or 'name' or 'protein_state'?
-        # Assign names after as convert_dtypes has a bug: https://github.com/pandas-dev/pandas/issues/41435
-        combined.columns.names = ['state', 'quantity']
+    def _add_hdxm_object(self, hdxm, name):  # where name is new 'protein state' entry (or used for state (#todo clarify))
+        # Add peptide data
+        df = hdxm.data_wide
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure', 'quantity'])
+        df.columns = columns
+        self._add_table(df, 'peptides')
 
+        # Add rfu per residue data
+        df = hdxm.rfu_residues
+        tuples = [(name, column) for column in df.columns]  # todo the rfus need an additional level (rfu / name:quantity)
+        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure'])
+        df.columns = columns
+        self._add_table(df, 'rfu_residues')
 
-        # todo catch valueerror duplicate entries
-        # todo this pivot reuses 'state' column entries which gives wrong 'state' in name in final index
-        # should be user-entered state name
-        # also: make index dtype int
-        pivoted = combined \
-            .stack(level=0) \
-            .pivot(index='peptide_id', columns=['state', 'exposure']) \
-            .reorder_levels(['state', 'exposure', 'quantity'], axis=1) \
-            .sort_index(axis=1)   # level 3 multiindex
-
-        self.tables['peptides'] = pivoted
-
-        # RFU per residue per exposure
-        dfs = [hdxm.rfu_residues for hdxm in self.hdxm_objects.values()]
-        combined = pd.concat(dfs, axis=1, keys=self.hdxm_objects.keys(), names=['state', 'exposure'])
-        self.tables['rfu_residues'] = combined
-
-        # todo this erorrs: self.param.trigger('tables')
+        self.hdxm_objects[name] = hdxm
         self.updated = True
 
     def _add_dG_fit(self, fit_result, name):
@@ -124,13 +107,7 @@ class PyHDXSource(TableSource):
         tuples = [(name, *tup) for tup in df.columns]
         columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
         df.columns = columns
-
-        if 'dG_fits' in self.tables:
-            current = self.tables['dG_fits']
-            new = pd.concat([current, df], axis=1)
-        else:
-            new = df
-        self.tables['dG_fits'] = new
+        self._add_table(df, 'dG_fits')
 
         # Add calculated d-uptake values (#todo add method on FitResults object that does this?)
         timepoints = fit_result.hdxm_set.timepoints
@@ -150,31 +127,17 @@ class PyHDXSource(TableSource):
         index = pd.Index(tvec, name='exposure')
         df = pd.DataFrame(reshaped.T, index=index, columns=columns)
         df = df.loc[:, (df != 0).any(axis=0)]  # remove zero columns, replace with NaN when possible
-
-        if 'd_calc' in self.tables:
-            current = self.tables['d_calc']
-            new = pd.concat([current, df], axis=1)
-        else:
-            new = df
-        self.tables['d_calc'] = new
+        self._add_table(df, 'd_calc')
 
         # Add losses df
         df = fit_result.losses.copy()
-
         tuples = [(name, column) for column in df.columns]  # losses df is not multiindex
         columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'loss_type'])
         df.columns = columns
-
-        if 'loss' in self.tables:
-            current = self.tables['loss']
-            new = pd.concat([current, df], axis=1)
-        else:
-            new = df
-        self.tables['loss'] = new
+        self._add_table(df, 'loss')
 
         #Add MSE per peptide df
         squared_errors = fit_result.get_squared_errors()
-
         dfs = {}
         for mse_sample, hdxm in zip(squared_errors, fit_result.hdxm_set):
             peptide_data = hdxm[0].data
@@ -190,11 +153,9 @@ class PyHDXSource(TableSource):
         tuples = [(name, *tup) for tup in mse_df.columns]
         columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
         mse_df.columns = columns
-
-        self.tables['peptide_mse'] = mse_df
+        self._add_table(mse_df, 'peptide_mse')
 
         self.dG_fits[name] = fit_result
-
         self.updated = True
 
 #    @param.depends('dG_fits', watch=True)
@@ -215,5 +176,13 @@ class PyHDXSource(TableSource):
         self.tables['rates'] = combined
 
         self.updated = True
+
+    def _add_table(self, df, table):
+        if table in self.tables:
+            current = self.tables[table]
+            new = pd.concat([current, df], axis=1)
+        else:
+            new = df
+        self.tables[table] = new
 
 
