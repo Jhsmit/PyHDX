@@ -217,6 +217,7 @@ modules:
         title: RFU Scatter
         color: rfu
         colorbar: True
+        ylim: [0, null]
         tools:
           - rfu_hover
     views:
@@ -465,6 +466,7 @@ modules:
         title: ΔΔG Scatterplot
         invert_yaxis: True # todo find out of symmetric around zero constraint is possible
         color: ddG
+        symmetric: True
         colorbar: True
         tools:
           - ddG_hover
