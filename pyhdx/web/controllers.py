@@ -919,7 +919,7 @@ class ColorTransformControl(ControlPanel):
         # get the table key corresponding to the selected cmap quantity
         table_key = next(iter((k for k in self.src.tables.keys() if k.startswith(self.quantity))))
 
-        table = self.src.get(table_key)
+        table = self.src.get_table(table_key)
         if table is None:
             self.parent.logger.info(f"Table corresponding to {self.quantity!r} is empty")
             return None
