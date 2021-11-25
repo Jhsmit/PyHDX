@@ -55,7 +55,9 @@ class DevTestControl(ControlPanel):
         opts = self.opts
 
         tables = self.sources['main'].tables
-        print(tables)
+        c = self.parent.control_panels
+
+        ct = c['ColorTransformControl']
 
         # self.parent.logger.info('Info log')
         # self.parent.logger.debug('Debug log')
@@ -74,8 +76,8 @@ class DevTestControl(ControlPanel):
     def _layout(self):
         return [
             ('self', None),
-            ('filters.table_1_select', None),
-            ('filters.table_2_select', None)
+            # ('filters.table_1_select', None),
+            # ('filters.table_2_select', None)
 
         ]
 
