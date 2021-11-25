@@ -1353,7 +1353,7 @@ class FileExportControl(ControlPanel):
             bio = BytesIO()
             with zipfile.ZipFile(bio, 'w') as pml_zip:
                 for col_name in color_df.columns:
-                    name = col_name if isinstance(col_name, str) else '_'.join(col_name)
+                    name = '_'.join(str(col) for col in col_name) if isinstance(col_name, tuple) else str(col_name)
                     colors = color_df[col_name]
                     pml_script = series_to_pymol(colors)  # todo refactor pd_series_to_pymol?
                     pml_zip.writestr(name + '.pml', pml_script)
