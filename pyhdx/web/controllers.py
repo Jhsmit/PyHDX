@@ -326,7 +326,7 @@ class InitialGuessControl(ControlPanel):
 
     header = 'Initial Guesses'
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
-                                   doc='Choose method for determining initial guesses.')
+                                   doc='Choose method for determining initial guesses.', constant=True) # TODO: dask fitting of asociation model is currently broken due to some nonserializable object
     dataset = param.Selector(default='', doc='Dataset to apply bounds to', label='Dataset (for bounds)')
     global_bounds = param.Boolean(default=False, doc='Set bounds globally across all datasets')
     lower_bound = param.Number(0., doc='Lower bound for association model fitting')
@@ -445,7 +445,7 @@ class InitialGuessControl(ControlPanel):
                 bounds = self.bounds.values()
 
             futures = self.parent.client.map(fit_rates_weighted_average,
-                                             self.self.src.hdxm_objects.values(), bounds, client='worker_client')
+                                             self.src.hdxm_objects.values(), bounds, client='worker_client')
         elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
             futures = self.parent.client.map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
 
@@ -1643,6 +1643,7 @@ class GraphControl(ControlPanel):
             'dG_fit_select',
             'ddG_comparison_select',
             'peptide_select',
+            'loss_select',
             'd_calc_select',
         ]  # list of names of filters which should be compressed/displayed
         filters = [self.filters[f] for f in self.widget_filters]

@@ -77,12 +77,9 @@ class AppViewBase(param.Parameterized):
 
         return {k: v for k, v in zip(names[1:], widgets)}
 
-    def get_data(self):
+    def get_data(self):  # refactor get?
         """
-        Queries the Source for the specified table applying any
-        filters and transformations specified on the View. Unlike
-        `get_value` this should be used when multiple return values
-        are expected.
+        Queries the Source
 
         Returns
         -------
@@ -124,7 +121,7 @@ class AppViewBase(param.Parameterized):
                         combined_list = opts_dict[k] + v
                         opts_dict[k] = combined_list
                     else:
-                        raise ValueError(f"Overlapping key {k} in opt {d.name}")
+                        raise ValueError(f"Overlapping key {k!r} in opt {d.name!r} on view {self.name!r}")
                 else:
                     opts_dict[k] = v
 

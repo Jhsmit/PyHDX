@@ -355,7 +355,6 @@ modules:
         vdims:
           - peptide_mse
 
-
   loss:
     filters:
       loss_sample:
