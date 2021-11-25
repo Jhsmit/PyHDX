@@ -1643,6 +1643,7 @@ class GraphControl(ControlPanel):
             'dG_fit_select',
             'ddG_comparison_select',
             'peptide_select',
+            'peptide_mse_select',
             'loss_select',
             'd_calc_select',
         ]  # list of names of filters which should be compressed/displayed
