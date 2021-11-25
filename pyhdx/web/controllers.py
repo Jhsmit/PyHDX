@@ -1031,7 +1031,7 @@ class ColorTransformControl(ControlPanel):
         #     self.parent.logger.info(f"Colormap name {self.colormap_name} already exists")
         #     return None, None
 
-        if len(self.values) < 2:
+        if len(self.values) < 1:
             return None, None
 
         if self.mode == 'Discrete':
