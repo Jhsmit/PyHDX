@@ -145,9 +145,9 @@ class PeptideFileInputControl(ControlPanel):
                                'and determination of intrinsic rate of exchange for the C-terminal residue')
     sequence = param.String('', doc='Optional FASTA protein sequence')
     dataset_name = param.String()
-    add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add dataset',
+    add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add measurement',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
-    hdxm_list = param.ListSelector(default=[], label='HDX Measurements',
+    hdxm_list = param.ListSelector(label='HDX Measurements',
                                      doc='Lists added HDX-MS measurements', constant=True)
 
     def __init__(self, parent, **params):
