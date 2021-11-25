@@ -668,6 +668,11 @@ class HDXMeasurement(object):
             sort_values(['start', 'end', 'sequence', 'exposure'])
         self.data['peptide_id'] = self.data.index % self.Np
         self.data.index.name = 'peptide_index'  # index is original index which continues along exposures
+        self.data_wide = self.data.\
+            pivot(index='peptide_id', columns=['exposure']).\
+            reorder_levels([1, 0], axis=1).\
+            sort_index(axis=1, level=0, sort_remaining=False)
+
 
     def __str__(self):
         """

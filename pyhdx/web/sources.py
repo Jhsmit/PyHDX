@@ -158,7 +158,6 @@ class PyHDXSource(TableSource):
         self.dG_fits[name] = fit_result
         self.updated = True
 
-#    @param.depends('dG_fits', watch=True)
     def _fit_results_updated(self):  #todo method name / result dicts names
         combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
                              keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])

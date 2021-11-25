@@ -41,6 +41,9 @@ class DevTestControl(ControlPanel):
 
     test_btn = param.Action(lambda self: self._action_test(), label='Test')
 
+    def __init__(self, parent, **params):
+        super().__init__(parent, **params)
+
     @property
     def src(self):
         return self.sources['main']
@@ -50,28 +53,30 @@ class DevTestControl(ControlPanel):
         sources = self.sources
         views = self.views
         opts = self.opts
-        opt = self.opts['dG']
 
         tables = self.sources['main'].tables
+        print(tables)
 
-        self.parent.logger.info('Info log')
-        self.parent.logger.debug('Debug log')
+        # self.parent.logger.info('Info log')
+        # self.parent.logger.debug('Debug log')
 
         print('break')
 
     def _action_test(self):
-        df = self.src.tables['peptides']
+        filter = self.filters['table_1_select']
+        print(filter.widgets)
+
+        view = self.views['graph_1']
+        df = view.get_data()
         print(df)
-        for c in df.columns:
-            print(repr(c[-1]))
-        print('howdoe')
-
-
 
     @property
     def _layout(self):
         return [
             ('self', None),
+            ('filters.table_1_select', None),
+            ('filters.table_2_select', None)
+
         ]
 
 
@@ -1679,40 +1684,10 @@ class GraphControl(ControlPanel):
     def src(self):
         return self.sources['main']
 
-    # def make_dict(self):
-    #     widgets = {
-    #         'general': pn.pane.Markdown('### General'),
-    #         'coverage': pn.pane.Markdown('### Coverage'),
-    #         'rfu': pn.pane.Markdown('### RFU'),
-    #         'rates': pn.pane.Markdown('### Rates'),
-    #         'dG': pn.pane.Markdown('### ΔG'),
-    #         'ddG': pn.pane.Markdown('### ΔΔG'),
-    #         'peptide': pn.pane.Markdown('### Peptides'),
-    #         'd_calc_peptide': pn.pane.Markdown('### D calc')
-    #         #'debugging': pn.pane.Markdown('### Debugging'),
-    #
-    #     }
-    #
-    #     return {**widgets, **self.generate_widgets()}
-
     @property
     def _layout(self):
         return [
             ('self', None),
-            # ('filters.coverage_select', None),
-            # ('self', 'rfu'),
-            # ('filters.rfu_select', None),
-            # ('self', 'rates'),
-            # ('filters.rates_select', None),
-            # ('self', 'dG'),
-            # ('filters.dG_fit_select', None),
-            # ('self', 'ddG'),
-            # ('filters.ddG_comparison_select', None),
-            # ('self', 'peptide'),
-            # ('filters.peptide_select', None),
-            # ('self', 'd_calc_peptide'),
-            # ('filters.d_calc_select', None)
-
         ]
 
     def _hdxm_objects_updated(self, *events):

@@ -123,7 +123,6 @@ class CrossSectionFilter(AppFilter):
         df = self.source.get()
         if df is None:
             return
-
         self.index = df.columns if self.axis else df.index
         self._names = self.names or self.index.names
 
