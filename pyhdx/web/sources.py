@@ -99,6 +99,7 @@ class PyHDXSource(TableSource):
         self._add_table(df, 'rfu_residues')
 
         self.hdxm_objects[name] = hdxm
+        self.param.trigger('hdxm_objects')
         self.updated = True
 
     def _add_dG_fit(self, fit_result, name):
