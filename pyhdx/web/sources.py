@@ -144,8 +144,10 @@ class PyHDXSource(TableSource):
             peptide_data = hdxm[0].data
             mse = np.mean(mse_sample, axis=1)
             # Indexing of mse_sum with Np to account for zero-padding
-            data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'peptide_mse': mse[:hdxm.Np]}
-            dfs[hdxm.name] = pd.DataFrame(data_dict)
+            passthrough_fields = ['start', 'end', 'sequence']
+            df = peptide_data[passthrough_fields].copy()
+            df['peptide_mse'] = mse[:hdxm.Np]
+            dfs[hdxm.name] = df
 
         # current bug: convert dtypes drop column names: https://github.com/pandas-dev/pandas/issues/41435
         # use before assigning column names

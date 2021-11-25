@@ -95,6 +95,7 @@ tools:
     type: hover
     tooltips:
       - ['peptide_id', '$index']
+      - ['start, end', '@start, @end']
       - ['RFU', '@rfu']
       - ['D (corrected)', '@uptake_corrected']
       - ['sequence', '@sequence']
@@ -102,8 +103,9 @@ tools:
     type: hover
     tooltips:
       - ['peptide_id', '$index']
+      - [ 'start, end', '@start, @end' ]
       - ['MSE', '@peptide_mse']
-      # todo sequence?
+      - ['sequence', '@sequence']
   rfu_hover:
     type: hover
     tooltips:
@@ -163,6 +165,8 @@ modules:
           - rfu
           - uptake_corrected
           - sequence
+          - start
+          - end
     opts:
       coverage:
         type: generic
@@ -186,6 +190,8 @@ modules:
           - rfu
           - uptake_corrected
           - sequence
+          - start
+          - end
 
   rfu:
     filters:
@@ -336,6 +342,9 @@ modules:
         right: end
         passthrough:
           - peptide_mse
+          - start
+          - end
+          - sequence
     views:
       peptide_mse:
         type: rectangles
@@ -350,10 +359,14 @@ modules:
               color: peptide_mse
               colorbar: True
               cmap: cividis
+              title: Peptides mean squared error
               tools:
                 - peptide_mse_hover
         vdims:
           - peptide_mse
+          - start
+          - end
+          - sequence
 
   loss:
     filters:
@@ -372,6 +385,7 @@ modules:
         source: loss_select
         kind: line
         responsive: True
+        #framewise: True
         opts:
           - base
           - labels:
