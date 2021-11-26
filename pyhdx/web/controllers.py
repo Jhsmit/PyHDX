@@ -1583,6 +1583,8 @@ class SessionManagerControl(ControlPanel):
         return bio
 
     def _load_session(self):
+        self.parent.logger.info("loading session currently bugged")
+        return
         if self.session_file is None:
             self.parent.logger.info("No session file selected")
             return None
@@ -1599,7 +1601,13 @@ class SessionManagerControl(ControlPanel):
         session_zip = zipfile.ZipFile(bio)
         session_zip.printdir()
         names = set(session_zip.namelist())
-        accepted_names = {'rfu_residues.csv', 'rates.csv', 'peptides.csv', 'dG_fits.csv', 'ddG_comparison.csv'}
+        accepted_names = {
+            'rfu_residues.csv',
+            #'rates.csv',
+            'peptides.csv',
+           # 'dG_fits.csv',
+           # 'ddG_comparison.csv'
+        }
 
         self._reset()
         src = self.sources['main']
@@ -1609,11 +1617,11 @@ class SessionManagerControl(ControlPanel):
             df = csv_to_dataframe(bio)
             src.tables[name.split('.')[0]] = df
 
-        src.param.trigger('tables')  #todo do not trigger tables?
-        src.updated = True
+            src.param.trigger('tables')  #todo do not trigger tables?
+            src.updated = True
 
         self.parent.logger.info(f"Successfully loaded PyHDX session file: {self.widgets['session_file'].filename}")
-        self.parent.logger.info(f"Containing the following tables: {' ,'.join(tables)}")
+        self.parent.logger.info(f"Containing the following tables: {', '.join(tables)}")
 
     def _reset_session(self):
         self._reset()

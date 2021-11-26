@@ -5,6 +5,7 @@ import numpy as np
 from pyhdx import TorchFitResult
 from pyhdx.fitting import RatesFitResult
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
+from pyhdx.support import multiindex_astype, multiindex_set_categories
 
 
 class AppSourceBase(param.Parameterized):
@@ -52,10 +53,37 @@ class PyHDXSource(TableSource):
 
     # table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
     # peptides
+    # index: peptide_id
+    # columns: state, exposure, quantity
+
     # rfu_residues (rfu)
+    # index: r_number
+    # columns: state, exposure (TODO add quantity)
+
     # rates
+    # index: r_number
+    # columns: guess_ID, state, quantity
+
     # dG_fits (dG)
+    # index: r_number
+    # columns: fit_ID, state, quantity
+
     # ddG_comparison (ddG)
+    # index: r_number
+    # columns: comparison_name, comparison_state, quantity
+
+    # d_calc
+    # index: exposure
+    # columns: fit_ID, state, peptide_id, quantity
+
+    # loss
+    # index: epoch
+    # columns: fit_ID, loss_type
+
+    # peptide_mse
+    # index: peptide_id
+    # columns: fit_ID, state, quantity
+
     # d_calc
     # peptide_mse (has colormap but not user configurable)
 
@@ -85,7 +113,7 @@ class PyHDXSource(TableSource):
 
     def _add_hdxm_object(self, hdxm, name):  # where name is new 'protein state' entry (or used for state (#todo clarify))
         # Add peptide data
-        df = hdxm.data_wide
+        df = hdxm.data_wide.copy()
         tuples = [(name, *tup) for tup in df.columns]
         columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure', 'quantity'])
         df.columns = columns
@@ -119,7 +147,7 @@ class PyHDXSource(TableSource):
         tvec = np.logspace(tmin - pad, tmax + pad, num=100, endpoint=True)
         d_calc = fit_result(tvec)
 
-        # Reshape the c_calc numpy array (Ns x Np x Nt to pandas dataframe (index: Ns, columns: multiiindex Ns, Np)
+        # Reshape the d_calc numpy array (Ns x Np x Nt to pandas dataframe (index: Ns, columns: multiiindex Ns, Np)
         Ns, Np, Nt = d_calc.shape
         reshaped = d_calc.reshape(Ns * Np, Nt)
         columns = pd.MultiIndex.from_product(
@@ -179,12 +207,24 @@ class PyHDXSource(TableSource):
 
         self.updated = True
 
-    def _add_table(self, df, table):
+    def _add_table(self, df, table, categorical=True):
+        """
+
+        :param df:
+        :param table:
+        :param categorical: True if top level of multiindex should be categorical
+        :return:
+        """
         if table in self.tables:
             current = self.tables[table]
             new = pd.concat([current, df], axis=1)
+            categories = list(current.columns.unique(level=0)) + list(df.columns.unique(level=0))
         else:
             new = df
+            categories = list(df.columns.unique(level=0))
+        if categorical:
+            new.columns = multiindex_astype(new.columns, 0, 'category')
+            new.columns = multiindex_set_categories(new.columns, 0, categories, ordered=True)
         self.tables[table] = new
 
 

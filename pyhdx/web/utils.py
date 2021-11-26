@@ -1,4 +1,6 @@
 from pathlib import Path
+import pandas as pd
+from pyhdx.support import multiindex_set_categories, multiindex_astype
 
 #todo merge with batch_processing
 time_factors = {"s": 1, "m": 60., "min": 60., "h": 3600, "d": 86400}
@@ -47,3 +49,16 @@ def load_state(ctrl, yaml_dict, data_dir, name=None):
     file_input.exp_state = yaml_dict['state']
     file_input.dataset_name = name or yaml_dict['state']
     file_input._action_add_dataset()
+
+
+def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:
+    """Assigns correct dtypes to (column) multiindex"""
+    if index.names[0] in ['state', 'guess_ID', 'fit_ID']:
+        index = multiindex_astype(index, 0, 'category')
+        index = multiindex_set_categories(index, 0, index.unique(level=0), ordered=True)
+
+    if 'exposure' in index.names:
+        level = index.names.index('exposure')
+        index = multiindex_astype(index, level, 'float')
+
+    return index
