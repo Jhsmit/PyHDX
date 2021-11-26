@@ -25,9 +25,10 @@ from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interp
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection
 from pyhdx.plot import dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
     rainbowclouds_figure
-from pyhdx.support import series_to_pymol, apply_cmap
+from pyhdx.support import series_to_pymol, apply_cmap, multiindex_astype, multiindex_set_categories
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
+from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CallbackProgress
 
 
@@ -55,7 +56,20 @@ class DevTestControl(ControlPanel):
         opts = self.opts
 
         tables = self.sources['main'].tables
+        df = tables['d_calc']
+
+        print(df)
+        print(df.index)
         c = self.parent.control_panels
+
+        f = self.filters['peptide_pipe']
+        df = f.get()
+        print(df)
+
+        f = self.filters['peptide_select']
+        df = f.get()
+        print(df)
+
 
         ct = c['ColorTransformControl']
 
@@ -1583,12 +1597,11 @@ class SessionManagerControl(ControlPanel):
         return bio
 
     def _load_session(self):
-        self.parent.logger.info("loading session currently bugged")
-        return
         if self.session_file is None:
             self.parent.logger.info("No session file selected")
             return None
 
+        self.widgets['load_session'].loading = True
         if sys.getsizeof(self.session_file) > 5.e8:
             self.parent.logger.info("Uploaded file is too large, maximum is 500 MB")
             return None
@@ -1603,10 +1616,13 @@ class SessionManagerControl(ControlPanel):
         names = set(session_zip.namelist())
         accepted_names = {
             'rfu_residues.csv',
-            #'rates.csv',
+            'rates.csv',
             'peptides.csv',
-           # 'dG_fits.csv',
-           # 'ddG_comparison.csv'
+            'dG_fits.csv',
+            'ddG_comparison.csv',
+            'd_calc.csv',
+            'loss.csv',
+            'peptide_mse.csv'
         }
 
         self._reset()
@@ -1615,13 +1631,17 @@ class SessionManagerControl(ControlPanel):
         for name in tables:
             bio = BytesIO(session_zip.read(name))
             df = csv_to_dataframe(bio)
+            df.columns = fix_multiindex_dtypes(df.columns)
+
             src.tables[name.split('.')[0]] = df
 
-            src.param.trigger('tables')  #todo do not trigger tables?
-            src.updated = True
+        src.param.trigger('tables')  #todo do not trigger tables?
+        src.updated = True
 
         self.parent.logger.info(f"Successfully loaded PyHDX session file: {self.widgets['session_file'].filename}")
         self.parent.logger.info(f"Containing the following tables: {', '.join(tables)}")
+
+        self.widgets['load_session'].loading = False
 
     def _reset_session(self):
         self._reset()

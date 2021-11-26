@@ -1,3 +1,5 @@
+from typing import Iterable, List, Mapping, Any
+
 import numpy as np
 import itertools
 import re
@@ -9,6 +11,72 @@ from itertools import count, groupby
 import warnings
 from pathlib import Path
 from dask.distributed import Client
+
+
+def multiindex_apply_function(
+    index: pd.MultiIndex,
+    level: int,
+    func: str,
+    args: Iterable = None,
+    kwargs: Mapping = None,
+) -> pd.MultiIndex:
+
+    args = args or []
+    kwargs = kwargs or {}
+    new_index = index.set_levels(getattr(index.levels[level], func)(*args, **kwargs), level=level)
+
+    return new_index
+
+
+def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
+
+    new_index = multiindex_apply_function(index, level, 'astype', args=[dtype])
+    return new_index
+
+
+def multiindex_set_categories(
+    index: pd.MultiIndex,
+    level: int,
+    categories: Any,  #index-like
+    ordered: bool = False,
+    rename: bool = False
+
+) -> pd.MultiIndex:
+    new_index = multiindex_apply_function(
+        index, level, 'set_categories', args=[categories], kwargs=dict(ordered=ordered, rename=rename))
+    return new_index
+
+
+def multiindex_add_categories(
+        index: pd.MultiIndex,
+        level: int,
+        categories: Any,  # index-like
+
+) -> pd.MultiIndex:
+    new_index = multiindex_apply_function(
+        index, level, 'add_categories', args=[categories])
+    return new_index
+
+
+def multiindex_astype(
+        index: pd.MultiIndex,
+        level: int,
+        dtype: str,
+) -> pd.MultiIndex:
+    new_index = multiindex_apply_function(index, level, 'astype', args=[dtype])
+    return new_index
+
+# use tostring(print(df.to_string()))
+def df_fullstr(df):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None,
+                           'display.expand_frame_repr', False):
+        s = df.__str__()
+
+    return s
+
+
+def pprint_df(df):
+    print(df_fullstr(df))
 
 
 def get_reduced_blocks(coverage, max_combine=2, max_join=5):
