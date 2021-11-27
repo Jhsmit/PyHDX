@@ -1,11 +1,9 @@
-from functools import partial
 from pathlib import Path
 
 import panel as pn
 import param
-from pyhdx.web.main_controllers import MainController
-from bokeh.plotting import figure
 
+from pyhdx.web.main_controllers import MainController
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',

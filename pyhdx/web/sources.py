@@ -1,6 +1,6 @@
+import numpy as np
 import pandas as pd
 import param
-import numpy as np
 
 from pyhdx import TorchFitResult
 from pyhdx.fitting import RatesFitResult

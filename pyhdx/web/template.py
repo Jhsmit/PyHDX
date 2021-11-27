@@ -1,13 +1,13 @@
-import pathlib
-from panel.util import url_path
-from panel.template import GoldenTemplate
-from pyhdx.web.base import STATIC_DIR
-from pyhdx.web.widgets import HTMLTitle
-import panel as pn
-import string
 import os
+import pathlib
+import string
+
+import panel as pn
+from panel.template import GoldenTemplate
+from panel.util import url_path
 from param.parameterized import default_label_formatter
-import holoviews as hv
+
+from pyhdx.web.widgets import HTMLTitle
 
 dist_path = '/pyhdx/'
 

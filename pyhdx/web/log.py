@@ -1,6 +1,7 @@
+import datetime
 import logging
 import sys
-import datetime
+
 
 def get_default_handler(stream=None):
     sh = logging.StreamHandler(stream)

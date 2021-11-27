@@ -1,16 +1,15 @@
 import collections
-import logging
 
 from distributed import Client
 
 from pyhdx.local_cluster import default_client
 from pyhdx.support import gen_subclasses
 from pyhdx.web.controllers import *
-from pyhdx.web.transforms import *
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import OptsBase
 from pyhdx.web.sources import *
 from pyhdx.web.tools import supported_tools
+from pyhdx.web.transforms import *
 from pyhdx.web.views import AppViewBase
 
 element_count = 0

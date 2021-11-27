@@ -1,12 +1,9 @@
 import itertools
 import sys
-import sys
 import urllib.request
 import zipfile
-from collections import namedtuple
 from datetime import datetime
 from io import StringIO, BytesIO
-from pathlib import Path
 
 import colorcet
 import matplotlib as mpl
@@ -19,17 +16,17 @@ from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
 from pyhdx.config import cfg
-from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, dataframe_to_stringio
+from pyhdx.fileIO import read_dynamx, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate, get_bounds, fit_gibbs_global, \
     fit_gibbs_global_batch, PATIENCE, STOP_LOSS, EPOCHS, R1, R2, optimizer_defaults, RatesFitResult
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection
 from pyhdx.plot import dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
     rainbowclouds_figure
-from pyhdx.support import series_to_pymol, apply_cmap, multiindex_astype, multiindex_set_categories
+from pyhdx.support import series_to_pymol, apply_cmap
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.utils import fix_multiindex_dtypes
-from pyhdx.web.widgets import ASyncProgressBar, CallbackProgress
+from pyhdx.web.widgets import ASyncProgressBar
 
 
 class DevTestControl(ControlPanel):

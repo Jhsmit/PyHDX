@@ -1,10 +1,10 @@
 from copy import copy
 from functools import partial, reduce
 
-import param
 import panel as pn
-from matplotlib.colors import Colormap, Normalize
+import param
 import proplot as pplt
+from matplotlib.colors import Colormap, Normalize
 
 from pyhdx.plot import default_cmap_norm
 from pyhdx.support import apply_cmap
