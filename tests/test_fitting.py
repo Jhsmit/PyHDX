@@ -109,8 +109,8 @@ class TestSecBDataFit(object):
             assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
                                 check_names=False)
 
-        mse = fr_global.get_mse()
-        assert mse.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
+        errors = fr_global.get_squared_errors()
+        assert errors.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended(self):
@@ -127,8 +127,8 @@ class TestSecBDataFit(object):
         for field in ['deltaG', 'k_obs', 'covariance']:
             assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
 
-        mse = fr_global.get_mse()
-        assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
+        errors = fr_global.get_squared_errors()
+        assert errors.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended_cuda(self):
@@ -175,8 +175,8 @@ class TestSecBDataFit(object):
 
             assert_series_equal(result, test, rtol=0.1)
 
-        mse = fr_global.get_mse()
-        assert mse.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
+        errors = fr_global.get_squared_errors()
+        assert errors.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
 
         mock_alignment = {
             'apo':   'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
