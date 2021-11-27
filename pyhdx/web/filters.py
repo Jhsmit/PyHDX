@@ -29,7 +29,7 @@ class AppFilterBase(param.Parameterized):
         return None
 
 
-class TableSourceFilter(AppFilterBase):  #todo rename to something that includes table
+class TableSourceFilter(AppFilterBase):
     """filter which picks the correct table from the source"""
 
     _type = 'table_source'
@@ -45,7 +45,7 @@ class TableSourceFilter(AppFilterBase):  #todo rename to something that includes
 
         self.widgets = {'table': pn.pane.panel(self.param.table)}
 
-    #todo allow auto generate widgets as in control panels /  views
+    # todo allow auto generate widgets as in control panels /  views
 
     def get(self):
         df = self.source.get_table(self.table)  # returns None on KeyError #todo change to source.get_table
@@ -55,14 +55,13 @@ class TableSourceFilter(AppFilterBase):  #todo rename to something that includes
     def _table_updated(self):
         self.updated = True
 
-    @param.depends('source.updated', watch=True)  # todo split
+    @param.depends('source.updated', watch=True)
     def update(self):
         options = self.source.get_tables()
         if self.table_options:
             options = [t for t in options if t in self.table_options]
-        #with param.parameterized.discard_events(self):  # no triggers from setting table, manual with updated=True
         self.param['table'].objects = options
-        if not self.table and options:  # todo more nonsense as in filters?
+        if not self.table and options:
             self.table = options[0]
         self.updated = True
 
