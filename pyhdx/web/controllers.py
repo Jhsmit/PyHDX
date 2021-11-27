@@ -118,7 +118,14 @@ class MWEControl(ControlPanel):
         self.src.param.trigger('updated')
 
 
-class PeptideFileInputControl(ControlPanel):
+class PyHDXControlPanel(ControlPanel):
+
+    @property
+    def src(self):
+        return self.parent.sources['main']
+
+
+class PeptideFileInputControl(PyHDXControlPanel):
     """
     This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
     Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
@@ -182,10 +189,6 @@ class PeptideFileInputControl(ControlPanel):
         self.update_box()
 
         self._df = None  # Numpy array with raw input data (or is pd.Dataframe?)
-
-    @property
-    def src(self):
-        return self.sources['main']
 
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(name='Sequence (optional)', placeholder='Enter sequence in FASTA format', max_length=10000,
@@ -334,7 +337,7 @@ class PeptideFileInputControl(ControlPanel):
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
 
 
-class InitialGuessControl(ControlPanel):
+class InitialGuessControl(PyHDXControlPanel):
     """
     This controller allows users to derive initial guesses for D-exchange rate from peptide uptake data.
     """
@@ -364,10 +367,6 @@ class InitialGuessControl(ControlPanel):
         self.update_box()
 
         self._guess_names = {}
-
-    @property
-    def src(self):
-        return self.sources['main']
 
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
@@ -462,7 +461,7 @@ class InitialGuessControl(ControlPanel):
         self.parent.future_queue.append((dask_future, self.add_fit_result))
 
 
-class FitControl(ControlPanel):
+class FitControl(PyHDXControlPanel):
     """
     This controller allows users to execute PyTorch fitting of the global data set.
 
@@ -518,10 +517,6 @@ class FitControl(ControlPanel):
         # widgets['progress'] = CallbackProgress()
 
         return widgets
-
-    @property
-    def src(self):
-        return self.sources['main']
 
     def _source_updated(self, *events):
         rate_objects = list(self.src.rate_results.keys())
@@ -714,7 +709,7 @@ class FitControl(ControlPanel):
         return fit_kwargs
 
 
-class DifferentialControl(ControlPanel):
+class DifferentialControl(PyHDXControlPanel):
     _type = 'diff'
 
     header = 'Differential HDX (ΔΔG)'
@@ -736,10 +731,6 @@ class DifferentialControl(ControlPanel):
         self.parent.filters['ddG_fit_select'].param.watch(self._source_updated, 'updated')
         self._df = None
         self._source_updated()  # todo filter source does not trigger updated when init
-
-    @property
-    def src(self):
-        return self.sources['main']
 
     @property
     def _layout(self):
@@ -797,7 +788,7 @@ class DifferentialControl(ControlPanel):
         self.parent.sources['main'].updated = True
 
 
-class ColorTransformControl(ControlPanel):
+class ColorTransformControl(PyHDXControlPanel):
     """
     This controller allows users classify 'mapping' datasets and assign them colors.
 
@@ -875,10 +866,6 @@ class ColorTransformControl(ControlPanel):
             self.quantity = quantity_options[0]
 
         self.update_box()
-
-    @property
-    def src(self):
-        return self.sources['main']
 
     @property
     def own_widget_names(self):
@@ -1186,7 +1173,7 @@ class ColorTransformControl(ControlPanel):
                 widget.start = None
 
 
-class ProteinControl(ControlPanel):
+class ProteinControl(PyHDXControlPanel):
     #todo needs a pdbsource to get the object from
 
     _type = 'protein'
@@ -1242,7 +1229,7 @@ class ProteinControl(ControlPanel):
         view.object = pdb_string
 
 
-class FileExportControl(ControlPanel):
+class FileExportControl(PyHDXControlPanel):
     """
     <outdated docstring>
     This controller allows users to export and download datasets.
@@ -1368,7 +1355,7 @@ class FileExportControl(ControlPanel):
             return None
 
 
-class FigureExportControl(ControlPanel):
+class FigureExportControl(PyHDXControlPanel):
 
     _type = 'figure_export'
 
@@ -1515,7 +1502,7 @@ class FigureExportControl(ControlPanel):
         return kwargs
 
 
-class SessionManagerControl(ControlPanel):
+class SessionManagerControl(PyHDXControlPanel):
     _type = 'session_manager'
 
     header = 'Session Manager'
@@ -1615,7 +1602,7 @@ class SessionManagerControl(ControlPanel):
         src.tables = {}  # are there any dependies on this?
 
 
-class GraphControl(ControlPanel):
+class GraphControl(PyHDXControlPanel):
     _type = 'graph'
 
     header = 'Graph Control'
@@ -1668,7 +1655,4 @@ class GraphControl(ControlPanel):
                 output_widgets[widget_name] = self.filters[filters[0]].widgets[widget_name]
         return output_widgets
 
-    @property
-    def src(self):
-        return self.sources['main']
 
