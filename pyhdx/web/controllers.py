@@ -133,43 +133,52 @@ class PeptideFileInputControl(ControlPanel):
     input_files = param.List()
 
     be_mode = param.Selector(doc='Select method of back exchange correction', label='Back exchange correction method', objects=['FD Sample', 'Flat percentage'])
+
     fd_state = param.Selector(doc='State used to normalize uptake', label='FD State')
+
     fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='FD Exposure')
-    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
-    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
-                                       , doc='Selected exposure time to use')
 
     be_percent = param.Number(28., bounds=(0, 100), doc='Global percentage of back-exchange',
                               label='Back exchange percentage')
 
+    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
+
+    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
+                                       , doc='Selected exposure time to use')
+
     drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
+
     ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
+
     d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
                                 label='Deuterium percentage')
-    #fd_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the FD control sample buffer',
-    #                             label='FD Deuterium percentage')
+
     temperature = param.Number(293.15, bounds=(0, 373.15), doc='Temperature of the D-labelling reaction',
                                label='Temperature (K)')
+
     pH = param.Number(7.5, doc='pH of the D-labelling reaction, as read from pH meter',
                       label='pH read')
-    #load_button = param.Action(lambda self: self._action_load(), doc='Load the selected files', label='Load Files')
 
     n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
                                   'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
+
     c_term = param.Integer(0, bounds=(0, None),
                            doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
                                'and determination of intrinsic rate of exchange for the C-terminal residue')
+
     sequence = param.String('', doc='Optional FASTA protein sequence')
+
     dataset_name = param.String()
+
     add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add measurement',
                                 doc='Parse selected peptides for further analysis and apply back-exchange correction')
+
     hdxm_list = param.ListSelector(label='HDX Measurements',
                                      doc='Lists added HDX-MS measurements', constant=True)
 
     def __init__(self, parent, **params):
-        self._excluded = ['be_percent']
-        super(PeptideFileInputControl, self).__init__(parent, **params)
-        self.src.param.watch( self._hdxm_objects_updated, ['hdxm_objects'])
+        super(PeptideFileInputControl, self).__init__(parent, _excluded=['be_percent'], **params)
+        self.src.param.watch(self._hdxm_objects_updated, ['hdxm_objects'])
         self.update_box()
 
         self._df = None  # Numpy array with raw input data (or is pd.Dataframe?)
@@ -177,14 +186,6 @@ class PeptideFileInputControl(ControlPanel):
     @property
     def src(self):
         return self.sources['main']
-
-    @property
-    def own_widget_names(self):
-        return [name for name in self.widgets.keys() if name not in self._excluded]
-
-    @property
-    def _layout(self):
-        return [('self', self.own_widget_names)]
 
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(name='Sequence (optional)', placeholder='Enter sequence in FASTA format', max_length=10000,
@@ -356,8 +357,8 @@ class InitialGuessControl(ControlPanel):
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar()  #tqdm? https://github.com/holoviz/panel/pull/2079
         self.pbar2 = ASyncProgressBar()
-        self._excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
-        super(InitialGuessControl, self).__init__(parent, **params)
+        _excluded = ['lower_bound', 'upper_bound', 'global_bounds', 'dataset']
+        super(InitialGuessControl, self).__init__(parent, _excluded=_excluded, **params)
         self.src.param.watch(self._parent_hdxm_objects_updated, ['hdxm_objects'])  #todo refactor
 
         self.update_box()
@@ -367,16 +368,6 @@ class InitialGuessControl(ControlPanel):
     @property
     def src(self):
         return self.sources['main']
-
-    @property
-    def _layout(self):
-        return [
-            ('self', self.own_widget_names),
-        ]
-
-    @property  # todo base class
-    def own_widget_names(self):
-        return [name for name in self.widgets.keys() if name not in self._excluded]
 
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
@@ -514,7 +505,6 @@ class FitControl(ControlPanel):
 
     def __init__(self, parent, **params):
         self.pbar1 = ASyncProgressBar() #tqdm?
-        self._excluded = []
         super(FitControl, self).__init__(parent, **params)
 
         self.src.param.watch(self._source_updated, ['updated'])
@@ -522,16 +512,6 @@ class FitControl(ControlPanel):
         self._current_jobs = 0
         self._max_jobs = 2  #todo config
         self._fit_names = {}
-
-    @property  # todo base class
-    def own_widget_names(self):
-        return [name for name in self.widgets.keys() if name not in self._excluded]
-
-    @property
-    def _layout(self):
-        return [
-            ('self', self.own_widget_names),
-        ]
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -861,8 +841,7 @@ class ColorTransformControl(ControlPanel):
     colors = param.List(default=[], precedence=-1)
 
     def __init__(self, parent, **param):
-        self._excluded = ['otsu_thd', 'num_colors']
-        super(ColorTransformControl, self).__init__(parent, **param)
+        super(ColorTransformControl, self).__init__(parent, _excluded=['otsu_thd', 'num_colors'], **param)
 
         # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
         # update to proplot cmaps?
@@ -919,12 +898,6 @@ class ColorTransformControl(ControlPanel):
 
     def make_dict(self):
         return self.generate_widgets(num_colors=pn.widgets.IntInput, current_color_transform=pn.widgets.StaticText)
-
-    @property
-    def _layout(self):
-        return [
-            ('self', self.own_widget_names),
-                ]
 
     def get_selected_data(self):
         #todo rfu residues peptides should be expanded one more dim to add quantity column level on top
@@ -1214,6 +1187,7 @@ class ColorTransformControl(ControlPanel):
 
 
 class ProteinControl(ControlPanel):
+    #todo needs a pdbsource to get the object from
 
     _type = 'protein'
 
@@ -1225,9 +1199,7 @@ class ProteinControl(ControlPanel):
     load_structure = param.Action(lambda self: self._action_load_structure())
 
     def __init__(self, parent, **params):
-        self._excluded = ['rcsb_id']
-        super(ProteinControl, self).__init__(parent, **params)
-
+        super(ProteinControl, self).__init__(parent, _excluded=['rcsb_id'], **params)
         self.update_box()
 
     @property
@@ -1238,10 +1210,6 @@ class ProteinControl(ControlPanel):
                 ('filters.protein_cmap', None),
                 ('views.protein', None)
                 ]
-
-    @property  #todo in baseclass?
-    def own_widget_names(self):
-        return [name for name in self.widgets.keys() if name not in self._excluded]
 
     def make_dict(self):
         return self.generate_widgets(file_binary=pn.widgets.FileInput(multiple=False, accept='.pdb'))
@@ -1275,7 +1243,6 @@ class ProteinControl(ControlPanel):
 
 
 class FileExportControl(ControlPanel):
-
     """
     <outdated docstring>
     This controller allows users to export and download datasets.
@@ -1298,7 +1265,6 @@ class FileExportControl(ControlPanel):
     def __init__(self, parent, **param):
         super(FileExportControl, self).__init__(parent, **param)
         self.sources['main'].param.watch(self._tables_updated, ['tables', 'updated'])  #todo make up your mind: trigger tables or updated?
-        #self._tables_updated()  # todo shouldnt be necessary
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -1436,20 +1402,10 @@ class FigureExportControl(ControlPanel):
     )
 
     def __init__(self, parent, **param):
-        self._excluded = []
         super(FigureExportControl, self).__init__(parent, **param)
         self.sources['main'].param.watch(self._figure_updated, ['tables', 'updated'])
 
         self._figure_updated()
-
-    @property
-    def _layout(self):
-        return [('self', self.own_widget_names),  #TODO always use this instead of none?
-                ]
-
-    @property  #todo in baseclass?
-    def own_widget_names(self):
-        return [name for name in self.widgets.keys() if name not in self._excluded]
 
     def make_dict(self):
         widgets = self.generate_widgets()
@@ -1716,8 +1672,3 @@ class GraphControl(ControlPanel):
     def src(self):
         return self.sources['main']
 
-    @property
-    def _layout(self):
-        return [
-            ('self', None),
-        ]

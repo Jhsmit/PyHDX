@@ -3,7 +3,9 @@ from pathlib import Path
 
 import panel as pn
 import param
+from pyhdx.web.main_controllers import MainController
 from bokeh.plotting import figure
+
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -23,10 +25,17 @@ class ControlPanel(param.Parameterized):
 
     header = 'Default Header'
 
-    def __init__(self, parent, **params):
-        self.parent = parent
+    parent = param.ClassSelector(MainController, precedence=-1)
 
-        super(ControlPanel, self).__init__(**params)
+    _excluded = param.List([], precedence=-1,
+        doc="parameters whose widgets are excluded from the control panel view. This list can be modified to update "
+            "widget layout"
+    )
+
+    def __init__(self, parent, **params):
+        #self.parent = parent
+        #self.ex
+        super(ControlPanel, self).__init__(parent=parent, **params)
 
         self.widgets = self.make_dict()  # atm on some objects this is a list, others dict
         self._box = self.make_box()  # _panel equivalent
@@ -39,9 +48,15 @@ class ControlPanel(param.Parameterized):
                         object = getattr(self, _type)[name]
                         object.param.watch(self.update_box, ['redrawn'])
 
+    @property  # todo base class
+    def own_widget_names(self):
+        return [name for name in self.widgets.keys() if name not in self._excluded]
+
     @property
     def _layout(self):
-        return None
+        return [
+            ('self', self.own_widget_names),
+        ]
 
     @property
     def sources(self):
@@ -123,11 +138,6 @@ class ControlPanel(param.Parameterized):
 
         return widget_list
 
-    def make_list(self):
-        """override this method to modify mapping of dict to list"""
-        raise DeprecationWarning('not used anymore')
-        return list(self.widget_dict.values())
-
     def make_dict(self):
         """dict of widgets to be shown
         override this method to get custom mapping
@@ -158,8 +168,6 @@ class ControlPanel(param.Parameterized):
 
     def get_widget(self, param_name, widget_type, **kwargs):
         """get a single widget with for parameter param_name with type widget_type"""
-
-
 
         return pn.Param.get_widget(getattr(self.param, param_name), widget_type, **kwargs)[0]
 
