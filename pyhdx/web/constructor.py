@@ -6,7 +6,7 @@ from distributed import Client
 from pyhdx.local_cluster import default_client
 from pyhdx.support import gen_subclasses
 from pyhdx.web.controllers import *
-from pyhdx.web.filters import *
+from pyhdx.web.transforms import *
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import OptsBase
 from pyhdx.web.sources import *
@@ -19,7 +19,7 @@ class AppConstructor(param.Parameterized):
 
     sources = param.Dict(default={})
 
-    filters = param.Dict(default={})
+    transforms = param.Dict(default={})
 
     opts = param.Dict(default={})
 
@@ -51,7 +51,7 @@ class AppConstructor(param.Parameterized):
         ctrl = main_ctrl_class(
             controllers.values(),
             sources=self.sources,
-            filters=self.filters,
+            transforms=self.transforms,
             opts=self.opts,
             views=self.views,
             loggers=self.loggers,
@@ -65,7 +65,7 @@ class AppConstructor(param.Parameterized):
     def find_classes():
         base_classes = {
             'main': MainController,
-            'filter': AppFilterBase,
+            'transform': AppTransformBase,
             'source': AppSourceBase,
             'view': AppViewBase,
             'opt': OptsBase,
@@ -87,7 +87,7 @@ class AppConstructor(param.Parameterized):
         return classes
 
     def _parse_sections(self, yaml_dict):
-        sections = ['sources', 'filters', 'tools', 'opts', 'views']
+        sections = ['sources', 'transforms', 'tools', 'opts', 'views']
         for section in sections:
             element = section[:-1]
             element_dict = getattr(self, element + 's')
@@ -100,7 +100,7 @@ class AppConstructor(param.Parameterized):
                 if 'type' not in spec:
                     raise KeyError(f"The field 'type' is not specified for {section[:-1]} {name!r}")
                 #_type = spec.pop('type')
-                if section in ['filters', 'views'] and 'source' not in spec:
+                if section in ['transforms', 'views'] and 'source' not in spec:
                     #raise KeyError(f"The field 'source' is not specified for {section[:-1]} {name!r}")
                     print(f"The field 'source' is not specified for {section[:-1]} {name!r}")
                 obj = self.create_element(name, element, **spec)
@@ -131,7 +131,7 @@ class AppConstructor(param.Parameterized):
                 if v is None:
                     resolved[k] = v
                 else:
-                    obj = self.sources.get(v) or self.filters.get(v)  # can be none in case of logging
+                    obj = self.sources.get(v) or self.transforms.get(v)  # can be none in case of logging
                     resolved[k] = obj
             elif k == 'opts':
                 v = [v] if isinstance(v, (str, dict)) else v  # allow single opt by str/dict (needs testing)
@@ -153,7 +153,7 @@ class AppConstructor(param.Parameterized):
             elif k == 'tools':
                 v = [v] if isinstance(v, str) else v  # allow single tool by str
                 resolved[k] = [self.tools[vi] for vi in v]
-            elif k == 'dependencies':  # dependencies are opts/filters/controllers? (anything with .updated event)
+            elif k == 'dependencies':  # dependencies are opts/transforms/controllers? (anything with .updated event)
                 all_objects = []
                 for type_, obj_list in v.items():
                     for obj in obj_list:

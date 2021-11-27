@@ -50,7 +50,7 @@ class DevTestControl(ControlPanel):
         return self.sources['main']
 
     def _action_debug(self):
-        filters = self.filters
+        transforms = self.transforms
         sources = self.sources
         views = self.views
         opts = self.opts
@@ -62,11 +62,11 @@ class DevTestControl(ControlPanel):
         print(df.index)
         c = self.parent.control_panels
 
-        f = self.filters['peptide_pipe']
+        f = self.transforms['peptide_pipe']
         df = f.get()
         print(df)
 
-        f = self.filters['peptide_select']
+        f = self.transforms['peptide_select']
         df = f.get()
         print(df)
 
@@ -79,8 +79,8 @@ class DevTestControl(ControlPanel):
         print('break')
 
     def _action_test(self):
-        filter = self.filters['table_1_select']
-        print(filter.widgets)
+        trs = self.transforms['table_1_select']
+        print(trs.widgets)
 
         view = self.views['graph_1']
         df = view.get_data()
@@ -90,8 +90,8 @@ class DevTestControl(ControlPanel):
     def _layout(self):
         return [
             ('self', None),
-            # ('filters.table_1_select', None),
-            # ('filters.table_2_select', None)
+            # ('transforms.table_1_select', None),
+            # ('transforms.table_2_select', None)
 
         ]
 
@@ -728,19 +728,19 @@ class DifferentialControl(PyHDXControlPanel):
     def __init__(self, parent, **params):
         super().__init__(parent, **params)
 
-        self.parent.filters['ddG_fit_select'].param.watch(self._source_updated, 'updated')
+        self.parent.transforms['ddG_fit_select'].param.watch(self._source_updated, 'updated')
         self._df = None
-        self._source_updated()  # todo filter source does not trigger updated when init
+        self._source_updated()  # todo trs source does not trigger updated when init
 
     @property
     def _layout(self):
         return [
-            ('filters.ddG_fit_select', None),
+            ('transforms.ddG_fit_select', None),
             ('self', None)
         ]
 
     def get(self):
-        df = self.filters['ddG_fit_select'].get()
+        df = self.transforms['ddG_fit_select'].get()
         return df
 
     def _source_updated(self, *events):
@@ -1192,9 +1192,9 @@ class ProteinControl(PyHDXControlPanel):
     @property
     def _layout(self):
         return [('self', self.own_widget_names),  #always use this instead of none?
-                ('filters.protein_src', None),
-                ('filters.protein_select', None),
-                ('filters.protein_cmap', None),
+                ('transforms.protein_src', None),
+                ('transforms.protein_select', None),
+                ('transforms.protein_cmap', None),
                 ('views.protein', None)
                 ]
 
@@ -1609,7 +1609,7 @@ class GraphControl(PyHDXControlPanel):
 
     def __init__(self, parent, **params):
         super(GraphControl, self).__init__(parent, **params)
-        self.widget_filters = [
+        self.widget_transforms = [
             'coverage_select',
             'rfu_select',
             'rates_select',
@@ -1619,23 +1619,23 @@ class GraphControl(PyHDXControlPanel):
             'peptide_mse_select',
             'loss_select',
             'd_calc_select',
-        ]  # list of names of filters which should be compressed/displayed
-        filters = [self.filters[f] for f in self.widget_filters]
-        for f in filters:
-            f.param.watch(self._filters_redrawn, 'redrawn')
+        ]  # list of names of transforms which should be compressed/displayed
+        transforms = [self.transforms[f] for f in self.widget_transforms]
+        for t in transforms:
+            t.param.watch(self._transforms_redrawn, 'redrawn')
 
-    def _filters_redrawn(self, *events):
+    def _transforms_redrawn(self, *events):
         # todo they may all/multiple redraw at the same time so this gets called multiple times
         widgets = self.make_dict()
-        filter_widgets = self._link_widgets()
+        transform_widgets = self._link_widgets()
 
-        self.widgets = {**widgets, **filter_widgets}
+        self.widgets = {**widgets, **transform_widgets}
         self.update_box()
 
     def _link_widgets(self):
-        filter_dict = {flt: self.filters[flt].widgets.keys() for flt in self.widget_filters}
+        trs_dict = {flt: self.transforms[flt].widgets.keys() for flt in self.widget_transforms}
         grouped = {}
-        for k, v in filter_dict.items():
+        for k, v in trs_dict.items():
             for vi in v:
                 if vi in grouped.keys():
                     grouped[vi].append(k)
@@ -1643,16 +1643,16 @@ class GraphControl(PyHDXControlPanel):
                     grouped[vi] = [k]
 
         output_widgets = {}
-        for widget_name, filters in grouped.items():
-            if len(filters) > 1:
-                master_widget = self.filters[filters[0]].widgets[widget_name]
-                client_widgets = [self.filters[filt].widgets[widget_name] for filt in filters[1:]]
+        for widget_name, trs in grouped.items():
+            if len(trs) > 1:
+                master_widget = self.transforms[trs[0]].widgets[widget_name]
+                client_widgets = [self.transforms[t].widgets[widget_name] for t in trs[1:]]
                 for client in client_widgets:
                     master_widget.link(client, value='value')
 
                 output_widgets[widget_name] = master_widget
             else:
-                output_widgets[widget_name] = self.filters[filters[0]].widgets[widget_name]
+                output_widgets[widget_name] = self.transforms[trs[0]].widgets[widget_name]
         return output_widgets
 
 

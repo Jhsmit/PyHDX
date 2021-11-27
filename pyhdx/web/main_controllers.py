@@ -43,7 +43,7 @@ class MainController(param.Parameterized):
     _type = 'base'
 
     sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
-    filters = param.Dict({}, doc="Dictionary of filters")
+    transforms = param.Dict({}, doc="Dictionary of transforms")
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
 

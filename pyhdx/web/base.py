@@ -44,7 +44,7 @@ class ControlPanel(param.Parameterized):
             for widget_source, contents in self._layout:
                 if widget_source != 'self':
                     _type, name = widget_source.split('.')
-                    if _type == 'filters':
+                    if _type == 'transforms':
                         object = getattr(self, _type)[name]
                         object.param.watch(self.update_box, ['redrawn'])
 
@@ -63,8 +63,8 @@ class ControlPanel(param.Parameterized):
         return self.parent.sources
 
     @property
-    def filters(self):
-        return self.parent.filters
+    def transforms(self):
+        return self.parent.transforms
 
     @property
     def opts(self):

@@ -9,7 +9,7 @@ sources:
   main:
     type: pyhdx
 
-filters:
+transforms:
   peptide_src:
     type: table_source
     source: main
@@ -151,7 +151,7 @@ views:
 
 modules:
   coverage_view:
-    filters:
+    transforms:
       coverage_select:
         type: cross_section
         source: peptide_src
@@ -194,7 +194,7 @@ modules:
           - end
 
   rfu:
-    filters:
+    transforms:
       rfu_select:
         type: cross_section
         source: rfu_src
@@ -234,7 +234,7 @@ modules:
         #x: r_number
 
   rates:
-    filters:
+    transforms:
       rates_select:
         type: cross_section
         source: rates_src
@@ -260,7 +260,7 @@ modules:
         y: rate
 
   peptides:  # peptide tab with d_exp and d_calc
-    filters:
+    transforms:
       peptide_pipe:
         type: pipe
         source: peptide_src
@@ -331,7 +331,7 @@ modules:
           - d_calc_line
 
   peptide_mse:
-    filters:
+    transforms:
       peptide_mse_select:
         type: cross_section
         source: peptide_mse_src
@@ -370,7 +370,7 @@ modules:
           - sequence
 
   loss:
-    filters:
+    transforms:
       loss_sample:
         type: sample
         source: loss_src
@@ -396,7 +396,7 @@ modules:
               xlim: [0, null]
 
   dG:
-    filters:
+    transforms:
       dG_fit_select:
         type: cross_section
         source: dG_src
@@ -446,7 +446,7 @@ modules:
           - gibbs_errors
 
   ddG_view:
-    filters:
+    transforms:
       ddG_comparison_select:
         type: cross_section
         source: ddG_src
@@ -498,7 +498,7 @@ modules:
 
   # todo manual field for temporari things which cannot be yaml'd
   protein_view:
-    filters:
+    transforms:
       protein_select:
         type: cross_section
         source: protein_src
@@ -518,8 +518,9 @@ modules:
             - rfu
             - dG
             - ddG
+
   ddG_control:
-    filters:
+    transforms:
       ddG_fit_select:
         type: cross_section
         source: dG_src
@@ -528,7 +529,7 @@ modules:
 controllers:
   #- peptide_file_input  # todo by name ?
   #- initial_guess
-  # - dev
+  - dev
   - peptide_file_input
   - initial_guess
   - fit

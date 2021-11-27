@@ -16,7 +16,7 @@ from hvplot.plotting.core import hvPlotBase
 from panel.pane.base import PaneBase
 
 from pyhdx.support import autowrap
-from pyhdx.web.filters import AppFilterBase
+from pyhdx.web.transforms import AppTransformBase
 from pyhdx.web.sources import AppSourceBase
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
 
@@ -30,7 +30,7 @@ class AppViewBase(param.Parameterized):
 
     _type = None
 
-    source = param.ClassSelector(class_=(AppSourceBase, AppFilterBase),
+    source = param.ClassSelector(class_=(AppSourceBase, AppTransformBase),
                                  constant=True,
                                  precedence=-1,
                                  doc="""

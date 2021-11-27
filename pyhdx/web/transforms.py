@@ -10,8 +10,8 @@ from pyhdx.support import autowrap
 from pyhdx.web.sources import AppSourceBase
 
 
-class AppFilterBase(param.Parameterized):
-    """these filters get the data from source"""
+class AppTransformBase(param.Parameterized):
+    """these transforms get the data from source"""
 
     _type = 'base'
 
@@ -29,15 +29,15 @@ class AppFilterBase(param.Parameterized):
         return None
 
 
-class TableSourceFilter(AppFilterBase):
-    """filter which picks the correct table from the source"""
+class TableSourceTransform(AppTransformBase):
+    """transform which picks the correct table from the source"""
 
     _type = 'table_source'
 
     source = param.ClassSelector(class_=AppSourceBase)
 
     table = param.Selector(default=None, doc="""
-      The table being filtered. """)
+      The table being transformed. """)
 
     def __init__(self, table_options=None, **params):
         self.table_options = table_options
@@ -66,12 +66,12 @@ class TableSourceFilter(AppFilterBase):
         self.updated = True
 
 
-class AppFilter(AppFilterBase):
-    """filter which acts on previous filters in a chain. source is also a filter"""
+class AppTransform(AppTransformBase):
+    """transform which acts on previous transforms in a chain. source is also a transform"""
 
     _type = None  # None type cannot be used in apps directly
 
-    source = param.ClassSelector(class_=AppFilterBase)
+    source = param.ClassSelector(class_=AppTransformBase)
 
     def get(self):
         df = self.source.get()
@@ -82,7 +82,7 @@ class AppFilter(AppFilterBase):
         self.updated = True
 
 
-class CrossSectionFilter(AppFilter):
+class CrossSectionTransform(AppTransform):
 
     _type = 'cross_section'
 
@@ -101,7 +101,7 @@ class CrossSectionFilter(AppFilter):
     names = param.List(None, doc="List of label names for widgets")
 
     empty_select = param.Boolean(default=False, doc="""
-        Add an option to Select widgets to indicate no filtering.""")
+        Add an option to Select widgets to indicate select all on this level.""")
 
     # stepwise = param.Boolean(
     #     default=False,
@@ -116,7 +116,7 @@ class CrossSectionFilter(AppFilter):
     @param.depends('source.updated', watch=True)
     def update(self):
         #todo only redraw if only options are changed or always?
-        #todo remove watchers when new filters are created?
+        #todo remove watchers when new transforms are created?
 
         old_index = self.index
         df = self.source.get()
@@ -206,11 +206,11 @@ class CrossSectionFilter(AppFilter):
 
     @property
     def pd_kwargs(self):
-        """kwargs to pass to pandas function to apply filter"""
+        """kwargs to pass to pandas function"""
         return dict(key=tuple(self.key), axis=self.axis, level=self.level, drop_level=self.drop_level)
 
 
-class ApplyCmapOptFilter(AppFilter):
+class ApplyCmapOptTransform(AppTransform):
 
     _type = 'apply_cmap_opt'
 
@@ -252,7 +252,7 @@ class ApplyCmapOptFilter(AppFilter):
     @param.depends('source.updated', watch=True)
     def update(self):
         pd_series = self.source.get()
-        #todo just show all, later deal with setting the correct one? (infer from previous filter setting)
+        #todo just show all, later deal with setting the correct one? (infer from previous transform setting)
         if pd_series is None:
             # with param.parameterized.discard_events(self):
             self.param['opts'].objects = []
@@ -272,7 +272,7 @@ class ApplyCmapOptFilter(AppFilter):
         self.updated = True
 
 
-class RectangleLayoutFilter(AppFilter):
+class RectangleLayoutTransform(AppTransform):
     """
     Takes data with peptide start, end positions and transforms it to bottom, left, right, top positions of rectangles.
 
@@ -329,7 +329,7 @@ class RectangleLayoutFilter(AppFilter):
         return output_df
 
 
-class GenericFilter(AppFilter):
+class GenericTransform(AppTransform):
     _type = 'generic'
 
     pd_function = param.String()
@@ -349,17 +349,17 @@ class GenericFilter(AppFilter):
 
     @property
     def pd_kwargs(self):
-        """kwargs to pass to pandas functin to apply filter"""
+        """kwargs to pass to pandas function"""
         return self.kwargs
 
 
-class DropLevelFilter(GenericFilter):
+class DropLevelTransform(GenericTransform):
     _type = 'droplevel'
 
     pd_function = 'droplevel'
 
 
-class RenameFilter(GenericFilter):
+class RenameTransform(GenericTransform):
     _type = 'rename'
 
     pd_function = 'rename'
@@ -383,13 +383,13 @@ class RenameFilter(GenericFilter):
         return df
 
 
-class ResetIndexFilter(GenericFilter):
+class ResetIndexTransform(GenericTransform):
     _type = 'reset_index'
 
     pd_function = 'reset_index'
 
 
-class RescaleFilter(GenericFilter):
+class RescaleTransform(GenericTransform):
     """Rescale a single column"""
 
     _type = 'rescale'
@@ -409,13 +409,8 @@ class RescaleFilter(GenericFilter):
 
         return df
 
-    # @property
-    # def pd_kwargs(self):
-    #     """kwargs to pass to pandas function to apply filter"""
-    #     return {column: lambda x: x[column]*self.scale_factor for column in self.columns}
 
-
-class PivotFilter(GenericFilter):
+class PivotTransform(GenericTransform):
     _type = 'pivot'
 
     pd_function = 'pivot'
@@ -428,12 +423,12 @@ class PivotFilter(GenericFilter):
 
     @property
     def pd_kwargs(self):
-        """kwargs to pass to pandas function to apply filter"""
+        """kwargs to pass to pandas function"""
         #todo get_params func which finds the correct params here
         return dict(index=self.index, columns=self.columns, values=self.values)
 
 
-class StackFilter(GenericFilter):
+class StackTransform(GenericTransform):
     _type = 'stack'
 
     pd_function = 'stack'
@@ -445,18 +440,18 @@ class StackFilter(GenericFilter):
 
     @property
     def pd_kwargs(self):
-        """kwargs to pass to pandas function to apply filter"""
+        """kwargs to pass to pandas function"""
         #todo get_params func which finds the correct params here
         return dict(level=self.level, dropna=self.dropna)
 
 
-class ConcatFilter(AppFilter):
-    """app filter which combines multiple dfs"""
+class ConcatTransform(AppTransform):
+    """app transform which combines multiple dfs"""
     def __init__(self, **params):
         raise NotImplementedError()
 
 
-class SampleFilter(AppFilter):
+class SampleTransform(AppTransform):
     """subsamples dataframe along """
 
     _type = 'sample'
@@ -502,14 +497,13 @@ class SampleFilter(AppFilter):
         return df
 
 
-class TransformFilter(AppFilter):
+class TransformTransform(AppTransform):
     pd_function = param.String('transform')
     def __init__(self, **params):
         raise NotImplementedError()
 
 
-class PipeFilter(AppFilter):
-
+class PipeTransform(AppTransform):
     """applies a list of pandas functions
 
     (not exactly the same as df.pipe)
