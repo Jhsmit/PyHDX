@@ -51,41 +51,7 @@ class TableSource(AppSourceBase):
 class PyHDXSource(TableSource):
     _type = 'pyhdx'
 
-    # table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
-    # peptides
-    # index: peptide_id
-    # columns: state, exposure, quantity
-
-    # rfu_residues (rfu)
-    # index: r_number
-    # columns: state, exposure (TODO add quantity)
-
-    # rates
-    # index: r_number
-    # columns: guess_ID, state, quantity
-
-    # dG_fits (dG)
-    # index: r_number
-    # columns: fit_ID, state, quantity
-
-    # ddG_comparison (ddG)
-    # index: r_number
-    # columns: comparison_name, comparison_state, quantity
-
-    # d_calc
-    # index: exposure
-    # columns: fit_ID, state, peptide_id, quantity
-
-    # loss
-    # index: epoch
-    # columns: fit_ID, loss_type
-
-    # peptide_mse
-    # index: peptide_id
-    # columns: fit_ID, state, quantity
-
-    # d_calc
-    # peptide_mse (has colormap but not user configurable)
+    # see readme/tables_list for tables and their indexes
 
     hdxm_objects = param.Dict({})
     rate_results = param.Dict({})  # dataframes?
