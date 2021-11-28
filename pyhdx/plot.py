@@ -11,10 +11,12 @@ from matplotlib.axes import Axes
 from matplotlib.patches import Rectangle
 from scipy.stats import kde
 from tqdm import tqdm
+import colorcet as cc
 
 from pyhdx.config import cfg
 from pyhdx.fileIO import load_fitresult
 from pyhdx.support import autowrap, color_pymol, apply_cmap
+from pyhdx.tol_colors import tol_cmap
 
 try:
     from pymol import cmd
@@ -51,8 +53,6 @@ CBAR_KWARGS = {
     'width': cfg.getfloat('plotting', 'cbar_width') / 25.4,
     'tickminor': True
 }
-
-
 
 
 def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_field='rfu', subplot_field='exposure',
@@ -172,7 +172,6 @@ def residue_time_scatter_figure(hdxm, field='rfu', cmap='turbo', norm=None, scat
     for ax in axes_iter:
         ax.axis('off')
 
-
     axes.format(xlabel=r_xlabel, ylabel=field)
 
     cbar_kwargs = cbar_kwargs or {}
@@ -274,7 +273,7 @@ def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwar
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
-    cmap_default, norm_default = default_cmap_norm('dG')
+    cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
     cmap = cmap or cmap_default
     cmap = pplt.Colormap(cmap)
     norm = norm or norm_default
@@ -342,7 +341,7 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
-    cmap_default, norm_default = default_cmap_norm('ddG')
+    cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
     cmap = cmap or cmap_default
     cmap = pplt.Colormap(cmap)
     norm = norm or norm_default
@@ -460,11 +459,11 @@ def linear_bars_figure(data, reference=None, field='deltaG', norm=None, cmap=Non
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
 
-        cmap_default, norm_default = default_cmap_norm('ddG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
         n_subplots = len(protein_states) - 1
     else:
         plot_data = data
-        cmap_default, norm_default = default_cmap_norm('dG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
         n_subplots = len(protein_states)
 
     cmap = cmap or cmap_default
@@ -544,10 +543,10 @@ def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=N
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
         # todo sort?
 
-        cmap_default, norm_default = default_cmap_norm('ddG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
     else:
         plot_data = data
-        cmap_default, norm_default = default_cmap_norm('dG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
@@ -598,7 +597,7 @@ def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=N
 def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
     #todo make error bars optional
     #todo custom ylims? scaling?
-    cmap_default, norm_default = default_cmap_norm(y)
+    cmap_default, norm_default = CMAP_NORM_DEFAULTS(y)
 
     if y in ['deltaG', 'deltadeltaG']:
         sclf = 1e-3  # deltaG are given in J/mol but plotted in kJ/mol
@@ -660,75 +659,49 @@ def cmap_norm_from_nodes(colors, nodes, bad=None):
     return cmap, norm
 
 
-def default_cmap_norm(datatype):
-    if datatype in ['deltaG', 'dG']:
-        return get_cmap_norm_preset('vibrant', 10e3, 40e3)
-    elif datatype in ['deltadeltaG', 'ddG']:
-        return get_cmap_norm_preset('PRGn', -10e3, 10e3)
-    elif datatype == 'rfu':
-        norm = pplt.Norm('linear', 0, 1., clip=True)
-        cmap = pplt.Colormap('turbo')
-        return cmap, norm
-    elif datatype == 'mse':
-        cmap = pplt.Colormap('Haline')
-        return cmap, None
-    else:
-        raise ValueError(f"Invalid datatype {datatype!r}")
+# def default_cmap_norm(datatype):
+#     if datatype in ['deltaG', 'dG']:
+#         cmap = tol_cmap('rainbow_PuRd')
+#         norm = pplt.Norm('linear', 1e4, 4e4)
+#         return cmap, norm
+#         #return get_cmap_norm_preset('vibrant', 10e3, 40e3)
+#     elif datatype in ['deltadeltaG', 'ddG']:
+#         cmap = tol_cmap('PRGn')
+#         norm = pplt.Norm('linear', -1e4, 1e4)
+#         return cmap, norm
+#         #return get_cmap_norm_preset('PRGn', -10e3, 10e3)
+#     elif datatype == 'rfu':
+#         norm = pplt.Norm('linear', 0, 1., clip=True)
+#         cmap = pplt.Colormap('turbo')
+#         return cmap, norm
+#     elif datatype == 'mse':
+#         cmap = pplt.Colormap('cividis')
+#         return cmap, None
+#     else:
+#         raise ValueError(f"Invalid datatype {datatype!r}")
+
+def set_bad(cmap, color):
+    cmap.set_bad(color)
+    return cmap
 
 
-def get_cmap_norm_preset(name, vmin, vmax):
-    # Paul Tol colour schemes: https://personal.sron.nl/~pault/#sec:qualitative
+cmap_defaults = {
+    'dG': pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed(),
+    'deltaG': pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed(),
+    'ddG': tol_cmap('PRGn'),
+    'rfu': set_bad(pplt.Colormap('imola'), '#8c8c8c'),
+    'mse': set_bad(pplt.Colormap('cividis'), '#8c8c8c')
+}
 
-    #todo warn if users use diverging colors with non diverging vmin/vmax?
-    colors, bad = get_color_scheme(name)
-    nodes = np.linspace(vmin, vmax, num=len(colors), endpoint=True)
+norm_defaults = {
+    'dG': pplt.Norm('linear', 1e4, 4e4),
+    'deltaG': pplt.Norm('linear', 1e4, 4e4),
+    'ddG': pplt.Norm('linear', -1e4, 1e4),
+    'rfu': pplt.Norm('linear', 0, 1., clip=True),
+    'mse': pplt.Colormap('cividis')
+}
 
-    cmap, norm = cmap_norm_from_nodes(colors, nodes, bad)
-
-    return cmap, norm
-
-
-def get_color_scheme(name):
-    # Paul Tol colour schemes: https://personal.sron.nl/~pault/#sec:qualitative
-    if name == 'rgb':
-        colors = ['#0000ff', '#00ff00', '#ff0000']  # red, green, blue
-        bad = '#8c8c8c'
-    elif name == 'bright':
-        colors = ['#ee6677', '#288833', '#4477aa']
-        bad = '#bbbbbb'
-    elif name == 'vibrant':
-        colors = ['#CC3311', '#009988', '#0077BB']
-        # colors = ['#CC3311', '#EE7733', '#009988', '#33BBEE', '#0077BB']
-        bad = '#bbbbbb'
-    elif name == 'muted':
-        colors = ['#882255', '#117733', '#332288']
-        bad = '#dddddd'
-    elif name == 'pale':
-        colors = ['#ffcccc', '#ccddaa', '#bbccee']
-        bad = '#dddddd'
-    elif name == 'dark':
-        colors = ['#663333', '#225522', '#222255']
-        bad = '#555555'
-    elif name == 'delta':  # Original ddG colors
-        colors = ['#006d2c', '#ffffff', '#54278e']  # Green, white, purple (flexible, no change, rigid)
-        bad = '#ffee99'
-    elif name == 'sunset':
-        colors = ['#a50026', '#dd3d2d', '#f67e4b', '#fdb366', '#feda8b', '#eaeccc', '#c2e4ef', '#98cae1', '#6ea6cd',
-                  '#4a7bb7', '#364b9a']
-        bad = '#ffffff'
-    elif name == 'BuRd':
-        colors = ['#b2182b', '#d6604d', '#f4a582', '#fddbc7', '#f7f7f7', '#d1e5f0', '#92c5de', '#4393c3', '#2166ac']
-        bad = '#ffee99'
-    elif name == 'PRGn':
-        colors = ['#1b7837', '#5aae61', '#acd39e', '#d9f0d3', '#f7f7f7', '#e7d4e8', '#c2a5cf', '#9970ab', '#762a83']
-        bad = '#ffee99'
-    else:
-        raise ValueError(f"Color scheme '{name}' not found")
-
-    return colors, bad
-
-
-CMAP_DEFAULTS = {q: default_cmap_norm(q) for q in ['dG', 'rfu', 'ddG']}
+CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['dG', 'rfu', 'ddG', 'deltaG', 'mse']}
 
 
 def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', cmap=None, norm=None, extent=None,
@@ -752,10 +725,10 @@ def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', c
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
 
-        cmap_default, norm_default = default_cmap_norm('ddG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
     else:
         plot_data = data
-        cmap_default, norm_default = default_cmap_norm('dG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
 
     cmap = cmap or cmap_default
     norm = norm or norm_default

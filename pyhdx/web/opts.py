@@ -6,7 +6,7 @@ import param
 import proplot as pplt
 from matplotlib.colors import Colormap, Normalize
 
-from pyhdx.plot import default_cmap_norm
+from pyhdx.plot import CMAP_NORM_DEFAULTS
 from pyhdx.support import apply_cmap
 
 
@@ -144,7 +144,7 @@ class CmapOpts(OptsBase):
         self._excluded_from_opts += ['norm', 'sclf']  # perhaps use leading underscore to exclude?
 
         if self.cmap is None and self.norm is None and self.field is not None:
-            cmap, norm = default_cmap_norm(self.field)
+            cmap, norm = CMAP_NORM_DEFAULTS[self.field]
         elif self.field is None:
             cmap = pplt.Colormap('viridis')
             norm = pplt.Norm('linear', 0., 1.)
