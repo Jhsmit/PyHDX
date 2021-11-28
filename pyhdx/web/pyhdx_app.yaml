@@ -77,7 +77,7 @@ opts:
     field: rfu
   dG:  # perhaps they need better names?
     type: cmap
-    field: deltaG
+    field: dG
     sclf: 1.0e-3
   ddG:
     type: cmap
@@ -125,7 +125,7 @@ tools:
     type: hover
     tooltips:
       - [ 'Residue', '@r_number' ]
-      - [ 'ΔG', '@deltaG kJ/mol' ]
+      - [ 'ΔG', '@dG kJ/mol' ]
     #mode: vline
   ddG_hover:
     type: hover
@@ -406,7 +406,7 @@ modules:
         source: dG_fit_select
         scale_factor: 1.0e-3
         columns:
-        - deltaG
+        - dG
         - covariance
     opts:
       dG_axes:
@@ -415,7 +415,7 @@ modules:
         ylabel: ΔG (kJ/mol)
         title: ΔG Scatterplot
         invert_yaxis: True
-        color: deltaG
+        color: dG
         colorbar: True
         tools:
           - dG_hover
@@ -429,7 +429,7 @@ modules:
           - dG_axes
           - dG
         x: r_number
-        y: deltaG
+        y: dG
       gibbs_errors:
         type: errorbars
         source: dG_rescale
@@ -437,7 +437,7 @@ modules:
           - base
           - errorbars
         pos: r_number
-        value: deltaG
+        value: dG
         err: covariance
       gibbs_overlay:
         type: overlay

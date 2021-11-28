@@ -832,7 +832,7 @@ class HDXMeasurement(object):
 
         Returns
         -------
-        deltaG : :class:`~pandas.Series`
+        dG : :class:`~pandas.Series`
             ΔG guess values
 
         """
@@ -1067,7 +1067,7 @@ class HDXMeasurementSet(object):
         self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
         self.d_exp[self.masks['spt']] = d_values
 
-        # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
+        # Index array of of shape Ns x y where indices apply to dG return aligned residues for
         self.aligned_indices = None
         self.aligned_dataframes = None
 
@@ -1103,7 +1103,7 @@ class HDXMeasurementSet(object):
 
     def guess_deltaG(self, rates_list):
         """
-        Create deltaG guesses from rates
+        Create dG guesses from rates
 
         Parameters
         ----------

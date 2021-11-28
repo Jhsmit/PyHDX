@@ -97,7 +97,7 @@ class PyHDXSource(TableSource):
         self.updated = True
 
     def _add_dG_fit(self, fit_result, name):
-        # Add deltaG values table (+ covariances etc)
+        # Add dG values table (+ covariances etc)
         df = fit_result.output.copy()
         tuples = [(name, *tup) for tup in df.columns]
         columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])

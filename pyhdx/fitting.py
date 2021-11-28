@@ -331,7 +331,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         output = model(*inputs)
         loss = criterion(output, output_data)
         losses_list.append([loss.item()])  # store mse loss
-        reg_loss_tuple = regularizer(model.deltaG)
+        reg_loss_tuple = regularizer(model.dG)
         for r in reg_loss_tuple:
             loss += r
 
@@ -448,9 +448,9 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
 
     dtype = torch.float64
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
+    dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
 
-    model = DeltaGFit(deltaG_par)
+    model = DeltaGFit(dG_par)
     criterion = torch.nn.MSELoss(reduction='mean')
 
     # Take default optimizer kwargs and update them with supplied kwargs
@@ -578,9 +578,9 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
 
     assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
 
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
+    dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 
-    model = DeltaGFit(deltaG_par)
+    model = DeltaGFit(dG_par)
     criterion = torch.nn.MSELoss(reduction='mean')
 
     # Take default optimizer kwargs and update them with supplied kwargs

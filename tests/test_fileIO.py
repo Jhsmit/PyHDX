@@ -112,9 +112,6 @@ class TestFileIO(object):
         assert len(lines) == 38
         assert lines[0].strip() == pyhdx.VERSION_STRING
 
-    # def test_load_save_hdxm(self):
-    #     .. add tests
-
     def test_load_save_fitresult(self, tmp_path):
         #todo missing read batch result test
 

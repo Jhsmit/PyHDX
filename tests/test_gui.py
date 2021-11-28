@@ -126,7 +126,7 @@ class TestMainGUISecB(object):
         # Test classification
         # todo test log space
         # todo probably values should be fixed otherwise tests are co-dependent
-        values = table['testfit_1']['testname_123']['deltaG']
+        values = table['testfit_1']['testname_123']['dG']
         classification = ctrl.control_panels['ClassificationControl']
         classification._action_otsu()
 

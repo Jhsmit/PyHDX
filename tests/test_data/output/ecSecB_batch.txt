@@ -2,7 +2,7 @@ PyHDX v0.4.0b2+49.g05bd115.dirty
 2021/09/06 11:35:24 (1630920924) 
 
          SecB his dimer apo                                                                   SecB WT apo                                                                  
-                   sequence       _deltaG        deltaG         pfact     k_obs    covariance    sequence       _deltaG        deltaG         pfact     k_obs    covariance
+                   sequence           _dG            dG         pfact     k_obs    covariance    sequence           _dG            dG         pfact     k_obs    covariance
 r_number                                                                                                                                                                   
 10                        T  19755.177836  19755.177836  2.534394e+03  0.064924  1.673159e+03           T  19755.175409  19755.175409  2.534392e+03  0.064924  1.396544e+03
 11                        F  19311.433570  19311.433570  2.125278e+03  0.064392  1.669745e+03           F  19311.441296  19311.441296  2.125285e+03  0.064391  1.393680e+03

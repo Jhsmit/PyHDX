@@ -269,6 +269,7 @@ def dataframe_to_stringio(df, sio=None, fmt='csv', include_metadata=True, includ
                 sio.write(f'{sep}\n')
                 sio.write(yaml.dump(v, sort_keys=False))
                 sio.write('\n')
+        # use df.to_string()?
         with pd.option_context('display.max_rows', None, 'display.max_columns', None,
                                'display.expand_frame_repr', False):
             sio.write(df.__str__())
@@ -319,7 +320,7 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     Save a fit result object to the specified directory with associated metadata
 
     Output directory contents:
-    deltaG.csv/.txt: Fit output result (deltaG, covariance, k_obs, pfact)
+    dG.csv/.txt: Fit output result (dG, covariance, k_obs, pfact)
     losses.csv/.txt: Losses per epoch
     log.txt: Log file with additional metadata (number of epochs, final losses, pyhdx version, time/date)
 
@@ -395,9 +396,9 @@ def load_fitresult(fit_dir):
     model_klass = getattr(import_module('pyhdx.fitting_torch'), fit_metadata['model_name'])
 
     if isinstance(fit_result.columns, pd.MultiIndex):
-        g_arr = fit_result.xs('_deltaG', level=-1, axis=1).to_numpy().T
+        g_arr = fit_result.xs('_dG', level=-1, axis=1).to_numpy().T
     else:
-        g_arr = fit_result['_deltaG'].to_numpy().T
+        g_arr = fit_result['_dG'].to_numpy().T
     g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(-1)  # todo record/generalize shapes
     model = model_klass(g_parameter)
 

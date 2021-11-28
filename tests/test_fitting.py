@@ -72,7 +72,7 @@ class TestSecBDataFit(object):
         if torch.cuda.is_available():
             fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
             out_deltaG = fr_global.output
-            for field in ['deltaG', 'k_obs', 'covariance']:
+            for field in ['dG', 'k_obs', 'covariance']:
                 assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field],
                                     rtol=0.01, check_dtype=False, check_names=False)
         else:
@@ -83,11 +83,11 @@ class TestSecBDataFit(object):
         cfg.set('fitting', 'dtype', 'float32')
 
         fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
-        dg = fr_global.model.deltaG
+        dg = fr_global.model.dG
         assert dg.dtype == torch.float32
 
         out_deltaG = fr_global.output
-        for field in ['deltaG', 'k_obs']:
+        for field in ['dG', 'k_obs']:
             assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
                                 check_dtype=False, check_names=False)
 
@@ -105,7 +105,7 @@ class TestSecBDataFit(object):
         out_deltaG = fr_global.output
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
-        for field in ['deltaG', 'covariance', 'k_obs']:
+        for field in ['dG', 'covariance', 'k_obs']:
             assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
                                 check_names=False)
 
@@ -124,7 +124,7 @@ class TestSecBDataFit(object):
 
         assert t1 - t0 < 20
         out_deltaG = fr_global.output
-        for field in ['deltaG', 'k_obs', 'covariance']:
+        for field in ['dG', 'k_obs', 'covariance']:
             assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
 
         errors = fr_global.get_squared_errors()
@@ -143,7 +143,7 @@ class TestSecBDataFit(object):
         fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=20000, r1=2)
         out_deltaG = fr_global.output
 
-        for field in ['deltaG', 'k_obs']:
+        for field in ['dG', 'k_obs']:
             assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
 
         cfg.set('fitting', 'device', 'cpu')
@@ -170,8 +170,8 @@ class TestSecBDataFit(object):
         for state in states:
             from pandas.testing import assert_series_equal
 
-            result = output[state]['deltaG']
-            test = check_protein[state]['deltaG']
+            result = output[state]['dG']
+            test = check_protein[state]['dG']
 
             assert_series_equal(result, test, rtol=0.1)
 
@@ -193,8 +193,8 @@ class TestSecBDataFit(object):
 
         for state in states:
             from pandas.testing import assert_series_equal
-            result = output[state]['deltaG']
-            test = check_protein[state]['deltaG']
+            result = output[state]['dG']
+            test = check_protein[state]['dG']
 
             assert_series_equal(result, test, rtol=0.1)
 

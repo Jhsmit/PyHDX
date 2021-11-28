@@ -2,7 +2,7 @@
 # 2021/09/06 11:35:24 (1630920924) 
 # <pandas_kwargs>{"comment": "#", "header": [0, 1], "index_col": 0}</pandas_kwargs>
 ,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB his dimer apo,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo
-,sequence,_deltaG,deltaG,pfact,k_obs,covariance,sequence,_deltaG,deltaG,pfact,k_obs,covariance
+,sequence,_dG,dG,pfact,k_obs,covariance,sequence,_dG,dG,pfact,k_obs,covariance
 r_number,,,,,,,,,,,,
 10,T,19755.17783621242,19755.17783621242,2534.394221188247,0.06492382671682354,1673.158695572256,T,19755.175409035368,19755.175409035368,2534.3917806610016,0.06492388921145226,1396.5438557428322
 11,F,19311.433570104506,19311.433570104506,2125.278024520501,0.06439165023427953,1669.7454270885314,F,19311.44129602958,19311.44129602958,2125.2845389314484,0.06439145295415849,1393.68029280324

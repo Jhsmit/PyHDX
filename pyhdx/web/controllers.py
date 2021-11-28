@@ -754,8 +754,8 @@ class DifferentialControl(PyHDXControlPanel):
             self.parent.logger.info(f"Comparison name {self.comparison_name!r} already exists")
             return
 
-        reference = self._df[self.reference_state]['deltaG']
-        test = self._df.xs('deltaG', axis=1, level=1).drop(self.reference_state, axis=1)
+        reference = self._df[self.reference_state]['dG']
+        test = self._df.xs('dG', axis=1, level=1).drop(self.reference_state, axis=1)
         #todo repeated code in plot.ddG_scatter_figure
         ddG = test.subtract(reference, axis=0)
 
@@ -843,7 +843,7 @@ class ColorTransformControl(PyHDXControlPanel):
         for opt in cmap_opts:
             cmap, norm = opt.cmap, opt.norm_scaled
             self._pyhdx_cmaps[cmap.name] = cmap
-            field = {'deltaG': 'dG'}.get(opt.field, opt.field)  # rename to dG in fit output files
+            field = {'dG': 'dG'}.get(opt.field, opt.field)  # rename to dG in fit output files
             self.quantity_mapping[field] = (cmap, norm)
 
         self.cmap_options = {
@@ -1334,7 +1334,7 @@ class FileExportControl(PyHDXControlPanel):
         cmap = opt.cmap
         norm = opt.norm
         if qty == 'dG':
-            df = df.xs('deltaG', level=-1, axis=1)
+            df = df.xs('dG', level=-1, axis=1)
         elif qty == 'ddG':
             df = df.xs('ddG', level=-1, axis=1)
 
@@ -1427,7 +1427,7 @@ class FigureExportControl(PyHDXControlPanel):
             self._excluded = []
 
         if self.figure == 'scatter':
-            self.aspect = cfg.getfloat('plotting', 'deltaG_aspect')  # todo refactor to dG
+            self.aspect = cfg.getfloat('plotting', 'dG_aspect')  # todo refactor to dG
             self._excluded = []
         else:
             self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')

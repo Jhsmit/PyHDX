@@ -270,7 +270,7 @@ def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwar
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
-    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'dG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
     cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
@@ -306,9 +306,6 @@ def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwar
 
     return fig, axes, cbars
 
-#alias
-deltaG_scatter_figure = dG_scatter_figure
-
 
 def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwargs=None, cbar_kwargs=None,
                        **figure_kwargs):
@@ -322,10 +319,10 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     else:
         raise ValueError(f"Invalid value {reference!r} for 'reference'")
 
-    dG_test = data.xs('deltaG', axis=1, level=1).drop(reference_state, axis=1)
-    dG_ref = data[reference_state, 'deltaG']
+    dG_test = data.xs('dG', axis=1, level=1).drop(reference_state, axis=1)
+    dG_ref = data[reference_state, 'dG']
     ddG = dG_test.subtract(dG_ref, axis=0)
-    ddG.columns = pd.MultiIndex.from_product([ddG.columns, ['deltadeltaG']], names=['State', 'quantity'])
+    ddG.columns = pd.MultiIndex.from_product([ddG.columns, ['ddG']], names=['State', 'quantity'])
 
     cov_test = data.xs('covariance', axis=1, level=1).drop(reference_state, axis=1)**2
     cov_ref = data[reference_state, 'covariance']**2
@@ -338,7 +335,7 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
-    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'deltaG_aspect'))
+    aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'dG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
     cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
@@ -354,7 +351,7 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
             continue
         sub_df = combined[state]
         ax = next(axes_iter)
-        colorbar_scatter(ax, sub_df, y='deltadeltaG', cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)
+        colorbar_scatter(ax, sub_df, y='ddG', cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)
         title = f'{state} - {reference_state}'
         ax.format(title=title)
 
@@ -376,9 +373,6 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
         cbars.append(cbar)
 
     return fig, axes, cbars
-
-
-deltadeltaG_scatter_figure = ddG_scatter_figure
 
 
 def peptide_mse_figure(fit_result, cmap='Haline', norm=None, rect_kwargs=None, **figure_kwargs):
@@ -440,7 +434,7 @@ def loss_figure(fit_result, **figure_kwargs):
     return fig, ax
 
 
-def linear_bars_figure(data, reference=None, field='deltaG', norm=None, cmap=None, labels=None, **figure_kwargs):
+def linear_bars_figure(data, reference=None, field='dG', norm=None, cmap=None, labels=None, **figure_kwargs):
     #todo add sorting
     protein_states = data.columns.get_level_values(0).unique()
 
@@ -508,9 +502,9 @@ def linear_bars_figure(data, reference=None, field='deltaG', norm=None, cmap=Non
     cmap_norm.vmin *= sclf
     cmap_norm.vmax *= sclf
 
-    if reference and field == 'deltaG':
+    if reference and field == 'dG':
         label = ddG_ylabel
-    elif field == 'deltaG':
+    elif field == 'dG':
         label = dG_ylabel
     else:
         label = ''
@@ -520,7 +514,7 @@ def linear_bars_figure(data, reference=None, field='deltaG', norm=None, cmap=Non
     return fig, axes
 
 
-def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=None, update_rc=True, **figure_kwargs):
+def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None, update_rc=True, **figure_kwargs):
     # todo add sorting
     if update_rc:
         plt.rcParams["image.composite_image"] = False
@@ -580,9 +574,9 @@ def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=N
     kdeplot(f_data, ax=ax, **kde_kwargs)
     boxplot(f_data, ax=ax, **boxplot_kwargs)
     label_axes(f_labels, ax=ax, rotation=45)
-    if field == 'deltaG':
+    if field == 'dG':
         label = dG_ylabel
-    elif field == 'deltaG' and reference_state:
+    elif field == 'dG' and reference_state:
         label = ddG_ylabel
     else:
         label = ''
@@ -594,13 +588,13 @@ def rainbowclouds_figure(data, reference=None, field='deltaG', norm=None, cmap=N
     return fig, ax, cbar
 
 
-def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
+def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
     #todo make error bars optional
     #todo custom ylims? scaling?
     cmap_default, norm_default = CMAP_NORM_DEFAULTS(y)
 
-    if y in ['deltaG', 'deltadeltaG']:
-        sclf = 1e-3  # deltaG are given in J/mol but plotted in kJ/mol
+    if y in ['dG', 'ddG']:
+        sclf = 1e-3  # dG are given in J/mol but plotted in kJ/mol
     else:
         if cmap is None or norm is None:
             raise ValueError("No valid `cmap` or `norm` is given.")
@@ -622,14 +616,14 @@ def colorbar_scatter(ax, data, y='deltaG', yerr='covariance', cmap=None, norm=No
                     **errorbar_kwargs)
     ax.set_xlabel(r_xlabel)
     # Default y labels
-    labels = {'deltaG': dG_ylabel, 'deltadeltaG': ddG_ylabel}
+    labels = {'dG': dG_ylabel, 'ddG': ddG_ylabel}
     label = labels.get(y, '')
     ax.set_ylabel(label)
 
     ylim = ax.get_ylim()
-    if (ylim[0] < ylim[1]) and y == 'deltaG':
+    if (ylim[0] < ylim[1]) and y == 'dG':
         ax.set_ylim(*ylim[::-1])
-    elif y == 'deltadeltaG':
+    elif y == 'ddG':
         ylim = np.max(np.abs(ylim))
         ax.set_ylim(ylim, -ylim)
 
@@ -666,7 +660,6 @@ def set_bad(cmap, color):
 
 cmap_defaults = {
     'dG': pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed(),
-    'deltaG': pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed(),
     'ddG': tol_cmap('PRGn'),
     'rfu': set_bad(pplt.Colormap('imola'), '#8c8c8c'),
     'mse': set_bad(pplt.Colormap('cividis'), '#8c8c8c')
@@ -674,16 +667,15 @@ cmap_defaults = {
 
 norm_defaults = {
     'dG': pplt.Norm('linear', 1e4, 4e4),
-    'deltaG': pplt.Norm('linear', 1e4, 4e4),
     'ddG': pplt.Norm('linear', -1e4, 1e4),
     'rfu': pplt.Norm('linear', 0, 1., clip=True),
     'mse': pplt.Colormap('cividis')
 }
 
-CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['dG', 'rfu', 'ddG', 'deltaG', 'mse']}
+CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['rfu', 'ddG', 'dG', 'mse']}
 
 
-def pymol_figures(data, output_path, pdb_file, reference=None, field='deltaG', cmap=None, norm=None, extent=None,
+def pymol_figures(data, output_path, pdb_file, reference=None, field='dG', cmap=None, norm=None, extent=None,
                   orient=True, views=None, name_suffix='',
                   additional_views=None, img_size=(640, 640)):
 
