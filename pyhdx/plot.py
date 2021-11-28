@@ -273,7 +273,7 @@ def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwar
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'dG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
-    cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
+    cmap_default, norm_default = CMAP_NORM_DEFAULTS['dG']
     cmap = cmap or cmap_default
     cmap = pplt.Colormap(cmap)
     norm = norm or norm_default
@@ -338,7 +338,7 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'dG_aspect'))
     sharey = figure_kwargs.pop('sharey', 1)
 
-    cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
+    cmap_default, norm_default = CMAP_NORM_DEFAULTS['ddG']
     cmap = cmap or cmap_default
     cmap = pplt.Colormap(cmap)
     norm = norm or norm_default
@@ -453,11 +453,11 @@ def linear_bars_figure(data, reference=None, field='dG', norm=None, cmap=None, l
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
 
-        cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['ddG']
         n_subplots = len(protein_states) - 1
     else:
         plot_data = data
-        cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['dG']
         n_subplots = len(protein_states)
 
     cmap = cmap or cmap_default
@@ -537,10 +537,10 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
         # todo sort?
 
-        cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['ddG']
     else:
         plot_data = data
-        cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['dG']
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
@@ -591,7 +591,7 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
 def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
     #todo make error bars optional
     #todo custom ylims? scaling?
-    cmap_default, norm_default = CMAP_NORM_DEFAULTS(y)
+    cmap_default, norm_default = CMAP_NORM_DEFAULTS[y]
 
     if y in ['dG', 'ddG']:
         sclf = 1e-3  # dG are given in J/mol but plotted in kJ/mol
@@ -696,10 +696,10 @@ def pymol_figures(data, output_path, pdb_file, reference=None, field='dG', cmap=
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
 
-        cmap_default, norm_default = CMAP_NORM_DEFAULTS('ddG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['ddG']
     else:
         plot_data = data
-        cmap_default, norm_default = CMAP_NORM_DEFAULTS('dG')
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['dG']
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
