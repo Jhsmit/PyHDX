@@ -659,27 +659,6 @@ def cmap_norm_from_nodes(colors, nodes, bad=None):
     return cmap, norm
 
 
-# def default_cmap_norm(datatype):
-#     if datatype in ['deltaG', 'dG']:
-#         cmap = tol_cmap('rainbow_PuRd')
-#         norm = pplt.Norm('linear', 1e4, 4e4)
-#         return cmap, norm
-#         #return get_cmap_norm_preset('vibrant', 10e3, 40e3)
-#     elif datatype in ['deltadeltaG', 'ddG']:
-#         cmap = tol_cmap('PRGn')
-#         norm = pplt.Norm('linear', -1e4, 1e4)
-#         return cmap, norm
-#         #return get_cmap_norm_preset('PRGn', -10e3, 10e3)
-#     elif datatype == 'rfu':
-#         norm = pplt.Norm('linear', 0, 1., clip=True)
-#         cmap = pplt.Colormap('turbo')
-#         return cmap, norm
-#     elif datatype == 'mse':
-#         cmap = pplt.Colormap('cividis')
-#         return cmap, None
-#     else:
-#         raise ValueError(f"Invalid datatype {datatype!r}")
-
 def set_bad(cmap, color):
     cmap.set_bad(color)
     return cmap
