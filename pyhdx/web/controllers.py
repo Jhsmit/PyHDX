@@ -1379,7 +1379,7 @@ class FigureExportControl(PyHDXControlPanel):
 
     def __init__(self, parent, **param):
         super(FigureExportControl, self).__init__(parent, **param)
-        self.sources['main'].param.watch(self._figure_updated, ['tables', 'updated'])
+        self.sources['main'].param.watch(self._figure_updated, ['updated'])
 
         self._figure_updated()
 
@@ -1401,11 +1401,14 @@ class FigureExportControl(PyHDXControlPanel):
     def _figure_updated(self, *events):
         # generalize more when other plot options are introduced
         if not self.figure:
+            self.widgets['export_figure'].disabled = True
             return
 
-        if 'dG_fits' not in self.sources['main'].tables.keys():
+        if 'dG_fits' not in self.src.tables.keys():
+            self.widgets['export_figure'].disabled = True
             return
 
+        self.widgets['export_figure'].disabled = False
         if self.figure in ['scatter', 'linear_bars', 'rainbowclouds']:  # currently this is always true
             df = self.sources['main'].tables['dG_fits']
             options = list(df.columns.unique(level=0))
@@ -1446,14 +1449,7 @@ class FigureExportControl(PyHDXControlPanel):
     def figure_export_callback(self):
         self.widgets['export_figure'].loading = True
 
-        if not self.figure:
-            return None
-
-        if 'dG_fits' not in self.sources['main'].tables.keys():
-            self.parent.logger.info("No ΔG fits results available")
-            return None
-
-        df = self.sources['main'].tables['dG_fits']
+        df = self.src.tables['dG_fits']
         sub_df = df[self.figure_selection]
 
         if self.figure == 'scatter':
