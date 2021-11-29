@@ -540,8 +540,11 @@ class FitControl(PyHDXControlPanel):
         self.update_box()
 
     def add_fit_result(self, future):
-        #todo perhaps all these dfs should be in the future?
-        name = self._fit_names.pop(future.key)
+        try:
+            name = self._fit_names.pop(future.key)
+        except KeyError:
+            return
+
         result = future.result()
         self._current_jobs -= 1
 
@@ -651,12 +654,6 @@ class FitControl(PyHDXControlPanel):
                                     f"({result.regularization_percentage:.1f}%)")
 
         self.widgets['do_fit'].loading = False
-        #self.widgets['progress'].max = self.epochs
-
-        # self.parent.sources['dataframe'].add_df(df, 'global_fit', names=[name])
-        # self.parent.sources['dataframe'].add_df(mse_df, 'peptides_mse', names=[name])
-        # self.parent.sources['dataframe'].add_df(d_calc_df, 'd_calc', names=[name])
-        # self.parent.sources['dataframe'].add_df(losses_df, 'losses', names=[name])
 
     def _action_fit(self):
         if self.fit_name in itertools.chain(self.src.dG_fits.keys(), self._fit_names.values()):
