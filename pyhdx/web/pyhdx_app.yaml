@@ -198,17 +198,7 @@ modules:
       rfu_select:
         type: cross_section
         source: rfu_src
-        n_levels: 0  # todo change to -1?
-      rfu_droplevel:
-        type: droplevel
-        source: rfu_select
-        level: 0
-        axis: 1   # todo expand columns to include qty (perhaps this already done)
-      rfu_rename:
-        type: rename
-        source: rfu_droplevel
-        columns:
-          - rfu
+        n_levels: -1  # todo change to -1?
     opts:
       rfu_scatter:
         type: generic
@@ -223,7 +213,7 @@ modules:
     views:
       rfu_scatter:
         type: scatter
-        source: rfu_rename
+        source: rfu_select
         x: r_number
         y: rfu
         opts:
@@ -321,7 +311,7 @@ modules:
         type: curve
         source: d_calc_select
         opts:
-          - d_calc_line  # todo allow definition of opts in place?
+          - d_calc_line
         x: exposure
         y: d_calc
       peptide_overlay:

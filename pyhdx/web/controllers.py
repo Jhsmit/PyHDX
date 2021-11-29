@@ -898,7 +898,7 @@ class ColorTransformControl(PyHDXControlPanel):
             return None
 
         field = self.opts[self.quantity].field
-        df = table.xs(field, level=-1) if field != 'rfu' else table # todo fix when fixing rfu dataframe
+        df = table.xs(field, level=-1)
 
         return df
 

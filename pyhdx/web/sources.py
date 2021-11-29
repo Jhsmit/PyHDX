@@ -87,8 +87,8 @@ class PyHDXSource(TableSource):
 
         # Add rfu per residue data
         df = hdxm.rfu_residues
-        tuples = [(name, column) for column in df.columns]  # todo the rfus need an additional level (rfu / name:quantity)
-        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure'])
+        tuples = [(name, column, 'rfu') for column in df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure', 'quantity'])
         df.columns = columns
         self._add_table(df, 'rfu_residues')
 
