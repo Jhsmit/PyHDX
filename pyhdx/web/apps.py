@@ -45,17 +45,21 @@ def main_app():
     views = {v: ctrl.views[v] for v in views_names}
     [v.update() for v in views.values()]
 
+    # this should be on the view intances probably
+    def get_view(name):
+        return pn.Column(views[name].panel, sizing_mode='stretch_both')
+
     cov_tab = pn.Tabs(
-        ('Coverage', views['coverage'].panel),
-        ('Protein', views['protein'].panel),
-        ('Peptide MSE', views['peptide_mse'].panel)
+        ('Coverage', get_view('coverage')),
+        ('Protein', get_view('protein')),
+        ('Peptide MSE', get_view('peptide_mse'))
     )
 
     scatter_tab = pn.Tabs(
-        ('RFU', views['rfu_scatter'].panel),
-        ('Rates', views['rates'].panel),
-        ('ΔG', views['gibbs_overlay'].panel),
-        ('ΔΔG', views['ddG_overlay'].panel),
+        ('RFU', get_view('rfu_scatter')),
+        ('Rates', get_view('rates')),
+        ('ΔG', get_view('gibbs_overlay')),
+        ('ΔΔG', get_view('ddG_overlay')),
     )
 
     log_tab = pn.Tabs(
@@ -64,8 +68,8 @@ def main_app():
     )
 
     peptide_tab = pn.Tabs(
-        ('Peptide', views['peptide_overlay'].panel),
-        ('Losses', views['loss_lines'].panel)
+        ('Peptide', get_view('peptide_overlay')),
+        ('Losses', get_view('loss_lines'))
     )
 
     tmpl.main[0:3, 0:6] = cov_tab
