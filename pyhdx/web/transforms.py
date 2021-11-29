@@ -7,10 +7,10 @@ import param
 from param.parameterized import default_label_formatter
 
 from pyhdx.support import autowrap
-from pyhdx.web.sources import AppSourceBase
+from pyhdx.web.sources import Source
 
 
-class AppTransformBase(param.Parameterized):
+class Transform(param.Parameterized):
     """these transforms get the data from source"""
 
     _type = 'base'
@@ -29,12 +29,12 @@ class AppTransformBase(param.Parameterized):
         return None
 
 
-class TableSourceTransform(AppTransformBase):
+class TableSourceTransform(Transform):
     """transform which picks the correct table from the source"""
 
     _type = 'table_source'
 
-    source = param.ClassSelector(class_=AppSourceBase)
+    source = param.ClassSelector(class_=Source)
 
     table = param.Selector(default=None, doc="""
       The table being transformed. """)
@@ -66,12 +66,12 @@ class TableSourceTransform(AppTransformBase):
         self.updated = True
 
 
-class AppTransform(AppTransformBase):
+class AppTransform(Transform):
     """transform which acts on previous transforms in a chain. source is also a transform"""
 
     _type = None  # None type cannot be used in apps directly
 
-    source = param.ClassSelector(class_=AppTransformBase)
+    source = param.ClassSelector(class_=Transform)
 
     def get(self):
         df = self.source.get()

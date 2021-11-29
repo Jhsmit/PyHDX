@@ -8,7 +8,7 @@ from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.support import multiindex_astype, multiindex_set_categories
 
 
-class AppSourceBase(param.Parameterized):
+class Source(param.Parameterized):
     """Base class for sources"""
 
     _type = 'base'
@@ -19,7 +19,7 @@ class AppSourceBase(param.Parameterized):
         raise NotImplementedError()
 
 
-class TableSource(AppSourceBase):
+class TableSource(Source):
 
     tables = param.Dict({})
 

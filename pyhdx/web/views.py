@@ -1,36 +1,29 @@
-import itertools
 import logging
 from functools import partial
 from itertools import groupby, count
 
 import holoviews as hv
-from holoviews.streams import Pipe
+import numpy as np
 import pandas as pd
 import panel as pn
 import param
-from bokeh.models import HoverTool, Span, Rect, Whisker
-from bokeh.models.formatters import NumeralTickFormatter
-from bokeh.plotting import figure
+from holoviews.streams import Pipe
 from hvplot import hvPlotTabular
-from hvplot.plotting.core import hvPlotBase
 from panel.pane.base import PaneBase
 
-from pyhdx.support import autowrap
-from pyhdx.web.transforms import AppTransformBase
-from pyhdx.web.sources import AppSourceBase
+from pyhdx.web.sources import Source
+from pyhdx.web.transforms import Transform
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
 
-import numpy as np
 
-
-class AppViewBase(param.Parameterized):
+class View(param.Parameterized):
     """Base view object.
 
     Inspired by Holoviz Lumen's View objects"""
 
     _type = None
 
-    source = param.ClassSelector(class_=(AppSourceBase, AppTransformBase),
+    source = param.ClassSelector(class_=(Source, Transform),
                                  constant=True,
                                  precedence=-1,
                                  doc="""
@@ -62,7 +55,7 @@ class AppViewBase(param.Parameterized):
         self.update()  # todo or just catch events in the update function?  (probably this)
 
     def make_dict(self):
-        #todo baseclass filter/controller/view with the same widget generation logic?
+        # todo baseclass filter/controller/view with the same widget generation logic?
         """dict of widgets to be shown
         override this method to get custom mapping
 
@@ -100,7 +93,7 @@ class AppViewBase(param.Parameterized):
         indicating whether a rerender is required.
         """
 
-        #todo clenaup
+        # todo clenaup
         if self._panel is not None:
             self._cleanup()
             self._updates = self._get_params()
@@ -128,8 +121,7 @@ class AppViewBase(param.Parameterized):
         return opts_dict
 
 
-class hvAppView(AppViewBase):
-
+class hvAppView(View):
     _type = None
 
     def __init__(self, **params):
@@ -174,8 +166,8 @@ class hvAppView(AppViewBase):
 
     def get_panel(self):
         kwargs = self._get_params()
-        #interactive? https://github.com/holoviz/panel/issues/1824
-        return pn.pane.HoloViews(linked_axes=False,  **kwargs)  #linked_axes=False??
+        # interactive? https://github.com/holoviz/panel/issues/1824
+        return pn.pane.HoloViews(linked_axes=False, **kwargs)  # linked_axes=False??
 
     def _get_params(self):
         df = self.get_data()
@@ -196,14 +188,13 @@ class hvAppView(AppViewBase):
 
 
 class hvPlotView(hvAppView):
-
     _type = 'hvplot'
 
     kind = param.String()
 
     def __init__(self, **params):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
-        super().__init__(**{k: v for k, v in params.items() if k in self.param})        #baseclass??
+        super().__init__(**{k: v for k, v in params.items() if k in self.param})  # baseclass??
         self._stream = None
 
     def get_plot(self):
@@ -235,7 +226,6 @@ class hvPlotView(hvAppView):
 
 
 class hvCurveView(hvAppView):
-
     _type = 'curve'
 
     x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
@@ -243,7 +233,7 @@ class hvCurveView(hvAppView):
     y = param.String(None, doc="The column to render on the y-axis.")
 
     def __init__(self, **params):
-        #baseclass??
+        # baseclass??
         self._stream = None
         super().__init__(**params)
 
@@ -280,7 +270,6 @@ class hvCurveView(hvAppView):
 
 
 class hvScatterAppView(hvAppView):
-
     _type = 'scatter'
 
     x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
@@ -326,7 +315,6 @@ class hvScatterAppView(hvAppView):
 
 
 class hvRectanglesAppView(hvAppView):
-
     _type = 'rectangles'
 
     x0 = param.String('x0')
@@ -340,8 +328,7 @@ class hvRectanglesAppView(hvAppView):
     vdims = param.List(['value'])
 
     def __init__(self, **params):
-
-        #todo left and right cannot be none?
+        # todo left and right cannot be none?
         super().__init__(**params)
 
     def get_plot(self):
@@ -379,7 +366,6 @@ class hvRectanglesAppView(hvAppView):
 
 
 class hvErrorBarsAppView(hvAppView):
-
     _type = 'errorbars'
 
     pos = param.String('x', doc='Positions of the errobars, x-values for vertical errorbars')
@@ -396,7 +382,7 @@ class hvErrorBarsAppView(hvAppView):
 
     def __init__(self, **params):
 
-        #todo left and right cannot be none?
+        # todo left and right cannot be none?
         super().__init__(**params)
 
     def get_plot(self):
@@ -443,8 +429,7 @@ class hvErrorBarsAppView(hvAppView):
         return pd.DataFrame([[0] * len(columns)], columns=columns)
 
 
-class hvOverlayView(AppViewBase):
-
+class hvOverlayView(View):
     _type = 'overlay'
 
     views = param.List(
@@ -459,7 +444,8 @@ class hvOverlayView(AppViewBase):
 
     def get_plot(self):
         items = [view.get_plot() for view in self.views]
-        plot = hv.Overlay(items).collate()  # todo is collate always needed? Does it always return a DynamicMap? -> generalize
+        plot = hv.Overlay(
+            items).collate()  # todo is collate always needed? Does it always return a DynamicMap? -> generalize
 
         if self.opts_dict:
             plot = plot.apply.opts(**self.opts_dict)
@@ -471,7 +457,7 @@ class hvOverlayView(AppViewBase):
 
     def get_panel(self):
         kwargs = self._get_params()
-        #interactive? https://github.com/holoviz/panel/issues/1824
+        # interactive? https://github.com/holoviz/panel/issues/1824
         return pn.pane.HoloViews(**kwargs)
 
     @property
@@ -484,7 +470,7 @@ class hvOverlayView(AppViewBase):
         return self._panel
 
 
-class NGLView(AppViewBase):
+class NGLView(View):
     _type = 'ngl'
 
     # todo additioal render options (fog etc)
@@ -503,7 +489,7 @@ class NGLView(AppViewBase):
 
     def __init__(self, **params):
         super(NGLView, self).__init__(**params)
-        self._ngl = NGL(sizing_mode='stretch_both',  #todo sanitize order
+        self._ngl = NGL(sizing_mode='stretch_both',  # todo sanitize order
                         extension='pdb',
                         effect=self.effect,
                         color_scheme=self.color_scheme,
@@ -556,7 +542,7 @@ class NGLView(AppViewBase):
         return self._panel
 
 
-class LoggingView(AppViewBase):
+class LoggingView(View):
     _type = 'logging'
 
     logger = param.ClassSelector(logging.Logger, doc='Logger object to show in Log view')

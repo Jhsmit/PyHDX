@@ -10,7 +10,7 @@ from pyhdx.web.opts import OptsBase
 from pyhdx.web.sources import *
 from pyhdx.web.tools import supported_tools
 from pyhdx.web.transforms import *
-from pyhdx.web.views import AppViewBase
+from pyhdx.web.views import View
 
 element_count = 0
 
@@ -64,9 +64,9 @@ class AppConstructor(param.Parameterized):
     def find_classes():
         base_classes = {
             'main': MainController,
-            'transform': AppTransformBase,
-            'source': AppSourceBase,
-            'view': AppViewBase,
+            'transform': Transform,
+            'source': Source,
+            'view': View,
             'opt': OptsBase,
             'controller': ControlPanel}
         classes = {}
