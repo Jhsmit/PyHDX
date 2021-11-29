@@ -493,6 +493,7 @@ class SampleTransform(AppTransform):
             else:
                 step = int(1/self.frac)
 
+            step = max(step, 1)
             slice_step = slice(None, None, step)
             slice_all = slice(None)
 
