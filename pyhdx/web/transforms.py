@@ -42,8 +42,10 @@ class TableSourceTransform(Transform):
     def __init__(self, table_options=None, **params):
         self.table_options = table_options
         super().__init__(**params)
-
         self.widgets = {'table': pn.pane.panel(self.param.table)}
+
+        if self.table_options:
+            self._update_options()
 
     # todo allow auto generate widgets as in control panels /  views
 
@@ -55,14 +57,17 @@ class TableSourceTransform(Transform):
     def _table_updated(self):
         self.updated = True
 
-    @param.depends('source.updated', watch=True)
-    def update(self):
+    def _update_options(self):
         options = self.source.get_tables()
         if self.table_options:
             options = [t for t in options if t in self.table_options]
         self.param['table'].objects = options
         if not self.table and options:
             self.table = options[0]
+
+    @param.depends('source.updated', watch=True)
+    def update(self):
+        self._update_options()
         self.updated = True
 
 
@@ -118,8 +123,14 @@ class CrossSectionTransform(AppTransform):
         #todo only redraw if only options are changed or always?
         #todo remove watchers when new transforms are created?
 
+
         old_index = self.index
         df = self.source.get()
+
+        if self.name == 'protein_select':
+            print('select')
+            print(df)
+
         if df is None:
             return
         self.index = df.columns if self.axis else df.index

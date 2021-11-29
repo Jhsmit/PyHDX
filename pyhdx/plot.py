@@ -702,7 +702,6 @@ def pymol_figures(data, output_path, pdb_file, reference=None, field='dG', cmap=
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
-    #plot_data = plot_data.xs(field, axis=1, level=1)
 
     for state in protein_states:
         if state == reference_state:

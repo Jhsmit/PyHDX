@@ -14,6 +14,7 @@ from panel.pane.base import PaneBase
 from pyhdx.web.sources import Source
 from pyhdx.web.transforms import Transform
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
+from pyhdx.web.opts import CmapOpts
 
 
 class View(param.Parameterized):
@@ -22,12 +23,6 @@ class View(param.Parameterized):
     Inspired by Holoviz Lumen's View objects"""
 
     _type = None
-
-    source = param.ClassSelector(class_=(Source, Transform),
-                                 constant=True,
-                                 precedence=-1,
-                                 doc="""
-        The Source to query for the data.""")
 
     opts = param.List(
         default=[],
@@ -121,7 +116,14 @@ class View(param.Parameterized):
         return opts_dict
 
 
-class hvAppView(View):
+class hvView(View):
+
+    source = param.ClassSelector(class_=(Source, Transform),
+                                 constant=True,
+                                 precedence=-1,
+                                 doc="""
+        The Source to query for the data.""")
+
     _type = None
 
     def __init__(self, **params):
@@ -187,7 +189,7 @@ class hvAppView(View):
         return self._panel
 
 
-class hvPlotView(hvAppView):
+class hvPlotView(hvView):
     _type = 'hvplot'
 
     kind = param.String()
@@ -225,7 +227,7 @@ class hvPlotView(hvAppView):
         return df
 
 
-class hvCurveView(hvAppView):
+class hvCurveView(hvView):
     _type = 'curve'
 
     x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
@@ -269,7 +271,7 @@ class hvCurveView(hvAppView):
         return pd.DataFrame([[np.nan] * len(columns)], columns=columns)
 
 
-class hvScatterAppView(hvAppView):
+class hvScatterAppView(hvView):
     _type = 'scatter'
 
     x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
@@ -314,7 +316,7 @@ class hvScatterAppView(hvAppView):
         return pd.DataFrame(dic)
 
 
-class hvRectanglesAppView(hvAppView):
+class hvRectanglesAppView(hvView):
     _type = 'rectangles'
 
     x0 = param.String('x0')
@@ -365,7 +367,7 @@ class hvRectanglesAppView(hvAppView):
         return pd.DataFrame([[0] * len(columns)], columns=columns)
 
 
-class hvErrorBarsAppView(hvAppView):
+class hvErrorBarsAppView(hvView):
     _type = 'errorbars'
 
     pos = param.String('x', doc='Positions of the errobars, x-values for vertical errorbars')
@@ -470,10 +472,15 @@ class hvOverlayView(View):
         return self._panel
 
 
-class NGLView(View):
-    _type = 'ngl'
+class NGLColorView(View):
+    _type = 'ngl_colors'
 
     # todo additioal render options (fog etc)
+
+    sources = param.Dict(
+        doc="Dict of sources for this view. "
+            "should be: pdb: PDBSource, color: TableSource (single-column tables)"
+    )
 
     representation = param.Selector(default='cartoon', objects=REPRESENTATIONS)
 
@@ -488,7 +495,8 @@ class NGLView(View):
     object = param.String('', doc='pdb string object', precedence=-1)
 
     def __init__(self, **params):
-        super(NGLView, self).__init__(**params)
+        #todo should generate widgets which can be displayed in the controller
+        super(NGLColorView, self).__init__(**params)
         self._ngl = NGL(sizing_mode='stretch_both',  # todo sanitize order
                         extension='pdb',
                         effect=self.effect,
@@ -500,10 +508,17 @@ class NGLView(View):
 
         params = self.param.params().keys() & self._ngl.param.params().keys() - {'name'}
         self.param.watch(self._update_params, list(params))
-        # todo is there a better way to couple two params?
+
+        self.sources['pdb'].param.watch(self._pdb_updated, 'updated')
+        self.sources['color'].param.watch(self._color_updated, 'updated')
+
+        # field: opts for all cmap otps
+        self._cmap_opts = {opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)}
+
 
     def _update_params(self, *events):
         for event in events:
+            print('update params')
             setattr(self._ngl, event.name, event.new)
 
     def get_panel(self):
@@ -515,22 +530,40 @@ class NGLView(View):
     def _get_params(self):
         return None
 
-    @param.depends('source.updated', watch=True)
+    def _pdb_updated(self, *events):
+        pdb_string = self.sources['pdb'].get()
+        self.object = pdb_string
+
+    def _color_updated(self, *event):
+        df = self.sources['color'].get()
+        if df is None:
+            return
+
+        # there should be one column which matches one of the keys in the cmap otps dict
+        matching_columns = set(df.columns) & self._cmap_opts.keys()
+        qty = matching_columns.pop()
+        opts = self._cmap_opts[qty]
+        series = df[qty] # take the column from the df, returns pd.Series
+        colors = opts.apply(df[qty])  # pd.Series with colors
+
+        grp = colors.groupby(colors)  # Group to color and transform to ngl custom color scheme format
+        color_list = []
+        for c, pd_series in grp:
+            result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+
+            resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
+            color_list.append([c, resi])
+
+        self.custom_color_scheme = color_list
+
+        return self._update_panel()  # check how and why this is needed
+
+    # this is called to initiate the view. perhaps should be removed / refacotred
+    # its also triggerd by any dependency trigger (in this case opts)
     def update(self):
-        colors = self.get_data()
-        if colors is not None:
-            grp = colors.groupby(colors)
+        self._color_updated()
 
-            color_list = []
-            for c, pd_series in grp:
-                result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
-
-                resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
-                color_list.append([c, resi])
-
-            self.custom_color_scheme = color_list
-
-        return self._update_panel()  # what does this do? redraws if not redrawn?
+        return self._update_panel()
 
     @property
     def panel(self):  # why the panebase unpack?

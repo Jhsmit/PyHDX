@@ -8,6 +8,8 @@ main_controller:
 sources:
   main:
     type: pyhdx
+  pdb:
+    type: pdb
 
 transforms:
   peptide_src:
@@ -136,14 +138,12 @@ tools:
 views:
   logging_info:
     type: logging
-    source: None
     logger: pyhdx
     level: 20
     opts:
       - info_log
   logging_debug:
     type: logging
-    source: None
     logger: pyhdx
     level: 10
     opts:
@@ -486,23 +486,29 @@ modules:
           - ddG
           - ddG_errors
 
-  # todo manual field for temporari things which cannot be yaml'd
   protein_view:
     transforms:
       protein_select:
         type: cross_section
         source: protein_src
-      protein_cmap:
-        type: apply_cmap_opt
-        source: protein_select
-        opts:
-          - rfu  #cmap opts, -> renmame
-          - dG
-          - ddG
+        n_levels: -1
+#      protein_cmap:
+#        type: apply_cmap_opt
+#        source: protein_select
+#        opts:
+#          - rfu  #cmap opts, -> renmame
+#          - dG
+#          - ddG
     views:
       protein:  #NGL?
-        type: ngl
-        source: protein_cmap
+        type: ngl_colors
+        sources:
+          pdb: pdb
+          color: protein_select
+        opts:  # opts are not applied directly but matched to color dataframe and then applied
+          - rfu
+          - dG
+          - ddG
         dependencies:
           opts:
             - rfu

@@ -1,3 +1,5 @@
+import urllib.request
+
 import numpy as np
 import pandas as pd
 import param
@@ -194,3 +196,41 @@ class PyHDXSource(TableSource):
         self.tables[table] = new
 
 
+class PDBSource(Source):
+
+    _type = 'pdb'
+
+    pdb_files = param.Dict({}, doc='Dictionary with id: pdb_string pdb file entries')
+
+    max_entries = param.Number(
+        1,
+        doc='set maximum size for pdb files. set to none for infinite size. set to one for single pdb mode')
+
+    def add_from_pdb(self, pdb_id):
+        self._make_room()
+        url = f'http://files.rcsb.org/download/{pdb_id}.pdb'
+        with urllib.request.urlopen(url) as response:
+            pdb_string = response.read().decode()
+
+        self.pdb_files[pdb_id] = pdb_string
+        self.updated = True
+
+    def add_from_string(self, pdb_string, pdb_id):
+        self._make_room()
+        self.pdb_files[pdb_id] = pdb_string
+        self.updated = True
+
+    def _make_room(self):
+        """removes first entry of pdf_files dict if its at max capacity"""
+        if self.max_entries is None:
+            pass
+        elif len(self.pdb_files) == self.max_entries:
+            key = next(iter(self.pdb_files))
+            del self.pdb_files[key]
+
+    def get(self):
+        """returns the first entry in the """
+        return next(iter(self.pdb_files.values()))
+
+    def get_pdb(self, pdb_id):
+        return self.pdb_files[pdb_id]

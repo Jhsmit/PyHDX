@@ -1177,22 +1177,23 @@ class ProteinControl(PyHDXControlPanel):
 
     header = 'Protein Control'
 
-    input_mode = param.Selector(doc='Method of protein structure input', objects=['PDB File', 'RCSB Download'])
+    input_mode = param.Selector(default='RCSB PDB Download',
+        doc='Method of protein structure input', objects=['RCSB PDB Download', 'PDB File'])
     file_binary = param.Parameter()
-    rcsb_id = param.String(doc='RCSB ID of protein to download')
+    pdb_id = param.String(doc='RCSB ID of protein to download')
     load_structure = param.Action(lambda self: self._action_load_structure())
 
     def __init__(self, parent, **params):
-        super(ProteinControl, self).__init__(parent, _excluded=['rcsb_id'], **params)
+        super(ProteinControl, self).__init__(parent, _excluded=['file_binary'], **params)
         self.update_box()
 
     @property
     def _layout(self):
         return [('self', self.own_widget_names),  #always use this instead of none?
                 ('transforms.protein_src', None),
-                ('transforms.protein_select', None),
-                ('transforms.protein_cmap', None),
-                ('views.protein', None)
+                # ('transforms.protein_select', None),
+                # ('transforms.protein_cmap', None),
+                # ('views.protein', None)
                 ]
 
     def make_dict(self):
@@ -1201,29 +1202,30 @@ class ProteinControl(PyHDXControlPanel):
     @param.depends('input_mode', watch=True)
     def _update_input_mode(self):
         if self.input_mode == 'PDB File':
-            self._excluded = ['rcsb_id']
-        elif self.input_mode == 'RCSB Download':
+            self._excluded = ['pdb_id']
+        elif self.input_mode == 'RCSB PDB Download':
             self._excluded = ['file_binary']
 
-        #self.own_widget_names = [name for name in self.widgets.keys() if name not in excluded]
         self.update_box()
 
     def _action_load_structure(self):
-
         if self.input_mode == 'PDB File':
             pdb_string = self.file_binary.decode()
+            self.parent.sources['pdb'].add_from_string(pdb_string, 'unknown')  # todo parse and extract pdb id?
 
-        elif self.input_mode == 'RCSB Download':
-            if len(self.rcsb_id) != 4:
-                self.parent.logger.info(f"Invalid RCSB pdb id: {self.rcsb_id}")
+        elif self.input_mode == 'RCSB PDB Download':
+            if len(self.pdb_id) != 4:
+                self.parent.logger.info(f"Invalid RCSB pdb id: {self.pdb_id}")
                 return
 
-            url = f'http://files.rcsb.org/download/{self.rcsb_id}.pdb'
-            with urllib.request.urlopen(url) as response:
-                pdb_string = response.read().decode()
+            self.parent.sources['pdb'].add_from_pdb(self.pdb_id)
+            #
+            # url = f'http://files.rcsb.org/download/{self.pdb_id}.pdb'
+            # with urllib.request.urlopen(url) as response:
+            #     pdb_string = response.read().decode()
 
-        view = self.views['protein']
-        view.object = pdb_string
+        # view = self.views['protein']
+        # view.object = pdb_string
 
 
 class FileExportControl(PyHDXControlPanel):
@@ -1616,6 +1618,7 @@ class GraphControl(PyHDXControlPanel):
             'peptide_mse_select',
             'loss_select',
             'd_calc_select',
+            'protein_select'
         ]  # list of names of transforms which should be compressed/displayed
         transforms = [self.transforms[f] for f in self.widget_transforms]
         for t in transforms:

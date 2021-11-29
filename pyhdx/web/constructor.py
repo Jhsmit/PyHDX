@@ -132,6 +132,14 @@ class AppConstructor(param.Parameterized):
                 else:
                     obj = self.sources.get(v) or self.transforms.get(v)  # can be none in case of logging
                     resolved[k] = obj
+            elif k == 'sources':
+                # v should be a dict: src_type (view spec): src_name
+                sources = {}
+                for src_type, src in v.items():
+                    obj = self.sources.get(src) or self.transforms.get(src)
+                    sources[src_type] = obj
+                #obj = {src_type: self.sources[src] for src_type, src in v.items()}
+                resolved[k] = sources
             elif k == 'opts':
                 v = [v] if isinstance(v, (str, dict)) else v  # allow single opt by str/dict (needs testing)
                 opts = []
