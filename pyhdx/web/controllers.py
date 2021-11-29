@@ -1191,9 +1191,6 @@ class ProteinControl(PyHDXControlPanel):
     def _layout(self):
         return [('self', self.own_widget_names),  #always use this instead of none?
                 ('transforms.protein_src', None),
-                # ('transforms.protein_select', None),
-                # ('transforms.protein_cmap', None),
-                # ('views.protein', None)
                 ]
 
     def make_dict(self):
@@ -1219,13 +1216,6 @@ class ProteinControl(PyHDXControlPanel):
                 return
 
             self.parent.sources['pdb'].add_from_pdb(self.pdb_id)
-            #
-            # url = f'http://files.rcsb.org/download/{self.pdb_id}.pdb'
-            # with urllib.request.urlopen(url) as response:
-            #     pdb_string = response.read().decode()
-
-        # view = self.views['protein']
-        # view.object = pdb_string
 
 
 class FileExportControl(PyHDXControlPanel):
