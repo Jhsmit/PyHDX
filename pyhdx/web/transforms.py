@@ -127,10 +127,6 @@ class CrossSectionTransform(AppTransform):
         old_index = self.index
         df = self.source.get()
 
-        if self.name == 'protein_select':
-            print('select')
-            print(df)
-
         if df is None:
             return
         self.index = df.columns if self.axis else df.index

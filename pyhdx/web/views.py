@@ -518,7 +518,6 @@ class NGLColorView(View):
 
     def _update_params(self, *events):
         for event in events:
-            print('update params')
             setattr(self._ngl, event.name, event.new)
 
     def get_panel(self):
