@@ -657,10 +657,9 @@ def set_bad(cmap, color):
     cmap.set_bad(color)
     return cmap
 
-
 cmap_defaults = {
     'dG': pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed(),
-    'ddG': tol_cmap('PRGn'),
+    'ddG': tol_cmap('PRGn').reversed(),
     'rfu': set_bad(pplt.Colormap(cc.cm.gouldian), '#8c8c8c'),
     'mse': set_bad(pplt.Colormap('cividis'), '#8c8c8c')
 }
