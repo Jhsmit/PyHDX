@@ -12,15 +12,24 @@ import proplot as pplt
 import pylatex as pyl
 from tqdm.auto import tqdm
 
-from pyhdx.plot import FitResultPlotBase
+from pyhdx.plot import FitResultPlotBase, SCATTER_KWARGS
 
 geometry_options = {
     "lmargin": "1in",
-    "rmargin": "1in"
+    "rmargin": "1in",
+    'tmargin': "1in",
+
     }
+#pyl.NoEscape
+# geometry_options = {
+#     'total': pyl.NoEscape(r'{170mm, 157mm}'),
+#     'left': '20mm',
+#     'top': '20mm'
+# }
 
 #assuming A4 210 mm width
 PAGE_WIDTH = 210 - pplt.units(geometry_options['lmargin'], dest='mm') - pplt.units(geometry_options['rmargin'], dest='mm')
+#PAGE_WIDTH = 170
 
 class BaseReport(object):
     pass
@@ -208,7 +217,7 @@ def _peptide_uptake_figure(fig_factory, indices, _t, _d, hdxm):
     for i in indices:
         ax = next(axes_iter)
         ax.plot(_t, _d[i], color='r')
-        ax.scatter(hdxm.timepoints, hdxm.d_exp.iloc[i], color='k')
+        ax.scatter(hdxm.timepoints, hdxm.d_exp.iloc[i], color='k', **SCATTER_KWARGS)
 
         start, end = hdxm.coverage.data.iloc[i][['_start', '_end']]
         ax.format(title=f'Peptide_{i}: {start} - {end}')

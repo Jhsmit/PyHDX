@@ -1014,7 +1014,8 @@ class FitResultPlot(FitResultPlotBase):
     def __init__(self, fit_result, output_path=None, **kwargs):
         super().__init__(fit_result)
         self.output_path = Path(output_path) if output_path else None
-        if output_path and not output_path.is_dir():
+        self.output_path.mkdir(exist_ok=True)
+        if self.output_path and not self.output_path.is_dir():
             raise ValueError(f"Output path {output_path!r} is not a valid directory")
 
         #todo save kwargs / rc params? / style context (https://matplotlib.org/devdocs/tutorials/introductory/customizing.html)

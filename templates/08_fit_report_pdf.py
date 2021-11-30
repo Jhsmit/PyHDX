@@ -23,6 +23,8 @@ if __name__ == '__main__':
     report.add_standard_figure('linear_bars', cmap='viridis', norm=pplt.Norm('linear', 15e3, 35e3))   #todo name from kwargs
     report.add_standard_figure('rainbowclouds')
 
+    report.add_peptide_uptake_curves()
+
     executor = futures.ProcessPoolExecutor(max_workers=10)
     report.generate_figures(executor=executor)
 
