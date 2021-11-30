@@ -284,7 +284,7 @@ def dG_scatter_figure(data, cmap=None, norm=None, scatter_kwargs=None, cbar_kwar
     for state in protein_states:
         sub_df = data[state]
         ax = next(axes_iter)
-        colorbar_scatter(ax, sub_df, cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)
+        colorbar_scatter(ax, sub_df, cmap=cmap, norm=norm, cbar=False, sclf=1e-3, invert_yaxis=True, **scatter_kwargs)
         ax.format(title=f'{state}')
 
     for ax in axes_iter:
@@ -351,7 +351,8 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
             continue
         sub_df = combined[state]
         ax = next(axes_iter)
-        colorbar_scatter(ax, sub_df, y='ddG', cmap=cmap, norm=norm, cbar=False, **scatter_kwargs)
+        colorbar_scatter(ax, sub_df, y='ddG', cmap=cmap, norm=norm, cbar=False, sclf=1e-3, invert_yaxis=True,
+                         symmetric=True, **scatter_kwargs)
         title = f'{state} - {reference_state}'
         ax.format(title=title)
 
