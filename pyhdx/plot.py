@@ -562,51 +562,64 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'rainbowclouds_aspect'))
 
+    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
+    ax = axes[0]
+
+    format_kwargs = {'ylabel': ylabel}
+    cbar = rainbowclouds(ax, f_data, f_labels, format_kwargs=format_kwargs, invert_yaxis=True)
+
+    return fig, ax, cbar
+
+def rainbowclouds(ax, f_data, f_labels, cmap=None, norm=None, invert_yaxis=False, format_kwargs=None, strip_kwargs=None,
+                  kde_kwargs=None, boxplot_kwargs=None):
     boxplot_width = 0.1
     orientation = 'vertical'
 
-    strip_kwargs = dict(offset=0.0, orientation=orientation, s=2, colors='k', jitter=0.2, alpha=0.25)
-    kde_kwargs = dict(linecolor='k', offset=0.15, orientation=orientation, fillcolor=False, fill_cmap=cmap,
-                      fill_norm=norm, y_scale=None, y_norm=0.4, linewidth=1)
-    boxplot_kwargs = dict(offset=0.2, sym='', linewidth=1., linecolor='k', orientation=orientation,
-                          widths=boxplot_width)
+    _strip_kwargs = dict(offset=0.0, orientation=orientation, s=2, colors='k', jitter=0.2, alpha=0.25)
+    _kde_kwargs = dict(linecolor='k', offset=0.15, orientation=orientation, fillcolor=False, fill_cmap=cmap,
+                       fill_norm=norm, y_scale=None, y_norm=0.4, linewidth=1)
+    _boxplot_kwargs = dict(offset=0.2, sym='', linewidth=1., linecolor='k', orientation=orientation,
+                           widths=boxplot_width)
 
-    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
-    ax = axes[0]
+    strip_kwargs = _strip_kwargs.update(strip_kwargs) if strip_kwargs else _strip_kwargs
+    kde_kwargs = _kde_kwargs.update(strip_kwargs) if kde_kwargs else _kde_kwargs
+    boxplot_kwargs = _boxplot_kwargs.update(strip_kwargs) if boxplot_kwargs else _boxplot_kwargs
+
     stripplot(f_data, ax=ax, **strip_kwargs)
     kdeplot(f_data, ax=ax, **kde_kwargs)
     boxplot(f_data, ax=ax, **boxplot_kwargs)
     label_axes(f_labels, ax=ax, rotation=45)
-    if field == 'dG':
-        label = dG_ylabel
-    elif field == 'dG' and reference_state:
-        label = ddG_ylabel
+
+    ylim = ax.get_ylim[::-1] if invert_yaxis else None
+    _format_kwargs = dict(xlim=(-0.75, len(f_data) - 0.5), yticklabelloc='left', ytickloc='left',
+              ylim=ylim)
+    format_kwargs = _format_kwargs.update(format_kwargs) if format_kwargs else _format_kwargs
+
+    ax.format(**format_kwargs)
+
+    if cmap is not None:
+        cbar = add_cbar(ax, cmap, norm)
     else:
-        label = ''
-    ax.format(xlim=(-0.75, len(f_data) - 0.5), ylabel=label, yticklabelloc='left', ytickloc='left',
-              ylim=ax.get_ylim()[::-1])
+        cbar = None
 
-    cbar = add_cbar(ax, cmap, norm)
-
-    return fig, ax, cbar
+    return cbar
 
 
-def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, cbar=True, **kwargs):
+def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, cbar=True, invert_yaxis=None,
+                     symmetric=False, sclf=1e-3, **kwargs):
     #todo make error bars optional
     #todo custom ylims? scaling?
-    cmap_default, norm_default = CMAP_NORM_DEFAULTS[y]
-
-    if y in ['dG', 'ddG']:
-        sclf = 1e-3  # dG are given in J/mol but plotted in kJ/mol
-    else:
-        if cmap is None or norm is None:
-            raise ValueError("No valid `cmap` or `norm` is given.")
-        sclf = 1e-3
-
+    try:
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS[y]
+    except KeyError:
+        cmap_default, norm_default = None, None
 
     cmap = cmap or cmap_default
     cmap = pplt.Colormap(cmap)
     norm = norm or norm_default
+
+    if cmap is None or norm is None:
+        raise ValueError("No valid `cmap` or `norm` is given.")
 
     colors = cmap(norm(data[y]))
 
@@ -623,13 +636,17 @@ def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, 
     label = labels.get(y, '')
     ax.set_ylabel(label)
 
+    #todo this function should be more general and should take `invert_yaxis` and `symmetric` kwargs
+
     ylim = ax.get_ylim()
-    if (ylim[0] < ylim[1]) and y == 'dG':
+    if (ylim[0] < ylim[1]) and invert_yaxis and symmetric:
+        ylim = np.max(np.abs(ylim))
+        ax.set_ylim(ylim, -ylim)
+    elif (ylim[0] < ylim[1]) and invert_yaxis:
         ax.set_ylim(*ylim[::-1])
     elif y == 'ddG':
         ylim = np.max(np.abs(ylim))
         ax.set_ylim(ylim, -ylim)
-
 
     if cbar:
         cbar_norm = copy(norm)
@@ -782,7 +799,14 @@ def add_cbar(ax, cmap, norm, **kwargs):
     norm_clip.clip = True
     colors = cmap(norm_clip(values))
 
-    cb_cmap = pplt.Colormap(colors)
+    if isinstance(cmap, pplt.DiscreteColormap):
+        listmode = 'discrete'
+    elif isinstance(cmap, pplt.ContinuousColormap):
+        listmode = 'continuous'
+    else:
+        listmode = 'perceptual'
+
+    cb_cmap = pplt.Colormap(colors, listmode=listmode)
 
     cb_norm = pplt.Norm('linear', vmin=ymin, vmax=ymax)  #todo allow log norms?
     cbar_kwargs = {**CBAR_KWARGS, **kwargs}
@@ -840,9 +864,8 @@ def _x_range(data, extra=0.2):
                        np.nanmax(data) + extra*sample_range, 1000)
 
 
-def kdeplot(data, ax=None, offset=0., orientation='vertical',
-            linecolor=None, linewidth=None, zero_line=True, x_extend=1e-3, y_scale=None, y_norm=None, fillcolor=False, fill_cmap=None,
-            fill_norm=None):
+def kdeplot(data, ax=None, offset=0., orientation='vertical', linecolor=None, linewidth=None, zero_line=True,
+            x_extend=1e-3, y_scale=None, y_norm=None, fillcolor=False, fill_cmap=None, fill_norm=None):
     assert not (y_scale and y_norm), "Cannot set both 'y_scale' and 'y_norm'"
     y_scale = 1. if y_scale is None else y_scale
 
@@ -890,13 +913,12 @@ def kdeplot(data, ax=None, offset=0., orientation='vertical',
                 ax.fill_betweenx(kde_x, len(data) - cat_var, len(data) - cat_var_zero, color=color)
 
         if fill_cmap:
-            fill_norm = fill_norm or (lambda x: x)
-            color_img = fill_norm(img_data)
+            fill_norm = fill_norm or pplt.Norm('linear')
 
             xmin, xmax = np.min(plot_x), np.max(plot_x)
             ymin, ymax = np.min(plot_y), np.max(plot_y)
             extent = [xmin-offset, xmax-offset, ymin, ymax] if orientation == 'horizontal' else [xmin, xmax, ymin-offset, ymax-offset]
-            im = Axes.imshow(ax, color_img, aspect='auto', cmap=fill_cmap, extent=extent)  # left, right, bottom, top
+            im = Axes.imshow(ax, img_data, aspect='auto', cmap=fill_cmap, norm=fill_norm, extent=extent)  # left, right, bottom, top
             fill_line, = ax.fill(plot_x, plot_y, facecolor='none')
             im.set_clip_path(fill_line)
 
