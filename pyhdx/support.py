@@ -1,3 +1,5 @@
+from typing import Iterable, List, Mapping, Any
+
 import numpy as np
 import itertools
 import re
@@ -9,6 +11,72 @@ from itertools import count, groupby
 import warnings
 from pathlib import Path
 from dask.distributed import Client
+
+
+def multiindex_apply_function(
+    index: pd.MultiIndex,
+    level: int,
+    func: str,
+    args: Iterable = None,
+    kwargs: Mapping = None,
+) -> pd.MultiIndex:
+
+    args = args or []
+    kwargs = kwargs or {}
+    new_index = index.set_levels(getattr(index.levels[level], func)(*args, **kwargs), level=level)
+
+    return new_index
+
+
+def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
+
+    new_index = multiindex_apply_function(index, level, 'astype', args=[dtype])
+    return new_index
+
+
+def multiindex_set_categories(
+    index: pd.MultiIndex,
+    level: int,
+    categories: Any,  #index-like
+    ordered: bool = False,
+    rename: bool = False
+
+) -> pd.MultiIndex:
+    new_index = multiindex_apply_function(
+        index, level, 'set_categories', args=[categories], kwargs=dict(ordered=ordered, rename=rename))
+    return new_index
+
+
+def multiindex_add_categories(
+        index: pd.MultiIndex,
+        level: int,
+        categories: Any,  # index-like
+
+) -> pd.MultiIndex:
+    new_index = multiindex_apply_function(
+        index, level, 'add_categories', args=[categories])
+    return new_index
+
+
+def multiindex_astype(
+        index: pd.MultiIndex,
+        level: int,
+        dtype: str,
+) -> pd.MultiIndex:
+    new_index = multiindex_apply_function(index, level, 'astype', args=[dtype])
+    return new_index
+
+# use tostring(print(df.to_string()))
+def df_fullstr(df):
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None,
+                           'display.expand_frame_repr', False):
+        s = df.__str__()
+
+    return s
+
+
+def pprint_df(df):
+    print(df_fullstr(df))
 
 
 def get_reduced_blocks(coverage, max_combine=2, max_join=5):
@@ -329,7 +397,7 @@ def rgb_to_hex(rgb_a):
 
     elif isinstance(rgb_a, np.ndarray):
         # todo: allow rgb arrays
-        assert rgb_a.shape[1] == 4
+        assert rgb_a.shape[-1] == 4
         if rgb_a.data.c_contiguous:
         #todo check for c-contigious
             rgba_array = rgb_a
@@ -339,7 +407,6 @@ def rgb_to_hex(rgb_a):
         raise TypeError(f"Invalid type for 'rgb_a': {rgb_a}")
 
     ints = rgba_array.astype(np.uint8).view(dtype=np.uint32).byteswap()
-    a = base_v(ints // 2**8, 16)
     padded = np.char.rjust(base_v(ints // 2**8, 16), 6, '0')
     result = np.char.add('#', padded).squeeze()
 
@@ -395,12 +462,17 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
     return series_to_pymol(pd_series)
 
 
-def apply_cmap(pd_series, cmap, norm=None):
-    values = pd_series if norm is None else norm(pd_series)
+def apply_cmap(pd_series_or_df, cmap, norm=None):
+    values = pd_series_or_df if norm is None else norm(pd_series_or_df)
     rgb_colors = cmap(values, bytes=True)
     hex_colors = rgb_to_hex(rgb_colors)
 
-    return pd.Series(hex_colors, index=pd_series.index)
+    if isinstance(pd_series_or_df, pd.Series):
+        return pd.Series(hex_colors, index=pd_series_or_df.index)
+    elif isinstance(pd_series_or_df, pd.DataFrame):
+        return pd.DataFrame(hex_colors, index=pd_series_or_df.index, columns=pd_series_or_df.columns)
+
+
 
 
 def color_pymol(pd_series, cmd, model=None):

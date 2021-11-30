@@ -83,7 +83,6 @@ def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
     -------
 
 
-
     """
     bounds = bounds or get_bounds(hdxm.timepoints)
 
@@ -140,7 +139,7 @@ def fit_rates_half_time_interpolate(hdxm):
     rate = np.log(2) / interpolated  # convert to rate
 
     output = pd.DataFrame({'rate': rate}, index=hdxm.coverage.r_number)
-    result = GenericFitResult(output=output, fit_function='fit_rates_half_time_interpolate')
+    result = GenericFitResult(output=output, fit_function='fit_rates_half_time_interpolate', name=hdxm.name)
 
     return result
 
@@ -332,7 +331,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
         output = model(*inputs)
         loss = criterion(output, output_data)
         losses_list.append([loss.item()])  # store mse loss
-        reg_loss_tuple = regularizer(model.deltaG)
+        reg_loss_tuple = regularizer(model.dG)
         for r in reg_loss_tuple:
             loss += r
 
@@ -449,9 +448,9 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
 
     dtype = torch.float64
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
+    dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
 
-    model = DeltaGFit(deltaG_par)
+    model = DeltaGFit(dG_par)
     criterion = torch.nn.MSELoss(reduction='mean')
 
     # Take default optimizer kwargs and update them with supplied kwargs
@@ -579,9 +578,9 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
 
     assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
 
-    deltaG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
+    dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 
-    model = DeltaGFit(deltaG_par)
+    model = DeltaGFit(dG_par)
     criterion = torch.nn.MSELoss(reduction='mean')
 
     # Take default optimizer kwargs and update them with supplied kwargs
@@ -659,6 +658,10 @@ class KineticsFitResult(object):
             return 'Single'
         else:
             raise ValueError('Unsupported model types')
+
+    @property
+    def name(self):
+        return self.hdxm.name
 
     def __call__(self, timepoints):
         """call the result with timepoints to get fitted uptake per peptide back"""
@@ -779,3 +782,19 @@ class KineticsFitResult(object):
 class GenericFitResult:
     output: pd.DataFrame
     fit_function: str  # name of the function used to generate the fit result
+    name: str  # name of hdxm object
+
+
+@dataclass
+class RatesFitResult:
+    results: list
+
+    @property
+    def output(self):
+        dfs = [result.output for result in self.results]
+        keys = [result.name for result in self.results]
+        combined_results = pd.concat(dfs, axis=1,
+                                     keys=keys,
+                                     names=['state', 'quantity'])
+
+        return combined_results

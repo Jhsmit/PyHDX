@@ -28,7 +28,7 @@ ax.set_title(f'Peptide index: {i}')
 
 fig, ax = plt.subplots()
 ax.set_aspect(2)
-ax.scatter(fit_result.output.index, fit_result.output['deltaG']*1e-3)
+ax.scatter(fit_result.output.index, fit_result.output['dG']*1e-3)
 ax.set_xlabel('Residue number')
 ax.set_ylabel('ΔG (kJ/mol)')
 plt.show()

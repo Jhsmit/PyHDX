@@ -15,10 +15,9 @@ from pyhdx.config import cfg
 
 
 class DeltaGFit(nn.Module):
-    def __init__(self, deltaG):
+    def __init__(self, dG):
         super(DeltaGFit, self).__init__()
-        #self.deltaG = deltaG
-        self.register_parameter(name='deltaG', param=nn.Parameter(deltaG))
+        self.register_parameter(name='dG', param=nn.Parameter(dG))
 
     def forward(self, temperature, X, k_int, timepoints):
         """
@@ -29,48 +28,48 @@ class DeltaGFit(nn.Module):
 
         """
 
-        pfact = t.exp(self.deltaG / (constants.R * temperature))
+        pfact = t.exp(self.dG / (constants.R * temperature))
         uptake = 1 - t.exp(-t.matmul((k_int / (1 + pfact)), timepoints))
         return t.matmul(X, uptake)
 
 
-def estimate_errors(hdxm, deltaG):
+def estimate_errors(hdxm, dG):
     """
     Calculate covariances and uncertainty (perr, experimental)
 
     Parameters
     ----------
     hdxm : :class:`~pyhdx.models.HDXMeasurement`
-    deltaG : :class:`~numpy.ndarray`
-        Array with deltaG values.
+    dG : :class:`~numpy.ndarray`
+        Array with dG values.
 
     Returns
     -------
 
     """
     dtype = t.float64
-    joined = pd.concat([deltaG, hdxm.coverage['exchanges']], axis=1, keys=['dG', 'ex'])
+    joined = pd.concat([dG, hdxm.coverage['exchanges']], axis=1, keys=['dG', 'ex'])
     dG = joined.query('ex==True')['dG']
-    deltaG = t.tensor(dG.to_numpy(), dtype=dtype)
+    dG_tensor = t.tensor(dG.to_numpy(), dtype=dtype)
 
     tensors = {k: v.cpu() for k, v in hdxm.get_tensors(exchanges=True, dtype=dtype).items()}
 
-    def hes_loss(deltaG_input):
+    def hes_loss(dG_input):
         criterion = t.nn.MSELoss(reduction='sum')
-        pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
+        pfact = t.exp(dG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
         uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
         d_calc = t.matmul(tensors['X'], uptake)
 
         loss = criterion(d_calc, tensors['d_exp'])
         return loss
 
-    hessian = t.autograd.functional.hessian(hes_loss, deltaG)
+    hessian = t.autograd.functional.hessian(hes_loss, dG_tensor)
     hessian_inverse = t.inverse(-hessian)
     covariance = np.sqrt(np.abs(np.diagonal(hessian_inverse)))
     cov_series = pd.Series(covariance, index=dG.index, name='covariance')
 
-    def jac_loss(deltaG_input):
-        pfact = t.exp(deltaG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
+    def jac_loss(dG_input):
+        pfact = t.exp(dG_input.unsqueeze(-1) / (constants.R * tensors['temperature']))
         uptake = 1 - t.exp(-t.matmul((tensors['k_int'] / (1 + pfact)), tensors['timepoints']))
         d_calc = t.matmul(tensors['X'], uptake)
 
@@ -79,15 +78,15 @@ def estimate_errors(hdxm, deltaG):
         return residuals.flatten()
 
     # https://stackoverflow.com/questions/42388139/how-to-compute-standard-deviation-errors-with-scipy-optimize-least-squares
-    jacobian = t.autograd.functional.jacobian(jac_loss, deltaG).numpy()
+    jacobian = t.autograd.functional.jacobian(jac_loss, dG_tensor).numpy()
 
     U, s, Vh = linalg.svd(jacobian, full_matrices=False)
     tol = np.finfo(float).eps * s[0] * max(jacobian.shape)
     w = s > tol
     cov = (Vh[w].T / s[w] ** 2) @ Vh[w]  # robust covariance matrix
-    res = jac_loss(deltaG).numpy()
+    res = jac_loss(dG_tensor).numpy()
 
-    chi2dof = np.sum(res ** 2) / (res.size - deltaG.numpy().size)
+    chi2dof = np.sum(res ** 2) / (res.size - dG_tensor.numpy().size)
     cov *= chi2dof
     perr = np.sqrt(np.diag(cov))
     perr_series = pd.Series(perr, index=dG.index, name='perr')
@@ -122,8 +121,8 @@ class TorchFitResult(object):
 
         names = [hdxm.name for hdxm in self.hdxm_set.hdxm_list]
 
-        dfs = [self.generate_output(hdxm, self.deltaG[g_column]) for hdxm, g_column in zip(self.hdxm_set, self.deltaG)]
-        df = pd.concat(dfs, keys=names, axis=1)
+        dfs = [self.generate_output(hdxm, self.dG[g_column]) for hdxm, g_column in zip(self.hdxm_set, self.dG)]
+        df = pd.concat(dfs, keys=names, names=['state', 'quantity'], axis=1)
 
         self.output = df
 
@@ -150,59 +149,52 @@ class TorchFitResult(object):
         return (self.reg_loss / self.total_loss) * 100
 
     @property
-    def deltaG(self):
-        """output deltaG as :class:`~pandas.Series` or as :class:`~pandas.DataFrame`
+    def dG(self):
+        """output dG as :class:`~pandas.Series` or as :class:`~pandas.DataFrame`
 
         index is residue numbers
         """
 
-        g_values = self.model.deltaG.cpu().detach().numpy().squeeze()
+        g_values = self.model.dG.cpu().detach().numpy().squeeze()
         # if g_values.ndim == 1:
-        #     deltaG = pd.Series(g_values, index=self.hdxm_set.coverage.index)
+        #     dG = pd.Series(g_values, index=self.hdxm_set.coverage.index)
         # else:
-        deltaG = pd.DataFrame(g_values.T, index=self.hdxm_set.coverage.index, columns=self.hdxm_set.names)
+        dG = pd.DataFrame(g_values.T, index=self.hdxm_set.coverage.index, columns=self.hdxm_set.names)
 
-        return deltaG
+        return dG
 
     @staticmethod
-    def generate_output(hdxm, deltaG):
+    def generate_output(hdxm, dG):
         """
 
         Parameters
         ----------
         hdxm : :class:`~pyhdx.models.HDXMeasurement`
-        deltaG : :class:`~pandas.Series` with r_number as index
+        dG : :class:`~pandas.Series` with r_number as index
 
         Returns
         -------
 
         """
+        out_dict = {
+                    'sequence': hdxm.coverage['sequence'].to_numpy(),
+                    '_dG': dG}
+        out_dict['dG'] = out_dict['_dG'].copy()
+        exchanges = hdxm.coverage['exchanges'].reindex(dG.index, fill_value=False)
+        out_dict['dG'][~exchanges] = np.nan
+        pfact = np.exp(out_dict['dG'] / (constants.R * hdxm.temperature))
+        out_dict['pfact'] = pfact
 
-        covariance, perr = estimate_errors(hdxm, deltaG)
-        _deltaG = deltaG.copy()
-        _deltaG.name = '_deltaG'
+        k_int = hdxm.coverage['k_int'].reindex(dG.index, fill_value=False)
 
-        exchanges = hdxm.coverage['exchanges'].reindex(deltaG.index, fill_value=False)
-        deltaG_nan = deltaG.copy()
-        deltaG_nan[~exchanges] = np.nan
-        deltaG_nan.name = 'deltaG'
+        k_obs = k_int / (1 + pfact)
+        out_dict['k_obs'] = k_obs
 
-        pfact = np.exp(deltaG_nan / (constants.R * hdxm.temperature))
-        pfact.name = 'pfact'
-        k_obs = hdxm.coverage['k_int'] / (1 + pfact)
-        k_obs.name = 'k_obs'
+        covariance, perr = estimate_errors(hdxm, dG)
 
-        pd_series_to_merge = [
-            hdxm.coverage['sequence'],
-            _deltaG,
-            deltaG_nan,
-            pfact,
-            k_obs,
-            covariance
-        ]
-
-        df = pd.concat(pd_series_to_merge, axis=1)
-        df.index.name = 'r_number'
+        index = pd.Index(hdxm.coverage.r_number, name='r_number')
+        df = pd.DataFrame(out_dict, index=index)
+        df = df.join(covariance)
 
         return df
 
@@ -211,13 +203,13 @@ class TorchFitResult(object):
         dataframe_to_file(file_path, self.output, include_version=include_version, include_metadata=metadata,
                           fmt=fmt, **kwargs)
 
-    def get_mse(self):
-        """np.ndarray: Returns the mean squared error per peptide per timepoint. Output shape is Np x Nt"""
+    def get_squared_errors(self) -> np.ndarray:
+        """np.ndarray: Returns the squared error per peptide per timepoint. Output shape is Ns x Np x Nt"""
 
         d_calc = self(self.hdxm_set.timepoints)
-        mse = (d_calc - self.hdxm_set.d_exp) ** 2
+        errors = (d_calc - self.hdxm_set.d_exp) ** 2
 
-        return mse
+        return errors
 
     def __call__(self, timepoints):
         """timepoints: shape must be Ns x Nt, or Nt and will be reshaped to Ns x 1 x Nt
@@ -259,7 +251,7 @@ class TorchFitResult(object):
 #     def __init__(self, *args, **kwargs):
 #         super(TorchSingleFitResult, self).__init__(*args, **kwargs)
 #
-#         df = self.generate_output(self.hdxm_set, self.deltaG)
+#         df = self.generate_output(self.hdxm_set, self.dG)
 #         self.output = Protein(df)
 #
 #     def __call__(self, timepoints):
@@ -301,7 +293,7 @@ class CheckPoint(Callback):
         if epoch % self.epoch_step == 0:
             self.model_history[epoch] = deepcopy(model.state_dict())
 
-    def to_dataframe(self, names=None, field='deltaG'):
+    def to_dataframe(self, names=None, field='dG'):
         """convert history of `field` into dataframe.
          names must be given for batch fits with length equal to number of states
 

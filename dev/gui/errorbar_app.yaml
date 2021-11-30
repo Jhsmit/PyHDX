@@ -1,0 +1,76 @@
+config:
+  title: MWE test app
+
+main_controller:
+  type: base
+  #kwargs: ...
+
+sources:
+  main:
+    type: table
+
+filters:
+  base_src:
+    type: table_source
+    source: main
+    table: test_data
+
+tools:
+  coverage:
+    type: hover
+    tooltips:
+      - ["x", '@x']
+      - ['y', '@y']
+
+opts:
+  scatter:
+    type: generic
+    tools:
+      - coverage
+    size: 10
+    hooks:
+    - handle: xaxis
+      attr: axis_label_text_color
+      value: red
+    - handle: yaxis
+      attr: axis_label_text_color
+      value: blue
+  another_hook:
+    type: generic
+    hooks:
+      - handle: yaxis
+        attr: axis_label_text_color
+        value: blue
+  errorbar:
+    type: generic
+    apply_ranges: False
+    hooks:
+      - handle: glyph
+        attr: upper_head.line_color
+        value: green
+
+views:
+  xy_scatter:
+    type: scatter
+    source: base_src
+    x: index
+    y: y
+    opts:
+      - scatter
+      - another_hook
+  xy_scatter_errorbars:
+    type: errorbars
+    source: base_src
+    pos: index
+    value: y
+    err: yerr
+    opts:
+      - errorbar
+  scatter_overlay:
+    type: overlay
+    views:
+      - xy_scatter
+      - xy_scatter_errorbars
+
+controllers:
+  - mwe

@@ -291,6 +291,8 @@ class PeptideMasterTable(object):
         data = self.data.query(f'state == "{state}"').copy()
         if 'uptake_corrected' in data.columns:
             data.dropna(subset=['uptake_corrected'], inplace=True)
+        if len(data) == 0:
+            raise ValueError(f"No data found for state {state!r}, options are: {', '.join(self.data['state'].unique())}")
 
         return data
 
@@ -442,17 +444,18 @@ class Coverage(object):
 
     """
 
-    def __init__(self, data, c_term=0, n_term=1, sequence=''):
+    def __init__(self, data, n_term=1, c_term=None, sequence=''):
         assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
         assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
         self.data = data.sort_values(['start', 'end'], axis=0)
+        self.data.index.name = 'peptide_id' # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
 
         start = self.data['_start'].min()
         end = self.data['_end'].max()
 
         if n_term:
             start = min(start, n_term)
-        if sequence and not c_term:
+        if sequence and c_term is None:
             c_term = len(sequence) + n_term - 1
         if c_term:
             if c_term + 1 < end:
@@ -653,7 +656,7 @@ class HDXMeasurement(object):
         index_intersection = reduce(pd.Index.intersection, [d.index for d in data_list])
         intersected_data = [df.loc[index_intersection].reset_index() for df in data_list]
 
-        cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [0, 1, ''])}
+        cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [None, 1, ''])}
 
         self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
@@ -663,8 +666,15 @@ class HDXMeasurement(object):
         if self.temperature and self.pH:
             self.coverage.protein.set_k_int(self.temperature, self.pH)
 
-        self.data = pd.concat(intersected_data, axis=0, ignore_index=True)
-        self.data.index.name = 'peptide_index'
+        self.data = pd.concat(intersected_data, axis=0, ignore_index=True).\
+            sort_values(['start', 'end', 'sequence', 'exposure'])
+        self.data['peptide_id'] = self.data.index % self.Np
+        self.data.index.name = 'peptide_index'  # index is original index which continues along exposures
+        self.data_wide = self.data.\
+            pivot(index='peptide_id', columns=['exposure']).\
+            reorder_levels([1, 0], axis=1).\
+            sort_index(axis=1, level=0, sort_remaining=False)
+
 
     def __str__(self):
         """
@@ -824,7 +834,7 @@ class HDXMeasurement(object):
 
         Returns
         -------
-        deltaG : :class:`~pandas.Series`
+        dG : :class:`~pandas.Series`
             ΔG guess values
 
         """
@@ -840,6 +850,7 @@ class HDXMeasurement(object):
             deltaG = np.log(p_guess) * constants.R * self.temperature
 
         # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
+        # todo or use: df.interpolate(limit_direction="both") (pandas)
         bools = ~np.isfinite(deltaG)
         deltaG[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), deltaG[~bools])
 
@@ -1058,12 +1069,15 @@ class HDXMeasurementSet(object):
         self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
         self.d_exp[self.masks['spt']] = d_values
 
-        # Index array of of shape Ns x y where indices apply to deltaG return aligned residues for
+        # Index array of of shape Ns x y where indices apply to dG return aligned residues for
         self.aligned_indices = None
         self.aligned_dataframes = None
 
     def __iter__(self):
         return self.hdxm_list.__iter__()
+
+    def __getitem__(self, item):
+        return self.hdxm_list.__getitem__(item)
 
     @property
     def Ns(self):
@@ -1091,7 +1105,7 @@ class HDXMeasurementSet(object):
 
     def guess_deltaG(self, rates_list):
         """
-        Create deltaG guesses from rates
+        Create dG guesses from rates
 
         Parameters
         ----------

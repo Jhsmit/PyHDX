@@ -1,6 +1,7 @@
+import datetime
 import logging
 import sys
-import datetime
+
 
 def get_default_handler(stream=None):
     sh = logging.StreamHandler(stream)
@@ -49,6 +50,7 @@ class StreamToLogger(object):
     def flush(self):
         pass
 
+
 def logger(root_name):
     def decorator(function):
         def wrapper(*args, **kwargs):
@@ -62,3 +64,4 @@ def logger(root_name):
         wrapper.calls = 0
         return wrapper
     return decorator
+

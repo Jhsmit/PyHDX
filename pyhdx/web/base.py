@@ -1,9 +1,9 @@
-import param
-import panel as pn
-from lumen import View
-from bokeh.plotting import figure
-from functools import partial
 from pathlib import Path
+
+import panel as pn
+import param
+
+from pyhdx.web.main_controllers import MainController
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -16,174 +16,45 @@ MIN_BORDER_LEFT = 65
 STATIC_DIR = Path(__file__).parent / 'static'
 
 
-class PanelBase(param.Parameterized):
-    """base class for all panel classes"""
-
-    title = ''
-
-    @property
-    def panel(self):
-        return None
-
-
-class FigurePanel(PanelBase):
-    """Base class for figure panels"""
-    accepted_tags = []
-    js_files = {}
-
-    def __init__(self, parent, sources=None, **params):
-        super(FigurePanel, self).__init__(**params)
-        self.parent = parent  # main controller
-        self.parent.param.watch(self._parent_sources_updated, ['sources'])
-
-        sources = sources if sources is not None else {}
-        self._render_kwargs = {}
-        self._redraw_kwargs = {}
-
-        self.renderers = {}  # dict of renderers
-        self.data_sources = {}  # dict with DataSource objects
-        self.add_sources(sources)
-
-        self.setup_hooks()
-
-    def setup_hooks(self):
-        """override to add watchers to controllers"""
-        pass
-
-    @property
-    def control_panels(self):
-        return self.parent.control_panels
-
-    def _parent_sources_updated(self, *events):
-        accepted_sources = {k: src for k, src in self.parent.sources.items() if src.resolve_tags(self.accepted_tags)}
-        new_items = {k: v for k, v in accepted_sources.items() if k not in self.renderers}
-        self.add_sources(new_items)
-
-        removed_items = self.renderers.keys() - self.parent.sources.keys()  # Set difference
-        self.remove_sources(removed_items)
-
-    def add_sources(self, src_dict):
-        """add a DataSource object to the figure
-        """
-        #todo check for already in self.data_sources
-        for name, data_source in src_dict.items():
-            data_source.source.on_change('data', self._data_updated_callback)
-            self.data_sources[name] = data_source
-
-        self.render_sources(src_dict)
-
-    def remove_sources(self, names):
-        """remove source from renderers dict and figure"""
-        #todo not really sure if this works
-        for name in names:
-            renderer = self.renderers[name]
-            renderer.data_source.remove_on_change('data', self._data_updated_callback)
-            self.renderers.pop(name)
-
-    def render_sources(self, src_dict):
-        """override to customize how sources are rendered"""
-        pass
-
-    def _data_updated_callback(self, attr, old, new):
-        """overload for custom callback when data updates"""
-        pass
-
-    def update(self):
-        """called to update the representation"""
-        pass
-
-    @property
-    def panel(self):
-        raise NotImplementedError('panel property not implemented')
-
-
-class BokehFigurePanel(FigurePanel):
-    """
-    Base class of bokeh-based figure panels
-    """
-    x_label = ''
-    y_label = ''
-
-    def __init__(self, parent, sources=None, **params):
-        super(BokehFigurePanel, self).__init__(parent, sources=sources, **params)
-        self.figure = self.draw_figure()
-        self.bk_pane = pn.pane.Bokeh(self.figure, sizing_mode='stretch_both', name=self.title)
-
-    def draw_figure(self, **kwargs):
-        """Overload to create a custom figure"""
-
-        fig = figure(**kwargs)
-        fig.xaxis.axis_label = self.x_label
-        fig.yaxis.axis_label = self.y_label
-
-        return fig
-
-    def redraw(self, **kwargs):
-        """calls draw_figure to make a new figure and then redraws all renderers"""
-        #src_dict = self.data_sources
-        #self.remove_sources(src_dict.keys())
-        self.renderers = {}
-        #self.renderers = {}
-        self.figure = self.draw_figure(**kwargs)
-        #self.add_sources(src_dict)
-        # todo does the old figure linger on?
-        self.render_sources(self.data_sources)
-        self.bk_pane.object = self.figure
-
-    def _data_updated_callback(self, attr, old, new):
-        if self.parent.doc is not None:
-            callback = partial(self.bk_pane.param.trigger, 'object')
-            self.parent.doc.add_next_tick_callback(callback)
-        else:
-            self.bk_pane.param.trigger('object')
-            
-    def render_sources(self, src_dict, **render_kwargs):
-        """override to customize how sources are rendered"""
-        for name, data_source in src_dict.items():
-            glyph_func = getattr(self.figure, data_source.renderer)
-            renderer = glyph_func(**data_source.render_kwargs, source=data_source.source, legend_label=name, name=name,
-                                  **render_kwargs)
-            self.renderers[name] = renderer
-
-    def remove_sources(self, names):
-        """remove source from renderers dict and figure"""
-        #todo not really sure if this works
-        for name in names:
-            renderer = self.renderers[name]
-            renderer.data_source.remove_on_change('data', self._data_updated_callback)
-            self.figure.renderers.remove(renderer)
-            for tool in self.figure.tools:
-                try:
-                    tool.renderers.remove(renderer)
-                except (ValueError, AttributeError):
-                    pass
-            self.renderers.pop(name)
-
-    def update(self):
-        callback = partial(self.bk_pane.param.trigger, 'object')
-        self.parent.doc.add_next_tick_callback(callback)
-
-    @property
-    def panel(self):
-        return self.bk_pane
-
-
-class ControlPanel(PanelBase):
+class ControlPanel(param.Parameterized):
     """base class for left control pannels"""
+
+    _type = None
 
     header = 'Default Header'
 
-    def __init__(self, parent, **params):
-        self.parent = parent
+    parent = param.ClassSelector(MainController, precedence=-1)
 
-        super(ControlPanel, self).__init__(**params)
+    _excluded = param.List([], precedence=-1,
+        doc="parameters whose widgets are excluded from the control panel view. This list can be modified to update "
+            "widget layout"
+    )
+
+    def __init__(self, parent, **params):
+        #self.parent = parent
+        #self.ex
+        super(ControlPanel, self).__init__(parent=parent, **params)
 
         self.widgets = self.make_dict()  # atm on some objects this is a list, others dict
         self._box = self.make_box()  # _panel equivalent
 
+        if self._layout:
+            for widget_source, contents in self._layout:
+                if widget_source != 'self':
+                    _type, name = widget_source.split('.')
+                    if _type == 'transforms':
+                        object = getattr(self, _type)[name]
+                        object.param.watch(self.update_box, ['redrawn'])
+
+    @property  # todo base class
+    def own_widget_names(self):
+        return [name for name in self.widgets.keys() if name not in self._excluded]
+
     @property
     def _layout(self):
-        return None
+        return [
+            ('self', self.own_widget_names),
+        ]
 
     @property
     def sources(self):
@@ -192,10 +63,6 @@ class ControlPanel(PanelBase):
     @property
     def transforms(self):
         return self.parent.transforms
-
-    @property
-    def filters(self):
-        return self.parent.filters
 
     @property
     def opts(self):
@@ -208,12 +75,16 @@ class ControlPanel(PanelBase):
     def make_box(self):
         return pn.Column(*self.widget_list, name=self.header)
 
-    def update_box(self):
+    def _update_box(self, *events):
+        self.update_box()
+
+    def update_box(self, *events):
         self._box[:] = self.widget_list
 
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
 
+        #todo respect precedence
         names = [p for p in self.param if self.param[p].precedence is None or self.param[p].precedence > 1]
         widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
 
@@ -224,9 +95,6 @@ class ControlPanel(PanelBase):
         """
 
         Example _layout definitions
-
-
-
 
         Returns
         -------
@@ -252,7 +120,8 @@ class ControlPanel(PanelBase):
                 if isinstance(contents, list):
                     for item in contents:
                         widget_list.append(object.widgets[item])
-
+                elif isinstance(contents, str):
+                    widget_list.append(object.widgets[contents])
                 elif contents is None:
                     if hasattr(object, 'widgets'):
                         for item in object.widgets.values():
@@ -266,10 +135,6 @@ class ControlPanel(PanelBase):
                             widget_list.append(panel)
 
         return widget_list
-
-    def make_list(self):
-        """override this method to modify mapping of dict to list"""
-        return list(self.widget_dict.values())
 
     def make_dict(self):
         """dict of widgets to be shown
@@ -301,8 +166,6 @@ class ControlPanel(PanelBase):
 
     def get_widget(self, param_name, widget_type, **kwargs):
         """get a single widget with for parameter param_name with type widget_type"""
-
-
 
         return pn.Param.get_widget(getattr(self.param, param_name), widget_type, **kwargs)[0]
 

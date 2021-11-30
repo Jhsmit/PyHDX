@@ -1,16 +1,10 @@
-import param
-from panel.widgets.input import Widget, _BkTextInput, StaticText
-from panel.widgets import Spinner
-from panel.util import as_unicode
-from panel.pane import HTML, Markdown
 import panel as pn
+import param
 from dask.distributed import as_completed
-from bokeh.models import LayoutDOM
-from bokeh.core.properties import String, Bool, List
-from bokeh.models import LayoutDOM
-from bokeh.util.compiler import TypeScript
-import pathlib
-from pyhdx.web.bokeh_extensions.ngl_viewer import ngl
+from panel.pane import HTML, Markdown
+from panel.reactive import ReactiveHTML
+from panel.util import as_unicode
+from panel.widgets.input import _BkTextInput, StaticText
 
 
 class NumericInput(pn.widgets.input.Widget):
@@ -113,39 +107,197 @@ class HTMLTitle(HTML):
     def _update_title(self):
         self.object = f"""<a class="title" href="" >{self.title}</a>"""
 
+REPRESENTATIONS = [
+    # "base",
+    # "distance",
+    "axes",
+    "backbone",
+    "ball+stick",
+    "cartoon",
+    "helixorient",
+    "hyperball",
+    "label",
+    "licorice",
+    "line",
+    "point",
+    "ribbon",
+    "rocket",
+    "rope",
+    "spacefill",
+    "surface",
+    "trace",
+    "unitcell",
+    # "validation",
+]
+COLOR_SCHEMES = [
+    "atomindex",
+    "bfactor",
+    "chainid",
+    "chainindex",
+    "chainname",
+    "custom",
+    "densityfit",
+    "electrostatic",
+    "element",
+    "entityindex",
+    "entitytype",
+    "geoquality",
+    "hydrophobicity",
+    "modelindex",
+    "moleculetype",
+    "occupancy",
+    "random",
+    "residueindex",
+    "resname",
+    "sstruc",
+    "uniform",
+    "value",
+    "volume",
+]
+EXTENSIONS = [
+    "",
+    "pdb",
+    "cif",
+    "csv",
+    "ent",
+    "gro",
+    "json",
+    "mcif",
+    "mmcif",
+    "mmtf",
+    "mol2",
+    "msgpack",
+    "netcdf",
+    "parm7",
+    "pqr",
+    "prmtop",
+    "psf",
+    "sd",
+    "sdf",
+    "top",
+    "txt",
+    "xml",
+]
 
-class NGL(Widget):
 
-    _widget_type = ngl
+class NGL(ReactiveHTML):
+    """
+    The [NGL Viewer](https://github.com/nglviewer/ngl) can be used
+    to show and analyse pdb molecule structures
 
-    _rename = {
-        "title": None,
+    See also panel-chemistry for bokeh implementation:
+    https://github.com/MarcSkovMadsen/panel-chemistry
+
+
+
+    """
+    object = param.String()
+
+    extension = param.Selector(
+        default="pdb",
+        objects=EXTENSIONS,
+    )
+
+    background_color = param.Color(
+        default='#F7F7F7',
+        doc='Color to use for the background'
+    )
+
+    representation = param.Selector(
+        default="ball+stick",
+        objects=REPRESENTATIONS,
+        doc="""
+         A display representation. Default is 'ball+stick'. See
+         http://nglviewer.org/ngl/api/manual/coloring.html#representations
+         """,
+    )
+
+    color_scheme = param.Selector(default='chainid',
+                                  objects=COLOR_SCHEMES)
+
+    custom_color_scheme = param.List(
+        default=[["#258fdb", "*"]],
+        doc="""
+        A custom color scheme. See
+        http://nglviewer.org/ngl/api/manual/coloring.html#custom-coloring.""",
+    )
+
+    effect = param.Selector(default=None, objects=[None, 'spin', 'rock'], allow_None=True)
+
+    _template = """
+    <div id="ngl_stage" style="width:100%; height:100%;"></div>
+    """
+    _scripts = {
+        'render': """
+            var stage = new NGL.Stage(ngl_stage)        
+            state._stage = stage
+            state._stage.setParameters({ backgroundColor: data.background_color})
+            stage.handleResize();
+            self.updateStage()
+        """,
+        'object': """
+            self.updateStage()
+            """,
+        'color_scheme': """
+            self.setParameters()
+            """,
+        'custom_color_scheme': """
+            self.setParameters()
+        """,
+        'background_color': """
+        state._stage.setParameters({ backgroundColor: data.background_color})
+        """,
+        'setParameters': """
+            if (state._stage.compList.length !== 0) {
+                const parameters = self.getParameters();
+                state._stage.compList[0].reprList[0].setParameters( parameters );
+            }
+            """,
+        'getParameters': """
+            if (data.color_scheme==="custom"){
+                var scheme = NGL.ColormakerRegistry.addSelectionScheme( data.custom_color_scheme, "new scheme")
+                var parameters = {color: scheme}
+            }
+            else {
+                var parameters = {colorScheme: data.color_scheme}
+            }
+            parameters["sele"] = 'protein'
+
+            return parameters
+        """,
+        'representation': """
+            const parameters = self.getParameters();
+            const component = state._stage.compList[0];
+            component.removeAllRepresentations();
+            component.addRepresentation(data.representation, parameters);
+            """,
+        'effect': """
+            if (data.effect==="spin"){
+                state._stage.setSpin(true);
+            } else if (data.effect==="rock"){
+                state._stage.setRock(true);
+            } else {
+                state._stage.setSpin(false);
+                state._stage.setRock(false);
+            }
+            """,
+        'updateStage': """
+            parameters = self.getParameters();
+            state._stage.removeAllComponents()
+            state._stage.loadFile(new Blob([data.object], {type: 'text/plain'}), { ext: data.extension}).then(function (component) {
+              component.addRepresentation(data.representation, parameters);
+              component.autoView();
+            });
+            """,
+        'after_layout': """
+            state._stage.handleResize();
+            """
+
     }
 
-    pdb_string = param.String(
-        doc="""Raw string of PDB file representing molecular structure to visualize."""
-    )
-    spin = param.Boolean(
-        default=False,
-        doc="""Toggle spinning of the molecular structure."""
-    )
-    representation = param.Selector(
-        default='cartoon',
-        objects=['ball+stick', 'backbone', 'ball+stick', 'cartoon', 'hyperball', 'licorice',
-                 'ribbon', 'rope', 'spacefill', 'surface'],
-        doc="""The type of representation used to visualize the molecular structure."""
-    )
-    rcsb_id = param.String(default="rcsb://1CRN")
-    color_list = param.List(default=[["white", "*"]])
-
-    def __init__(self, **params):
-        super().__init__(**params)
-
-        self.jscallback(representation="document.dispatchEvent(new Event('representation'));")
-        self.jscallback(spin="document.dispatchEvent(new Event('spin'));")
-        self.jscallback(rcsb_id="document.dispatchEvent(new Event('rcsb_id'));")
-        self.jscallback(color_list="document.dispatchEvent(new Event('color_list'));")
-        self.jscallback(pdb_string="document.dispatchEvent(new Event('pdb_string'));")
+    __javascript__ = [
+        "https://unpkg.com/ngl@2.0.0-dev.38/dist/ngl.js",
+    ]
 
 
 class LoggingMarkdown(Markdown):
@@ -186,3 +338,15 @@ class ASyncProgressBar(param.Parameterized):
             return pn.widgets.Progress(active=True, value=self.value, align="center", sizing_mode="stretch_width")
         else:
             return None
+
+
+class CallbackProgress(pn.widgets.Progress):
+
+    # this does not work as the worker is a different thread/process
+    # see: https://distributed.readthedocs.io/en/latest/scheduling-state.html
+    # and: https://stackoverflow.com/questions/44014988/how-to-get-information-about-a-particular-dask-task
+
+    # also, when using ThreadPoolExecutor, the whole story becomes again different
+
+    def callback(self, epoch, model, optimizer_obj):
+        self.value = epoch

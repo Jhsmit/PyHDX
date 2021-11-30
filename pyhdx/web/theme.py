@@ -1,6 +1,7 @@
-import param
-import panel as pn
 import pathlib
+
+import panel as pn
+import param
 
 from pyhdx.web.template import ExtendedGoldenTemplate
 

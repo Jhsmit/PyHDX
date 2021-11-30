@@ -3,7 +3,7 @@ import torch as t
 import torch.nn as nn
 import numpy as np
 from numpy.lib.recfunctions import stack_arrays
-from io import StringIO
+from io import StringIO, BytesIO
 import pandas as pd
 import pyhdx
 import yaml
@@ -53,7 +53,7 @@ def read_dynamx(*file_paths, intervals=('inclusive', 'inclusive'), time_unit='mi
             with open(fpath, 'r') as f:
                 hdr = f.readline().strip('# \n\t')
 
-        names = [name.lower() for name in hdr.split(',')]
+        names = [name.lower().strip('\r\t\n') for name in hdr.split(',')]
         df = pd.read_csv(fpath, header=0, names=names)
         dfs.append(df)
 
@@ -85,6 +85,7 @@ def read_header(file_obj, comment='#'):
 
     while True:
         line = file_obj.readline()
+        line = line.decode() if isinstance(line, bytes) else line
         if line.startswith(comment):
             header.append(line)
         else:
@@ -93,10 +94,9 @@ def read_header(file_obj, comment='#'):
 
 
 def parse_header(filepath_or_buffer, comment='#'):
-    if isinstance(filepath_or_buffer, StringIO):
+    if isinstance(filepath_or_buffer, (StringIO, BytesIO)):
         header = read_header(filepath_or_buffer, comment=comment)
         filepath_or_buffer.seek(0)
-
     else:
         with open(filepath_or_buffer, 'r') as file_obj:
             header = read_header(file_obj, comment=comment)
@@ -269,6 +269,7 @@ def dataframe_to_stringio(df, sio=None, fmt='csv', include_metadata=True, includ
                 sio.write(f'{sep}\n')
                 sio.write(yaml.dump(v, sort_keys=False))
                 sio.write('\n')
+        # use df.to_string()?
         with pd.option_context('display.max_rows', None, 'display.max_columns', None,
                                'display.expand_frame_repr', False):
             sio.write(df.__str__())
@@ -319,7 +320,7 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     Save a fit result object to the specified directory with associated metadata
 
     Output directory contents:
-    deltaG.csv/.txt: Fit output result (deltaG, covariance, k_obs, pfact)
+    dG.csv/.txt: Fit output result (dG, covariance, k_obs, pfact)
     losses.csv/.txt: Losses per epoch
     log.txt: Log file with additional metadata (number of epochs, final losses, pyhdx version, time/date)
 
@@ -389,15 +390,15 @@ def load_fitresult(fit_dir):
         fit_result = csv_to_dataframe(fit_dir)
         assert isinstance(hdxm, pyhdx.HDXMeasurement), 'No valid HDXMeasurement data object supplied'
     else:
-        raise ValueError("Invalid fit result directory specified")
+        raise ValueError("Specified fit result path is not a directory")
 
     fit_metadata = fit_result.attrs.pop('metadata')
     model_klass = getattr(import_module('pyhdx.fitting_torch'), fit_metadata['model_name'])
 
     if isinstance(fit_result.columns, pd.MultiIndex):
-        g_arr = fit_result.xs('_deltaG', level=-1, axis=1).to_numpy().T
+        g_arr = fit_result.xs('_dG', level=-1, axis=1).to_numpy().T
     else:
-        g_arr = fit_result['_deltaG'].to_numpy().T
+        g_arr = fit_result['_dG'].to_numpy().T
     g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(-1)  # todo record/generalize shapes
     model = model_klass(g_parameter)
 

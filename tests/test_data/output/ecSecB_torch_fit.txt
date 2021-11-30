@@ -1,7 +1,7 @@
 PyHDX v0.4.0b2+49.g05bd115.dirty 
 2021/09/06 11:35:09 (1630920909) 
 
-         sequence       _deltaG        deltaG         pfact     k_obs    covariance
+         sequence           _dG            dG         pfact     k_obs    covariance
 r_number                                                                           
 10              T  19747.577651  19747.577651  2.526764e+03  0.065120  1.416434e+03
 11              F  19366.517804  19366.517804  2.172236e+03  0.063000  1.404869e+03

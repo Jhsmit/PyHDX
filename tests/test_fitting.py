@@ -61,6 +61,7 @@ class TestSecBDataFit(object):
         # todo additional tests:
         #  result = fit_rates_half_time_interpolate()
 
+    @pytest.mark.skip(reason="Hangs on GitHub Actions on Ubuntu")
     def test_dtype_cuda(self):
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
@@ -71,8 +72,9 @@ class TestSecBDataFit(object):
         if torch.cuda.is_available():
             fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
             out_deltaG = fr_global.output
-            for field in ['deltaG', 'k_obs', 'covariance']:
-                assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01, check_dtype=False)
+            for field in ['dG', 'k_obs', 'covariance']:
+                assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field],
+                                    rtol=0.01, check_dtype=False, check_names=False)
         else:
             with pytest.raises(AssertionError, match=r".* CUDA .*"):
                 fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
@@ -81,11 +83,11 @@ class TestSecBDataFit(object):
         cfg.set('fitting', 'dtype', 'float32')
 
         fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
-        dg = fr_global.model.deltaG
+        dg = fr_global.model.dG
         assert dg.dtype == torch.float32
 
         out_deltaG = fr_global.output
-        for field in ['deltaG', 'k_obs']:
+        for field in ['dG', 'k_obs']:
             assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
                                 check_dtype=False, check_names=False)
 
@@ -103,12 +105,12 @@ class TestSecBDataFit(object):
         out_deltaG = fr_global.output
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
-        for field in ['deltaG', 'covariance', 'k_obs']:
+        for field in ['dG', 'covariance', 'k_obs']:
             assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
                                 check_names=False)
 
-        mse = fr_global.get_mse()
-        assert mse.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
+        errors = fr_global.get_squared_errors()
+        assert errors.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended(self):
@@ -122,11 +124,11 @@ class TestSecBDataFit(object):
 
         assert t1 - t0 < 20
         out_deltaG = fr_global.output
-        for field in ['deltaG', 'k_obs', 'covariance']:
+        for field in ['dG', 'k_obs', 'covariance']:
             assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
 
-        mse = fr_global.get_mse()
-        assert mse.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
+        errors = fr_global.get_squared_errors()
+        assert errors.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended_cuda(self):
@@ -141,7 +143,7 @@ class TestSecBDataFit(object):
         fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=20000, r1=2)
         out_deltaG = fr_global.output
 
-        for field in ['deltaG', 'k_obs']:
+        for field in ['dG', 'k_obs']:
             assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
 
         cfg.set('fitting', 'device', 'cpu')
@@ -168,13 +170,13 @@ class TestSecBDataFit(object):
         for state in states:
             from pandas.testing import assert_series_equal
 
-            result = output[state]['deltaG']
-            test = check_protein[state]['deltaG']
+            result = output[state]['dG']
+            test = check_protein[state]['dG']
 
             assert_series_equal(result, test, rtol=0.1)
 
-        mse = fr_global.get_mse()
-        assert mse.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
+        errors = fr_global.get_squared_errors()
+        assert errors.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
 
         mock_alignment = {
             'apo':   'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
@@ -191,8 +193,8 @@ class TestSecBDataFit(object):
 
         for state in states:
             from pandas.testing import assert_series_equal
-            result = output[state]['deltaG']
-            test = check_protein[state]['deltaG']
+            result = output[state]['dG']
+            test = check_protein[state]['dG']
 
             assert_series_equal(result, test, rtol=0.1)
 

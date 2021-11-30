@@ -1,13 +1,16 @@
-from dask.distributed import LocalCluster, Client
-import time
-from pyhdx.config import cfg
 import argparse
+import time
 
-def default_client(timeout='2s'):
+from dask.distributed import LocalCluster, Client
+
+from pyhdx.config import cfg
+
+
+def default_client(timeout='2s', **kwargs):
     """Return Dask client at scheduler adress as defined by the global config"""
     scheduler_address = cfg.get('cluster', 'scheduler_address')
     try:
-        client = Client(scheduler_address, timeout=timeout)
+        client = Client(scheduler_address, timeout=timeout, **kwargs)
         return client
     except (TimeoutError, IOError):
         print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")

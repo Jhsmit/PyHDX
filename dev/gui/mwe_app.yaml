@@ -1,0 +1,41 @@
+config:
+  title: MWE test app
+
+main_controller:
+  type: base
+  #kwargs: ...
+
+sources:
+  main:
+    type: table
+
+filters:
+  base_src:
+    type: table_source
+    source: main
+    table: test_data
+
+tools:
+  coverage:
+    type: hover
+    tooltips:
+      - ["x", '@x']
+      - ['y', '@y']
+
+opts:
+  scatter:
+    type: generic
+    tools:
+      - coverage
+    size: 10
+
+views:
+  xy_scatter:
+    type: scatter
+    source: base_src
+    opts:
+      - scatter
+
+
+controllers:
+  - dev

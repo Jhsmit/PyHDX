@@ -1,22 +1,18 @@
-import panel as pn
-from pyhdx.web.apps import main_app#, diff_app, single_app, folding_app, full_deuteration_app
-from pyhdx.web.base import STATIC_DIR
+import datetime
+import logging
+from pathlib import Path
+
 import numpy as np
+import panel as pn
 import torch
 
 from pyhdx.config import cfg
 from pyhdx.local_cluster import verify_cluster
-
-import logging
-from pathlib import Path
-import datetime
+from pyhdx.web.apps import main_app  # , diff_app, single_app, folding_app, full_deuteration_app
+from pyhdx.web.base import STATIC_DIR
 
 APP_DICT = {
-    'main': lambda: main_app().template,
-    # 'single': lambda: single_app().template,
-    # 'diff': lambda: diff_app().template,
-    # 'folding': lambda: folding_app().template,
-    # 'full_deuteration': lambda: full_deuteration_app().template
+    'main': lambda: main_app()[1],
 }
 
 

@@ -1,16 +1,35 @@
-peptides: state_name, quantity
+table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
+peptides
+index: peptide_id
+columns: state, exposure, quantity
 
-peptides_mse: fit_ID, state_name, quantity
+rfu_residues (rfu)
+index: r_number
+columns: state, exposure (TODO add quantity)
 
-d_calc: fit_ID, state_name, quantity
+rates
+index: r_number
+columns: guess_ID, state, quantity
 
-rfu: state_name, exposure
+dG_fits (dG)
+index: r_number
+columns: fit_ID, state, quantity
 
-rates: fit_ID, state_name, quantity  # rename!
+ddG_comparison (ddG)
+index: r_number
+columns: comparison_name, comparison_state, quantity
 
-global_fit: fit_ID, state_name, quantity
+d_calc
+index: exposure
+columns: fit_ID, state, peptide_id, quantity
 
-losses: fit_ID, state_name, loss_type
+loss
+index: epoch
+columns: fit_ID, loss_type
 
-colors: color_ID, state_name, quantity
+peptide_mse
+index: peptide_id
+columns: fit_ID, state, quantity
 
+d_calc
+peptide_mse (has colormap but not user configurable)

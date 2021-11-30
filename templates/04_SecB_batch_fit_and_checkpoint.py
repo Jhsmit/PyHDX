@@ -51,7 +51,7 @@ dataframe_to_file(output_dir / 'model_history.txt', df, fmt='pprint')
 
 
 # Checkpoint history scatter plot
-# Note that these are raw deltaG values including interpolated values in regions of no coverage
+# Note that these are raw dG values including interpolated values in regions of no coverage
 history = checkpoint.model_history
 num = len(history)
 cmap = mpl.cm.get_cmap('winter')
@@ -60,8 +60,8 @@ colors = iter(cmap(np.linspace(0, 1, num=num)))
 
 fig, ax = plt.subplots()
 for key, val in history.items():
-    n = len(val['deltaG'].numpy().squeeze())
-    ax.scatter(hdx_set.coverage.index, val['deltaG'].numpy().squeeze()[0], color=next(colors))
+    n = len(val['dG'].numpy().squeeze())
+    ax.scatter(hdx_set.coverage.index, val['dG'].numpy().squeeze()[0], color=next(colors))
 
 fig.colorbar(mpl.cm.ScalarMappable(cmap=cmap, norm=norm), label='Epochs')
 plt.show()

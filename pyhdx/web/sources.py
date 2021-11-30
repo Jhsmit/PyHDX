@@ -1,225 +1,236 @@
-import param
-from bokeh.models import ColumnDataSource
+import urllib.request
+
 import numpy as np
-from pyhdx.models import Protein
 import pandas as pd
-from lumen.util import get_dataframe_schema
+import param
 
-#todo refactor module to models?
+from pyhdx import TorchFitResult
+from pyhdx.fitting import RatesFitResult
+from pyhdx.models import HDXMeasurement, HDXMeasurementSet
+from pyhdx.support import multiindex_astype, multiindex_set_categories
 
-from lumen.sources import Source, cached_schema
 
+class Source(param.Parameterized):
+    """Base class for sources"""
 
-class DataFrameSource(Source):
-
-    tables = param.Dict({}, doc="Dictionary of tables in this Source")
+    _type = 'base'
 
     updated = param.Event()
 
-    dropna = param.Boolean(True, doc='Remove rows of all NaN when adding / selecting / removing  dataframes')
-    # def __init__(self, **params):
-    #     pass
-        # super().__init__(**params)
-        # if self.df.columns.nlevels == 1:
-        #     self.tables = [self.name]
-        #     self.multiindex = False
-        # elif self.df.columns.nlevels == 2:
-        #     self.multiindex = True
-        #     self.tables = [] # todo populate tables for multiindex
-        # else:
-        #     raise ValueError("Currently column multiindex beyond two levels is not supported")
-
-    def remove_df(self, table, name, level):
-        raise NotImplementedError('Removing datafarmes not implemented')
-
-        self.updated = True
-
-    def add_df(self, df, table, names=None):
-        """
-        #Todo method for adding a table to multindex source
-
-        Parameters
-        ----------
-        df
-
-        Returns
-        -------
-
-        """
-
-        # todo check if df already present, update?
-        # Todo check for name collisions between level and column names
+    def get(self):
+        raise NotImplementedError()
 
 
-        target_df = self.tables[table]
-        df = df.copy()
-        if target_df.columns.nlevels != df.columns.nlevels:
-            if isinstance(names, str):
-                names = [names]
-            if len(names) != target_df.columns.nlevels - df.columns.nlevels:
-                raise ValueError(f"Insufficient names provided to match target dataframe multindex level {df.columns.nlevels}")
+class TableSource(Source):
 
-            if df.columns.nlevels == 1:
-                cols = ((column,) for column in df.columns)
-            else:
-                cols = df.columns
-            tuples = tuple((*names, *tup) for tup in cols)
-            new_index = pd.MultiIndex.from_tuples(tuples, names=target_df.columns.names)
-            df.columns = new_index
+    tables = param.Dict({})
 
-        new_df = pd.concat([target_df, df], axis=1)
-        if self.dropna:
-            new_df = new_df.dropna(how='all')
+    _type = 'table'
 
-        self.tables[table] = new_df
-        #todo check for row indices
+    def get(self):
+        if len(self.tables) == 1:
+            return next(iter(self.tables.values))
+        else:
+            raise ValueError("TableSource has multiple tables, use `get_table`")
 
-        self.updated = True
-
-    def get(self, table, **query):
-        df = self.tables[table]
-
-        # This means querying a field with the same name as higher-levels columns is not possible
-        # Todo check for name collisions between level and column names
-        while df.columns.nlevels > 1:
-            selected_col = query.pop(df.columns.names[0], False)
-            if selected_col:
-                df = df[selected_col]
-                if self.dropna:
-                    df = df.dropna(how='all')  # These subsets will have padded NaN rows. Remove?
-            else:
-                break
-
-        dask = query.pop('__dask', False)
-        df = self._filter_dataframe(df, **query)
+    def get_table(self, table):
+        df = self.tables.get(table, None)
 
         return df
 
-    @cached_schema
-    def get_schema(self, table=None):
-        schemas = {}
-        for name in self.tables:
-            if table is not None and name != table:
-                continue
-            df = self.get(name)
-            schemas[name] = get_dataframe_schema(df)['items']['properties']
-        return schemas if table is None else schemas[table]
-
-    def get_unique(self, table=None, field=None, **query):
-        """Get unique values for specified tables and fields"""
-        print('deprecation candidate')
-        unique_values = {}
-        for name in self.tables:
-            if table is not None and name != table:
-                continue
-            df = self.get(name, **query)
-            if field is not None:
-                unique_values[name] = df[field].unique()
-            else:
-                unique_values[name] = {field_name: df[field_name].unique() for field_name in df.columns}
-
-            return unique_values if table is None else unique_values[table]
-
-
-class DataSource(param.Parameterized):
-    tags = param.List(doc='List of tags to specify the type of data in the dataobject.')
-    source = param.ClassSelector(ColumnDataSource, doc='ColumnDataSource object which is used for graphical display')
-    renderer = param.String(default='line')
-    default_color = param.Color(default='#0611d4')  # todo get default color from css?
-
-    def __init__(self, input_data, **params):
-        #update to lumen / pandas dataframes
-        self.render_kwargs = {k: params.pop(k) for k in list(params.keys()) if k not in self.param}
-        #todo currently this override colors in dic
-        super(DataSource, self).__init__(**params)
-        self.df = self.format_data(input_data)
-        default_color = 'color' if 'color' in self.df.columns else self.default_color  #df columns does not work with multiindex dfs
-        self.render_kwargs['color'] = self.render_kwargs.get('color', default_color)
-
-        self.source = ColumnDataSource(self.df, name=self.name)
-
-    def __getitem__(self, item):
-        return self.source.data.__getitem__(item)
-
-    @property
-    def export_df(self):
-        df = pd.DataFrame({k: v for k, v in self.source.data.items() if not k.startswith('__')})
-        return df
-
-    def format_data(self, input_data):
-        #todo allow dataframes
-        if isinstance(input_data, np.ndarray):
-            return pd.DataFrame(input_data)
-        elif isinstance(input_data, dict):
-            return pd.DataFrame(input_data)
-        elif isinstance(input_data, Protein):
-            return input_data.df
-        else:
-            raise TypeError("Invalid input data type")
-
-    def to_numpy(self):
-        raise NotImplementedError('Converting to numpy rec array not implemented')
-
-    @property
-    def scalar_fields(self):
-        """Returns a list of names of fields with scalar dtype"""
-        return [name for name, data in self.source.data.items() if np.issubdtype(data.dtype, np.number)]
-
-    @property
-    def y(self):
-        """:class:`~numpy.ndarray`: Array of y values"""
-        if 'y' in self.render_kwargs:
-            try:
-                return self.source.data[self.render_kwargs['y']]
-            except TypeError:
-                return None #  'y' might be a list of y values
-        elif 'y' in self.source.data:
-            return self.source.data['y']
-        else:
-            return None
-
-    @property
-    def x(self):
-        """:class:`~numpy.ndarray`: Array of x values"""
-        if 'x' in self.render_kwargs:
-            return self.source.data[self.render_kwargs['x']]
-        elif 'x' in self.source.data:
-            return self.source.data['x']
-        else:
-            return None
-
-    def update(self, data_source_obj):
+    def get_tables(self):
         """
-        Update the data and source object
-
-        Parameters
-        ----------
-        data_source
-
+        Returns the list of tables available on this source.
         Returns
         -------
-
-
+        list
+            The list of available tables on this source.
         """
 
-        self.source.data.update(**data_source_obj.source.data)
-
-    def resolve_tags(self, tags):
-        # format ['tag1', ('tag2a', 'tag2b') ] = tag1 OR (tag2a AND tag2b)
-
-        for tag in tags:
-            if isinstance(tag, str):
-                bool = tag in self.tags
-                # if tag in self.tags:
-                #     return True
-            else:
-                bool = all(sub_tag in self.tags for sub_tag in tag)
-            if bool:
-                return True
-        return False
-
-    #def _resolve_tag(self, tag):
+        return list(self.tables.keys())
 
 
-class MultiIndexDataSource(DataSource):
-    pass
+class PyHDXSource(TableSource):
+    _type = 'pyhdx'
+
+    # see readme/tables_list for tables and their indexes
+
+    hdxm_objects = param.Dict({})
+    rate_results = param.Dict({})  # dataframes?
+    dG_fits = param.Dict({})
+
+    def from_file(self):
+        pass
+        # todo load hdxms first
+        #then use those to reload dG results
+
+    def add(self, obj, name):  # todo Name is None and use obj name?
+        if isinstance(obj, HDXMeasurement):
+            self._add_hdxm_object(obj, name)
+        elif isinstance(obj, TorchFitResult):
+            self._add_dG_fit(obj, name)
+        elif isinstance(obj, RatesFitResult):
+            self.rate_results[name] = obj
+            self.param.trigger('rate_results')
+        else:
+            raise ValueError(f"Unsupported object {obj!r}")
+
+    @property
+    def hdx_set(self):
+        return HDXMeasurementSet(list(self.hdxm_objects.values()))
+
+    def _add_hdxm_object(self, hdxm, name):  # where name is new 'protein state' entry (or used for state (#todo clarify))
+        # Add peptide data
+        df = hdxm.data_wide.copy()
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure', 'quantity'])
+        df.columns = columns
+        self._add_table(df, 'peptides')
+
+        # Add rfu per residue data
+        df = hdxm.rfu_residues
+        tuples = [(name, column, 'rfu') for column in df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure', 'quantity'])
+        df.columns = columns
+        self._add_table(df, 'rfu_residues')
+
+        self.hdxm_objects[name] = hdxm
+        self.param.trigger('hdxm_objects')
+        self.updated = True
+
+    def _add_dG_fit(self, fit_result, name):
+        # Add dG values table (+ covariances etc)
+        df = fit_result.output.copy()
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
+        df.columns = columns
+        self._add_table(df, 'dG_fits')
+
+        # Add calculated d-uptake values (#todo add method on FitResults object that does this?)
+        timepoints = fit_result.hdxm_set.timepoints
+        tmin = np.log10(timepoints[np.nonzero(timepoints)].min())
+        tmax = np.log10(timepoints.max())
+        pad = 0.05 * (tmax - tmin)  # 5% padding percentage
+
+        tvec = np.logspace(tmin - pad, tmax + pad, num=100, endpoint=True)
+        d_calc = fit_result(tvec)
+
+        # Reshape the d_calc numpy array (Ns x Np x Nt to pandas dataframe (index: Ns, columns: multiiindex Ns, Np)
+        Ns, Np, Nt = d_calc.shape
+        reshaped = d_calc.reshape(Ns * Np, Nt)
+        columns = pd.MultiIndex.from_product(
+            [[name], fit_result.hdxm_set.names, np.arange(Np), ['d_calc']],
+            names=['fit_ID', 'state', 'peptide_id', 'quantity'])
+        index = pd.Index(tvec, name='exposure')
+        df = pd.DataFrame(reshaped.T, index=index, columns=columns)
+        df = df.loc[:, (df != 0).any(axis=0)]  # remove zero columns, replace with NaN when possible
+        self._add_table(df, 'd_calc')
+
+        # Add losses df
+        df = fit_result.losses.copy()
+        tuples = [(name, column) for column in df.columns]  # losses df is not multiindex
+        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'loss_type'])
+        df.columns = columns
+        self._add_table(df, 'loss')
+
+        #Add MSE per peptide df
+        squared_errors = fit_result.get_squared_errors()
+        dfs = {}
+        for mse_sample, hdxm in zip(squared_errors, fit_result.hdxm_set):
+            peptide_data = hdxm[0].data
+            mse = np.mean(mse_sample, axis=1)
+            # Indexing of mse_sum with Np to account for zero-padding
+            passthrough_fields = ['start', 'end', 'sequence']
+            df = peptide_data[passthrough_fields].copy()
+            df['peptide_mse'] = mse[:hdxm.Np]
+            dfs[hdxm.name] = df
+
+        # current bug: convert dtypes drop column names: https://github.com/pandas-dev/pandas/issues/41435
+        # use before assigning column names
+        mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1).convert_dtypes()
+        mse_df.index.name = 'peptide_id'
+        tuples = [(name, *tup) for tup in mse_df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
+        mse_df.columns = columns
+        self._add_table(mse_df, 'peptide_mse')
+
+        self.dG_fits[name] = fit_result
+        self.updated = True
+
+    def _fit_results_updated(self):  #todo method name / result dicts names
+        combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
+                             keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])
+        self.tables['dG_fits'] = combined
+
+        self.updated = True
+
+        # todo add d_exp etc
+        #cached?:
+
+    @param.depends('rate_results', watch=True)
+    def _rates_results_updated(self):
+        combined = pd.concat([fit_result.output for fit_result in self.rate_results.values()], axis=1,
+                             keys=self.rate_results.keys(), names=['guess_ID', 'state', 'quantity'])
+        self.tables['rates'] = combined
+
+        self.updated = True
+
+    def _add_table(self, df, table, categorical=True):
+        """
+
+        :param df:
+        :param table:
+        :param categorical: True if top level of multiindex should be categorical
+        :return:
+        """
+        if table in self.tables:
+            current = self.tables[table]
+            new = pd.concat([current, df], axis=1)
+            categories = list(current.columns.unique(level=0)) + list(df.columns.unique(level=0))
+        else:
+            new = df
+            categories = list(df.columns.unique(level=0))
+        if categorical:
+            new.columns = multiindex_astype(new.columns, 0, 'category')
+            new.columns = multiindex_set_categories(new.columns, 0, categories, ordered=True)
+        self.tables[table] = new
+
+
+class PDBSource(Source):
+
+    _type = 'pdb'
+
+    pdb_files = param.Dict({}, doc='Dictionary with id: pdb_string pdb file entries')
+
+    max_entries = param.Number(
+        1,
+        doc='set maximum size for pdb files. set to none for infinite size. set to one for single pdb mode')
+
+    def add_from_pdb(self, pdb_id):
+        self._make_room()
+        url = f'http://files.rcsb.org/download/{pdb_id}.pdb'
+        with urllib.request.urlopen(url) as response:
+            pdb_string = response.read().decode()
+
+        self.pdb_files[pdb_id] = pdb_string
+        self.updated = True
+
+    def add_from_string(self, pdb_string, pdb_id):
+        self._make_room()
+        self.pdb_files[pdb_id] = pdb_string
+        self.updated = True
+
+    def _make_room(self):
+        """removes first entry of pdf_files dict if its at max capacity"""
+        if self.max_entries is None:
+            pass
+        elif len(self.pdb_files) == self.max_entries:
+            key = next(iter(self.pdb_files))
+            del self.pdb_files[key]
+
+    def get(self):
+        """returns the first entry in the """
+        return next(iter(self.pdb_files.values()))
+
+    def get_pdb(self, pdb_id):
+        return self.pdb_files[pdb_id]

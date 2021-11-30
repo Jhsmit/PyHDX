@@ -1,13 +1,13 @@
-import pathlib
-from panel.util import url_path
-from panel.template import GoldenTemplate
-from pyhdx.web.base import STATIC_DIR
-from pyhdx.web.widgets import HTMLTitle
-import panel as pn
-import string
 import os
+import pathlib
+import string
+
+import panel as pn
+from panel.template import GoldenTemplate
+from panel.util import url_path
 from param.parameterized import default_label_formatter
-import holoviews as hv
+
+from pyhdx.web.widgets import HTMLTitle
 
 dist_path = '/pyhdx/'
 
@@ -123,7 +123,7 @@ class GoldenElvis(object):
 
         #return template
 
-    def view(self, fig_panel, title=None, width=None, height=None):  #fig_panel is a lumen view instance
+    def view(self, fig_panel, title=None, width=None, height=None):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
