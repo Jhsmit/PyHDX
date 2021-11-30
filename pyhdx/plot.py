@@ -565,12 +565,14 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
     fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
     ax = axes[0]
 
-    format_kwargs = {'ylabel': ylabel}
     cbar = rainbowclouds(ax, f_data, f_labels, format_kwargs=format_kwargs, invert_yaxis=True)
+    cbar.set_label(ylabel)
+    ax.format(ytickloc='none')
 
     return fig, ax, cbar
 
-def rainbowclouds(ax, f_data, f_labels, cmap=None, norm=None, invert_yaxis=False, format_kwargs=None, strip_kwargs=None,
+
+def rainbowclouds(ax, f_data, f_labels, cmap=None, norm=None, invert_yaxis=False, format_kwargs=None, cbar_kwargs=None, strip_kwargs=None,
                   kde_kwargs=None, boxplot_kwargs=None):
     boxplot_width = 0.1
     orientation = 'vertical'
@@ -598,14 +600,15 @@ def rainbowclouds(ax, f_data, f_labels, cmap=None, norm=None, invert_yaxis=False
     ax.format(**format_kwargs)
 
     if cmap is not None:
-        cbar = add_cbar(ax, cmap, norm)
+        cbar_kwargs = cbar_kwargs or {}
+        cbar = add_cbar(ax, cmap, norm, **cbar_kwargs)
     else:
         cbar = None
 
     return cbar
 
 
-def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, cbar=True, invert_yaxis=None,
+def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, cbar=True, cbar_kwargs=None, invert_yaxis=None,
                      symmetric=False, sclf=1e-3, **kwargs):
     #todo make error bars optional
     #todo custom ylims? scaling?
@@ -652,7 +655,8 @@ def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, 
         cbar_norm = copy(norm)
         cbar_norm.vmin *= sclf
         cbar_norm.vmax *= sclf
-        cbar = add_cbar(ax, cmap, cbar_norm)
+        cbar_kwargs = cbar_kwargs or {}
+        cbar = add_cbar(ax, cmap, cbar_norm, **cbar_kwargs)
     else:
         cbar = None
 
