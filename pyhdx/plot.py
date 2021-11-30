@@ -437,6 +437,7 @@ def loss_figure(fit_result, **figure_kwargs):
 
 def linear_bars_figure(data, reference=None, field='dG', norm=None, cmap=None, labels=None, **figure_kwargs):
     #todo add sorting
+    #todo add 'by' parameter (which can be nested eg ['state', 'expsure']
     protein_states = data.columns.get_level_values(0).unique()
 
     if isinstance(reference, int):
@@ -536,12 +537,13 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
         ref = data[reference_state, field]
         plot_data = test.subtract(ref, axis=0)
         plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
-        # todo sort?
 
         cmap_default, norm_default = CMAP_NORM_DEFAULTS['ddG']
+        ylabel = ddG_ylabel
     else:
         plot_data = data
         cmap_default, norm_default = CMAP_NORM_DEFAULTS['dG']
+        ylabel = dG_ylabel
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
