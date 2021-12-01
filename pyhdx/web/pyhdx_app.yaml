@@ -525,7 +525,6 @@ modules:
 controllers:
   #- peptide_file_input  # todo by name ?
   #- initial_guess
-  - dev
   - peptide_file_input
   - initial_guess
   - fit
