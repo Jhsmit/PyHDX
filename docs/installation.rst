@@ -4,6 +4,7 @@
 Installation
 ============
 
+Currently the recommended version to use is the latest beta release (v0.4.0bx)
 
 Stable release (v0.3.2)
 -----------------------
