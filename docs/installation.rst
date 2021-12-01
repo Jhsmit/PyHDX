@@ -41,7 +41,7 @@ To install with pdf output:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b1[pdf]
+    $ pip install pyhdx==0.4.0b6[pdf]
 
 ..
     From sources
@@ -89,7 +89,7 @@ To run PyHDX server using the IP address and port number of your dask cluster:
 
 .. code-block:: rst
 
-    $ pyhdx --scheduler_address <ip>:<port>
+    $ pyhdx serve --scheduler_address <ip>:<port>
 
 If no dask cluster is found at the specified address, a LocalCluster will be started (on localhost) using the
 specified port number.
