@@ -20,7 +20,12 @@ def main_app():
 
     ctrl.start()
 
-    fmt = {'accent_base_color': '#1d417a'}
+    fmt = {
+        'header_color': '#ffffff',  # this is the text
+        'header_background': '#00407A',
+        'accent_base_color': '#00407A',
+        'theme_toggle': False
+    }
 
     tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
     controllers = ctrl.control_panels.values()
