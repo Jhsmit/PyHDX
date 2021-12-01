@@ -25,6 +25,8 @@ PyHDX
 
 `PyHDX stable documentation <https://pyhdx.readthedocs.io/en/stable/>`_
 
+`Analytical Chemistry Publication <https://doi.org/10.1021/acs.analchem.1c02155>`_
+
 .. raw:: html
 
     <img src="images/screenshot_pyhdx040b5.png" width="1000" />
