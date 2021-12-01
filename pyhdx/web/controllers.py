@@ -816,7 +816,7 @@ class ColorTransformControl(PyHDXControlPanel):
     #apply = param.Action(lambda self: self._action_apply())
     no_coverage = param.Color(default='#8c8c8c', doc='Color to use for regions of no coverage')
 
-    live_preview = param.Boolean(default=True, doc='Toggle live preview on/off')
+    live_preview = param.Boolean(default=True, doc='Toggle live preview on/off', precedence=-1)
 
     color_transform_name = param.String('', doc='Name for the color transform to add')
     apply_colormap = param.Action(lambda self: self._action_apply_colormap(), label='Update color transform')
