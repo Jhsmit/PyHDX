@@ -27,7 +27,7 @@ PyHDX
 
 .. raw:: html
 
-    <img src="images/PyHDX_rgb.png" width="1000" />
+    <img src="images/screenshot_pyhdx040b5.png" width="1000" />
 
 
 PyHDX is python project which can be used to derive Gibbs free energy from HDX-MS data.
