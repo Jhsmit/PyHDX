@@ -1,0 +1,42 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+authors:
+  - family-names: "Smit"
+    given-names: "Jochem H."
+    orcid: "https://orcid.org/0000-0002-3597-9429"
+title: "PyHDX"
+version: 0.4.0b5
+doi: 10.5281/zenodo.4062031
+date-released: 2021-12-01
+url: "https://github.com/Jhsmit/PyHDX"
+preferred-citation:
+  type: article
+  authors:
+    - family-names: "Smit"
+      given-names: "Jochem H."
+      orcid: "https://orcid.org/0000-0002-3597-9429"
+    - family-names: "Krishnamurthy"
+      given-names: "Srinath"
+      orcid: "https://orcid.org/0000-0001-5492-4450"
+    - family-names: "Srinivasu"
+      given-names: "Bindu Y."
+      orcid: "https://orcid.org/0000-0003-0875-2680"
+    - family-names: "Parakra"
+      given-names: "Rinky"
+      orcid: "https://orcid.org/0000-0001-8690-7073"
+    - family-names: "Karamanou"
+      given-names: "Spyridoula"
+      orcid: "https://orcid.org/0000-0002-8803-1404"
+    - family-names: "Economou"
+      given-names: "Anastassios"
+      orcid: "https://orcid.org/0000-0002-1770-507X"
+  doi: "10.1021/acs.analchem.1c02155"
+  journal: "Analytical Chemistry"
+  month: 9
+  start: 12840 # First page number
+  end: 12847 # Last page number
+  title: "Probing Universal Protein Dynamics Using Hydrogen–Deuterium Exchange Mass Spectrometry-Derived Residue-Level Gibbs Free Energy"
+  number: 38
+  volume: 93
+  year: 2021
+  url: "https://doi.org/10.1021/acs.analchem.1c02155"
