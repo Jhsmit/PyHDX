@@ -840,7 +840,7 @@ class ColorTransformControl(PyHDXControlPanel):
         for opt in cmap_opts:
             cmap, norm = opt.cmap, opt.norm_scaled
             self._pyhdx_cmaps[cmap.name] = cmap
-            field = {'dG': 'dG'}.get(opt.field, opt.field)  # rename to dG in fit output files
+            field = {'dG': 'dG'}.get(opt.field, opt.field)  # no longer needed
             self.quantity_mapping[field] = (cmap, norm)
 
         self.cmap_options = {
@@ -1036,7 +1036,7 @@ class ColorTransformControl(PyHDXControlPanel):
         collection = self.cmap_options[self.library]
         options = collection if isinstance(collection, list) else list(collection.keys())
         self.param['colormap'].objects = options
-        if self.colormap is None or self.colormap not in options:  # todo how can it not be in options?
+        if (self.colormap is None or self.colormap not in options) and options:  # todo how can it not be in options?
             self.colormap = options[0]
 
     @param.depends('mode', watch=True)
