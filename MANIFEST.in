@@ -14,3 +14,5 @@ include pyhdx/_version.py
 include pyhdx/web/*.html
 include pyhdx/web/*.yaml
 include pyhdx/config.ini
+
+graft pyhdx/web/static 
