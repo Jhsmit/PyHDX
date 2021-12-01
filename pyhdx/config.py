@@ -61,7 +61,10 @@ class ConfigurationSettings(metaclass=Singleton):
         """
 
         pth = file_path or config_file_path
-        self._config = read_config(pth)
+        if pth.exists():
+            self._config = read_config(pth)
+        else:
+            self._config = read_config(current_dir / 'config.ini')
 
     def load_config(self, pth):
         """load a new configuration from pth"""
@@ -140,6 +143,13 @@ current_dir = Path(__file__).parent
 
 config_file_path = config_dir / 'config.ini'
 if not valid_config():
-    reset_config()
+    try:
+        reset_config()
+    except FileNotFoundError:
+        # This will happen on conda-forge docker build.
+        # When no config.ini file is in home_dir / '.pyhdx',
+        # ConfigurationSettings will use the hardcoded version (pyhdx/config.ini)
+        pass
+        # ( this is run twice due to import but should be OK since cfg is singleton)
 
 cfg = ConfigurationSettings()
