@@ -12,7 +12,5 @@ recursive-include docs *.rst conf.py Makefile make.bat *.jpg *.png *.gif
 include versioneer.py
 include pyhdx/_version.py
 include pyhdx/web/*.html
-include pyhdx/web/*.ts
-include pyhdx/web/bokeh_extensions/*.ts
-graft pyhdx/web/dist
-graft pyhdx/web/static
+include pyhdx/web/*.yaml
+include pyhdx/config.ini
