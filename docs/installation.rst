@@ -22,26 +22,20 @@ Installation with `pip`:
    $ pip install pyhdx==0.3.2
 
 
-Beta release (v0.4.0b1)
+Beta release (v0.4.0b6)
 -----------------------
 
 To install base PyHDX:
 
 .. code-block:: rst
 
-   $ pip install pyhdx==0.4.0b1
+   $ pip install pyhdx==0.4.0b6
 
 To install with web application:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b1[web]
-
-Currently custom bokeh extensions are not packaged, therefore to run the web application Node.js is required:
-
-.. code-block:: rst
-
-    $ conda install nodejs
+    $ pip install pyhdx==0.4.0b6[web]
 
 To install with pdf output:
 
