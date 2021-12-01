@@ -100,17 +100,18 @@ def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_fiel
     return fig, axes, cbar_ax
 
 
-def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='rfu', rect_fields=('start', 'end'),
-                     labels=False, cbar=True, **kwargs):
+def peptide_coverage(ax, data, wrap=None, cmap=None, norm=None, color_field='rfu', rect_fields=('start', 'end'),
+                     labels=False, cbar=True, cbar_kwargs=None, **kwargs):
     start_field, end_field = rect_fields
     data = data.sort_values(by=[start_field, end_field])
 
     wrap = wrap or autowrap(data[start_field], data[end_field])
-    cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
     rect_kwargs = {**RECT_KWARGS, **kwargs}
 
-    cmap = pplt.Colormap(cmap)
-    norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
+    cmap_default, norm_default = CMAP_NORM_DEFAULTS.get(color_field, (None, None))
+
+    cmap = pplt.Colormap(cmap) if cmap is not None else cmap_default
+    norm = norm or norm_default
     i = -1
     for p_num, idx in enumerate(data.index):
         elem = data.loc[idx]
@@ -138,8 +139,11 @@ def peptide_coverage(ax, data, wrap=None, cmap='turbo', norm=None, color_field='
     ax.set_xlim(start-pad, end+pad)
     ax.set_yticks([])
 
+    _cbar_kwargs = cbar_kwargs or {}
+    cbar_kwargs = {**CBAR_KWARGS, **_cbar_kwargs}
+
     if cbar and color_field:
-        cbar_ax = ax.colorbar(cmap, norm=norm, width=cbar_width)
+        cbar_ax = ax.colorbar(cmap, norm=norm, **cbar_kwargs)
         cbar_ax.set_label(color_field, labelpad=-0)
     else:
         cbar_ax = None
@@ -565,6 +569,7 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
     fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
     ax = axes[0]
 
+    # todo CBAR KWRAGS DEFAULT
     cbar = rainbowclouds(ax, f_data, f_labels, format_kwargs=format_kwargs, invert_yaxis=True)
     cbar.set_label(ylabel)
     ax.format(ytickloc='none')
