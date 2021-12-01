@@ -1024,9 +1024,13 @@ class ColorTransformControl(PyHDXControlPanel):
             elif self.library == 'pyhdx_default':
                 cmap = self._pyhdx_cmaps[self.colormap]
             elif self.library == 'user_defined':
-                cmap = self._user_cmaps[self.colormap]
+                try:
+                    cmap = self._user_cmaps[self.colormap]
+                except KeyError:
+                    return None, None
 
         cmap.name = self.color_transform_name
+        self.current_color_transform = self.color_transform_name
         cmap.set_bad(self.no_coverage)
 
         return cmap, norm
