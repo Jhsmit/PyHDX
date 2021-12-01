@@ -569,8 +569,7 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
     fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0)
     ax = axes[0]
 
-    # todo CBAR KWRAGS DEFAULT
-    cbar = rainbowclouds(ax, f_data, f_labels, format_kwargs=format_kwargs, invert_yaxis=True)
+    cbar = rainbowclouds(ax, f_data, f_labels, cmap=cmap, norm=norm, invert_yaxis=True, cbar_kwargs=CBAR_KWARGS)
     cbar.set_label(ylabel)
     ax.format(ytickloc='none')
 
@@ -597,7 +596,7 @@ def rainbowclouds(ax, f_data, f_labels, cmap=None, norm=None, invert_yaxis=False
     boxplot(f_data, ax=ax, **boxplot_kwargs)
     label_axes(f_labels, ax=ax, rotation=45)
 
-    ylim = ax.get_ylim[::-1] if invert_yaxis else None
+    ylim = ax.get_ylim()[::-1] if invert_yaxis else None
     _format_kwargs = dict(xlim=(-0.75, len(f_data) - 0.5), yticklabelloc='left', ytickloc='left',
               ylim=ylim)
     format_kwargs = _format_kwargs.update(format_kwargs) if format_kwargs else _format_kwargs
