@@ -36,17 +36,25 @@ Currently version 0.3.2 is the stable release. Version 0.4.0 is released as beta
 Installation 
 ============
 
-Installation of the latest stable version with `pip`:
+Installation of the latest stable beta with `pip`:
 
 .. code-block:: console
 
-    pip install pyhdx
+    pip install pyhdx==0.4.0b6
 
-Development install instructions in docs/installation.rst
+Installation with web interface extra:
+
+.. code-block:: console
+
+    pip install pyhdx==0.4.0b6[web]
+
 
 Run PyHDX
 =========
-(only for version 0.4.0 beta)
+
+Most up-to-date code examples are in the directory `pyhdx/templates`
+
+To run the web server:
 
 .. code-block:: console
 
