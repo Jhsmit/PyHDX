@@ -1018,8 +1018,12 @@ class ColorTransformControl(PyHDXControlPanel):
         if self.mode == 'Discrete':
             if len(self.values) != len(self.colors) - 1:
                 return None, None
-            cmap = mpl.colors.ListedColormap(self.colors)
-            norm = mpl.colors.BoundaryNorm(self.values[::-1], self.num_colors, extend='both') #todo refactor values to thd_values
+            cmap = mpl.colors.ListedColormap(self.colors[::-1])
+            values = self.get_values()
+            thds = sorted([values.min()] + self.values + [values.max()])
+
+            norm = mpl.colors.BoundaryNorm(thds,
+                self.num_colors, extend='neither') #todo refactor values to thd_values
 
         elif self.mode == 'Continuous':
             norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
@@ -1088,6 +1092,11 @@ class ColorTransformControl(PyHDXControlPanel):
                 self._remove_value()
             elif len(self.values) < self.num_colors - diff:
                 self._add_value()
+
+        if self.num_colors >= 5:
+            self.widgets['otsu_thd'].disabled = True
+        else:
+            self.widgets['otsu_thd'].disabled = False
 
         self._update_bounds()
         self.param.trigger('values')
