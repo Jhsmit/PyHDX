@@ -830,6 +830,7 @@ class ColorTransformControl(PyHDXControlPanel):
 
         # https://discourse.holoviz.org/t/based-on-a-select-widget-update-a-second-select-widget-then-how-to-link-the-latter-to-a-reactive-plot/917/8
         # update to proplot cmaps?
+        self._bounds = True  # set to False to disable updating bounds on thresholds
         cc_cmaps = sorted(colorcet.cm.keys())
         mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
 
@@ -985,11 +986,16 @@ class ColorTransformControl(PyHDXControlPanel):
 
         thds = [norm.vmax, norm.vmin]
         widgets = [widget for name, widget in self.widgets.items() if name.startswith('value')]
-        for thd, widget in zip(thds, widgets):
+        self._bounds = False  #todo decorator
+        for i, (thd, widget) in enumerate(zip(thds, widgets)):
             # Remove bounds, set values, update bounds
             widget.start = None
             widget.end = None
             widget.value = thd
+            self.values[i] = thd
+
+        self.param.trigger('values')
+        self._bounds = True
         self._update_bounds()
         self.live_preview = preview
 
@@ -1154,6 +1160,8 @@ class ColorTransformControl(PyHDXControlPanel):
 
     def _update_bounds(self):
         #for i, widget in enumerate(self.values_widgets.values()):
+        if not self._bounds:  # temporary fix to turn on/off bounds (perhaps should be a decorator)
+            return
         for i in range(len(self.values)):
             widget = self.widgets[f'value_{i}']
             if i > 0:
