@@ -896,9 +896,14 @@ class ColorTransformControl(PyHDXControlPanel):
             return None
 
         field = self.opts[self.quantity].field
-        df = table.xs(field, level=-1)
+        if isinstance(table.columns, pd.MultiIndex):
+            df = table.xs(field, level=-1, axis=1)
+        else:
+            df = table[field]
 
-        return df
+        opt = self.opts[self.quantity]
+
+        return df*opt.sclf
 
     def get_values(self):
         """return numpy array with only the values from selected dataframe, nan omitted"""
