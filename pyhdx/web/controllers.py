@@ -1353,9 +1353,9 @@ class FigureExportControl(PyHDXControlPanel):
 
     figure = param.Selector(default='scatter', objects=['scatter', 'linear_bars', 'rainbowclouds'])
 
-    reference = param.Selector(allow_None=True)
-
     figure_selection = param.Selector(label='Selection')
+
+    reference = param.Selector(allow_None=True)
 
     figure_format = param.Selector(default='png', objects=['png', 'pdf', 'svg', 'eps'])
 
@@ -1381,7 +1381,6 @@ class FigureExportControl(PyHDXControlPanel):
     def __init__(self, parent, **param):
         super(FigureExportControl, self).__init__(parent, **param)
         self.sources['main'].param.watch(self._figure_updated, ['updated'])
-
         self._figure_updated()
 
     def make_dict(self):
@@ -1401,6 +1400,7 @@ class FigureExportControl(PyHDXControlPanel):
     @pn.depends('figure', watch=True)
     def _figure_updated(self, *events):
         # generalize more when other plot options are introduced
+        # this needs a cross section filter probably
         if not self.figure:
             self.widgets['export_figure'].disabled = True
             return
@@ -1414,7 +1414,7 @@ class FigureExportControl(PyHDXControlPanel):
             df = self.sources['main'].tables['dG_fits']
             options = list(df.columns.unique(level=0))
             self.param['figure_selection'].objects = options
-            if not self.figure_selection:
+            if not self.figure_selection and options:
                 self.figure_selection = options[0]
 
             options = list(df.columns.unique(level=1))
@@ -1437,7 +1437,7 @@ class FigureExportControl(PyHDXControlPanel):
         options = list(df.columns.unique(level=0))
         self.param['reference'].objects = [None] + options
         if not self.reference and options:
-            self.reference = options[0]
+            self.reference = None
 
     @pn.depends('figure', 'figure_selection', 'figure_format', watch=True)
     def _figure_filename_updated(self):
