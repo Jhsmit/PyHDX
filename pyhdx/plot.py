@@ -555,6 +555,7 @@ def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None,
 
     #scaling
     plot_data *= 1e-3
+    norm = copy(norm)
     norm.vmin = norm.vmin * 1e-3
     norm.vmax = norm.vmax * 1e-3
 
