@@ -1,7 +1,7 @@
 # <pandas_kwargs>{"comment": "#", "header": [0, 1, 2], "index_col": 0}</pandas_kwargs>
 fit_ID,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1,Fit_1
 state,SecB_tetramer,SecB_tetramer,SecB_tetramer,SecB_tetramer,SecB_tetramer,SecB_tetramer,SecB_dimer,SecB_dimer,SecB_dimer,SecB_dimer,SecB_dimer,SecB_dimer
-quantity,sequence,_deltaG,deltaG,pfact,k_obs,covariance,sequence,_deltaG,deltaG,pfact,k_obs,covariance
+quantity,sequence,_dG,dG,pfact,k_obs,covariance,sequence,_dG,dG,pfact,k_obs,covariance
 r_number,,,,,,,,,,,,
 10,T,20323.88743080681,20323.88743080681,3175.8828533956225,0.0518141532664071,2288.62532556211,T,20323.88210117603,20323.88210117603,3175.8761380343567,0.05181426279247697,2884.051654746315
 11,F,20323.890667339983,20323.890667339983,3175.886931450432,0.04309708019518641,2238.1366652166803,F,20323.88222938756,20323.88222938756,3175.8762995813577,0.04309722442570435,2750.959836356597
