@@ -697,7 +697,7 @@ norm_defaults = {
     'dG': pplt.Norm('linear', 1e4, 4e4),
     'ddG': pplt.Norm('linear', -1e4, 1e4),
     'rfu': pplt.Norm('linear', 0, 1., clip=True),
-    'mse': pplt.Colormap('cividis')
+    'mse': None
 }
 
 CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['rfu', 'ddG', 'dG', 'mse']}
