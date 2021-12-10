@@ -23,7 +23,13 @@ class Source(param.Parameterized):
 
 class TableSource(Source):
 
-    tables = param.Dict({})
+    tables = param.Dict(
+        default={},
+        doc="Dictionary of tables (pd.DataFrames)")
+
+    hashes = param.Dict(
+        default={},
+        doc="Dictionary of table hashes")
 
     _type = 'table'
 

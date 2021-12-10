@@ -21,6 +21,8 @@ class Transform(param.Parameterized):
 
     redrawn = param.Event(doc="event gets triggered when widgets are changed and the controller needs to redraw them")
 
+    cache = param.ClassSelector(class_=Cache)
+
     def __init__(self, **params):
         super().__init__(**params)
 
@@ -52,6 +54,12 @@ class TableSourceTransform(Transform):
     def get(self):
         df = self.source.get_table(self.table)  # returns None on KeyError #todo change to source.get_table
         return df
+
+    @property
+    def hash(self):
+        # or sources can have multiple hashes?
+        # / objects can have multiple hashes?
+        return tuple([self._type, self.table, self.source.hashes[self.table]])
 
     @param.depends('table', watch=True)
     def _table_updated(self):
