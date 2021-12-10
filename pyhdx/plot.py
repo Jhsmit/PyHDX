@@ -623,7 +623,7 @@ def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, 
         cmap_default, norm_default = None, None
 
     cmap = cmap or cmap_default
-    cmap = pplt.Colormap(cmap)
+    cmap = pplt.Colormap(cmap) if isinstance(cmap, str) else cmap
     norm = norm or norm_default
 
     if cmap is None or norm is None:
