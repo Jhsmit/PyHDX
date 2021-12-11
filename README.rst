@@ -69,7 +69,7 @@ Web Application
 The PyHDX web application is currently hosted at:
 http://pyhdx.jhsmit.org/main
 
-A test file can be downloaded from `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/ecSecB_apo.csv>`_ and `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/ecSecB_dimer.csv>`_. (right click, save as).
+A test file can be downloaded from `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/input/ecSecB_apo.csv>`_ and `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/input/ecSecB_dimer.csv>`_. (right click, save as).
 
 The 0.4.0b4 version of PyHDX (featuring batch fitting / multiple states) is hosted at:
 http://pyhdx-beta.jhsmit.org/main
