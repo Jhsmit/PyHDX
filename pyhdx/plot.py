@@ -15,7 +15,7 @@ import colorcet as cc
 
 from pyhdx.config import cfg
 from pyhdx.fileIO import load_fitresult
-from pyhdx.support import autowrap, color_pymol, apply_cmap
+from pyhdx.support import autowrap, color_pymol, apply_cmap, multiindex_astype, multiindex_set_categories
 from pyhdx.tol_colors import tol_cmap
 
 try:
@@ -191,6 +191,7 @@ def residue_time_scatter_figure(hdxm, field='rfu', cmap='turbo', norm=None, scat
 
 
 def residue_time_scatter(ax, hdx_tp, field='rfu', cmap='turbo', norm=None, cbar=True, **kwargs):
+    # update cmap, norm defaults
     cmap = pplt.Colormap(cmap)  # todo allow None as cmap
     norm = norm or pplt.Norm('linear', vmin=0, vmax=1)
     cbar_width = kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
@@ -392,7 +393,7 @@ def peptide_mse_figure(fit_result, cmap='Haline', norm=None, rect_kwargs=None, *
 
     fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
     axes_iter = iter(axes)
-    mse = fit_result.get_mse() #shape: Ns, Np, Nt
+    mse = fit_result.get_squared_errors() #shape: Ns, Np, Nt
     cbars = []
     rect_kwargs = rect_kwargs or {}
     for i, mse_sample in enumerate(mse):
@@ -439,85 +440,117 @@ def loss_figure(fit_result, **figure_kwargs):
     return fig, ax
 
 
-def linear_bars_figure(data, reference=None, field='dG', norm=None, cmap=None, labels=None, **figure_kwargs):
+def linear_bars_figure(data, reference=None, groupby=None, field='dG', norm=None, cmap=None, **figure_kwargs):
     #todo add sorting
-    #todo add 'by' parameter (which can be nested eg ['state', 'expsure']
-    protein_states = data.columns.get_level_values(0).unique()
 
-    if isinstance(reference, int):
-        reference_state = protein_states[reference]
-    elif reference in protein_states:
-        reference_state = reference
-    elif reference is None:
-        reference_state = None
-    else:
-        raise ValueError(f"Invalid value {reference!r} for 'reference'")
-
-    if reference_state:
-        test = data.xs(field, axis=1, level=1).drop(reference_state, axis=1)
-        ref = data[reference_state, field]
-        plot_data = test.subtract(ref, axis=0)
-        plot_data.columns = pd.MultiIndex.from_product([plot_data.columns, [field]], names=['State', 'quantity'])
-
-        cmap_default, norm_default = CMAP_NORM_DEFAULTS['ddG']
-        n_subplots = len(protein_states) - 1
-    else:
-        plot_data = data
+    if reference is None and field == 'dG':
         cmap_default, norm_default = CMAP_NORM_DEFAULTS['dG']
-        n_subplots = len(protein_states)
+        ylabel = dG_ylabel
+        sclf = 1e-3
+    elif reference is not None and field == 'dG':
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['ddG']
+        ylabel = ddG_ylabel
+        sclf = 1e-3
+    elif reference is None and field == 'rfu':
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['rfu']
+        ylabel = 'RFU'
+        sclf = 1.
+    elif reference is not None and field == 'rfu':
+        cmap_default, norm_default = CMAP_NORM_DEFAULTS['drfu']
+        ylabel = 'ΔRFU'
+        sclf = 1.
+    else:
+        cmap_default, norm_default = None, None
+        ylabel = ''
+        sclf = 1.
 
     cmap = cmap or cmap_default
     norm = norm or norm_default
 
+    if cmap is None:
+        raise ValueError("No valid Colormap found")
+    if norm is None:
+        raise ValueError("No valid Norm found")
+
+    fig, axes, cbar = linear_bars(data, reference=reference, groupby=groupby, field=field, norm=norm, cmap=cmap,
+                                  sclf=sclf, **figure_kwargs)
+    cbar.set_label(ylabel)
+
+    return fig, axes, cbar
+
+
+def linear_bars(data, reference=None, groupby=None, field='dG', norm=None, cmap=None, sclf=1.,
+                **figure_kwargs):
+
+    if data.columns.nlevels == 2:
+        data = data.copy()
+        columns = pd.MultiIndex.from_tuples([('', *tup) for tup in data.columns],
+                                            names=['group'] + data.columns.names)
+        data.columns = columns
+
+    data = data.xs(level=-1, key=field, drop_level=False, axis=1)
+
+    groupby = groupby or data.columns.names[0]
+    grp_level = data.columns.names.index(groupby)
+    bars_level = 1 - grp_level
+
+    if isinstance(reference, int):
+        reference = data.columns.get_level_values(level=bars_level)[reference]
+    if reference:
+        ref_data = data.xs(key=reference, axis=1, level=bars_level)
+        sub = data.subtract(ref_data, axis=1).reorder_levels(data.columns.names, axis=1)
+
+        # fix column dtypes to preserve , reorder levels back to original order
+        columns = multiindex_astype(sub.columns, grp_level, 'category')
+        categories = list(data.columns.unique(level=grp_level))
+        columns = multiindex_set_categories(columns, grp_level, categories, ordered=True)
+        sub.columns = columns
+        sub = sub.sort_index(axis=1, level=grp_level)
+        sub = sub.drop(axis=1, level=bars_level, labels=reference)
+
+        plot_data = sub
+    else:
+        plot_data = data
+
+    groups = plot_data.groupby(level=groupby, axis=1).groups
+    hspace = [elem for v in groups.values() for elem in [0] * (len(v) - 1) + [None]][:-1]
+
     ncols = 1
-    nrows = n_subplots
+    nrows = len(hspace) + 1
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'linear_bars_aspect'))
     cbar_width = figure_kwargs.pop('cbar_width', cfg.getfloat('plotting', 'cbar_width')) / 25.4
 
-    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=0)
+    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=hspace)
     axes_iter = iter(axes)
-    labels = labels or protein_states
-    if len(labels) != len(protein_states):
-        raise ValueError('Number of labels provided must be equal to the number of protein states')
-    for label, state in zip(labels, protein_states):
-        if state == reference_state:
-            continue
 
-        values = plot_data[state, field]
-        rmin, rmax = values.index.min(), values.index.max()
-        extent = [rmin - 0.5, rmax + 0.5, 0, 1]
+    for grp_name, items in groups.items():
+        for i, item in enumerate(items):
+            values = plot_data.xs(key=(*item[:plot_data.columns.nlevels - 1], field), axis=1)
+            rmin, rmax = values.index.min(), values.index.max()
+            extent = [rmin - 0.5, rmax + 0.5, 0, 1]
+            img = np.expand_dims(values, 0)
 
-        img = np.expand_dims(values, 0)
-
-        ax = next(axes_iter)
-        from matplotlib.axes import Axes
-        Axes.imshow(ax, norm(img), aspect='auto', cmap=cmap, vmin=0, vmax=1, interpolation='None',
-                    extent=extent)
-
-        # ax.imshow(img, aspect='auto', cmap=cmap, norm=norm, interpolation='None', discrete=False,
-        #             extent=extent)
-        ax.format(yticks=[])
-        ax.text(1.02, 0.5, label, horizontalalignment='left',
-                  verticalalignment='center', transform=ax.transAxes)
+            ax = next(axes_iter)
+            label = item[bars_level]
+            from matplotlib.axes import Axes
+            Axes.imshow(ax, norm(img), aspect='auto', cmap=cmap, vmin=0, vmax=1, interpolation='None',
+                        extent=extent)
+            ax.format(yticks=[])
+            ax.text(1.02, 0.5, label, horizontalalignment='left',
+                    verticalalignment='center', transform=ax.transAxes)
+            if i == 0:
+                ax.format(title=grp_name)
 
     axes.format(xlabel=r_xlabel)
 
-    sclf = 1e-3 # todo kwargs / check value of filed
     cmap_norm = copy(norm)
     cmap_norm.vmin *= sclf
     cmap_norm.vmax *= sclf
 
-    if reference and field == 'dG':
-        label = ddG_ylabel
-    elif field == 'dG':
-        label = dG_ylabel
-    else:
-        label = ''
+    cbar = fig.colorbar(cmap, norm=cmap_norm, loc='b', width=cbar_width)
 
-    fig.colorbar(cmap, norm=cmap_norm, loc='b', label=label, width=cbar_width)
-
-    return fig, axes
+    return fig, axes, cbar
 
 
 def rainbowclouds_figure(data, reference=None, field='dG', norm=None, cmap=None, update_rc=True, **figure_kwargs):
@@ -690,6 +723,7 @@ cmap_defaults = {
     'dG': pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed(),
     'ddG': tol_cmap('PRGn').reversed(),
     'rfu': set_bad(pplt.Colormap(cc.cm.gouldian), '#8c8c8c'),
+    'drfu': set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54), '#8c8c8c'),
     'mse': set_bad(pplt.Colormap('cividis'), '#8c8c8c')
 }
 
@@ -697,10 +731,11 @@ norm_defaults = {
     'dG': pplt.Norm('linear', 1e4, 4e4),
     'ddG': pplt.Norm('linear', -1e4, 1e4),
     'rfu': pplt.Norm('linear', 0, 1., clip=True),
+    'drfu': pplt.Norm('linear', -0.5, 0.5, clip=True),
     'mse': None
 }
 
-CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['rfu', 'ddG', 'dG', 'mse']}
+CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['rfu', 'drfu', 'ddG', 'dG', 'mse']}
 
 
 def pymol_figures(data, output_path, pdb_file, reference=None, field='dG', cmap=None, norm=None, extent=None,
@@ -983,6 +1018,7 @@ class FitResultPlotBase(object):
 
         # return dictionary
         # keys: either protein state name (hdxm.name) or 'All states'
+
         figures_dict = {name: function(arg, **kwargs) for name, arg in args_dict.items()}
         return figures_dict
 
@@ -1071,7 +1107,9 @@ class FitResultPlot(FitResultPlotBase):
             plt.close(fig)
 
     def plot_all(self, **kwargs):
-        for plot_type in tqdm(ALL_PLOT_TYPES):
+        pbar = tqdm(ALL_PLOT_TYPES)
+        for plot_type in pbar:
+            pbar.set_description(plot_type)
             fig_kwargs = kwargs.get(plot_type, {})
             self.save_figure(plot_type, **fig_kwargs)
 
@@ -1095,6 +1133,8 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
     -------
 
     """
+
+    raise DeprecationWarning("This function is deprecated, use FitResultPlot.plot_all instead")
     # batch results only
     history_path = fitresult_path / 'model_history.csv'
     output_path = output_path or fitresult_path

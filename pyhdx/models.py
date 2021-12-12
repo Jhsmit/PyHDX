@@ -1103,6 +1103,14 @@ class HDXMeasurementSet(object):
     def names(self):
         return [hdxm.name for hdxm in self.hdxm_list]
 
+    @property
+    def rfu_residues(self):
+        # todo make nlevel =3 with quantity 'rfu' column
+        rfu = pd.concat([hdxm.rfu_residues for hdxm in self],
+                  keys=self.names, names=['state', 'exposure'], axis=1)
+
+        return rfu
+
     def guess_deltaG(self, rates_list):
         """
         Create dG guesses from rates

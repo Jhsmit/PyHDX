@@ -57,7 +57,8 @@ def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:
     """Assigns correct dtypes to (column) multiindex"""
     if index.names[0] in ['state', 'guess_ID', 'fit_ID']:
         index = multiindex_astype(index, 0, 'category')
-        index = multiindex_set_categories(index, 0, index.unique(level=0), ordered=True)
+        categories = list(index.unique(level=0))
+        index = multiindex_set_categories(index, 0, categories, ordered=True)
 
     if 'exposure' in index.names:
         level = index.names.index('exposure')
