@@ -1375,7 +1375,15 @@ class FigureExportControl(PyHDXControlPanel):
 
     figure = param.Selector(default='scatter', objects=['scatter', 'linear_bars', 'rainbowclouds'])
 
-    figure_selection = param.Selector(label='Selection')
+    table = param.Selector(
+        doc='which table data to use for figure'
+    )
+
+    figure_selection = param.Selector(label='Selection', doc='for scatter / rainbowclouds, which fit to use')
+
+    groupby = param.Selector(
+        doc='for linear bars, how to group the bars'
+    )
 
     reference = param.Selector(allow_None=True)
 
@@ -1413,7 +1421,7 @@ class FigureExportControl(PyHDXControlPanel):
             callback=self.figure_export_callback,
         )
 
-        widget_order = ['figure', 'reference', 'figure_selection', 'figure_format', 'ncols', 'aspect', 'width',
+        widget_order = ['figure', 'table', 'figure_selection', 'groupby', 'reference', 'figure_format', 'ncols', 'aspect', 'width',
                         'export_figure']
         final_widgets = {w: widgets[w] for w in widget_order}
 
@@ -1427,31 +1435,88 @@ class FigureExportControl(PyHDXControlPanel):
             self.widgets['export_figure'].disabled = True
             return
 
-        if 'dG_fits' not in self.src.tables.keys():
+        if self.figure == 'linear_bars':
+            table_options = {'dG_fits', 'rfu_residues'}
+        else:
+            table_options = {'dG_fits'}
+
+        options = list(table_options & self.src.tables.keys())
+        self.param['table'].objects = options
+        if (not self.table and options) or (options and self.table not in options):
+            self.table = options[0]
+
+        if len(options) == 0:
             self.widgets['export_figure'].disabled = True
             return
 
         self.widgets['export_figure'].disabled = False
-        if self.figure in ['scatter', 'linear_bars', 'rainbowclouds']:  # currently this is always true
-            df = self.sources['main'].tables['dG_fits']
+        if self.figure == 'rainbowclouds':
+            df = self.plot_data
+            options = list(df.columns.unique(level=0))
+            self.param['figure_selection'].objects = options
+            if not self.figure_selection and options:  # perhaps also check if the current selection is still in options
+                self.figure_selection = options[0]
+
+            self._update_reference()
+
+            self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')
+            self._excluded = ['groupby', 'ncols']
+
+        elif self.figure in ['linear_bars']:
+            # _table_updated?
+
+            self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')
+            self._excluded = ['ncols', 'figure_selection']
+
+        elif self.figure == 'scatter':
+
+            # move to function
+            df = self.plot_data
             options = list(df.columns.unique(level=0))
             self.param['figure_selection'].objects = options
             if not self.figure_selection and options:
                 self.figure_selection = options[0]
 
-            options = list(df.columns.unique(level=1))
-            self.param['reference'].objects = [None] + options
-
-            self._excluded = []
-
-        if self.figure == 'scatter':
-            self.aspect = cfg.getfloat('plotting', 'dG_aspect')  # todo refactor to dG
-            self._excluded = []
+            self.aspect = cfg.getfloat('plotting', 'dG_aspect')
+            self._excluded = ['groupby']
         else:
-            self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')
-            self._excluded = ['ncols']
+            raise ValueError('how did you manage to get here?')
+            # self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')
+            # self._excluded = ['ncols']
 
         self.update_box()
+
+    @property
+    def plot_data(self):
+        df = self.sources['main'].tables[self.table]
+        return df
+
+    @pn.depends('table', watch=True)
+    def _update_groupby(self):
+        # update groupby options
+        options = self.plot_data.columns.names[:2]
+        self.param['groupby'].objects = options
+        # if self.groupby not in options:
+        #     self.groupby = None
+        # i guess its not set to None if its no longer in options?
+        # todo investigate
+        if (not self.groupby and options) or (options and self.groupby not in options):
+            self.groupby = options[0]
+
+    @pn.depends('groupby', watch=True)
+    def _update_reference(self):
+        # update reference options
+        if self.figure == 'linear_bars':
+            df = self.plot_data
+            groupby_index = self.plot_data.columns.names.index(self.groupby)
+            barsby_index = 1 - groupby_index
+            options = list(self.plot_data.columns.unique(level=barsby_index))
+        else:
+            options = list(self.plot_data.columns.unique(level=1))
+
+        self.param['reference'].objects = [None] + options
+
+
 
     @pn.depends('figure_selection', watch=True)
     def _figure_selection_updated(self):  # selection is usually Fit ID
@@ -1461,10 +1526,19 @@ class FigureExportControl(PyHDXControlPanel):
         if not self.reference and options:
             self.reference = None
 
-    @pn.depends('figure', 'figure_selection', 'figure_format', watch=True)
+    @pn.depends('figure', 'table', 'reference', 'groupby', 'figure_selection', 'figure_format', watch=True)
     def _figure_filename_updated(self):
-        qty = 'dG' if self.reference is None else 'ddG'
-        fname = f'{self.figure}_{qty}_{self.figure_selection}.{self.figure_format}'
+        if self.table == 'dG_fits':
+            qty = 'dG' if self.reference is None else 'ddG'
+        elif self.table == 'rfu_residues':
+            qty = 'rfu' if self.reference is None else 'drfu'
+
+        if self.figure == 'linear_bars':
+            extra = f'by_{self.groupby}'
+        else:
+            extra = self.figure_selection
+
+        fname = f'{self.figure}_{qty}_{extra}.{self.figure_format}'
 
         self.widgets['export_figure'].filename = fname
 
@@ -1472,10 +1546,8 @@ class FigureExportControl(PyHDXControlPanel):
     def figure_export_callback(self):
         self.widgets['export_figure'].loading = True
 
-        df = self.src.tables['dG_fits']
-        sub_df = df[self.figure_selection]
-
         if self.figure == 'scatter':
+            sub_df = self.plot_data[self.figure_selection]
             if self.reference is None:
                 opts = self.opts['dG']
                 fig, axes, cbars = dG_scatter_figure(sub_df, cmap=opts.cmap, norm=opts.norm, **self.figure_kwargs)
@@ -1485,9 +1557,17 @@ class FigureExportControl(PyHDXControlPanel):
                 fig, axes, cbar = ddG_scatter_figure(sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm,
                                                      **self.figure_kwargs)
         elif self.figure == 'linear_bars':
-            opts = self.opts['ddG'] if self.reference else self.opts['dG']
-            fig, axes = linear_bars_figure(sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm)
+            if self.table == 'dG_fits':
+                opts = self.opts['ddG'] if self.reference else self.opts['dG']
+                field = 'dG'
+            elif self.table == 'rfu_residues':
+                opts = self.opts['drfu'] if self.reference else self.opts['rfu'] #TODO update to drfu
+                field = 'rfu'
+
+            fig, axes, cbar = linear_bars_figure(self.plot_data, groupby=self.groupby, reference=self.reference,
+                                                 cmap=opts.cmap, norm=opts.norm, field=field)
         elif self.figure == 'rainbowclouds':
+            sub_df = self.plot_data[self.figure_selection]
             opts = self.opts['ddG'] if self.reference else self.opts['dG']
             fig, axes, cbar = rainbowclouds_figure(sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm)
 
