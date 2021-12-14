@@ -772,14 +772,17 @@ class DifferentialControl(PyHDXControlPanel):
 
         combined = pd.concat([ddG, cov], axis=1)
 
+        #todo use _add_table method on source
         if current_df is not None:
             new_df = pd.concat([current_df, combined], axis=1)
         else:
             new_df = combined
 
-        self.parent.sources['main'].tables['ddG_comparison'] = new_df
-        self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
-        self.parent.sources['main'].updated = True
+        #self.parent.sources['main'].tables['ddG_comparison'] = new_df
+        self.src.add_table('ddG_comparison', new_df)
+
+        #self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
+        self.src.updated = True
 
 
 class ColorTransformControl(PyHDXControlPanel):

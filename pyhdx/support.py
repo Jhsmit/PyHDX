@@ -13,6 +13,26 @@ from pathlib import Path
 from dask.distributed import Client
 
 
+def make_tuple(item):
+    if isinstance(item, list):
+        return tuple(make_tuple(i) for i in item)
+    elif isinstance(item, dict):
+        return tuple((key, make_tuple(value)) for key, value in item.items())
+    else:
+        return item
+
+
+def hash_dataframe(df):
+    try:
+        tup = (*pd.util.hash_pandas_object(df, index=True).values, *df.columns, *df.columns.names, df.index.name)
+
+    except TypeError:
+        print(df)
+        print('hoi')
+
+    return hash(tup)
+
+
 def multiindex_apply_function(
     index: pd.MultiIndex,
     level: int,
