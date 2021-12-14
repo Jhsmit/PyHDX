@@ -1,0 +1,200 @@
+config:
+  title: PyHDX app
+
+main_controller:
+  type: pyhdx
+  #kwargs: ...
+
+sources:
+  main:
+    type: pyhdx
+  pdb:
+    type: pdb
+
+transforms:
+  peptide_src:
+    type: table_source
+    source: main
+    table: peptides
+  rfu_src:
+    type: table_source
+    source: main
+    table: rfu_residues
+  protein_src:  # table source which exposued widget which can be used to select which table to use for colors
+    type: table_source
+    source: main
+    table_options:
+      - rfu_residues
+
+opts:
+  base:
+    type: generic
+    responsive: True
+    framewise: True
+    show_grid: True
+    shared_axes: False  # doesnt seem to do anything
+  errorbars:
+    type: generic
+    line_alpha: 0.5
+    line_color: '#8c8c8c'
+    apply_ranges: False
+    hooks:
+      - handle: glyph
+        attr: upper_head.line_color
+        value: '#8c8c8c'
+      - handle: glyph
+        attr: lower_head.line_color
+        value: '#8c8c8c'
+  scatter:
+    type: generic
+    size: 8
+  rfu:
+    type: cmap
+    field: rfu
+  drfu:
+    type: cmap
+    field: drfu
+  info_log:
+    type: generic
+    title: Log Window
+  debug_log:
+    type: generic
+    title: Debug Log
+
+tools:
+  coverage_hover:
+    type: hover
+    tooltips:
+      - ['peptide_id', '$index']
+      - ['start, end', '@start, @end']
+      - ['RFU', '@rfu']
+      - ['D (corrected)', '@uptake_corrected']
+      - ['sequence', '@sequence']
+  rfu_hover:
+    type: hover
+    tooltips:
+      - ['Residue', '@r_number']
+      - ['RFU', '@rfu']
+    # mode: vline
+    #only show closest hit:
+    #https://stackoverflow.com/questions/36434562/displaying-only-one-tooltip-when-using-the-hovertool-tool
+    #https://github.com/bokeh/bokeh/issues/9087
+
+views:
+  logging_info:
+    type: logging
+    logger: pyhdx
+    level: 20
+    opts:
+      - info_log
+  logging_debug:
+    type: logging
+    logger: pyhdx
+    level: 10
+    opts:
+      - debug_log
+
+modules:
+  coverage_view:
+    transforms:
+      coverage_select:
+        type: cross_section
+        source: peptide_src
+        n_levels: 2
+      coverage_rectangles:
+        type: rectangle_layout
+        source: coverage_select
+        left: start
+        right: end
+        passthrough:
+          - rfu
+          - uptake_corrected
+          - sequence
+          - start
+          - end
+    opts:
+      coverage:
+        type: generic
+        color: rfu
+        colorbar: True
+        xlabel: Residue Number
+        ylabel : ''
+        yticks: 0
+        title: Peptide coverage
+        tools:
+          - coverage_hover
+    views:
+      coverage:
+        type: rectangles
+        source: coverage_rectangles
+        opts:
+          - base
+          - coverage
+          - rfu
+        vdims:
+          - rfu
+          - uptake_corrected
+          - sequence
+          - start
+          - end
+
+  rfu:
+    transforms:
+      rfu_select:
+        type: cross_section
+        source: rfu_src
+        n_levels: -1  # todo change to -1?
+    opts:
+      rfu_scatter:
+        type: generic
+        xlabel: Residue Number
+        ylabel: RFU
+        title: RFU Scatter
+        color: rfu
+        colorbar: True
+        ylim: [0, null]
+        tools:
+          - rfu_hover
+    views:
+      rfu_scatter:
+        type: scatter
+        source: rfu_select
+        x: r_number
+        y: rfu
+        opts:
+          - base
+          - scatter
+          - rfu_scatter
+          - rfu  # rename rfu_cmap
+        #x: r_number
+
+  protein_view:
+    transforms:
+      protein_select:
+        type: cross_section
+        source: protein_src
+        n_levels: -1
+
+    views:
+      protein:  #NGL?
+        type: ngl_colors
+        sources:
+          pdb: pdb
+          color: protein_select
+        opts:  # opts are not applied directly but matched to color dataframe and then applied
+          - rfu
+        dependencies:
+          opts:
+            - rfu
+
+
+controllers:
+  #- peptide_file_input  # todo by name ?
+  #- initial_guess
+  - peptide_folding_file_input
+  - color_transform
+  - protein  #rename: NGL?
+  - graph
+  - file_export
+  - figure_export
+  - session_manager
