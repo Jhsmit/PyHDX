@@ -7,7 +7,7 @@ import param
 from pyhdx import TorchFitResult
 from pyhdx.fitting import RatesFitResult
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
-from pyhdx.support import multiindex_astype, multiindex_set_categories
+from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dataframe
 
 
 class Source(param.Parameterized):
@@ -23,7 +23,13 @@ class Source(param.Parameterized):
 
 class TableSource(Source):
 
-    tables = param.Dict({})
+    tables = param.Dict(
+        default={},
+        doc="Dictionary of tables (pd.DataFrames)")
+
+    hashes = param.Dict(
+        default={},
+        doc="Dictionary of table hashes")
 
     _type = 'table'
 
@@ -32,6 +38,13 @@ class TableSource(Source):
             return next(iter(self.tables.values))
         else:
             raise ValueError("TableSource has multiple tables, use `get_table`")
+
+    def add_table(self, table: str, df: pd.DataFrame):
+        table_hash = hash_dataframe(df)
+        self.hashes[table] = table_hash
+        self.tables[table] = df
+
+        #todo self.updated = True?
 
     def get_table(self, table):
         df = self.tables.get(table, None)
@@ -193,7 +206,8 @@ class PyHDXSource(TableSource):
         if categorical:
             new.columns = multiindex_astype(new.columns, 0, 'category')
             new.columns = multiindex_set_categories(new.columns, 0, categories, ordered=True)
-        self.tables[table] = new
+
+        self.add_table(table, new)
 
 
 class PDBSource(Source):
@@ -201,6 +215,8 @@ class PDBSource(Source):
     _type = 'pdb'
 
     pdb_files = param.Dict({}, doc='Dictionary with id: pdb_string pdb file entries')
+
+    hashes = param.Dict({})
 
     max_entries = param.Number(
         1,
@@ -213,11 +229,13 @@ class PDBSource(Source):
             pdb_string = response.read().decode()
 
         self.pdb_files[pdb_id] = pdb_string
+        self.hashes[pdb_id] = hash(pdb_string)
         self.updated = True
 
     def add_from_string(self, pdb_string, pdb_id):
         self._make_room()
         self.pdb_files[pdb_id] = pdb_string
+        self.hashes[pdb_id] = hash(pdb_string)
         self.updated = True
 
     def _make_room(self):
@@ -227,9 +245,10 @@ class PDBSource(Source):
         elif len(self.pdb_files) == self.max_entries:
             key = next(iter(self.pdb_files))
             del self.pdb_files[key]
+            del self.hashes[key]
 
     def get(self):
-        """returns the first entry in the """
+        """returns the first entry in the pdb source"""
         return next(iter(self.pdb_files.values()))
 
     def get_pdb(self, pdb_id):

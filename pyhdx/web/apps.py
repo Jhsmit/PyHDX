@@ -1,4 +1,3 @@
-
 from pathlib import Path
 
 import panel as pn
@@ -7,14 +6,18 @@ import yaml
 from pyhdx import VERSION_STRING
 from pyhdx.web.constructor import AppConstructor
 from pyhdx.web.log import logger
+from pyhdx.web.cache import MemoryCache, HybridHDFCache
 
+cache = MemoryCache(max_items=2000)
+
+#cache = HybridHDFCache(file_path ='test123.h5')
 
 @logger('pyhdx')
 def main_app():
     cwd = Path(__file__).parent.resolve()
     yaml_dict = yaml.safe_load((cwd / 'pyhdx_app.yaml').read_text(encoding='utf-8'))
 
-    ctr = AppConstructor(loggers={'pyhdx': main_app.logger})
+    ctr = AppConstructor(loggers={'pyhdx': main_app.logger}, cache=cache)
 
     ctrl = ctr.parse(yaml_dict)
 

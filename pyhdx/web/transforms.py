@@ -1,4 +1,5 @@
 import itertools
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -6,35 +7,64 @@ import panel as pn
 import param
 from param.parameterized import default_label_formatter
 
-from pyhdx.support import autowrap
+from pyhdx.support import autowrap, make_tuple
 from pyhdx.web.sources import Source
+from pyhdx.web.cache import Cache
 
 
 class Transform(param.Parameterized):
-    """these transforms get the data from source"""
+    """Gets data and applies transform"""
 
     _type = 'base'
 
     widgets = param.Dict(default={})
 
+    source = param.ClassSelector(class_=Source)
+
     updated = param.Event()
 
     redrawn = param.Event(doc="event gets triggered when widgets are changed and the controller needs to redraw them")
 
+    _hash = param.Integer(doc='Hash of current transform state')
+
+    _cache = param.ClassSelector(default=Cache(), class_=Cache)
+
     def __init__(self, **params):
         super().__init__(**params)
 
-    def get(self):
-        """method called to get the dataframe"""
-        return None
+    # perhaps htey should all be private to prevent namespace collision with filter options
+    @property
+    def source_hash(self):
+        return self.source.hash
+
+    @property
+    def hash_key(self):
+        """hashable key describing the transform"""
+        return tuple((item, make_tuple(val)) for item, val in self.param.get_param_values() if not item.startswith('_'))
+
+    @property
+    def hash(self):
+        tup = (*self.hash_key, self.source_hash)
+
+        return hash(tup)
+
+    def update_hash(self):
+        if self.hash == self._hash:
+            return False
+        else:
+            self._hash = self.hash
+            return True
+
+    def update(self):
+        if self.update_hash():
+            self._update_options()
+            self.updated = True
 
 
 class TableSourceTransform(Transform):
     """transform which picks the correct table from the source"""
 
     _type = 'table_source'
-
-    source = param.ClassSelector(class_=Source)
 
     table = param.Selector(default=None, doc="""
       The table being transformed. """)
@@ -53,9 +83,9 @@ class TableSourceTransform(Transform):
         df = self.source.get_table(self.table)  # returns None on KeyError #todo change to source.get_table
         return df
 
-    @param.depends('table', watch=True)
-    def _table_updated(self):
-        self.updated = True
+    @property
+    def source_hash(self):
+        return self.source.hashes.get(self.table, hash(None))
 
     def _update_options(self):
         options = self.source.get_tables()
@@ -65,10 +95,11 @@ class TableSourceTransform(Transform):
         if not self.table and options:
             self.table = options[0]
 
-    @param.depends('source.updated', watch=True)
+    @param.depends('source.updated', 'table', watch=True)
     def update(self):
         self._update_options()
-        self.updated = True
+        if self.update_hash():
+            self.updated = True
 
 
 class AppTransform(Transform):
@@ -78,9 +109,18 @@ class AppTransform(Transform):
 
     source = param.ClassSelector(class_=Transform)
 
+    def transform(self):
+        """get source data, apply transform, return result"""
+        return self.source.get()
+
     def get(self):
-        df = self.source.get()
-        return df
+        """method called to get the dataframe"""
+        if self.hash in self._cache:
+            return self._cache[self.hash]
+        else:
+            data = self.transform()
+            self._cache[self.hash] = data
+            return data
 
     @param.depends('source.updated', watch=True)
     def update(self):
@@ -108,11 +148,6 @@ class CrossSectionTransform(AppTransform):
     empty_select = param.Boolean(default=False, doc="""
         Add an option to Select widgets to indicate select all on this level.""")
 
-    # stepwise = param.Boolean(
-    #     default=False,
-    #     doc='Apply xs stepwise (one call per level)'
-    # )
-
     def __init__(self, **params):
         super().__init__(**params)
         self.index = None  # index is the df index which determines the selector's options
@@ -120,31 +155,30 @@ class CrossSectionTransform(AppTransform):
 
     @param.depends('source.updated', watch=True)
     def update(self):
-        #todo only redraw if only options are changed or always?
-        #todo remove watchers when new transforms are created?
+        if self.update_hash():
+            #todo remove watchers when new transforms are created?
 
+            old_index = self.index
+            df = self.source.get()
 
-        old_index = self.index
-        df = self.source.get()
+            if df is None:
+                return
+            self.index = df.columns if self.axis else df.index
+            self._names = self.names or self.index.names
 
-        if df is None:
-            return
-        self.index = df.columns if self.axis else df.index
-        self._names = self.names or self.index.names
+            if old_index is not None and self.index.nlevels == old_index.nlevels:
+                # no redraw needed, only update selectors options
+                options = list(self.index.unique(level=0))
+                self.selectors[0].options = options
+                self.selectors[0].param.trigger('value')
+                for name, selector in zip(self._names, self.selectors):
+                    selector.name = name  # todo requires testing if the names are really updated or not (they arent)
+                    selector.label = name  # todo requires testing if the names are really updated or not
+                    self.redrawn = True
+            else:
+                self.redraw()
 
-        if old_index is not None and self.index.nlevels == old_index.nlevels:
-            # no redraw needed, only update selectors options
-            options = list(self.index.unique(level=0))
-            self.selectors[0].options = options
-            self.selectors[0].param.trigger('value')
-            for name, selector in zip(self._names, self.selectors):
-                selector.name = name  # todo requires testing if the names are really updated or not (they arent)
-                selector.label = name  # todo requires testing if the names are really updated or not
-                self.redrawn = True
-        else:
-            self.redraw()
-
-        self.updated = True
+            self.updated = True
 
     def redraw(self):
         # create new widgets
@@ -155,6 +189,7 @@ class CrossSectionTransform(AppTransform):
 
         self.widgets = {name: pn.widgets.Select(name=default_label_formatter(name)) for name in self._names[:n_levels]}
 
+        #todo perhaps do self.param.add_parameter?
         self.selectors = list(self.widgets.values())
         for selector in self.selectors:
             selector.param.watch(self._selector_changed, ['value'], onlychanged=True)
@@ -167,20 +202,15 @@ class CrossSectionTransform(AppTransform):
 
         self.redrawn = True
 
-    #todo cache df?
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return df
-        else:
-            kwargs = self.pd_kwargs
-            # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
-            df = df.xs(**kwargs)
-            # if self.drop_level and self.axis == 1 and df.columns.nlevels > 1:
-            #     df.columns = df.columns.droplevel()
-            # elif self.drop_level and self.axis == 0:
-            #     df.index = df.index.droplevel()
-            return df
+
+        kwargs = self.pd_kwargs
+        # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
+        df = df.xs(**kwargs)
+        return df
 
     def _selector_changed(self, *events):
         #this sends multiple updated events as it triggers changes in other selectors
@@ -229,6 +259,7 @@ class ApplyCmapOptTransform(AppTransform):
     #def check_args(... )  #todo method for constructor to see if the supplied kwargs are correct for this object
 
     def __init__(self, opts, **params): #opts: list of opts objects
+        warnings.warn('ApplyCmapOptTransform does not implement hashing', NotImplementedError)
         self._opts_dict = {o.name: o for o in opts}
         opts = list(self._opts_dict.keys())
         params['opts'] = opts
@@ -301,7 +332,7 @@ class RectangleLayoutTransform(AppTransform):
     step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
     margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None
@@ -341,11 +372,13 @@ class GenericTransform(AppTransform):
 
     pd_function = param.String()
 
+    kwargs = param.Dict(doc='dict of additional kwargs')
+
     def __init__(self, **params):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**{k: v for k, v in params.items() if k in self.param})
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return df
@@ -375,7 +408,7 @@ class RenameTransform(GenericTransform):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**params)
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None
@@ -407,7 +440,7 @@ class RescaleTransform(GenericTransform):
 
     scale_factor = param.Number(1.)
 
-    def get(self):  # todo perhaps some kind of decorator that returns nonealwasy?
+    def transform(self):  # todo perhaps some kind of decorator that returns nonealwasy?
         df = self.source.get()
         if df is None:
             return None
@@ -459,7 +492,7 @@ class ConcatTransform(AppTransform):
 
 
 class SampleTransform(AppTransform):
-    """subsamples dataframe along """
+    """subsamples dataframe along specified axis"""
 
     _type = 'sample'
 
@@ -473,7 +506,7 @@ class SampleTransform(AppTransform):
 
     axis = param.Number(0, inclusive_bounds=(0, 1))
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None
@@ -505,12 +538,6 @@ class SampleTransform(AppTransform):
         return df
 
 
-class TransformTransform(AppTransform):
-    pd_function = param.String('transform')
-    def __init__(self, **params):
-        raise NotImplementedError()
-
-
 class PipeTransform(AppTransform):
     """applies a list of pandas functions
 
@@ -522,7 +549,7 @@ class PipeTransform(AppTransform):
 
     pipe = param.List()  # list of dicts
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None

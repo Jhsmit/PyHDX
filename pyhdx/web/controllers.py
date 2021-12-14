@@ -76,12 +76,17 @@ class DevTestControl(ControlPanel):
         print('break')
 
     def _action_test(self):
-        trs = self.transforms['table_1_select']
-        print(trs.widgets)
+        trs = self.transforms['peptide_select']
+        cache = trs._cache
+        print(cache._cache.keys())
+        print(cache)
+        print(cache._store.keys())
 
-        view = self.views['graph_1']
-        df = view.get_data()
-        print(df)
+        for item in cache._store.keys():
+            print(item)
+            print(cache[item])
+
+
 
     @property
     def _layout(self):
@@ -772,14 +777,17 @@ class DifferentialControl(PyHDXControlPanel):
 
         combined = pd.concat([ddG, cov], axis=1)
 
+        #todo use _add_table method on source
         if current_df is not None:
             new_df = pd.concat([current_df, combined], axis=1)
         else:
             new_df = combined
 
-        self.parent.sources['main'].tables['ddG_comparison'] = new_df
-        self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
-        self.parent.sources['main'].updated = True
+        #self.parent.sources['main'].tables['ddG_comparison'] = new_df
+        self.src.add_table('ddG_comparison', new_df)
+
+        #self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
+        self.src.updated = True
 
 
 class ColorTransformControl(PyHDXControlPanel):

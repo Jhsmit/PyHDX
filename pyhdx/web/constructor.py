@@ -11,8 +11,10 @@ from pyhdx.web.sources import *
 from pyhdx.web.tools import supported_tools
 from pyhdx.web.transforms import *
 from pyhdx.web.views import View
+from pyhdx.web.cache import Cache
 
 element_count = 0
+
 
 class AppConstructor(param.Parameterized):
 
@@ -31,6 +33,8 @@ class AppConstructor(param.Parameterized):
     ctrl_class = param.ClassSelector(class_=MainController, instantiate=False)
 
     client = param.ClassSelector(default=None, class_=Client)
+
+    cache = param.ClassSelector(default=Cache(), class_=Cache)
 
     def __init__(self, **params):
         super().__init__(**params)
@@ -105,12 +109,21 @@ class AppConstructor(param.Parameterized):
                 obj = self.create_element(name, element, **spec)
                 element_dict[name] = obj
 
-    def create_element(self, name, element, **spec):
+    def create_element(self, name: str, element: str, **spec):
+        """
+
+        :param name:
+        :param element: eiter source, filter, opt, view, tool
+        :param spec:
+        :return:
+        """
         global element_count
 
         _type = spec.pop('type')
         kwargs = self._resolve_kwargs(**spec)
         class_ = self._resolve_class(_type, element)
+        if element == 'transform':
+            kwargs['_cache'] = self.cache
         obj = class_(name=name, **kwargs)
         element_count += 1
 
