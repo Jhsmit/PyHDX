@@ -715,16 +715,17 @@ def cmap_norm_from_nodes(colors, nodes, bad=None):
     return cmap, norm
 
 
-def set_bad(cmap, color):
+def set_bad(cmap, color='#8c8c8c'):
     cmap.set_bad(color)
     return cmap
 
+
 cmap_defaults = {
-    'dG': pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed(),
-    'ddG': tol_cmap('PRGn').reversed(),
-    'rfu': set_bad(pplt.Colormap(cc.cm.gouldian), '#8c8c8c'),
-    'drfu': set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54), '#8c8c8c'),
-    'mse': set_bad(pplt.Colormap('cividis'), '#8c8c8c')
+    'dG': set_bad(pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed()),
+    'ddG': set_bad(tol_cmap('PRGn').reversed()),
+    'rfu': set_bad(pplt.Colormap(cc.cm.gouldian)),
+    'drfu': set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
+    'mse': set_bad(pplt.Colormap('cividis'))
 }
 
 norm_defaults = {
