@@ -76,12 +76,17 @@ class DevTestControl(ControlPanel):
         print('break')
 
     def _action_test(self):
-        trs = self.transforms['table_1_select']
-        print(trs.widgets)
+        trs = self.transforms['peptide_select']
+        cache = trs._cache
+        print(cache._cache.keys())
+        print(cache)
+        print(cache._store.keys())
 
-        view = self.views['graph_1']
-        df = view.get_data()
-        print(df)
+        for item in cache._store.keys():
+            print(item)
+            print(cache[item])
+
+
 
     @property
     def _layout(self):

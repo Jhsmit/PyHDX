@@ -27,14 +27,10 @@ class Transform(param.Parameterized):
 
     _hash = param.Integer(doc='Hash of current transform state')
 
-    _cache = param.ClassSelector(default=None, class_=Cache)
+    _cache = param.ClassSelector(default=Cache(), class_=Cache)
 
     def __init__(self, **params):
         super().__init__(**params)
-
-    def get(self):
-        """method called to get the dataframe"""
-        return None
 
     # perhaps htey should all be private to prevent namespace collision with filter options
     @property
@@ -113,9 +109,18 @@ class AppTransform(Transform):
 
     source = param.ClassSelector(class_=Transform)
 
+    def transform(self):
+        """get source data, apply transform, return result"""
+        return self.source.get()
+
     def get(self):
-        df = self.source.get()
-        return df
+        """method called to get the dataframe"""
+        if self.hash in self._cache:
+            return self._cache[self.hash]
+        else:
+            data = self.transform()
+            self._cache[self.hash] = data
+            return data
 
     @param.depends('source.updated', watch=True)
     def update(self):
@@ -197,20 +202,15 @@ class CrossSectionTransform(AppTransform):
 
         self.redrawn = True
 
-    #todo cache df?
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return df
-        else:
-            kwargs = self.pd_kwargs
-            # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
-            df = df.xs(**kwargs)
-            # if self.drop_level and self.axis == 1 and df.columns.nlevels > 1:
-            #     df.columns = df.columns.droplevel()
-            # elif self.drop_level and self.axis == 0:
-            #     df.index = df.index.droplevel()
-            return df
+
+        kwargs = self.pd_kwargs
+        # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
+        df = df.xs(**kwargs)
+        return df
 
     def _selector_changed(self, *events):
         #this sends multiple updated events as it triggers changes in other selectors
@@ -332,7 +332,7 @@ class RectangleLayoutTransform(AppTransform):
     step = param.Integer(5, bounds=(1, None), doc="Step size used for finding 'wrap' when its not specified")
     margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None
@@ -378,7 +378,7 @@ class GenericTransform(AppTransform):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**{k: v for k, v in params.items() if k in self.param})
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return df
@@ -408,7 +408,7 @@ class RenameTransform(GenericTransform):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**params)
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None
@@ -440,7 +440,7 @@ class RescaleTransform(GenericTransform):
 
     scale_factor = param.Number(1.)
 
-    def get(self):  # todo perhaps some kind of decorator that returns nonealwasy?
+    def transform(self):  # todo perhaps some kind of decorator that returns nonealwasy?
         df = self.source.get()
         if df is None:
             return None
@@ -506,7 +506,7 @@ class SampleTransform(AppTransform):
 
     axis = param.Number(0, inclusive_bounds=(0, 1))
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None
@@ -549,7 +549,7 @@ class PipeTransform(AppTransform):
 
     pipe = param.List()  # list of dicts
 
-    def get(self):
+    def transform(self):
         df = self.source.get()
         if df is None:
             return None
