@@ -8,15 +8,15 @@ import torch
 
 from pyhdx.config import cfg
 from pyhdx.local_cluster import verify_cluster
-from pyhdx.web.apps import main_app  # , diff_app, single_app, folding_app, full_deuteration_app
+from pyhdx.web.apps import main_app, rfu_app
 from pyhdx.web.base import STATIC_DIR
 
 APP_DICT = {
     'main': lambda: main_app()[1],
+    'rfu': lambda: rfu_app()[1]
 }
 
-
-def run_main():
+def run_apps():
     np.random.seed(43)
     torch.manual_seed(43)
 
@@ -46,10 +46,10 @@ def run_main():
     tornado_logger.addHandler(fh)
 
     print("Welcome to the PyHDX server!")
-    pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR})
+    pn.serve(APP_DICT, static_dirs={'pyhdx': STATIC_DIR}, index=str(STATIC_DIR / 'index.html'))
 
 
 if __name__ == '__main__':
-    run_main()
+    run_apps()
 
 

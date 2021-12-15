@@ -27,6 +27,7 @@ from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
+from pyhdx.web.transforms import CrossSectionTransform
 
 
 class DevTestControl(ControlPanel):
@@ -324,6 +325,229 @@ class PeptideFileInputControl(PyHDXControlPanel):
         #todo temperature ph kwarg for series
         hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
                               name=self.dataset_name, temperature=self.temperature, pH=self.pH)
+
+        self.src.add(hdxm, self.dataset_name)
+        self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
+                                f'({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)')
+        self.parent.logger.info(f'Average coverage: {hdxm.coverage.percent_coverage:.3}%, '
+                                f'Redundancy: {hdxm.coverage.redundancy:.2}')
+
+    def _action_remove_datasets(self):
+        raise NotImplementedError('Removing datasets not implemented')
+        for name in self.hdxm_list:
+            self.parent.datasets.pop(name)
+
+        self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
+
+
+class PeptideFoldingFileInputControl(PyHDXControlPanel):
+    """
+    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
+    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
+    analysis.
+
+    """
+
+    _type = 'peptide_rfu_file_input'
+
+    header = 'Peptide Input'
+
+    input_files = param.List()
+
+    fd_state = param.Selector(doc='State used to normalize uptake', label='FD State')
+
+    fd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='FD Exposure')
+
+    nd_state = param.Selector(doc='State used to normalize uptake', label='ND State')
+
+    nd_exposure = param.Selector(doc='Exposure used to normalize uptake', label='ND Exposure')
+
+    exp_state = param.Selector(doc='State for selected experiment', label='Experiment State')
+
+    exp_exposures = param.ListSelector(default=[], objects=[''], label='Experiment Exposures'
+                                       , doc='Selected exposure time to use')
+
+    d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
+                                label='Deuterium percentage')
+
+    drop_first = param.Integer(1, bounds=(0, None), doc='Select the number of N-terminal residues to ignore.')
+
+    ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
+
+    n_term = param.Integer(1, doc='Index of the n terminal residue in the protein. Can be set to negative values to '
+                                  'accommodate for purification tags. Used in the determination of intrinsic rate of exchange')
+
+    c_term = param.Integer(0, bounds=(0, None),
+                           doc='Index of the c terminal residue in the protein. Used for generating pymol export script'
+                               'and determination of intrinsic rate of exchange for the C-terminal residue')
+
+    sequence = param.String('', doc='Optional FASTA protein sequence')
+
+    dataset_name = param.String()
+
+    add_dataset_button = param.Action(lambda self: self._action_add_dataset(), label='Add measurement',
+                                doc='Parse selected peptides for further analysis and apply back-exchange correction')
+
+    hdxm_list = param.ListSelector(label='HDX Measurements',
+                                     doc='Lists added HDX-MS measurements', constant=True)
+
+    def __init__(self, parent, **params):
+        super(PeptideFoldingFileInputControl, self).__init__(parent, _excluded=['be_percent'], **params)
+        self.src.param.watch(self._hdxm_objects_updated, ['hdxm_objects'])
+        self.update_box()
+
+        self._df = None  # Numpy array with raw input data (or is pd.Dataframe?)
+
+    def make_dict(self):
+        text_area = pn.widgets.TextAreaInput(name='Sequence (optional)', placeholder='Enter sequence in FASTA format', max_length=10000,
+                                             width=300, height=100, height_policy='fixed', width_policy='fixed')
+        return self.generate_widgets(
+            input_files=pn.widgets.FileInput(multiple=True, name='Input files'),
+            temperature=pn.widgets.FloatInput,
+            d_percentage=pn.widgets.FloatInput,
+            #fd_percentage=pn.widgets.FloatInput,
+            sequence=text_area)
+
+    @param.depends('input_files', watch=True)
+    def _read_files(self):
+        if self.input_files:
+            combined_df = read_dynamx(*[StringIO(byte_content.decode('UTF-8')) for byte_content in self.input_files])
+            self._df = combined_df
+
+            self.parent.logger.info(
+                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
+                f'of {len(self._df)} peptides')
+        else:
+            self._df = None
+
+        self._update_fd_state()
+        self._update_fd_exposure()
+        self._update_nd_state()
+        self._update_nd_exposure()
+        self._update_exp_state_fd()
+        self._update_exp_state_nd()
+        self._update_exp_exposure()
+
+    def _update_nd_state(self):
+        if self._df is not None:
+            states = list(self._df['state'].unique())
+            self.param['nd_state'].objects = states
+            self.nd_state = states[0]
+        else:
+            self.param['fd_state'].objects = []
+
+    @param.depends('nd_state', watch=True)
+    def _update_nd_exposure(self):
+        if self._df is not None:
+            nd_entries = self._df[self._df['state'] == self.nd_state]
+            exposures = list(np.unique(nd_entries['exposure']))
+        else:
+            exposures = []
+        self.param['nd_exposure'].objects = exposures
+        if exposures:
+            self.nd_exposure = exposures[0]
+
+    def _update_fd_state(self):
+        if self._df is not None:
+            states = list(self._df['state'].unique())
+            self.param['fd_state'].objects = states
+            self.fd_state = states[0]
+        else:
+            self.param['fd_state'].objects = []
+
+    @param.depends('fd_state', watch=True)
+    def _update_fd_exposure(self):
+        if self._df is not None:
+            fd_entries = self._df[self._df['state'] == self.fd_state]
+            exposures = list(np.unique(fd_entries['exposure']))
+        else:
+            exposures = []
+        self.param['fd_exposure'].objects = exposures
+        if exposures:
+            self.fd_exposure = exposures[0]
+
+    @param.depends('fd_state', 'fd_exposure', watch=True)
+    def _update_exp_state_fd(self):
+        if self._df is not None:
+            # Booleans of data entries which are in the selected control
+            fd_bools = np.logical_and(self._df['state'] == self.fd_state, self._df['exposure'] == self.fd_exposure)
+
+            control_data = self._df[fd_bools].to_records()
+            other_data = self._df[~fd_bools].to_records()
+
+            intersection = array_intersection([control_data, other_data], fields=['start', 'end'])  # sequence?
+            states = list(np.unique(intersection[1]['state']))
+        else:
+            states = []
+
+        self.param['exp_state'].objects = states
+        if states:
+            self.exp_state = states[0] if not self.exp_state else self.exp_state
+
+    @param.depends('nd_state', 'nd_exposure', watch=True)
+    def _update_exp_state_nd(self):
+        if self._df is not None:
+            # Booleans of data entries which are in the selected control
+            fd_bools = np.logical_and(self._df['state'] == self.nd_state,
+                                      self._df['exposure'] == self.nd_exposure)
+
+            control_data = self._df[fd_bools].to_records()
+            other_data = self._df[~fd_bools].to_records()
+
+            intersection = array_intersection([control_data, other_data], fields=['start', 'end'])  # sequence?
+            states = list(np.unique(intersection[1]['state']))
+        else:
+            states = []
+
+        self.param['exp_state'].objects = states
+        if states:
+            self.exp_state = states[0] if not self.exp_state else self.exp_state
+
+    @param.depends('exp_state', watch=True)
+    def _update_exp_exposure(self):
+        if self._df is not None:
+            exp_entries = self._df[self._df['state'] == self.exp_state]
+            exposures = list(np.unique(exp_entries['exposure']))
+            exposures.sort()
+        else:
+            exposures = []
+
+        self.param['exp_exposures'].objects = exposures
+        self.exp_exposures = [e for e in exposures if e != 0.]
+
+        if not self.dataset_name or self.dataset_name in self.param['exp_state'].objects:
+            self.dataset_name = self.exp_state
+
+        if not self.c_term and exposures:
+            self.c_term = int(np.max(exp_entries['end']))
+
+    def _hdxm_objects_updated(self, events):
+        # Update datasets widget as datasets on parents change
+        objects = list(self.src.hdxm_objects.keys())
+        self.param['hdxm_list'].objects = objects
+
+    def _action_add_dataset(self):
+        """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
+
+        if self._df is None:
+            self.parent.logger.info("No data loaded")
+            return
+        elif self.dataset_name in self.src.hdxm_objects.keys():
+            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+            return
+
+        peptides = PeptideMasterTable(self._df, d_percentage=self.d_percentage,
+                                      drop_first=self.drop_first, ignore_prolines=self.ignore_prolines)
+
+        peptides.set_control((self.fd_state, self.fd_exposure), control_0=(self.nd_state, self.nd_exposure))
+
+        data = peptides.get_state(self.exp_state)
+        exp_bools = data['exposure'].isin(self.exp_exposures)
+        data = data[exp_bools]
+
+        #todo temperature ph kwarg for series
+        hdxm = HDXMeasurement(data, c_term=self.c_term, n_term=self.n_term, sequence=self.sequence,
+                              name=self.dataset_name)
 
         self.src.add(hdxm, self.dataset_name)
         self.parent.logger.info(f'Loaded dataset {self.dataset_name} with experiment state {self.exp_state} '
@@ -1705,18 +1929,21 @@ class GraphControl(PyHDXControlPanel):
 
     def __init__(self, parent, **params):
         super(GraphControl, self).__init__(parent, **params)
-        self.widget_transforms = [
-            'coverage_select',
-            'rfu_select',
-            'rates_select',
-            'dG_fit_select',
-            'ddG_comparison_select',
-            'peptide_select',
-            'peptide_mse_select',
-            'loss_select',
-            'd_calc_select',
-            'protein_select'
-        ]  # list of names of transforms which should be compressed/displayed
+
+        self.widget_transforms = [name for name, trs in self.transforms.items() if isinstance(trs, CrossSectionTransform)]
+
+        # self.widget_transforms = [
+        #     'coverage_select',
+        #     'rfu_select',
+        #     'rates_select',
+        #     'dG_fit_select',
+        #     'ddG_comparison_select',
+        #     'peptide_select',
+        #     'peptide_mse_select',
+        #     'loss_select',
+        #     'd_calc_select',
+        #     'protein_select'
+        # ]  # list of names of transforms which should be compressed/displayed
         transforms = [self.transforms[f] for f in self.widget_transforms]
         for t in transforms:
             t.param.watch(self._transforms_redrawn, 'redrawn')

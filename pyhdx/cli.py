@@ -35,7 +35,7 @@ def main():
         print(f"Started new Dask LocalCluster at {scheduler_address}")
 
     if args.serve:
-        serve.run_main()
+        serve.run_apps()
             
 
 if __name__ == '__main__':
