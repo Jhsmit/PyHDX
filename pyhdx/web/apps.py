@@ -12,23 +12,24 @@ cache = MemoryCache(max_items=2000)
 
 #cache = HybridHDFCache(file_path ='test123.h5')
 
+
+fmt = {
+    'header_color': '#ffffff',  # this is the text
+    'header_background': '#00407A',
+    'accent_base_color': '#00407A',
+    'theme_toggle': False
+}
+
 @logger('pyhdx')
 def main_app():
     cwd = Path(__file__).parent.resolve()
-    yaml_dict = yaml.safe_load((cwd / 'pyhdx_app.yaml').read_text(encoding='utf-8'))
+    yaml_dict = yaml.safe_load((cwd / 'apps' / 'pyhdx_app.yaml').read_text(encoding='utf-8'))
 
     ctr = AppConstructor(loggers={'pyhdx': main_app.logger}, cache=cache)
 
     ctrl = ctr.parse(yaml_dict)
 
     ctrl.start()
-
-    fmt = {
-        'header_color': '#ffffff',  # this is the text
-        'header_background': '#00407A',
-        'accent_base_color': '#00407A',
-        'theme_toggle': False
-    }
 
     tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
     controllers = ctrl.control_panels.values()
@@ -45,7 +46,6 @@ def main_app():
         'rates',
         'gibbs_overlay',
         'peptide_mse',
-        #'peptide_scatter',
         'peptide_overlay',
         'loss_lines'
         ]
@@ -89,22 +89,17 @@ def main_app():
 
 
 @logger('pyhdx')
-def folding_app():
+def rfu_app():
     cwd = Path(__file__).parent.resolve()
-    yaml_dict = yaml.safe_load((cwd / 'folding_app.yaml').read_text(encoding='utf-8'))
+    yaml_dict = yaml.safe_load((cwd / 'apps' / 'rfu_app.yaml').read_text(encoding='utf-8'))
 
-    ctr = AppConstructor(loggers={'pyhdx': folding_app.logger}, cache=cache)
+    ctr = AppConstructor(loggers={'pyhdx': rfu_app.logger}, cache=cache)
 
     ctrl = ctr.parse(yaml_dict)
 
     ctrl.start()
 
-    fmt = {
-        'header_color': '#ffffff',  # this is the text
-        'header_background': '#00407A',
-        'accent_base_color': '#00407A',
-        'theme_toggle': False
-    }
+
 
     tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
     controllers = ctrl.control_panels.values()

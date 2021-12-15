@@ -14,7 +14,7 @@ import yaml
 from pyhdx.batch_processing import yaml_to_hdxm
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.fileIO import csv_to_protein
-from pyhdx.web.apps import folding_app
+from pyhdx.web.apps import rfu_app
 from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.utils import load_state, fix_multiindex_dtypes
 
@@ -41,7 +41,7 @@ def my_exception_hook(exctype, value, traceback):
 sys.excepthook = my_exception_hook
 
 
-ctrl, tmpl = folding_app()
+ctrl, tmpl = rfu_app()
 
 
 cwd = Path(__file__).parent.resolve()

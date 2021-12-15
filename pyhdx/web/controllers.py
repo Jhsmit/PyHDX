@@ -348,7 +348,7 @@ class PeptideFoldingFileInputControl(PyHDXControlPanel):
 
     """
 
-    _type = 'peptide_folding_file_input'
+    _type = 'peptide_rfu_file_input'
 
     header = 'Peptide Input'
 
