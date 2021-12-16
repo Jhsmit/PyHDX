@@ -6,9 +6,6 @@ from pyhdx.fileIO import load_fitresult
 from pyhdx.plot import FitResultPlot
 from pathlib import Path
 
-
-from pyhdx.config import reset_config
-
 #%%
 
 # __file__ = Path().cwd() / 'templates'/ 'script.py'  # Uncomment for PyCharm scientific mode

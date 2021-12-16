@@ -719,13 +719,20 @@ def set_bad(cmap, color='#8c8c8c'):
     cmap.set_bad(color)
     return cmap
 
+# Lily blue colormap
+f_cmap, f_norm = cmap_norm_from_nodes(
+    colors=['#ffffff', '#00ffff', '#008080', '#0075ea', '#000008'],
+    nodes=[0., 0.25, 0.5, 0.75, 1.],
+    bad='#8c8c8c'
+)
 
 cmap_defaults = {
     'dG': set_bad(pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed()),
     'ddG': set_bad(tol_cmap('PRGn').reversed()),
     'rfu': set_bad(pplt.Colormap(cc.cm.gouldian)),
     'drfu': set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
-    'mse': set_bad(pplt.Colormap('cividis'))
+    'mse': set_bad(pplt.Colormap('cividis')),
+    'foldedness': f_cmap
 }
 
 norm_defaults = {
@@ -733,10 +740,11 @@ norm_defaults = {
     'ddG': pplt.Norm('linear', -1e4, 1e4),
     'rfu': pplt.Norm('linear', 0, 1., clip=True),
     'drfu': pplt.Norm('linear', -0.5, 0.5, clip=True),
-    'mse': None
+    'mse': None,
+    'foldedness': f_norm
 }
 
-CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['rfu', 'drfu', 'ddG', 'dG', 'mse']}
+CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['rfu', 'drfu', 'ddG', 'dG', 'mse', 'foldedness']}
 
 
 def pymol_figures(data, output_path, pdb_file, reference=None, field='dG', cmap=None, norm=None, extent=None,

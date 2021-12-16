@@ -45,9 +45,9 @@ ctrl, tmpl = rfu_app()
 
 
 cwd = Path(__file__).parent.resolve()
-# root_dir = cwd.parent.parent
-# test_dir = cwd / 'test_data'
-#
+root_dir = cwd.parent.parent
+test_dir = cwd / 'test_data_folding'
+
 # fpath_1 = root_dir / 'tests' / 'test_data' / 'ecSecB_apo.csv'
 # fpath_2 = root_dir / 'tests' / 'test_data' / 'ecSecB_dimer.csv'
 # fitresult_dir = root_dir / 'tests' / 'test_data' / 'output' / 'ecsecb_tetramer_dimer'
@@ -93,69 +93,45 @@ def reload_tables():
 
     #ctrl.views['protein'].object = pdb_string
 
-#ctrl.views['protein'].object = pdb_string
-
-
-def reload_dashboard():
-    data_objs = {k: yaml_to_hdxm(v, data_dir=data_dir) for k, v in yaml_dict.items()}
-    for k, v in data_objs.items():
-        v.metadata['name'] = k
-
-    source = ctrl.sources['main']
-    for ds in ['peptides', 'peptides_mse', 'd_calc', 'rfu', 'rates', 'global_fit', 'losses']:
-        df = csv_to_protein(test_dir / f'{ds}.csv')
-        source.add_df(df, ds)
-
-    #Temporary workaround for comment characters in csv files
-    ds = 'colors'
-    df = pd.read_csv(test_dir / f'{ds}.csv', header=[0, 1, 2], index_col=0,
-                     skiprows=3)
-    source.add_df(df, ds)
 
 
 def init_dashboard():
-    for k, v in yaml_dict.items():
-        load_state(ctrl, v, data_dir=data_dir, name=k)
+    filename = 'wt_ppiA_folding_4Cmodif_230120.csv'
+    binary_data = (test_dir / filename).read_bytes()
 
-    # k = next(iter(yaml_dict.keys()))
-    # load_state(ctrl, yaml_dict[k], data_dir=data_dir, name=k)
-
-    src = ctrl.sources['main']
-    fit_control = ctrl.control_panels['FitControl']
-
-    fit_control.r1 = 0.05
-    fit_control.r2 = 0.1
-    fit_control.epochs = 200
-    fit_control.patience = 100
+    file_input = ctrl.control_panels['PeptideRFUFileInputControl']
+    file_input.input_files = [binary_data]
 
 
-    # ngl = ctrl.views['protein']
-    # ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
-    fit_result = load_fitresult(fitresult_dir)
+    file_input.fd_state = 'Native folded'
+    file_input.fd_exposure = 3600.00024
 
-    src.add(fit_result, 'gibbs_fit_1')
+    file_input.nd_state = 'FD'
+    file_input.nd_exposure = 0.06
+
+    file_input.exp_state = 'folding_4C_10secLabelling'
+    file_input.exp_exposures = file_input.exp_exposures[1:]
+
+    # file_input.pH = yaml_dict['pH']
+    # file_input.temperature = yaml_dict['temperature']['value'] + temperature_offsets[yaml_dict['temperature']['unit'].lower()]
+    # file_input.d_percentage = yaml_dict['d_percentage']
+
+    file_input._action_add_dataset()
+
 
     pdb_src = ctrl.sources['pdb']
-    pdb_src.add_from_string(pdb_string, '1qyn')
+    pdb_src.add_from_pdb('1qyn')
+    #pdb_src.add_from_string(pdb_#string, '1qyn')
 
-    diff = ctrl.control_panels['DifferentialControl']
-    #diff._action_add_comparison()
 
-    # ctrl.views['protein'].object = pdb_string
-    #
-    # fit_result = load_fitresult(fitresult_dir)
-    # src.add(fit_result, 'fit_1')
 
 
 #if __name__ == '__main__':
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
-#pn.state.onload(init_dashboard)
+pn.state.onload(init_dashboard)
 
 if __name__ == '__main__':
-
-    #init_dashboard()
-
     pn.serve(tmpl, show=True, static_dirs={'pyhdx': STATIC_DIR})
 
 elif __name__.startswith('bokeh_app'):

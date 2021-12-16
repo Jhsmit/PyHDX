@@ -112,6 +112,7 @@ def rfu_app():
         'logging_info',
         'logging_debug',
         'protein',
+        'peptide_scatter'
         ]
 
     views = {v: ctrl.views[v] for v in views_names}
@@ -135,10 +136,14 @@ def rfu_app():
         ('Debug log', views['logging_debug'].panel)
     )
 
+    peptide_tab = pn.Tabs(
+        ('Peptide', get_view('peptide_scatter')),
+    )
+
 
     tmpl.main[0:3, 0:6] = cov_tab
     tmpl.main[0:3, 6:12] = scatter_tab
     tmpl.main[3:5, 0:6] = log_tab
-    #tmpl.main[3:5, 6:12] = peptide_tab
+    tmpl.main[3:5, 6:12] = peptide_tab
 
     return ctrl, tmpl

@@ -21,7 +21,7 @@ from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interp
     fit_gibbs_global_batch, PATIENCE, STOP_LOSS, EPOCHS, R1, R2, optimizer_defaults, RatesFitResult
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection
 from pyhdx.plot import dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
-    rainbowclouds_figure
+    rainbowclouds_figure, CMAP_NORM_DEFAULTS
 from pyhdx.support import series_to_pymol, apply_cmap
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
@@ -340,7 +340,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
         self.parent.param.trigger('datasets')  # Manual trigger as key assignment does not trigger the param
 
 
-class PeptideFoldingFileInputControl(PyHDXControlPanel):
+class PeptideRFUFileInputControl(PyHDXControlPanel):
     """
     This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
     Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
@@ -392,7 +392,7 @@ class PeptideFoldingFileInputControl(PyHDXControlPanel):
                                      doc='Lists added HDX-MS measurements', constant=True)
 
     def __init__(self, parent, **params):
-        super(PeptideFoldingFileInputControl, self).__init__(parent, _excluded=['be_percent'], **params)
+        super(PeptideRFUFileInputControl, self).__init__(parent, _excluded=['be_percent'], **params)
         self.src.param.watch(self._hdxm_objects_updated, ['hdxm_objects'])
         self.update_box()
 
@@ -1067,7 +1067,8 @@ class ColorTransformControl(PyHDXControlPanel):
         mpl_cmaps = sorted(set(plt.colormaps()) - set('cet_' + cmap for cmap in cc_cmaps))
 
         self._pyhdx_cmaps = {}  # Dict of pyhdx default colormaps
-        self._user_cmaps = {}
+        f_cmap, f_norm = CMAP_NORM_DEFAULTS['foldedness']
+        self._user_cmaps = {'lily_blue': f_cmap}
         cmap_opts = [opt for opt in self.opts.values() if isinstance(opt, CmapOpts)]
         self.quantity_mapping = {}  # quantity: (cmap, norm)
         for opt in cmap_opts:
