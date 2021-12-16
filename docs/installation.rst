@@ -1,5 +1,3 @@
-.. highlight:: shell
-
 ============
 Installation
 ============
@@ -43,36 +41,10 @@ To install with pdf output:
 
     $ pip install pyhdx==0.4.0b6[pdf]
 
-..
-    From sources
-    ------------
 
-    1. Download or ``git clone`` the master branch of the PyHDX repository
 
-    2. Create a ``conda`` environment
 
-    .. code-block:: rst
-
-        conda create --name <name> python=3.8
-
-    3. Activate conda environment
-
-    .. code-block:: rst
-
-        conda activate <name>
-
-    4. Install the dependencies
-
-        ``conda install -c conda-forge pyhdx --only-deps``
-
-    5. Building wheels for the project
-
-        ``python setup.py sdist bdist_wheel``
-
-    6. Installing the wheels (should be generated in the dist folder)
-
-    ``pip install dist/PyHDX-version.whl``
-
+    
 
 Running the web server
 ----------------------
@@ -104,9 +76,69 @@ This will start a Dask cluster on the scheduler address as specified in the PyHD
 (user dir / .pyhdx folder)
 
 
+From sources
+------------
+
+1. Clone the PyHDX repository and cd into the project's root directory:
+    .. code-block:: rst
+
+        git clone https://github.com/Jhsmit/PyHDX.git
+        cd PyHDX
+
+
+2. Create a ``conda`` environment
+
+    .. code-block:: rst
+
+        conda create --name <name> python=3.8
+
+3. Activate conda environment
+
+    .. code-block:: rst
+
+        conda activate <name>
+
+4. Install PyTorch
+
+If you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
+Installation instructions are on the Pytorch_ website.
+
+5. Install other dependencies
+
+    .. code-block:: rst
+
+        conda install -c conda-forge pyhdx=0.4.0b6 --only-deps``
+
+This install dependencies only for base PyHDX. To install web application dependencies, 
+run the `_requirements.py` file in the PyHDX root folder. This generates `reqs-<extra>.txt` files which lists
+requirements.
+
+    .. code-block:: rst
+        python _requirements.py
+        pip install -r reqs-base.txt -r req-web.txt -r req-web.txt
+
+Or
+
+    .. code-block:: rst
+        python _requirements.py
+        conda install --file reqs-base.txt --file req-web.txt --file req-web.txt
+
+
+6. Install PyHDX in editable / development mode
+
+    .. code-block:: rst
+
+        conda develop .
+
+    .. code-block:: rst
+
+        pip install -e .
+
 Dependencies
 ------------
 
 The requirements for PyHDX are listed in setup.cfg
 
 .. _Github repo: https://github.com/Jhsmit/pyhdx
+
+.. _Pytorch: https://pytorch.org/
