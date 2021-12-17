@@ -9,7 +9,7 @@ sources:
   main:
     type: table
 
-filters:
+transforms:
   base_src:
     type: table_source
     source: main
