@@ -18,7 +18,10 @@ from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.utils import load_state
+from pyhdx.web.base import ControlPanel
 from pyhdx.web.constructor import AppConstructor
+
+import param
 
 sys._excepthook = sys.excepthook
 

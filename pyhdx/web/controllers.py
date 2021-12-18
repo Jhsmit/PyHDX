@@ -29,6 +29,17 @@ from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
 from pyhdx.web.transforms import CrossSectionTransform
 
+class AsyncControlPanel(ControlPanel):
+    _type = 'async'
+
+    btn = param.Action(lambda x: None)
+
+    async def work_func(self):
+        pass
+
+    def do_stuff(self):
+        from panel.io.server import async_execute
+
 
 class DevTestControl(ControlPanel):
 

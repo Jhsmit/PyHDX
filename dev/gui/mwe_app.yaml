@@ -39,3 +39,4 @@ views:
 
 controllers:
   - dev
+  - async
