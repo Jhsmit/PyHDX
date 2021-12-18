@@ -40,13 +40,13 @@ Installation of the latest stable beta with `pip`:
 
 .. code-block:: console
 
-    pip install pyhdx==0.4.0b6
+    pip install pyhdx==0.4.0b7
 
 Installation with web interface extra:
 
 .. code-block:: console
 
-    pip install pyhdx==0.4.0b6[web]
+    pip install pyhdx==0.4.0b7[web]
 
 
 Run PyHDX

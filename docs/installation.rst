@@ -20,26 +20,26 @@ Installation with `pip`:
    $ pip install pyhdx==0.3.2
 
 
-Beta release (v0.4.0b6)
+Beta release (v0.4.0b7)
 -----------------------
 
 To install base PyHDX:
 
 .. code-block:: rst
 
-   $ pip install pyhdx==0.4.0b6
+   $ pip install pyhdx==0.4.0b7
 
 To install with web application:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b6[web]
+    $ pip install pyhdx==0.4.0b7[web]
 
 To install with pdf output:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b6[pdf]
+    $ pip install pyhdx==0.4.0b7[pdf]
 
 
 
@@ -107,7 +107,7 @@ Installation instructions are on the Pytorch_ website.
 
     .. code-block:: rst
 
-        conda install -c conda-forge pyhdx=0.4.0b6 --only-deps``
+        conda install -c conda-forge pyhdx=0.4.0b7 --only-deps``
 
 This install dependencies only for base PyHDX. To install web application dependencies, 
 run the `_requirements.py` file in the PyHDX root folder. This generates `reqs-<extra>.txt` files which lists
