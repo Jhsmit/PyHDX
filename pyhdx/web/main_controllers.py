@@ -41,9 +41,9 @@ class MainController(param.Parameterized):
 
     loggers = param.Dict({}, doc="Dictionary of loggers")
 
-    def __init__(self, control_panels, client=False, **params):
+    def __init__(self, control_panels, executor=False, **params):
         super(MainController, self).__init__(**params)
-        self.client = client if client else Client()
+        self.executor = executor if executor else ThreadPoolExecutor()
 
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 

@@ -1,8 +1,10 @@
+import asyncio
 import itertools
 import sys
 import urllib.request
 import zipfile
 from datetime import datetime
+from functools import partial
 from io import StringIO, BytesIO
 
 import colorcet
@@ -12,6 +14,7 @@ import numpy as np
 import pandas as pd
 import panel as pn
 import param
+from panel.io.server import async_execute
 from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
@@ -603,7 +606,7 @@ class InitialGuessControl(PyHDXControlPanel):
 
         self.update_box()
 
-        self._guess_names = {}
+        self._guess_names = []  # temp list of names for guesses while they execute
 
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
@@ -665,6 +668,25 @@ class InitialGuessControl(PyHDXControlPanel):
         self.param['do_fit1'].constant = False
         self.widgets['do_fit1'].loading = False
 
+    async def _wt_averaging_fit(self, bounds):
+        futures = self.parent.executor.map(fit_rates_weighted_average,
+                                           self.src.hdxm_objects.values(), bounds, client='worker_client')
+
+    async def _half_life_fit(self, name):
+        #c_futures = self.parent.executor.map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
+        futures = [self.parent.executor.submit(fit_rates_half_time_interpolate, v) for v in self.src.hdxm_objects.values()]
+
+        futures = asyncio.gather(*(asyncio.wrap_future(f) for f in futures))
+        results = await futures
+
+        result_obj = RatesFitResult(results)
+        self.src.add(result_obj, name)
+        self._guess_names.remove(name)
+
+        print(result_obj)
+        self.param['do_fit1'].constant = False
+        self.widgets['do_fit1'].loading = False
+
     def _action_fit(self):
         if len(self.src.hdxm_objects) == 0: # (Should be impossible as button is locked)
             self.parent.logger.info('No datasets loaded')
@@ -672,7 +694,7 @@ class InitialGuessControl(PyHDXControlPanel):
 
         src = self.sources['main']  # todo property base class?
 
-        if self.guess_name in itertools.chain(src.rate_results.keys(), self._guess_names.values()):
+        if self.guess_name in itertools.chain(src.rate_results.keys(), self._guess_names):
             self.parent.logger.info(f"Guess with name {self.guess_name} already in use")
             return
 
@@ -680,23 +702,27 @@ class InitialGuessControl(PyHDXControlPanel):
         self.param['do_fit1'].constant = True
         self.widgets['do_fit1'].loading = True
 
-        num_samples = len(self.src.hdxm_objects)
-        if self.fitting_model.lower() in ['association', 'dissociation']:
-            if self.global_bounds:
-                bounds = [(self.lower_bound, self.upper_bound)]*num_samples
-            else:
-                bounds = self.bounds.values()
+        # num_samples = len(self.src.hdxm_objects)
+        # if self.fitting_model.lower() in ['association', 'dissociation']:
+        #     if self.global_bounds:
+        #         bounds = [(self.lower_bound, self.upper_bound)]*num_samples
+        #     else:
+        #         bounds = self.bounds.values()
+        #
+        #     futures = self.parent.executor.map(fit_rates_weighted_average,
+        #                                        self.src.hdxm_objects.values(), bounds, client='worker_client')
+        #elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
 
-            futures = self.parent.client.map(fit_rates_weighted_average,
-                                             self.src.hdxm_objects.values(), bounds, client='worker_client')
-        elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
-            futures = self.parent.client.map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
+        self._guess_names.append(self.guess_name)
+        func = partial(self._half_life_fit, self.guess_name)
+        async_execute(func)
+            #futures = self.parent.executor.map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
 
-        dask_future = self.parent.client.submit(lambda args: args, futures)  #combine multiple futures into one future
-        self._guess_names[dask_future.key] = self.guess_name
+#        dask_future = self.parent.executor.submit(lambda args: args, futures)  #combine multiple futures into one future
 
-        self.parent.future_queue.append((dask_future, self.add_fit_result))
 
+        #self.parent.future_queue.append((dask_future, self.add_fit_result))
+#
 
 class FitControl(PyHDXControlPanel):
     """

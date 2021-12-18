@@ -184,8 +184,8 @@ class PyHDXSource(TableSource):
     def _rates_results_updated(self):
         combined = pd.concat([fit_result.output for fit_result in self.rate_results.values()], axis=1,
                              keys=self.rate_results.keys(), names=['guess_ID', 'state', 'quantity'])
-        self.tables['rates'] = combined
 
+        self.add_table('rates', combined)
         self.updated = True
 
     def _add_table(self, df, table, categorical=True):

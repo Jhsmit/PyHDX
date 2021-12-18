@@ -1,3 +1,4 @@
+from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 
 import panel as pn
@@ -20,12 +21,14 @@ fmt = {
     'theme_toggle': False
 }
 
+executor = ThreadPoolExecutor()
+
 @logger('pyhdx')
 def main_app():
     cwd = Path(__file__).parent.resolve()
     yaml_dict = yaml.safe_load((cwd / 'apps' / 'pyhdx_app.yaml').read_text(encoding='utf-8'))
 
-    ctr = AppConstructor(loggers={'pyhdx': main_app.logger}, cache=cache)
+    ctr = AppConstructor(loggers={'pyhdx': main_app.logger}, cache=cache, executor=executor)
 
     ctrl = ctr.parse(yaml_dict)
 

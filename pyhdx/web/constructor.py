@@ -1,4 +1,5 @@
 import collections
+from concurrent.futures.thread import ThreadPoolExecutor
 
 from distributed import Client
 
@@ -32,7 +33,7 @@ class AppConstructor(param.Parameterized):
 
     ctrl_class = param.ClassSelector(class_=MainController, instantiate=False)
 
-    client = param.ClassSelector(default=None, class_=Client)
+    client = param.ClassSelector(default=None, class_=(Client, ThreadPoolExecutor))
 
     cache = param.ClassSelector(default=Cache(), class_=Cache)
 
@@ -58,7 +59,7 @@ class AppConstructor(param.Parameterized):
             opts=self.opts,
             views=self.views,
             loggers=self.loggers,
-            client=default_client(),
+            client=self.client or default_client(asynchronous=True),
             **kwargs, **main_ctrl
         )
 
