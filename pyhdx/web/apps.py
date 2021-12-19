@@ -1,4 +1,5 @@
-from concurrent.futures.thread import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
+
 from pathlib import Path
 
 import panel as pn

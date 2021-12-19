@@ -3,6 +3,7 @@ import itertools
 import sys
 import urllib.request
 import zipfile
+from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from datetime import datetime
 from functools import partial
 from io import StringIO, BytesIO
@@ -244,7 +245,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self.parent.logger.info(
                 f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
                 f'of {len(self._df)} peptides')
-
         else:
             self._df = None
 
@@ -675,7 +675,7 @@ class InitialGuessControl(PyHDXControlPanel):
     async def _half_life_fit(self):
         futures = [self.parent.executor.submit(fit_rates_half_time_interpolate, v) for v in self.src.hdxm_objects.values()]
 
-        if isinstance(self.parent.executor, ThreadPoolExecutor):
+        if isinstance(self.parent.executor, (ThreadPoolExecutor, ProcessPoolExecutor)):
             futures = asyncio.gather(*(asyncio.wrap_future(f) for f in futures))
         elif isinstance(self.parent.executor, Client):
             futures = asyncio.gather(*futures)
