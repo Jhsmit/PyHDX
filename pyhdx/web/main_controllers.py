@@ -1,5 +1,5 @@
 import logging
-
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 import panel as pn
 import param
 from dask.distributed import Client
@@ -39,12 +39,13 @@ class MainController(param.Parameterized):
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
 
+    executor = param.ClassSelector(
+        default=None, class_=(Client, ThreadPoolExecutor, ProcessPoolExecutor))
+
     loggers = param.Dict({}, doc="Dictionary of loggers")
 
-    def __init__(self, control_panels, executor=False, **params):
+    def __init__(self, control_panels, **params):
         super(MainController, self).__init__(**params)
-        self.executor = executor if executor else ThreadPoolExecutor()
-
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
         self.template = None   # Panel template
@@ -53,34 +54,10 @@ class MainController(param.Parameterized):
         self._update_views()
         self.start()
 
-    # from lumen.target.Target
-    def _rerender(self, *events, invalidate_cache=False):
-        self._update_views(invalidate_cache=invalidate_cache)
 
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
         for view in self.views.values():
             view.update()
-
-    @property
-    def panel(self):
-        return self.template
-
-    def update(self):
-        for view in self.views:
-            view.update()
-
-    def check_futures(self):
-        if self.future_queue:
-            for future, callback in self.future_queue[:]:
-                if future.status == 'finished':
-                    callback(future)
-                    self.future_queue.remove((future, callback))
-
-    def start(self):
-        refresh_rate = 1000
-        pn.state.add_periodic_callback(
-            self.check_futures, refresh_rate
-        )
 
 
 class PyHDXController(MainController):
@@ -95,6 +72,7 @@ class PyHDXController(MainController):
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
+        self.executor = self.executor or ThreadPoolExecutor()
 
     @property
     def logger(self):

@@ -1,6 +1,5 @@
 import collections
-from concurrent.futures.thread import ThreadPoolExecutor
-
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 from distributed import Client
 
 from pyhdx.local_cluster import default_client
@@ -33,7 +32,7 @@ class AppConstructor(param.Parameterized):
 
     ctrl_class = param.ClassSelector(class_=MainController, instantiate=False)
 
-    client = param.ClassSelector(default=None, class_=(Client, ThreadPoolExecutor))
+    executor = param.ClassSelector(default=None, class_=(Client, ThreadPoolExecutor, ProcessPoolExecutor))
 
     cache = param.ClassSelector(default=Cache(), class_=Cache)
 
@@ -59,7 +58,7 @@ class AppConstructor(param.Parameterized):
             opts=self.opts,
             views=self.views,
             loggers=self.loggers,
-            client=self.client or default_client(asynchronous=True),
+            executor=self.executor,
             **kwargs, **main_ctrl
         )
 

@@ -672,23 +672,24 @@ class InitialGuessControl(PyHDXControlPanel):
         futures = self.parent.executor.map(fit_rates_weighted_average,
                                            self.src.hdxm_objects.values(), bounds, client='worker_client')
 
-    async def _half_life_fit(self, name):
-        #c_futures = self.parent.executor.map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
+    async def _half_life_fit(self):
         futures = [self.parent.executor.submit(fit_rates_half_time_interpolate, v) for v in self.src.hdxm_objects.values()]
 
-        futures = asyncio.gather(*(asyncio.wrap_future(f) for f in futures))
+        if isinstance(self.parent.executor, ThreadPoolExecutor):
+            futures = asyncio.gather(*(asyncio.wrap_future(f) for f in futures))
+        elif isinstance(self.parent.executor, Client):
+            futures = asyncio.gather(*futures)
         results = await futures
 
         result_obj = RatesFitResult(results)
-        self.src.add(result_obj, name)
-        self._guess_names.remove(name)
 
-        print(result_obj)
-        self.param['do_fit1'].constant = False
-        self.widgets['do_fit1'].loading = False
+        return result_obj
 
     def _action_fit(self):
-        if len(self.src.hdxm_objects) == 0: # (Should be impossible as button is locked)
+        async_execute(self._async_action_fit)
+
+    async def _async_action_fit(self):
+        if len(self.src.hdxm_objects) == 0:  # (Should be impossible as button is locked)
             self.parent.logger.info('No datasets loaded')
             return
 
@@ -713,16 +714,14 @@ class InitialGuessControl(PyHDXControlPanel):
         #                                        self.src.hdxm_objects.values(), bounds, client='worker_client')
         #elif self.fitting_model == 'Half-life (λ)':   # this is practically instantaneous and does not require dask
 
-        self._guess_names.append(self.guess_name)
-        func = partial(self._half_life_fit, self.guess_name)
-        async_execute(func)
-            #futures = self.parent.executor.map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
+        self._guess_names.append(self.guess_name)  # name can change during execution
+        result_obj = await self._half_life_fit()
+        self.src.add(result_obj, self.guess_name)
+        self._guess_names.remove(self.guess_name)
 
-#        dask_future = self.parent.executor.submit(lambda args: args, futures)  #combine multiple futures into one future
+        self.param['do_fit1'].constant = False
+        self.widgets['do_fit1'].loading = False
 
-
-        #self.parent.future_queue.append((dask_future, self.add_fit_result))
-#
 
 class FitControl(PyHDXControlPanel):
     """
@@ -805,123 +804,10 @@ class FitControl(PyHDXControlPanel):
 
         self.update_box()
 
-    def add_fit_result(self, future):
-        try:
-            name = self._fit_names.pop(future.key)
-        except KeyError:
-            return
-
-        result = future.result()
-        self._current_jobs -= 1
-
-        self.parent.logger.info(f'Finished PyTorch fit: {name}')
-
-        # List of single fit results  (Currently outdated)
-        if isinstance(result, list):
-            self.parent.fit_results[name] = list(result)
-            output_dfs = {fit_result.hdxm_set.name: fit_result.output for fit_result in result}
-            df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
-
-            # create mse losses dataframe
-            dfs = {}
-            for single_result in result:
-            # Determine mean squared errors per peptide, summed over timepoints
-                mse = single_result.get_mse()
-                mse_sum = np.sum(mse, axis=1)
-                peptide_data = single_result.hdxm_set[0].data
-                data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum}
-                dfs[single_result.hdxm_set.name] = pd.DataFrame(data_dict)
-            mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
-
-            #todo d calc for single fits
-            #todo losses for single fits
-
-            # Create d_calc dataframe
-            # -----------------------
-            # todo needs cleaning up
-            state_dfs = {}
-            for single_result in result:
-                tp_flat = single_result.hdxm_set.timepoints
-                elem = tp_flat[np.nonzero(tp_flat)]
-
-                time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
-                d_calc_state = single_result(time_vec)  #shape Np x Nt
-                hdxm = single_result.hdxm_set
-
-                peptide_dfs = []
-                pm_data = hdxm[0].data
-                for d_peptide, pm_row in zip(d_calc_state, pm_data):
-                    peptide_id = f"{pm_row['start']}_{pm_row['end']}"
-                    data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
-                    peptide_dfs.append(pd.DataFrame(data_dict))
-                state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
-
-            d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
-
-
-            # Create losses/epoch dataframe
-            # -----------------------------
-            losses_dfs = {fit_result.hdxm_set.name: fit_result.losses for fit_result in result}
-            losses_df = pd.concat(losses_dfs.values(), keys=losses_dfs.keys(), axis=1)
-
-
-        else:  # one batchfit result
-            self.src.add(result, name)
-            # self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
-            # df = result.output
-            # # df.index.name = 'peptide index'
-            #
-            # # Create MSE losses df (per peptide, summed over timepoints)
-            # # -----------------------
-            # mse = result.get_mse()
-            # dfs = {}
-            # for mse_sample, hdxm in zip(mse, result.hdxm_set):
-            #     peptide_data = hdxm[0].data
-            #     mse_sum = np.sum(mse_sample, axis=1)
-            #     # Indexing of mse_sum with Np to account for zero-padding
-            #     data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum[:hdxm.Np]}
-            #     dfs[hdxm.name] = pd.DataFrame(data_dict)
-            #
-            # mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
-            #
-            # self.parent.logger.info('Finished PyTorch fit')
-            #
-            # # Create d_calc dataframe
-            # # -----------------------
-            # tp_flat = result.hdxm_set.timepoints.flatten()
-            # elem = tp_flat[np.nonzero(tp_flat)]
-            #
-            # time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
-            # stacked = np.stack([time_vec for i in range(result.hdxm_set.Ns)])
-            # d_calc = result(stacked)
-            #
-            # state_dfs = {}
-            # for hdxm, d_calc_state in zip(result.hdxm_set, d_calc):
-            #     peptide_dfs = []
-            #     pm_data = hdxm[0].data
-            #     for d_peptide, idx in zip(d_calc_state, pm_data.index):
-            #         peptide_id = f"{pm_data.loc[idx, 'start']}_{pm_data.loc[idx, 'end']}"
-            #         data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
-            #         peptide_dfs.append(pd.DataFrame(data_dict))
-            #     state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
-            # d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
-            #
-            # # Create losses/epoch dataframe
-            # # -----------------------------
-            # losses_df = result.losses.copy()
-            # losses_df.columns = pd.MultiIndex.from_product(
-            #     [['All states'], losses_df.columns],
-            #     names=['state_name', 'quantity']
-            # )
-
-            self.parent.logger.info(
-                f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
-            self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                                    f"({result.regularization_percentage:.1f}%)")
-
-        self.widgets['do_fit'].loading = False
-
     def _action_fit(self):
+        async_execute(self._async_action_fit)
+
+    async def _async_action_fit(self):
         if self.fit_name in itertools.chain(self.src.dG_fits.keys(), self._fit_names.values()):
             self.parent.logger.info(f"Fit result with name {self.fit_name} already in use")
             return
@@ -929,11 +815,12 @@ class FitControl(PyHDXControlPanel):
         self.parent.logger.info('Started PyTorch fit')
 
         self._current_jobs += 1
+        #todo figure out the names and multiple parallel jobs
+
         # if self._current_jobs >= self._max_jobs:
         #     self.widgets['do_fit'].constant = True
 
         self.widgets['do_fit'].loading = True
-        #self.widgets['progress'].max = self.epochs
 
         self.parent.logger.info(f'Current number of active jobs: {self._current_jobs}')
         if self.fit_mode == 'Batch':
@@ -943,19 +830,19 @@ class FitControl(PyHDXControlPanel):
             rates_guess = [rates_df[state]['rate'] for state in hdx_set.names]
             gibbs_guess = hdx_set.guess_deltaG(rates_guess)
 
-            dask_future = self.parent.client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
-        else:
-            data_objs = self.src.hdxm_objects.values()
-            rates_df = self.src.rate_results[self.initial_guess].output
-            gibbs_guesses = [data_obj.guess_deltaG(rates_df[data_obj.name]['rate']) for data_obj in data_objs]
-            futures = self.parent.client.map(fit_gibbs_global, data_objs, gibbs_guesses, **self.fit_kwargs)
+            future = self.parent.executor.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
+            if isinstance(future, concurrent.futures.Future):
+                future = asyncio.wrap_future(future)
 
-            # Combine list of futures into one future object
-            # See https://github.com/dask/distributed/pull/560
-            dask_future = self.parent.client.submit(lambda args: args, futures)
+            result = await future
 
-        self._fit_names[dask_future.key] = self.fit_name
-        self.parent.future_queue.append((dask_future, self.add_fit_result))
+        self.src.add(result, self.fit_name)
+        self.parent.logger.info(
+            f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+        self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+                                f"({result.regularization_percentage:.1f}%)")
+
+        self.widgets['do_fit'].loading = False
 
     @property
     def fit_kwargs(self):

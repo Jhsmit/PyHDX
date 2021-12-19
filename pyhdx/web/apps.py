@@ -5,6 +5,7 @@ import panel as pn
 import yaml
 
 from pyhdx import VERSION_STRING
+from pyhdx.local_cluster import default_client
 from pyhdx.web.constructor import AppConstructor
 from pyhdx.web.log import logger
 from pyhdx.web.cache import MemoryCache, HybridHDFCache
@@ -21,7 +22,10 @@ fmt = {
     'theme_toggle': False
 }
 
-executor = ThreadPoolExecutor()
+#executor = ThreadPoolExecutor()
+
+
+executor = default_client(asynchronous=True)
 
 @logger('pyhdx')
 def main_app():
@@ -31,8 +35,6 @@ def main_app():
     ctr = AppConstructor(loggers={'pyhdx': main_app.logger}, cache=cache, executor=executor)
 
     ctrl = ctr.parse(yaml_dict)
-
-    ctrl.start()
 
     tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
     controllers = ctrl.control_panels.values()
@@ -99,10 +101,6 @@ def rfu_app():
     ctr = AppConstructor(loggers={'pyhdx': rfu_app.logger}, cache=cache)
 
     ctrl = ctr.parse(yaml_dict)
-
-    ctrl.start()
-
-
 
     tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
     controllers = ctrl.control_panels.values()

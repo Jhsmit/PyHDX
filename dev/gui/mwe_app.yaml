@@ -23,6 +23,9 @@ tools:
       - ['y', '@y']
 
 opts:
+  base:
+    type: generic
+    responsive: True
   scatter:
     type: generic
     tools:
@@ -34,6 +37,7 @@ views:
     type: scatter
     source: base_src
     opts:
+      - base
       - scatter
 
 
