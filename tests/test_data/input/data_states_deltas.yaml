@@ -1,0 +1,80 @@
+# YAML file for loading HDX-MS data; PyHDX v0.4.0b3
+
+SecB_tetramer:
+  filenames:
+    - ecSecB_apo.csv
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state: 'SecB WT apo'
+  pH: 8.
+  d_percentage: 90.
+  temperature:
+    value: 30.
+    unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
+
+SecB_dimer:
+  filenames:
+    - ecSecB_apo.csv
+    - ecSecB_dimer.csv
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state: 'SecB his dimer apo'
+  pH: 8.
+  d_percentage: 90.
+  temperature:
+    value: 30.
+    unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
+
+SecB_dimer_deltaC:
+  filenames:
+    - ecSecB_apo.csv
+    - ecSecB_dimer_deltaC.csv
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state: 'dimer_deltaC'
+  pH: 8.
+  d_percentage: 90.
+  temperature:
+    value: 30.
+    unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
+
+SecB_dimer_deltaN:
+  filenames:
+    - ecSecB_apo.csv
+    - ecSecB_dimer_deltaN.csv
+  control:
+    state: Full deuteration control
+    exposure:
+      value: 0.167
+      unit: min
+  state: 'dimer_deltaN'
+  pH: 8.
+  d_percentage: 90.
+  temperature:
+    value: 30.
+    unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
