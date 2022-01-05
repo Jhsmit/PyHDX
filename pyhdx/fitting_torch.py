@@ -194,8 +194,11 @@ class TorchFitResult(object):
         -------
 
         """
+
+        sequence = hdxm.coverage['sequence'].reindex(dG.index)
+
         out_dict = {
-                    'sequence': hdxm.coverage['sequence'].to_numpy(),
+                    'sequence': sequence,
                     '_dG': dG}
         out_dict['dG'] = out_dict['_dG'].copy()
         exchanges = hdxm.coverage['exchanges'].reindex(dG.index, fill_value=False)
@@ -211,7 +214,7 @@ class TorchFitResult(object):
         covariance, perr = estimate_errors(hdxm, dG)
 
         index = pd.Index(hdxm.coverage.r_number, name='r_number')
-        df = pd.DataFrame(out_dict, index=index)
+        df = pd.DataFrame(out_dict, index=dG.index)
         df = df.join(covariance)
 
         return df
