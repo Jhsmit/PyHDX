@@ -10,9 +10,6 @@ import matplotlib.pyplot as plt
 
 current_dir = Path(__file__).parent
 
-
-print(current_dir.parent)
-print(current_dir.parent / 'tests' /'test_data' / 'output' / 'ecsecb_tetramer_dimer')
 fit_result = load_fitresult(current_dir.parent / 'tests' /'test_data' / 'output' / 'ecsecb_tetramer_dimer')
 
 s = 0 # index of protein state to view
