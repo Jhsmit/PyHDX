@@ -76,6 +76,13 @@ def blocking_cluster():
         local_cluster.close()
 
 
+class LocalExecutor(object):
+
+    def submit(self, function, *args, **kwargs):
+        pass
+        # loop.create_future()
+        # loop.create_task()
+
 if __name__ == '__main__':
     # import sys
     # sys.argv.append('-p')

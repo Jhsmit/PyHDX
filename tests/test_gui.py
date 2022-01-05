@@ -38,8 +38,8 @@ class TestMainGUISecB(object):
         cls.temperature, cls.pH = 273.15 + 30, 8.
         cls.hdxm = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
 
-        cfg = ConfigurationSettings()
-        cfg.set('cluster', 'scheduler_address', f'127.0.0.1:{test_port}')
+        # cfg = ConfigurationSettings()
+        # cfg.set('cluster', 'scheduler_address', f'127.0.0.1:{test_port}')
         #cfg.set('cluster', 'port', str(test_port))
 
     def test_load_single_file(self):

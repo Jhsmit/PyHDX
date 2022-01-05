@@ -48,11 +48,7 @@ class MainController(param.Parameterized):
         super(MainController, self).__init__(**params)
         self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
 
-        self.template = None   # Panel template
-        self.future_queue = []  # queue of tuples: (future, callback)
-
         self._update_views()
-        self.start()
 
 
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):

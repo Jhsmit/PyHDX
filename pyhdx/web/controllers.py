@@ -5,6 +5,7 @@ import urllib.request
 import zipfile
 from concurrent.futures import ThreadPoolExecutor, ProcessPoolExecutor
 from datetime import datetime
+import time
 from functools import partial
 from io import StringIO, BytesIO
 
@@ -15,6 +16,7 @@ import numpy as np
 import pandas as pd
 import panel as pn
 import param
+from distributed import Client
 from panel.io.server import async_execute
 from proplot import to_hex
 from skimage.filters import threshold_multiotsu
@@ -821,7 +823,7 @@ class FitControl(PyHDXControlPanel):
         #     self.widgets['do_fit'].constant = True
 
         self.widgets['do_fit'].loading = True
-
+        t0 = time.time()
         self.parent.logger.info(f'Current number of active jobs: {self._current_jobs}')
         if self.fit_mode == 'Batch':
             hdx_set = self.src.hdx_set
@@ -836,9 +838,12 @@ class FitControl(PyHDXControlPanel):
 
             result = await future
 
+        t1 = time.time()
+        epochs_per_second = len(result.losses) / (t1 - t0)
         self.src.add(result, self.fit_name)
         self.parent.logger.info(
-            f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}")
+            f"Finished fitting in {len(result.losses)} epochs ({epochs_per_second:.1f} epochs per second),"
+            f" final mean squared residuals is {result.mse_loss:.2f}")
         self.parent.logger.info(f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
                                 f"({result.regularization_percentage:.1f}%)")
 

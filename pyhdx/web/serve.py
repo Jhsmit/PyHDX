@@ -7,23 +7,23 @@ import panel as pn
 import torch
 
 from pyhdx.config import cfg
-from pyhdx.local_cluster import verify_cluster
+from pyhdx.local_cluster import verify_cluster, default_client
 from pyhdx.web.apps import main_app, rfu_app
 from pyhdx.web.base import STATIC_DIR
+from pyhdx.web.cache import MemoryCache, HybridHDFCache
 
-APP_DICT = {
-    'main': lambda: main_app()[1],
-    'rfu': lambda: rfu_app()[1]
-}
 
-def run_apps():
+
+
+def run_apps(executor, cache):
     np.random.seed(43)
     torch.manual_seed(43)
 
-    scheduler_address = cfg.get('cluster', 'scheduler_address')
-    if not verify_cluster(scheduler_address):
-        print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")
-        return
+    APP_DICT = {  #TODO perhaps they should take a constructor instance?
+        'main': lambda: main_app(executor=executor, cache=cache)[1],
+        'rfu': lambda: rfu_app(executor=executor, cache=cache)[1]
+    }
+
 
     log_root_dir = Path.home() / '.pyhdx' / 'logs'
     log_dir = log_root_dir / datetime.datetime.now().strftime('%Y%m%d')
@@ -50,6 +50,14 @@ def run_apps():
 
 
 if __name__ == '__main__':
-    run_apps()
+
+    scheduler_address = cfg.get('cluster', 'scheduler_address')
+    if not verify_cluster(scheduler_address):
+        print(f"No valid Dask scheduler found at specified address: '{scheduler_address}'")
+    else:
+        executor = default_client(asynchronous=True)
+        cache = MemoryCache(max_items=2000)
+
+        run_apps(executor, cache)
 
 

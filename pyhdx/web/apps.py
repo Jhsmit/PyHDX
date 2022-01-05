@@ -6,14 +6,8 @@ import panel as pn
 import yaml
 
 from pyhdx import VERSION_STRING
-from pyhdx.local_cluster import default_client
 from pyhdx.web.constructor import AppConstructor
 from pyhdx.web.log import logger
-from pyhdx.web.cache import MemoryCache, HybridHDFCache
-
-cache = MemoryCache(max_items=2000)
-
-#cache = HybridHDFCache(file_path ='test123.h5')
 
 
 fmt = {
@@ -23,13 +17,8 @@ fmt = {
     'theme_toggle': False
 }
 
-#executor = ThreadPoolExecutor()
-
-
-executor = default_client(asynchronous=True)
-
 @logger('pyhdx')
-def main_app():
+def main_app(executor, cache):
     cwd = Path(__file__).parent.resolve()
     yaml_dict = yaml.safe_load((cwd / 'apps' / 'pyhdx_app.yaml').read_text(encoding='utf-8'))
 
@@ -95,12 +84,11 @@ def main_app():
 
 
 @logger('pyhdx')
-def rfu_app():
+def rfu_app(executor, cache):
     cwd = Path(__file__).parent.resolve()
     yaml_dict = yaml.safe_load((cwd / 'apps' / 'rfu_app.yaml').read_text(encoding='utf-8'))
 
-    ctr = AppConstructor(loggers={'pyhdx': rfu_app.logger}, cache=cache)
-
+    ctr = AppConstructor(loggers={'pyhdx': rfu_app.logger}, cache=cache, executor=executor)
     ctrl = ctr.parse(yaml_dict)
 
     tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
