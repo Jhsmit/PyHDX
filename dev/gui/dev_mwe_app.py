@@ -5,6 +5,7 @@ Run local_cluster.py in anothor thread
 """
 
 import sys
+from concurrent.futures.thread import ThreadPoolExecutor
 from pathlib import Path
 
 import pandas as pd
@@ -15,6 +16,7 @@ import numpy as np
 from pyhdx.batch_processing import yaml_to_hdxm
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.fileIO import csv_to_protein
+from pyhdx.local_cluster import default_client
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.utils import load_state
@@ -46,7 +48,10 @@ sys.excepthook = my_exception_hook
 cwd = Path(__file__).parent.resolve()
 yaml_dict = yaml.safe_load((cwd / 'mwe_app.yaml').read_text(encoding='utf-8'))
 
-ctr = AppConstructor()
+client = executor = ThreadPoolExecutor()
+client = default_client(asynchronous=True)
+
+ctr = AppConstructor(client=client)
 ctrl = ctr.parse(yaml_dict)
 
 fmt = {'accent_base_color': '#1d417a'}
