@@ -126,6 +126,24 @@ class TorchFitResult(object):
 
         self.output = df
 
+    def get_peptide_mse(self):
+        """Get a dataframe with mean mean squared error per peptide (ie per peptide mean squared error averaged over time)"""
+        squared_errors = self.get_squared_errors()
+        squared_errors.shape
+        dfs = {}
+        for mse_sample, hdxm in zip(squared_errors, self.hdxm_set):
+            peptide_data = hdxm[0].data
+            mse = np.mean(mse_sample, axis=1)
+            # Indexing of mse_sum with Np to account for zero-padding
+            passthrough_fields = ['start', 'end', 'sequence']
+            df = peptide_data[passthrough_fields].copy()
+            df['peptide_mse'] = mse[:hdxm.Np]
+            dfs[hdxm.name] = df
+
+        mse_df = pd.concat(dfs.values(), keys=dfs.keys(), names=['state', 'quantity'], axis=1)
+
+        return mse_df
+
     @property
     def mse_loss(self):
         """obj:`float`: Losses from mean squared error part of Lagrangian"""
