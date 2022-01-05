@@ -35,16 +35,66 @@ from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
 from pyhdx.web.transforms import CrossSectionTransform
 
+import concurrent
+from asyncio import wrap_future
+
+
+def blocking_function():
+    import time
+    duration = np.random.uniform(0.5, 2.)
+    time.sleep(duration)
+
+    df = pd.DataFrame({
+        'x': np.random.normal(loc=3, scale=2, size=100),
+        'y': np.random.normal(loc=2, scale=0.3, size=100),
+    })
+
+    return df
+
+
 class AsyncControlPanel(ControlPanel):
     _type = 'async'
 
-    btn = param.Action(lambda x: None)
+    btn = param.Action(lambda self: self.do_stuff())
+
+    print = param.Action(lambda self: self.print_stuff())
+
+    #async_do = param.Action(lambda self:)
+
+    value = param.String()
+
+    slider = param.Number(2.4, bounds=(1., 4.))
+
+    @property
+    def src(self):
+        return self.sources['main']
 
     async def work_func(self):
-        pass
+
+        future = self.parent.executor.submit(blocking_function)
+        if isinstance(future, concurrent.futures.Future):
+            future = wrap_future(future)
+        result = await future
+
+        #self.src.tables['test_data'] = result  # todo this should be illegal -> _tables
+        self.src.add_table('test_data', result)
+
+        self.src.updated = True
+
+        #self.src.param.trigger('updated')
 
     def do_stuff(self):
-        from panel.io.server import async_execute
+        #from panel.io.server import async_execute
+        async_execute(self.work_func)
+
+    @param.depends('slider', watch=True)
+    def _slider_updated(self):
+        self.value = str(self.slider)
+
+    def print_stuff(self):
+        print(self.parent.executor)
+        df = self.src.tables['test_data']
+        print()
 
 
 class DevTestControl(ControlPanel):
@@ -94,15 +144,7 @@ class DevTestControl(ControlPanel):
         print('break')
 
     def _action_test(self):
-        trs = self.transforms['peptide_select']
-        cache = trs._cache
-        print(cache._cache.keys())
-        print(cache)
-        print(cache._store.keys())
-
-        for item in cache._store.keys():
-            print(item)
-            print(cache[item])
+        print(self.parent.executor)
 
 
 
