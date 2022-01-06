@@ -76,6 +76,7 @@ def peptide_coverage_figure(data, wrap=None, cmap='turbo', norm=None, color_fiel
     if wrap is None:
         wrap = max([autowrap(sub_df[start_field], sub_df[end_field]) for sub_df in sub_dfs.values()])
 
+    #TODO refaspect for proplot >= 0.9.5
     fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
     rect_kwargs = rect_kwargs or {}
     axes_iter = iter(axes)
@@ -381,7 +382,7 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     return fig, axes, cbars
 
 
-def peptide_mse_figure(fit_result, cmap='Haline', norm=None, rect_kwargs=None, **figure_kwargs):
+def peptide_mse_figure(mse_df, cmap=None, norm=None, rect_kwargs=None, **figure_kwargs):
     n_subplots = len(fit_result)
 
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
@@ -389,31 +390,27 @@ def peptide_mse_figure(fit_result, cmap='Haline', norm=None, rect_kwargs=None, *
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
     aspect = figure_kwargs.pop('aspect', cfg.getfloat('plotting', 'peptide_mse_aspect'))
 
-    cmap = pplt.Colormap(cmap)
+    cmap = cmap or CMAP_NORM_DEFAULTS['mse'][0]
 
     fig, axes = pplt.subplots(ncols=ncols, nrows=nrows, width=figure_width, aspect=aspect, **figure_kwargs)
     axes_iter = iter(axes)
-    mse = fit_result.get_squared_errors() #shape: Ns, Np, Nt
     cbars = []
     rect_kwargs = rect_kwargs or {}
-    for i, mse_sample in enumerate(mse):
-        mse_peptide = np.mean(mse_sample, axis=1)
-
-        hdxm = fit_result.hdxm_set.hdxm_list[i]
-        peptide_data = hdxm.coverage.data
-
-        data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'mse': mse_peptide[:hdxm.Np]}
-        mse_df = pd.DataFrame(data_dict)
+    states = mse_df.columns.unique(level=0)
+    for state in states:
+        sub_df = mse_df[state]
 
         ax = next(axes_iter)
-        vmax = mse_df['mse'].max()
+        vmax = sub_df['mse'].max()
+
+        # todo allow global norm by kwargs
         norm = norm or pplt.Norm('linear', vmin=0, vmax=vmax)
         #color bar per subplot as norm differs
         #todo perhaps unify color scale? -> when global norm, global cbar
-        cbar_ax = peptide_coverage(ax, mse_df, color_field='mse', norm=norm, cmap=cmap, **rect_kwargs)
+        cbar_ax = peptide_coverage(ax, sub_df, color_field='mse', norm=norm, cmap=cmap, **rect_kwargs)
         cbar_ax.set_label('MSE')
         cbars.append(cbar_ax)
-        ax.format(xlabel=r_xlabel, title=f'{hdxm.name}')
+        ax.format(xlabel=r_xlabel, title=f'{state}')
 
     return fig, axes, cbars
 
