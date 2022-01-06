@@ -1,9 +1,10 @@
 """Load HDX-MS data from yaml spec and perform initial guess of exchange rates"""
 from pyhdx.batch_processing import yaml_to_hdxm
 from pathlib import Path
-from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interpolate
+from pyhdx.fitting import fit_rates_weighted_average
 import yaml
 from pyhdx.local_cluster import default_client
+from pyhdx.fileIO import dataframe_to_file
 
 current_dir = Path(__file__).parent
 output_dir = current_dir / 'guesses'
@@ -21,11 +22,11 @@ for name, dic in data_dict.items():
     dic = data_dict[name]
     hdxm = yaml_to_hdxm(dic, data_dir=data_dir)
 
-    #Uncomment/adjust path to save sequence info + intrinsic rates
-    #hdxm.coverage.protein.to_file(f'{name}_sequence_info.txt', fmt='pprint')
+    # Save sequence info + intrinsic rates
+    hdxm.coverage.protein.to_file(output_dir / f'{name}_sequence_info.txt', fmt='pprint')
 
     fr = fit_rates_weighted_average(hdxm, client=client)
-    fr.output.to_file(output_dir / f'{name}_rates_guess.csv')
+    dataframe_to_file(output_dir / f'{name}_rates_guess.csv', fr.output)
 
 
 
