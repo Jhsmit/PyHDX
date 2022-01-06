@@ -160,7 +160,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     ignore_prolines = param.Boolean(True, constant=True, doc='Prolines are ignored as they do not exchange D.')
 
-    d_percentage = param.Number(95., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
+    d_percentage = param.Number(90., bounds=(0, 100), doc='Percentage of deuterium in the labelling buffer',
                                 label='Deuterium percentage')
 
     temperature = param.Number(293.15, bounds=(0, 373.15), doc='Temperature of the D-labelling reaction',
