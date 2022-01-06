@@ -3,6 +3,8 @@ from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.models import HDXMeasurementSet
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned
 from pyhdx.local_cluster import default_client
+from pyhdx.batch_processing import yaml_to_hdxmset
+import yaml
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -42,8 +44,8 @@ hdxm_reduced = HDXMeasurement(reduced_data, temperature=temperature, pH=pH)
 
 result = fit_rates_weighted_average(hdxm_reduced)
 reduced_guess = result.output
-reduced_guess.to_file(output_dir / 'ecSecB_reduced_guess.csv')
-reduced_guess.to_file(output_dir / 'ecSecB_reduced_guess.txt', fmt='pprint')
+dataframe_to_file(output_dir / 'ecSecB_reduced_guess.csv', reduced_guess)
+dataframe_to_file(output_dir / 'ecSecB_reduced_guess.txt', reduced_guess, fmt='pprint')
 
 gibbs_guess = hdxm_reduced.guess_deltaG(reduced_guess['rate'])
 fr_torch = fit_gibbs_global(hdxm_reduced, gibbs_guess, epochs=epochs, r1=2)
@@ -51,13 +53,11 @@ save_fitresult(output_dir / 'ecsecb_reduced', fr_torch)
 
 if guess:
     wt_avg_result = fit_rates_weighted_average(hdxm, bounds=(1e-2/60., 800/60.))
-    output = wt_avg_result.output
-    output.to_file(output_dir / 'ecSecB_guess.csv')
-    output.to_file(output_dir / 'ecSecB_guess.txt', fmt='pprint')
-
+    guess_output = wt_avg_result.output
+    dataframe_to_file(output_dir / 'ecSecB_guess.csv', guess_output)
+    dataframe_to_file(output_dir / 'ecSecB_guess.txt', guess_output, fmt='pprint')
 else:
-    output = csv_to_protein(output_dir / 'ecSecB_guess.csv')
-
+    guess_output = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
 # Export protein sequence and intrinsic rate of exchange
 hdxm.coverage.protein.to_file(output_dir / 'ecSecB_info.csv')
@@ -71,14 +71,16 @@ rfu_df.columns.name = 'exposure'
 dataframe_to_file(output_dir / 'ecSecB_rfu_per_exposure.csv', rfu_df)
 dataframe_to_file(output_dir / 'ecSecB_rfu_per_exposure.txt', rfu_df, fmt='pprint')
 
-gibbs_guess = hdxm.guess_deltaG(output['rate'])
+gibbs_guess = hdxm.guess_deltaG(guess_output['rate'])
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs, r1=2)
-fr_torch.output.to_file(output_dir / 'ecSecB_torch_fit.csv')
-fr_torch.output.to_file(output_dir / 'ecSecB_torch_fit.txt', fmt='pprint')
+
+dataframe_to_file(output_dir / f'ecSecB_torch_fit.csv', fr_torch.output)
+dataframe_to_file(output_dir / f'ecSecB_torch_fit.txt', fr_torch.output, fmt='pprint')
+
 
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs_long, r1=2)
-fr_torch.output.to_file(output_dir / f'ecSecB_torch_fit_epochs_{epochs_long}.csv')
-fr_torch.output.to_file(output_dir / f'ecSecB_torch_fit_epochs_{epochs_long}.txt', fmt='pprint')
+dataframe_to_file(output_dir / f'ecSecB_torch_fit_epochs_{epochs_long}.csv', fr_torch.output)
+dataframe_to_file(output_dir / f'ecSecB_torch_fit_epochs_{epochs_long}.txt', fr_torch.output, fmt='pprint')
 
 
 # ----------
@@ -90,11 +92,11 @@ hdxm_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), sequence=sequen
 
 hdx_set = HDXMeasurementSet([hdxm_dimer, hdxm])
 
-gibbs_guess = hdx_set.guess_deltaG([output['rate'], output['rate']])
+gibbs_guess = hdx_set.guess_deltaG([guess_output['rate'], guess_output['rate']])
 batch_result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=epochs)
 
-batch_result.output.to_file(output_dir / 'ecSecB_batch.csv')
-batch_result.output.to_file(output_dir / 'ecSecB_batch.txt', fmt='pprint')
+dataframe_to_file(output_dir / 'ecSecB_batch.csv', batch_result.output)
+dataframe_to_file(output_dir / 'ecSecB_batch.txt', batch_result.output, fmt='pprint')
 
 # Order is inverted compared to test!
 mock_alignment = {
@@ -106,8 +108,8 @@ hdx_set.add_alignment(list(mock_alignment.values()))
 
 aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
 
-aligned_result.output.to_file(output_dir / 'ecSecB_batch_aligned.csv')
-aligned_result.output.to_file(output_dir / 'ecSecB_batch_aligned.txt', fmt='pprint')
+dataframe_to_file(output_dir / 'ecSecB_batch_aligned.csv', aligned_result.output)
+dataframe_to_file(output_dir / 'ecSecB_batch_aligned.txt', aligned_result.output, fmt='pprint')
 
 # ------------------
 # Reduced Batch fits
@@ -121,3 +123,17 @@ reduced_hdx_set = HDXMeasurementSet([hdxm_reduced, hdxm_reduced_dimer])
 gibbs_guess = reduced_hdx_set.guess_deltaG([reduced_guess['rate'], reduced_guess['rate']])
 batch_result = fit_gibbs_global_batch(reduced_hdx_set, gibbs_guess, epochs=epochs)
 save_fitresult(output_dir / 'ecsecb_reduced_batch', batch_result)
+
+# -------------------
+# delta N/C tail fits
+# -------------------
+
+# These datasets have unequal overall coverage range between datasets
+yaml_file = input_dir / 'data_states_deltas.yaml'
+yaml_dict = yaml.safe_load(yaml_file.read_text())
+hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
+
+gibbs_guess = hdxm_set.guess_deltaG([guess_output['rate'], guess_output['rate'], guess_output['rate'], guess_output['rate']])
+
+batch_result = fit_gibbs_global_batch(hdxm_set, gibbs_guess, epochs=200)
+save_fitresult(output_dir / 'ecsecb_delta_batch', batch_result)

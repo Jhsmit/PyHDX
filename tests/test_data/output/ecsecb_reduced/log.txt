@@ -1,4 +1,4 @@
-# 2021/09/06 11:33:26 (1630920806)
-PyHDX v0.4.0b2+49.g05bd115.dirty
+# 2022/01/06 11:40:00 (1641465600)
+PyHDX v0.4.0b6+35.g8b21d57.dirty
 Total_loss 3.99, mse_loss 3.58, reg_loss 0.41(10.19%)
 Number of epochs: 1000

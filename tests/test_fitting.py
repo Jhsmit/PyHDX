@@ -1,18 +1,20 @@
-import pytest
-from pyhdx import PeptideMasterTable, HDXMeasurement
-from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe, save_fitresult, load_fitresult
-from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, \
-    fit_gibbs_global_batch_aligned, fit_rates_half_time_interpolate, GenericFitResult
-from pyhdx.models import HDXMeasurementSet
-from pyhdx.config import cfg
-import numpy as np
-import torch
 import time
-from dask.distributed import LocalCluster
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
+import pytest
+import torch
+import yaml
+from dask.distributed import LocalCluster
 from pandas.testing import assert_series_equal
+from pyhdx import PeptideMasterTable, HDXMeasurement
+from pyhdx.config import cfg
+from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe
+from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, \
+    fit_gibbs_global_batch_aligned, fit_rates_half_time_interpolate, GenericFitResult
+from pyhdx.batch_processing import yaml_to_hdxmset
+from pyhdx.models import HDXMeasurementSet
 
 cwd = Path(__file__).parent
 input_dir = cwd / 'test_data' / 'input'
@@ -28,7 +30,7 @@ class TestSecBDataFit(object):
         fpath_apo = input_dir / 'ecSecB_apo.csv'
         fpath_dimer = input_dir / 'ecSecB_dimer.csv'
         data = read_dynamx(fpath_apo, fpath_dimer)
-        control = ('Full deuteration control', 0.167*60)
+        control = ('Full deuteration control', 0.167 * 60)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.
 
@@ -136,7 +138,7 @@ class TestSecBDataFit(object):
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
         gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
 
-        #todo allow contextmanger?
+        # todo allow contextmanger?
         cfg.set('fitting', 'device', 'cuda')
         cfg.set('fitting', 'dtype', 'float32')
 
@@ -149,52 +151,30 @@ class TestSecBDataFit(object):
         cfg.set('fitting', 'device', 'cpu')
         cfg.set('fitting', 'dtype', 'float64')
 
+    # batch fit on delta N/C tail dataset
+    def test_batch_fit_delta(self, tmp_path):
+        yaml_file = input_dir / 'data_states_deltas.yaml'
+        yaml_dict = yaml.safe_load(yaml_file.read_text())
+        hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
+        guess_output = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
-    def test_batch_fit(self, tmp_path):
-        hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
-        guess = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
+        gibbs_guess = hdxm_set.guess_deltaG(
+            [guess_output['rate'], guess_output['rate'], guess_output['rate'], guess_output['rate']])
 
-        gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
-        fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
-
-        fpath = Path(tmp_path) / 'fit_result_batch.csv'
-        fr_global.to_file(fpath)
-        df = csv_to_dataframe(fpath)
-        assert df.attrs['metadata'] == fr_global.metadata
-
+        fr_global = fit_gibbs_global_batch(hdxm_set, gibbs_guess, epochs=200)
         output = fr_global.output
 
-        check_protein = csv_to_protein(output_dir / 'ecSecB_batch.csv')
-        states = ['SecB WT apo', 'SecB his dimer apo']
+        check = csv_to_dataframe(output_dir / 'ecsecb_delta_batch' / 'fit_result.csv')
+        states = check.columns.unique(level=0)
 
         for state in states:
             from pandas.testing import assert_series_equal
 
             result = output[state]['dG']
-            test = check_protein[state]['dG']
+            test = check[state]['dG']
 
             assert_series_equal(result, test, rtol=0.1)
 
         errors = fr_global.get_squared_errors()
-        assert errors.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
-
-        mock_alignment = {
-            'apo':   'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
-            'dimer': 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVY--------------EVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGA----YCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA-----------------',
-        }
-
-        hdx_set.add_alignment(list(mock_alignment.values()))
-
-        gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
-        aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
-        output = aligned_result.output
-        check_protein = csv_to_protein(output_dir / 'ecSecB_batch_aligned.csv')
-        states = ['SecB WT apo', 'SecB his dimer apo']
-
-        for state in states:
-            from pandas.testing import assert_series_equal
-            result = output[state]['dG']
-            test = check_protein[state]['dG']
-
-            assert_series_equal(result, test, rtol=0.1)
-
+        assert errors.shape == (hdxm_set.Ns, hdxm_set.Np, hdxm_set.Nt)
+        assert not np.any(np.isnan(errors))
