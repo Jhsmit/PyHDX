@@ -1,6 +1,6 @@
-# PyHDX v0.4.0b6+35.g8b21d57.dirty 
-# 2022/01/06 11:40:00 (1641465600) 
-# <metadata>{"r1": 2, "epochs": 1000, "patience": 50, "stop_loss": 1e-05, "optimizer": "SGD", "lr": 10000.0, "momentum": 0.5, "nesterov": true, "model_name": "DeltaGFit", "total_loss": 3.9886974463003444, "mse_loss": 3.5821085815481797, "reg_loss": 0.4065888647521647, "regularization_percentage": 10.193524834261119, "epochs_run": 1000}</metadata>
+# PyHDX v0.4.0b6+41.gdd87daf.dirty 
+# 2022/01/10 16:30:34 (1641828634) 
+# <metadata>{"r1": 2, "epochs": 1000, "patience": 50, "stop_loss": 5e-06, "optimizer": "SGD", "lr": 10000.0, "momentum": 0.5, "nesterov": true, "model_name": "DeltaGFit", "total_loss": 3.9886974463003444, "mse_loss": 3.5821085815481797, "reg_loss": 0.4065888647521647, "regularization_percentage": 10.193524834261119, "epochs_run": 1000}</metadata>
 # <pandas_kwargs>{"comment": "#", "header": [0, 1], "index_col": 0}</pandas_kwargs>
 state,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo
 quantity,sequence,_dG,dG,pfact,k_obs,covariance

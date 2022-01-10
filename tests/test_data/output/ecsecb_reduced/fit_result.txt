@@ -1,12 +1,12 @@
-PyHDX v0.4.0b6+35.g8b21d57.dirty 
-2022/01/06 11:40:00 (1641465600) 
+PyHDX v0.4.0b6+41.gdd87daf.dirty 
+2022/01/10 16:30:34 (1641828634) 
 
 Metadata
 --------
 r1: 2
 epochs: 1000
 patience: 50
-stop_loss: 1.0e-05
+stop_loss: 5.0e-06
 optimizer: SGD
 lr: 10000.0
 momentum: 0.5
