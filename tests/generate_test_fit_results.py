@@ -63,11 +63,7 @@ else:
 hdxm.coverage.protein.to_file(output_dir / 'ecSecB_info.csv')
 hdxm.coverage.protein.to_file(output_dir / 'ecSecB_info.txt', fmt='pprint')
 
-rfu_exposure = {time: rfu for time, rfu in zip(hdxm.timepoints, hdxm.rfu_residues.T)}  # Nr x Nt array
-rfu_df = pd.DataFrame(rfu_exposure, index=hdxm.coverage.r_number)
-rfu_df.index.name = 'r_number'
-rfu_df.columns.name = 'exposure'
-
+rfu_df = hdxm.rfu_residues
 dataframe_to_file(output_dir / 'ecSecB_rfu_per_exposure.csv', rfu_df)
 dataframe_to_file(output_dir / 'ecSecB_rfu_per_exposure.txt', rfu_df, fmt='pprint')
 
