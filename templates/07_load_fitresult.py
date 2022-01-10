@@ -4,13 +4,21 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
+#%%
+#for PyCharm scientific
+__file__ = Path().cwd() / 'templates' / 'script.py'
+__file__
 
-# for PyCharm scientific
-# __file__ = Path
+#%%
 
 current_dir = Path(__file__).parent
-
 fit_result = load_fitresult(current_dir.parent / 'tests' /'test_data' / 'output' / 'ecsecb_tetramer_dimer')
+
+#%%
+
+mse_df = fit_result.get_peptide_mse()
+
+#%%
 
 s = 0 # index of protein state to view
 p = 20  # index of the peptide to view

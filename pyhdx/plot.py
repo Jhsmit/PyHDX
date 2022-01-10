@@ -26,7 +26,7 @@ except ModuleNotFoundError:
 dG_ylabel = 'ΔG (kJ/mol)'
 ddG_ylabel = 'ΔΔG (kJ/mol)'
 r_xlabel = 'Residue Number'
-
+NO_COVERAGE = '#8c8c8c'
 
 ERRORBAR_KWARGS = {
     'fmt': 'o',
@@ -383,8 +383,7 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
 
 
 def peptide_mse_figure(mse_df, cmap=None, norm=None, rect_kwargs=None, **figure_kwargs):
-    n_subplots = len(fit_result)
-
+    n_subplots = len(mse_df.columns.unique(level=0))
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
@@ -398,16 +397,16 @@ def peptide_mse_figure(mse_df, cmap=None, norm=None, rect_kwargs=None, **figure_
     rect_kwargs = rect_kwargs or {}
     states = mse_df.columns.unique(level=0)
     for state in states:
-        sub_df = mse_df[state]
+        sub_df = mse_df[state].dropna(how='all').convert_dtypes()
 
         ax = next(axes_iter)
-        vmax = sub_df['mse'].max()
+        vmax = sub_df['peptide_mse'].max()
 
         # todo allow global norm by kwargs
         norm = norm or pplt.Norm('linear', vmin=0, vmax=vmax)
         #color bar per subplot as norm differs
         #todo perhaps unify color scale? -> when global norm, global cbar
-        cbar_ax = peptide_coverage(ax, sub_df, color_field='mse', norm=norm, cmap=cmap, **rect_kwargs)
+        cbar_ax = peptide_coverage(ax, sub_df, color_field='peptide_mse', norm=norm, cmap=cmap, **rect_kwargs)
         cbar_ax.set_label('MSE')
         cbars.append(cbar_ax)
         ax.format(xlabel=r_xlabel, title=f'{state}')
@@ -698,7 +697,43 @@ def colorbar_scatter(ax, data, y='dG', yerr='covariance', cmap=None, norm=None, 
     return cbar
 
 
-def cmap_norm_from_nodes(colors, nodes, bad=None):
+def redundancy(ax, hdxm, cmap=None, norm=None):
+    cmap = cmap or CMAP_NORM_DEFAULTS.cmaps['redundancy']
+    norm = norm or CMAP_NORM_DEFAULTS.norms['redundancy']
+
+    redundancy = hdxm.coverage.X.sum(axis=0).astype(float)
+    redundancy[redundancy == 0] = np.nan
+    x = hdxm.coverage.r_number
+    img = np.expand_dims(redundancy, 0)
+
+    collection = ax.pcolormesh(pplt.edges(x), np.array([0, 1]), img,
+                               extend='max',
+                               cmap=cmap,
+                               norm=norm,
+                               )
+    ax.format(yticks=[], title='Redundancy')
+    return collection
+
+
+def resolution(ax, hdxm, cmap=None, norm=None):
+    cmap = cmap or CMAP_NORM_DEFAULTS.cmaps['resolution']
+    norm = norm or CMAP_NORM_DEFAULTS.norms['resolution']
+
+    resolution = np.repeat(hdxm.coverage.block_length, hdxm.coverage.block_length)
+    resolution = resolution.astype(float)
+    resolution[hdxm.coverage.X.sum(axis=0) == 0] = np.nan
+    x = hdxm.coverage.r_number
+    img = np.expand_dims(resolution, 0)
+
+    collection = ax.pcolormesh(pplt.edges(x), np.array([0, 1]), img,
+                               extend='max',
+                               cmap=cmap,
+                               norm=norm,
+                               )
+    ax.format(yticks=[], title='Resolution')
+    return collection
+
+def cmap_norm_from_nodes(colors, nodes, bad=None, under=None, over=None):
     nodes = np.array(nodes)
     if not np.all(np.diff(nodes) > 0):
         raise ValueError("Node values must be monotonically increasing")
@@ -706,8 +741,13 @@ def cmap_norm_from_nodes(colors, nodes, bad=None):
     norm = pplt.Norm('linear', vmin=nodes.min(), vmax=nodes.max(), clip=True)
     color_spec = list(zip(norm(nodes), colors))
     cmap = pplt.Colormap(color_spec)
-    bad = bad or cfg.get('plotting', 'no_coverage')
-    cmap.set_bad(bad)
+
+    if bad is not None:
+        cmap.set_bad(bad)
+    if under is not None:
+        cmap.set_under(under)
+    if over is not None:
+        cmap.set_over(over)
 
     return cmap, norm
 
@@ -716,32 +756,68 @@ def set_bad(cmap, color='#8c8c8c'):
     cmap.set_bad(color)
     return cmap
 
-# Lily blue colormap
-f_cmap, f_norm = cmap_norm_from_nodes(
-    colors=['#ffffff', '#00ffff', '#008080', '#0075ea', '#000008'],
-    nodes=[0., 0.25, 0.5, 0.75, 1.],
-    bad='#8c8c8c'
-)
 
-cmap_defaults = {
-    'dG': set_bad(pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed()),
-    'ddG': set_bad(tol_cmap('PRGn').reversed()),
-    'rfu': set_bad(pplt.Colormap(cc.cm.gouldian)),
-    'drfu': set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
-    'mse': set_bad(pplt.Colormap('cividis')),
-    'foldedness': f_cmap
-}
+class ColorTransforms(object):
+    def __init__(self):
+        # Lily blue colormap
+        foldedness_cmap, foldedness_cmap = cmap_norm_from_nodes(
+            colors=['#ffffff', '#00ffff', '#008080', '#0075ea', '#000008'],
+            nodes=[0., 0.25, 0.5, 0.75, 1.],
+            bad=NO_COVERAGE
+        )
 
-norm_defaults = {
-    'dG': pplt.Norm('linear', 1e4, 4e4),
-    'ddG': pplt.Norm('linear', -1e4, 1e4),
-    'rfu': pplt.Norm('linear', 0, 1., clip=True),
-    'drfu': pplt.Norm('linear', -0.5, 0.5, clip=True),
-    'mse': None,
-    'foldedness': f_norm
-}
+        self.norms = {
+            'dG': pplt.Norm('linear', 1e4, 4e4),
+            'ddG': pplt.Norm('linear', -1e4, 1e4),
+            'rfu': pplt.Norm('linear', 0, 1., clip=True),
+            'drfu': pplt.Norm('linear', -0.5, 0.5, clip=True),
+            'mse': None,
+            'foldedness': foldedness_cmap,
 
-CMAP_NORM_DEFAULTS = {q: (cmap_defaults[q], norm_defaults[q]) for q in ['rfu', 'drfu', 'ddG', 'dG', 'mse', 'foldedness']}
+        }
+
+        levels = [0., 1., 2., 3., 4., 5.]
+        norm = pplt.Norm('segmented', levels=levels)
+        self.norms['redundancy'] = pplt.DiscreteNorm(levels=levels, norm=norm)
+
+        levels = [0., 1., 2., 5., 10., 20.]
+        norm = pplt.Norm('segmented', levels=levels)
+        self.norms['resolution'] = pplt.DiscreteNorm(levels=levels, norm=norm)
+
+        self.cmaps = {
+            'dG': set_bad(pplt.Colormap(tol_cmap('rainbow_PuRd')).reversed()),
+            'ddG': set_bad(tol_cmap('PRGn').reversed()),
+            'rfu': set_bad(pplt.Colormap(cc.cm.gouldian)),
+            'drfu': set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
+            'mse': set_bad(pplt.Colormap('cividis')),
+            'foldedness': foldedness_cmap,
+        }
+
+        colors = ['#6EA72A', '#DAD853', '#FFA842', '#A22D46', '#5D0496'][::-1]
+        cmap_redundancy = pplt.Colormap(colors, discrete=True, N=len(colors), listmode='discrete')
+        cmap_redundancy.set_over('#0E4A21')
+        cmap_redundancy.set_bad(NO_COVERAGE)
+        self.cmaps['redundancy'] = cmap_redundancy
+
+        colors = ['#008832', '#72D100', '#FFFF04', '#FFB917', '#FF8923']
+        cmap_redundancy = pplt.Colormap(colors, discrete=True, N=len(colors), listmode='discrete')
+        cmap_redundancy.set_over('#FE2B2E')
+        cmap_redundancy.set_bad(NO_COVERAGE)
+        self.cmaps['resolution'] = cmap_redundancy
+
+    def __getitem__(self, item):
+        cmap = self.cmaps[item]
+        norm = self.norms[item]
+        return cmap, norm
+
+    def get(self, item, default=None):
+        try:
+            return self[item]
+        except KeyError:
+            return default
+
+
+CMAP_NORM_DEFAULTS = ColorTransforms()
 
 
 def pymol_figures(data, output_path, pdb_file, reference=None, field='dG', cmap=None, norm=None, extent=None,
@@ -1075,7 +1151,7 @@ class FitResultPlotBase(object):
         elif plot_func_name == 'rainbowclouds_figure':
             return {'All states': self.fit_result.output}
         elif plot_func_name == 'peptide_mse_figure':
-            return {'All states': self.fit_result}
+            return {'All states': self.fit_result.get_peptide_mse()}
         elif plot_func_name == 'loss_figure':
             return {'All states': self.fit_result}
         else:
@@ -1264,7 +1340,7 @@ def plot_fitresults(fitresult_path, reference=None, plots='all', renew=False, cm
             plt.close(fig)
 
     if 'peptide_mse' in plots:
-        fig, axes, cbars = peptide_mse_figure(fitresult)
+        fig, axes, cbars = peptide_mse_figure(fitresult.get_peptide_mse())
         for ext in output_type:
             f_out = output_path / (f'peptide_mse' + ext)
             plt.savefig(f_out)
