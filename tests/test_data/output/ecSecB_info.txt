@@ -1,5 +1,5 @@
-PyHDX v0.4.0b6+35.g8b21d57.dirty 
-2022/01/06 11:43:09 (1641465789) 
+PyHDX v0.4.0b6+46.g5237208.dirty 
+2022/01/12 13:55:53 (1641992153) 
 
          sequence  coverage  exchanges         k_int
 r_number                                            

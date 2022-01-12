@@ -146,7 +146,6 @@ class TestProtein(object):
 
         fpath = input_dir / 'ecSecB_apo.csv'
         pf1 = PeptideMasterTable(read_dynamx(fpath))
-        #states = pf1.groupby_state(c_term=200)
         cls.series = HDXMeasurement(pf1.get_state('SecB WT apo'), c_term=200)
 
     def test_artithmetic(self):
@@ -194,14 +193,13 @@ class TestProtein(object):
         protein = self.protein.copy()
 
         protein.df.rename(columns={'k_int': 'k_int_saved'}, inplace=True)
-        protein.set_k_int(273.15 + 30, 8.)
+        k_int = protein.get_k_int(273.15 + 30, 8.)
 
-        assert np.allclose(protein['k_int'], protein['k_int_saved'])
+        assert np.allclose(k_int.to_numpy(), protein['k_int_saved'])
 
         # ecSecB
-        self.series.coverage.protein.set_k_int(300., 8.)
+        k_int = self.series.coverage.protein.get_k_int(300., 8.).to_numpy()
 
-        k_int = self.series.coverage.protein['k_int'].to_numpy()
         assert k_int[0] == np.inf  # N terminal exchange rate is zero
         assert np.all(k_int[-10:] == 0.)
         assert len(k_int) == self.series.coverage.protein.c_term
