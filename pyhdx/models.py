@@ -118,7 +118,7 @@ class Protein(object):
         metadata = self.metadata if include_metadata else include_metadata
         dataframe_to_file(file_path, self.df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
 
-    def set_k_int(self, temperature, pH):
+    def get_k_int(self, temperature, pH, **kwargs):
         """
         Calculates the intrinsic rate of the sequence. Values of no coverage or prolines are assigned a value of -1
         The rates run are for the first residue (1) up to the last residue that is covered by peptides
@@ -144,10 +144,10 @@ class Protein(object):
             raise ValueError('No sequence data available to calculate intrinsic exchange rates.')
 
         sequence = list(self['sequence'])  # Includes 'X' padding at cterm if cterm > last peptide
-        k_int = k_int_from_sequence(sequence, temperature, pH)
+        k_int_array = k_int_from_sequence(sequence, temperature, pH, **kwargs)
+        k_int = pd.Series(k_int_array, index=self.df.index)
 
-        self.df['k_int'] = k_int
-        return np.array(k_int)
+        return k_int
 
     @property
     def c_term(self):
@@ -664,7 +664,8 @@ class HDXMeasurement(object):
         self.coverage = Coverage(intersected_data[0], **cov_kwargs)
 
         if self.temperature and self.pH:
-            self.coverage.protein.set_k_int(self.temperature, self.pH)
+            k_int = self.coverage.protein.get_k_int(self.temperature, self.pH)
+            self.coverage.protein['k_int'] = k_int
 
         self.data = pd.concat(intersected_data, axis=0, ignore_index=True).\
             sort_values(['start', 'end', 'sequence', 'exposure'])
@@ -674,7 +675,6 @@ class HDXMeasurement(object):
             pivot(index='peptide_id', columns=['exposure']).\
             reorder_levels([1, 0], axis=1).\
             sort_index(axis=1, level=0, sort_remaining=False)
-
 
     def __str__(self):
         """
@@ -820,7 +820,7 @@ class HDXMeasurement(object):
 
         return tensors
 
-    def guess_deltaG(self, rates):
+    def guess_deltaG(self, rates, correct_c_term=True):
         """
         Obtain ΔG initial guesses from apparent H/D exchange rates.
         Units of input rates are per second.
@@ -850,6 +850,9 @@ class HDXMeasurement(object):
             deltaG = np.log(p_guess) * constants.R * self.temperature
 
         deltaG.replace([np.inf, -np.inf], np.nan, inplace=True)
+
+        if correct_c_term and self.coverage.protein.c_term in deltaG.index:
+            deltaG.loc[self.coverage.protein.c_term] = deltaG.loc[self.coverage.protein.c_term - 1]
 
         return deltaG
 
