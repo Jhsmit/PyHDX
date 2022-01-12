@@ -5,8 +5,10 @@
 from pathlib import Path
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
-from pyhdx.fileIO import csv_to_protein, save_fitresult
+from pyhdx.fileIO import csv_to_dataframe, save_fitresult
 from pyhdx.local_cluster import default_client
+
+#%%
 
 guess = False
 
@@ -16,12 +18,16 @@ fit_kwargs = {
     'stop_loss': 1e-6
 }
 
+#%%
+
 current_dir = Path(__file__).parent
 #current_dir = Path().cwd() / 'templates'  # pycharm scientific compat
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
 test_data_dir = current_dir.parent / 'tests' / 'test_data'
 input_dir = test_data_dir / 'input'
+
+#%%
 
 # Load the data of two Dynamx files, and combine the result to one table
 data = read_dynamx(input_dir / 'ecSecB_apo.csv', input_dir / 'ecSecB_dimer.csv')
@@ -31,14 +37,19 @@ pmt.set_control(('Full deuteration control', 0.167*60))
 temperature, pH = 273.15 + 30, 8.
 hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), temperature=temperature, pH=pH)
 
+#%%
+
 if guess:
     client = default_client()
     wt_avg_result = fit_rates_weighted_average(hdxm, client=client)
     init_guess = wt_avg_result.output
 else:
-    init_guess = csv_to_protein(test_data_dir / 'output' / 'ecSecB_guess.csv')
+    init_guess = csv_to_dataframe(test_data_dir / 'output' / 'ecSecB_guess.csv')
 
 gibbs_guess = hdxm.guess_deltaG(init_guess['rate'])
+
+#%%
+
 fr_torch = fit_gibbs_global(hdxm, gibbs_guess, **fit_kwargs)
 
 #Human readable output
