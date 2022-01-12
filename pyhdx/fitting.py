@@ -443,9 +443,13 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     output_data = tensors['d_exp']
 
     if isinstance(initial_guess, pd.Series):
+        assert initial_guess.index.inferred_type == 'integer', "Invalid dtype for initial guess index, must be 'integer'"
+        # Map guesses to covered residue range and fill NaN gaps
+        initial_guess = initial_guess.reindex(hdxm.coverage.r_number).interpolate(limit_direction='both')
         initial_guess = initial_guess.to_numpy()
 
     assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
+    assert not np.any(np.isnan(initial_guess)), "Initial guess has NaN entries"
 
     dtype = torch.float64
     dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
@@ -480,8 +484,8 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=Fa
     ----------
     hdx_set : :class:`~pyhdx.models.HDXMeasurementSet`
         Input HDX measurements
-    initial_guess : :class:`~pandas.Series` or :class:`~numpy.ndarray`
-        Gibbs free energy initial guesses (shape Nr, units J/mol)
+    initial_guess : :class:`~pandas.Series` or :class:`~pandas.DataFrame` or :class:`~numpy.ndarray`
+        Gibbs free energy initial guesses (shape Ns x Nr or Nr, units J/mol)
     r1 : :obj:`float`
         Regularizer value r1 (along residues)
     r2 : :obj:`float`
@@ -530,8 +534,8 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=
     ----------
     hdx_set : :class:`~pyhdx.models.HDXMeasurementSet`
         Input HDX measurements
-    initial_guess : :class:`~pandas.Series` or :class:`~numpy.ndarray`
-        Gibbs free energy initial guesses (shape Nr, units J/mol)
+    initial_guess : :class:`~pandas.Series` or :class:`~pandas.DataFrame` or :class:`~numpy.ndarray`
+        Gibbs free energy initial guesses (shape Ns x Nr or Nr, units J/mol)
     r1 : :obj:`float`
         Regularizer value r1 (along residues)
     r2 : :obj:`float`
@@ -576,7 +580,19 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
     output_data = tensors['d_exp']
 
-    assert initial_guess.shape == (hdx_set.Ns, hdx_set.Nr), "Invalid shape of initial guesses"
+    if isinstance(initial_guess, (pd.Series, pd.DataFrame)):
+        assert initial_guess.index.inferred_type == 'integer', "Invalid dtype for initial guess index, must be 'integer'"
+        # Map guesses to covered residue range and fill NaN gaps
+        initial_guess = initial_guess.reindex(hdx_set.coverage.index).interpolate(limit_direction='both') #TODO index vs r_number
+        initial_guess = initial_guess.to_numpy().T  # Pandas format is samples on column, need sample per row
+
+    if initial_guess.shape == (hdx_set.Nr, ):
+        # Broadcast guesses to number of samples
+        initial_guess = np.broadcast_to(initial_guess, (hdx_set.Ns, hdx_set.Nr))
+    elif initial_guess.shape == (hdx_set.Ns, hdx_set.Nr):
+        pass
+    else:
+        raise ValueError("Invalid shape of initial guesses, must be (Nr, ) or (Ns, Nr")
 
     dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
 

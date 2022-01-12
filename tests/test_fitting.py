@@ -99,7 +99,7 @@ class TestSecBDataFit(object):
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
         t0 = time.time()  # Very crude benchmarks
-        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
+        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate'])
         fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
         t1 = time.time()
 
@@ -108,7 +108,7 @@ class TestSecBDataFit(object):
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit.csv')
 
         for field in ['dG', 'covariance', 'k_obs']:
-            assert_series_equal(check_deltaG[field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
+            assert_series_equal(check_deltaG[self.hdxm_apo.name, field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01,
                                 check_names=False)
 
         errors = fr_global.get_squared_errors()
@@ -118,25 +118,25 @@ class TestSecBDataFit(object):
     def test_global_fit_extended(self):
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit_epochs_20000.csv')
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
-        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
+        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate'])
 
         t0 = time.time()  # Very crude benchmarks
         fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=20000, r1=2)
         t1 = time.time()
 
-        assert t1 - t0 < 20
+        assert t1 - t0 < 50
         out_deltaG = fr_global.output
         for field in ['dG', 'k_obs', 'covariance']:
-            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
+            assert_series_equal(check_deltaG[self.hdxm_apo.name, field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01, check_dtype=False)
 
         errors = fr_global.get_squared_errors()
-        assert errors.shape == (self.hdxm_apo.Np, self.hdxm_apo.Nt)
+        assert errors.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
-    @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
+    pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended_cuda(self):
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit_epochs_20000.csv')
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
-        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate']).to_numpy()
+        gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates['rate'])
 
         # todo allow contextmanger?
         cfg.set('fitting', 'device', 'cuda')
@@ -146,10 +146,61 @@ class TestSecBDataFit(object):
         out_deltaG = fr_global.output
 
         for field in ['dG', 'k_obs']:
-            assert_series_equal(check_deltaG[field], out_deltaG[field], rtol=0.01, check_dtype=False)
+            assert_series_equal(check_deltaG[self.hdxm_apo.name, field], out_deltaG[self.hdxm_apo.name, field], rtol=0.01, check_dtype=False)
 
         cfg.set('fitting', 'device', 'cpu')
         cfg.set('fitting', 'dtype', 'float64')
+
+    def test_batch_fit(self, tmp_path):
+        hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
+        guess = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
+
+        # Create rates dataframe
+        rates_df = pd.DataFrame({name: guess['rate'] for name in hdx_set.names})
+
+        gibbs_guess = hdx_set.guess_deltaG(rates_df)
+        fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
+
+        fpath = Path(tmp_path) / 'fit_result_batch.csv'
+        fr_global.to_file(fpath)
+        df = csv_to_dataframe(fpath)
+        assert df.attrs['metadata'] == fr_global.metadata
+
+        output = fr_global.output
+
+        check_protein = csv_to_protein(output_dir / 'ecSecB_batch.csv')
+        states = ['SecB WT apo', 'SecB his dimer apo']
+
+        for state in states:
+            from pandas.testing import assert_series_equal
+
+            result = output[state]['dG']
+            test = check_protein[state]['dG']
+
+            assert_series_equal(result, test, rtol=0.1)
+
+        errors = fr_global.get_squared_errors()
+        assert errors.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
+
+        mock_alignment = {
+            'apo':   'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
+            'dimer': 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVY--------------EVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGA----YCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA-----------------',
+        }
+
+        hdx_set.add_alignment(list(mock_alignment.values()))
+
+        gibbs_guess = hdx_set[0].guess_deltaG(guess['rate'])  # Guesses from first measurement
+        aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
+        output = aligned_result.output
+        check_protein = csv_to_protein(output_dir / 'ecSecB_batch_aligned.csv')
+        states = ['SecB WT apo', 'SecB his dimer apo']
+
+        for state in states:
+            from pandas.testing import assert_series_equal
+            result = output[state]['dG']
+            test = check_protein[state]['dG']
+
+            assert_series_equal(result, test, rtol=0.1)
 
     # batch fit on delta N/C tail dataset
     def test_batch_fit_delta(self, tmp_path):
@@ -158,9 +209,9 @@ class TestSecBDataFit(object):
         hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
         guess_output = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
-        gibbs_guess = hdxm_set.guess_deltaG(
-            [guess_output['rate'], guess_output['rate'], guess_output['rate'], guess_output['rate']])
+        gibbs_guess = hdxm_set[0].guess_deltaG(guess_output['rate'])
 
+        # broadcast single guess over samples
         fr_global = fit_gibbs_global_batch(hdxm_set, gibbs_guess, epochs=200)
         output = fr_global.output
 

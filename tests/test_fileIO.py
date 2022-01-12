@@ -30,7 +30,7 @@ class TestFileIO(object):
 
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
-        gibbs_guess = cls.hdxm.guess_deltaG(initial_rates['rate']).to_numpy()
+        gibbs_guess = cls.hdxm.guess_deltaG(initial_rates['rate'])
         cls.fit_result = fit_gibbs_global(cls.hdxm, gibbs_guess, epochs=100, r1=2)
 
     def test_read_dynamx(self):

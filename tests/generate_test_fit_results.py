@@ -1,4 +1,4 @@
-from pyhdx.fileIO import read_dynamx, csv_to_protein, save_fitresult, dataframe_to_file
+from pyhdx.fileIO import read_dynamx, save_fitresult, dataframe_to_file, csv_to_dataframe
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.models import HDXMeasurementSet
 from pyhdx.fitting import fit_rates_weighted_average, fit_gibbs_global, fit_gibbs_global_batch, fit_gibbs_global_batch_aligned

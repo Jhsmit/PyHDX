@@ -820,7 +820,7 @@ class HDXMeasurement(object):
 
         return tensors
 
-    def guess_deltaG(self, rates, crop=True):
+    def guess_deltaG(self, rates):
         """
         Obtain ΔG initial guesses from apparent H/D exchange rates.
         Units of input rates are per second.
@@ -841,7 +841,7 @@ class HDXMeasurement(object):
         if 'k_int' not in self.coverage.protein:
             raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
         if not isinstance(rates, pd.Series):
-            raise TypeError("Rates input type is pandas.Series")
+            raise TypeError("Rates input type should be pandas.Series")
 
         p_guess = (self.coverage.protein['k_int'] / rates) - 1
 
@@ -849,15 +849,9 @@ class HDXMeasurement(object):
         with np.errstate(divide='ignore'):
             deltaG = np.log(p_guess) * constants.R * self.temperature
 
-        # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
-        # todo or use: df.interpolate(limit_direction="both") (pandas)
-        bools = ~np.isfinite(deltaG)
-        deltaG[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), deltaG[~bools])
+        deltaG.replace([np.inf, -np.inf], np.nan, inplace=True)
 
-        if crop:
-            return self.coverage.apply_interval(deltaG)
-        else:
-            return deltaG
+        return deltaG
 
     def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
         """
@@ -1111,38 +1105,27 @@ class HDXMeasurementSet(object):
 
         return rfu
 
-    def guess_deltaG(self, rates_list):
+    def guess_deltaG(self, rates_df):
         """
         Create dG guesses from rates
 
         Parameters
         ----------
-        rates_list : :obj:`iterable`
-            list of pandas series with k_obs estimates
+        rates_df : :class:`~pandas.DataFrame`
+            Pandas dataframe with k_obs estimates. Column names must correspond to HDX measurement names.
 
         Returns
         -------
 
-        deltaG_array: :class:`~numpy.ndarray`
+        deltaG: :class:`~pandas.DataFrame`
             ΔG guess values
 
         """
 
-        #todo pandify this?
-        assert len(rates_list) == self.Ns, "Number of elements in 'rates_list' should be equal to number of samples"
+        guesses = [hdxm.guess_deltaG(rates_df[name]) for hdxm, name in zip(self, self.names)]
+        deltaG = pd.concat(guesses, keys=self.names, axis=1)
 
-        guesses = [hdxm.guess_deltaG(rates, crop=True).to_numpy() for rates, hdxm in zip(rates_list, self.hdxm_list)]
-        flat = np.concatenate(guesses)
-
-        deltaG_array = np.full((self.Ns, self.Nr), fill_value=np.nan)
-        deltaG_array[self.coverage.s_r_mask] = flat  # todo get this mask from dict?
-
-        for row in deltaG_array:
-            # https://stackoverflow.com/questions/9537543/replace-nans-in-numpy-array-with-closest-non-nan-value
-            bools = ~np.isfinite(row)
-            row[bools] = np.interp(np.flatnonzero(bools), np.flatnonzero(~bools), row[~bools])
-
-        return deltaG_array
+        return deltaG
 
     def add_alignment(self, alignment, first_r_numbers=None):
         """
