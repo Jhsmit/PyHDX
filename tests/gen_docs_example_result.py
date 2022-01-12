@@ -16,7 +16,7 @@ hdx_set = yaml_to_hdxmset(yaml_dict, data_dir=data_dir)
 
 initial_guess_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
-guesses = hdx_set.guess_deltaG([initial_guess_rates['rate']]*2)
+guesses = hdx_set[0].guess_deltaG(initial_guess_rates['rate'])
 fit_kwargs = yaml.safe_load(Path(data_dir / 'fit_settings.yaml').read_text())
 
 fr = fit_gibbs_global_batch(hdx_set, guesses,  **fit_kwargs)

@@ -382,8 +382,8 @@ def ddG_scatter_figure(data, reference=None, cmap=None, norm=None, scatter_kwarg
     return fig, axes, cbars
 
 
-def peptide_mse_figure(mse_df, cmap=None, norm=None, rect_kwargs=None, **figure_kwargs):
-    n_subplots = len(mse_df.columns.unique(level=0))
+def peptide_mse_figure(peptide_mse, cmap=None, norm=None, rect_kwargs=None, **figure_kwargs):
+    n_subplots = len(peptide_mse.columns.unique(level=0))
     ncols = figure_kwargs.pop('ncols', min(cfg.getint('plotting', 'ncols'), n_subplots))
     nrows = figure_kwargs.pop('nrows', int(np.ceil(n_subplots / ncols)))
     figure_width = figure_kwargs.pop('width', cfg.getfloat('plotting', 'page_width')) / 25.4
@@ -395,9 +395,9 @@ def peptide_mse_figure(mse_df, cmap=None, norm=None, rect_kwargs=None, **figure_
     axes_iter = iter(axes)
     cbars = []
     rect_kwargs = rect_kwargs or {}
-    states = mse_df.columns.unique(level=0)
+    states = peptide_mse.columns.unique(level=0)
     for state in states:
-        sub_df = mse_df[state].dropna(how='all').convert_dtypes()
+        sub_df = peptide_mse[state].dropna(how='all').convert_dtypes()
 
         ax = next(axes_iter)
         vmax = sub_df['peptide_mse'].max()
@@ -722,6 +722,7 @@ def resolution(ax, hdxm, cmap=None, norm=None):
     resolution = np.repeat(hdxm.coverage.block_length, hdxm.coverage.block_length)
     resolution = resolution.astype(float)
     resolution[hdxm.coverage.X.sum(axis=0) == 0] = np.nan
+    #TODO collection = single_linear_bar(ax, hdxm.coverage.r_number, resolution, cmap, norm)
     x = hdxm.coverage.r_number
     img = np.expand_dims(resolution, 0)
 
@@ -732,6 +733,72 @@ def resolution(ax, hdxm, cmap=None, norm=None):
                                )
     ax.format(yticks=[], title='Resolution')
     return collection
+
+
+def single_linear_bar(ax, x, z, cmap, norm, **kwargs):
+    """makes a linear bar plot on supplied axis with values z and corresponding x values x"""
+
+    if isinstance(z, pd.Series):
+        z = z.to_numpy()
+    elif isinstance(z, pd.DataFrame):
+        assert len(z.columns) == 1, "Can only plot dataframes with 1 column"
+        z = z.to_numpy().squeeze()
+
+    img = np.expand_dims(z, 0)
+
+    collection = ax.pcolormesh(pplt.edges(x), np.array([0, 1]), img,
+                               cmap=cmap,
+                               norm=norm,
+                               **kwargs
+                               )
+    ax.format(yticks=[])
+
+    return collection
+
+
+def add_mse_panels(axes, fit_result, cmap=None, norm=None, panel_kwargs=None, fig=None, cbar=False, cbar_kwargs=None):
+    """adds linear bar panels to axes showing some property (usually MSE)"""
+
+
+    residue_mse = fit_result.get_residue_mse()
+    vmax = residue_mse.to_numpy().max()
+
+    cmap = cmap or CMAP_NORM_DEFAULTS.cmaps['mse']
+    norm = norm or pplt.Norm('linear', vmin=0, vmax=vmax)
+
+    collections = []
+    for hdxm, ax in zip(fit_result.hdxm_set, axes):
+        panel_kwargs = panel_kwargs or {}
+        loc = panel_kwargs.pop('loc', 'b')
+        panel_kwargs = {
+            'width': '5mm',
+            'space': 0,
+            **panel_kwargs
+        }
+
+        pn = ax.panel_axes(loc, **panel_kwargs)
+        residue_values = residue_mse[hdxm.name]
+
+        collection = single_linear_bar(pn, hdxm.coverage.r_number, residue_values.to_numpy().squeeze(), cmap=cmap,
+                                       norm=norm)
+        collections.append(collection)
+
+    if cbar:
+        if fig is None:
+            raise ValueError("Must pass 'fig' keyword argument to add a global colorbar")
+        cbar_kwargs = cbar_kwargs or {}
+        cbar_kwargs = {
+            'width': CBAR_KWARGS['width'],
+            'loc': 'b',
+            'length': 0.3,
+            **cbar_kwargs}
+
+        cbar = fig.colorbar(cmap, norm=norm, **cbar_kwargs)
+    else:
+        cbar = None
+
+    return collections, cbar
+
 
 def cmap_norm_from_nodes(colors, nodes, bad=None, under=None, over=None):
     nodes = np.array(nodes)
@@ -752,7 +819,7 @@ def cmap_norm_from_nodes(colors, nodes, bad=None, under=None, over=None):
     return cmap, norm
 
 
-def set_bad(cmap, color='#8c8c8c'):
+def set_bad(cmap, color=NO_COVERAGE):
     cmap.set_bad(color)
     return cmap
 
@@ -789,7 +856,7 @@ class ColorTransforms(object):
             'ddG': set_bad(tol_cmap('PRGn').reversed()),
             'rfu': set_bad(pplt.Colormap(cc.cm.gouldian)),
             'drfu': set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
-            'mse': set_bad(pplt.Colormap('cividis')),
+            'mse': set_bad(pplt.Colormap('cividis'), color='#e3e3e3'),
             'foldedness': foldedness_cmap,
         }
 

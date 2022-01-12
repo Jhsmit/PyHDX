@@ -10,6 +10,7 @@ from pyhdx.fileIO import dataframe_to_file
 from pyhdx.models import Protein
 from pyhdx.config import cfg
 
+
 # TORCH_DTYPE = t.double
 # TORCH_DEVICE = t.device('cpu')
 
@@ -127,9 +128,8 @@ class TorchFitResult(object):
         self.output = df
 
     def get_peptide_mse(self):
-        """Get a dataframe with mean mean squared error per peptide (ie per peptide mean squared error averaged over time)"""
+        """Get a dataframe with mean squared error per peptide (ie per peptide squared error averaged over time)"""
         squared_errors = self.get_squared_errors()
-        squared_errors.shape
         dfs = {}
         for mse_sample, hdxm in zip(squared_errors, self.hdxm_set):
             peptide_data = hdxm[0].data
@@ -143,6 +143,29 @@ class TorchFitResult(object):
         mse_df = pd.concat(dfs.values(), keys=dfs.keys(), names=['state', 'quantity'], axis=1)
 
         return mse_df
+
+    def get_residue_mse(self):
+        """Get a dataframe with residue mean squared errors
+
+        Errors are from peptide MSE which is subsequently reduced to residue level by weighted averaging
+
+        """
+
+        peptide_mse = self.get_peptide_mse()
+
+        residue_mse_list = []
+        for hdxm in self.hdxm_set:
+            peptide_mse_values = peptide_mse[hdxm.name, 'peptide_mse'].dropna().to_numpy()
+            residue_mse_values = hdxm.coverage.Z_norm.T.dot(peptide_mse_values)
+            residue_mse = pd.Series(residue_mse_values, index=hdxm.coverage.r_number)
+            residue_mse_list.append(residue_mse)
+
+        residue_mse = pd.concat(residue_mse_list, keys=self.hdxm_set.names, axis=1)
+        columns = pd.MultiIndex.from_tuples([(name, 'residue_mse') for name in self.hdxm_set.names],
+                                            names=['state', 'quantity'])
+        residue_mse.columns = columns
+
+        return residue_mse
 
     @property
     def mse_loss(self):
@@ -220,6 +243,7 @@ class TorchFitResult(object):
         return df
 
     def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+        """save only output to file"""
         metadata = self.metadata if include_metadata else include_metadata
         dataframe_to_file(file_path, self.output, include_version=include_version, include_metadata=metadata,
                           fmt=fmt, **kwargs)
