@@ -88,7 +88,7 @@ hdxm_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), sequence=sequen
 
 hdx_set = HDXMeasurementSet([hdxm_dimer, hdxm])
 
-gibbs_guess = hdx_set.guess_deltaG([guess_output['rate'], guess_output['rate']])
+gibbs_guess = hdx_set[0].guess_deltaG(guess_output['rate'])
 batch_result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=epochs)
 
 dataframe_to_file(output_dir / 'ecSecB_batch.csv', batch_result.output)
@@ -116,7 +116,7 @@ reduced_data = data[data['end'] < 40]
 hdxm_reduced_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), temperature=temperature, pH=pH)
 
 reduced_hdx_set = HDXMeasurementSet([hdxm_reduced, hdxm_reduced_dimer])
-gibbs_guess = reduced_hdx_set.guess_deltaG([reduced_guess['rate'], reduced_guess['rate']])
+gibbs_guess = reduced_hdx_set[0].guess_deltaG(reduced_guess['rate'])
 batch_result = fit_gibbs_global_batch(reduced_hdx_set, gibbs_guess, epochs=epochs)
 save_fitresult(output_dir / 'ecsecb_reduced_batch', batch_result)
 
@@ -129,7 +129,7 @@ yaml_file = input_dir / 'data_states_deltas.yaml'
 yaml_dict = yaml.safe_load(yaml_file.read_text())
 hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
 
-gibbs_guess = hdxm_set.guess_deltaG([guess_output['rate'], guess_output['rate'], guess_output['rate'], guess_output['rate']])
+gibbs_guess = hdxm_set[0].guess_deltaG(guess_output['rate'])
 
 batch_result = fit_gibbs_global_batch(hdxm_set, gibbs_guess, epochs=200)
 save_fitresult(output_dir / 'ecsecb_delta_batch', batch_result)
