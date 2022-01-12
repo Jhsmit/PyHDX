@@ -33,7 +33,7 @@ st2 = HDXMeasurement(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15 + 30
 
 hdx_set = HDXMeasurementSet([st1, st2])
 guess = csv_to_protein(data_dir / 'output' / 'ecSecB_guess.csv')
-gibbs_guess = hdx_set.guess_deltaG([guess['rate'], guess['rate']])
+gibbs_guess = hdx_set[0].guess_deltaG(guess['rate'])
 
 
 # Example fit with only 5000 epochs and high learning rate
