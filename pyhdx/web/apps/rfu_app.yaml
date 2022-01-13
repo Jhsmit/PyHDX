@@ -20,11 +20,16 @@ transforms:
     type: table_source
     source: main
     table: rfu_residues
+  drfu_src:
+    type: table_source
+    source: main
+    table: drfu_comparison
   protein_src:  # table source which exposued widget which can be used to select which table to use for colors
     type: table_source
     source: main
     table_options:
       - rfu_residues
+      - drfu_comparison
 
 opts:
   base:
@@ -79,6 +84,13 @@ tools:
     #only show closest hit:
     #https://stackoverflow.com/questions/36434562/displaying-only-one-tooltip-when-using-the-hovertool-tool
     #https://github.com/bokeh/bokeh/issues/9087
+  drfu_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'ΔRFU', '@drfu' ]
+
+
 
 views:
   logging_info:
@@ -168,6 +180,32 @@ modules:
           - rfu  # rename rfu_cmap
         #x: r_number
 
+  drfu_view:
+    transforms:
+      drfu_comparison_select:
+        type: cross_section
+        source: drfu_src
+        n_levels: -1
+    opts:
+      drfu_axes:
+        type: generic
+        xlabel: Residue Number
+        ylabel: ΔRFU
+        title: ΔRFU Scatterplot
+        color: drfu
+        colorbar: True
+        tools:
+          - drfu_hover
+    views:
+      drfu:
+        type: scatter
+        source: drfu_comparison_select
+        opts:
+          - base
+          - scatter
+          - drfu_axes
+          - drfu # = cmap opt, rename
+
   protein_view:
     transforms:
       protein_select:
@@ -183,6 +221,7 @@ modules:
           color: protein_select
         opts:  # opts are not applied directly but matched to color dataframe and then applied
           - rfu
+          - drfu
         dependencies:
           opts:
             - rfu
@@ -241,6 +280,7 @@ modules:
 
 controllers:
   - peptide_rfu_file_input
+  - diff
   - color_transform
   - protein  #rename: NGL?
   - graph

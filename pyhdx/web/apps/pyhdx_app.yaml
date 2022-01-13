@@ -44,11 +44,16 @@ transforms:
     type: table_source
     source: main
     table: ddG_comparison
+  drfu_src:
+    type: table_source
+    source: main
+    table: drfu_comparison
   protein_src:  # table source which exposued widget which can be used to select which table to use for colors
     type: table_source
     source: main
     table_options:
       - rfu_residues
+      - drfu_comparison
       - dG_fits
       - ddG_comparison
 
@@ -58,12 +63,12 @@ opts:
     responsive: True
     framewise: True
     show_grid: True
-    shared_axes: False  # doesnt seem to do anything
+    # shared_axes: True  # doesnt seem to do anything
   errorbars:
     type: generic
     line_alpha: 0.5
     line_color: '#8c8c8c'
-    apply_ranges: False
+    apply_ranges: False  # Do not rescale axis based on the error bars
     hooks:
       - handle: glyph
         attr: upper_head.line_color
@@ -137,6 +142,11 @@ tools:
     tooltips:
       - [ 'Residue', '@r_number' ]
       - [ 'ΔΔG', '@ddG kJ/mol' ]
+  drfu_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'ΔRFU', '@drfu' ]
 
 views:
   logging_info:
@@ -471,7 +481,7 @@ modules:
           - base
           - scatter
           - ddG_axes
-          - ddG  # = cmap, raname
+          - ddG  # = cmap, rename
         x: r_number
         y: ddG
       ddG_errors:
@@ -488,6 +498,33 @@ modules:
         views:
           - ddG
           - ddG_errors
+
+  drfu_view:
+    transforms:
+      drfu_comparison_select:
+        type: cross_section
+        source: drfu_src
+        n_levels: -1
+    opts:
+      drfu_axes:
+        type: generic
+        xlabel: Residue Number
+        ylabel: ΔRFU
+        title: ΔRFU Scatterplot
+        color: drfu
+        colorbar: True
+        tools:
+          - drfu_hover
+    views:
+      drfu:
+        type: scatter
+        source: drfu_comparison_select
+        opts:
+          - base
+          - scatter
+          - drfu_axes
+          - drfu # = cmap opt, rename
+
 
   protein_view:
     transforms:
@@ -515,6 +552,7 @@ modules:
         dependencies:
           opts:
             - rfu
+            - drfu
             - dG
             - ddG
 
@@ -528,6 +566,7 @@ modules:
 controllers:
   #- peptide_file_input  # todo by name ?
   #- initial_guess
+  - dev
   - peptide_file_input
   - initial_guess
   - fit

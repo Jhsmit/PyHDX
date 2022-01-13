@@ -92,6 +92,11 @@ class PyHDXSource(TableSource):
     def hdx_set(self):
         return HDXMeasurementSet(list(self.hdxm_objects.values()))
 
+    @property
+    def names(self):
+        """returns the names of all HDX Measurment objects loaded"""
+        return list(self.hdxm_objects.keys())
+
     def _add_hdxm_object(self, hdxm, name):  # where name is new 'protein state' entry (or used for state (#todo clarify))
         # Add peptide data
         df = hdxm.data_wide.copy()
@@ -147,7 +152,6 @@ class PyHDXSource(TableSource):
         self._add_table(df, 'loss')
 
         #Add MSE per peptide df
-
         # current bug: convert dtypes drop column names: https://github.com/pandas-dev/pandas/issues/41435
         # use before assigning column names
         mse_df = fit_result.get_peptide_mse().convert_dtypes()
@@ -179,11 +183,11 @@ class PyHDXSource(TableSource):
 
         self.updated = True
 
-    def _add_table(self, df, table, categorical=True):
+    def _add_table(self, df, table, categorical=True): # TODO add_table is (name, dataframe)
         """
 
         :param df:
-        :param table:
+        :param table: name of the table
         :param categorical: True if top level of multiindex should be categorical
         :return:
         """

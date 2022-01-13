@@ -22,7 +22,7 @@ from pyhdx.fitting import fit_rates_weighted_average, fit_rates_half_time_interp
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection
 from pyhdx.plot import dG_scatter_figure, ddG_scatter_figure, linear_bars_figure, \
     rainbowclouds_figure, CMAP_NORM_DEFAULTS
-from pyhdx.support import series_to_pymol, apply_cmap
+from pyhdx.support import series_to_pymol, apply_cmap, multiindex_astype, multiindex_set_categories
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.utils import fix_multiindex_dtypes
@@ -54,25 +54,30 @@ class DevTestControl(ControlPanel):
         opts = self.opts
 
         tables = self.sources['main'].tables
-        df = tables['d_calc']
+        rfus = tables['rfu_residues']
+        print(rfus)
+        print(rfus.columns.dtypes)
 
-        print(df)
-        print(df.index)
         c = self.parent.control_panels
 
-        f = self.transforms['peptide_pipe']
-        df = f.get()
-        print(df)
 
-        f = self.transforms['peptide_select']
-        df = f.get()
-        print(df)
+        drfu = tables.get('drfu_comparison')
+        if drfu is not None:
+            print(drfu.columns.dtypes)
+            print(drfu)
 
+        drfu_selected = self.transforms['drfu_comparison_select'].get()
 
-        ct = c['ColorTransformControl']
-
-        # self.parent.logger.info('Info log')
-        # self.parent.logger.debug('Debug log')
+        #
+        # f = self.transforms['peptide_select']
+        # df = f.get()
+        # print(df)
+        #
+        #
+        # ct = c['ColorTransformControl']
+        #
+        # # self.parent.logger.info('Info log')
+        # # self.parent.logger.debug('Debug log')
 
         print('break')
 
@@ -901,10 +906,10 @@ class FitControl(PyHDXControlPanel):
         self.parent.logger.info(f'Current number of active jobs: {self._current_jobs}')
         if self.fit_mode == 'Batch':
             hdx_set = self.src.hdx_set
-            rates_df = self.src.rate_results[self.initial_guess].output
+            rate_fit_output = self.src.rate_results[self.initial_guess].output
+            rate_fit_output.columns = rate_fit_output.columns.get_level_values(0)
 
-            rates_guess = [rates_df[state]['rate'] for state in hdx_set.names]
-            gibbs_guess = hdx_set.guess_deltaG(rates_guess)
+            gibbs_guess = hdx_set.guess_deltaG(rate_fit_output)
 
             dask_future = self.parent.client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
         else:
@@ -935,14 +940,14 @@ class FitControl(PyHDXControlPanel):
 class DifferentialControl(PyHDXControlPanel):
     _type = 'diff'
 
-    header = 'Differential HDX (ΔΔG)'
+    header = 'Differential HDX'
 
     reference_state = param.Selector(
         doc='Which of the states to use as reference'
     )
 
     comparison_name = param.String(
-        default='ddG_1',
+        default='comparison_1',
         doc="Name for the comparison table"
     )
 
@@ -950,38 +955,56 @@ class DifferentialControl(PyHDXControlPanel):
 
     def __init__(self, parent, **params):
         super().__init__(parent, **params)
-
-        self.parent.transforms['ddG_fit_select'].param.watch(self._source_updated, 'updated')
+        self.widgets['add_comparison'].disabled = True
+        self.src.param.watch(self._source_updated, 'hdxm_objects')
         self._df = None
         self._source_updated()  # todo trs source does not trigger updated when init
 
     @property
     def _layout(self):
-        return [
-            ('transforms.ddG_fit_select', None),
-            ('self', None)
-        ]
+        layout = []
+        if 'ddG_fit_select' in self.transforms:
+            layout.append(('transforms.ddG_fit_select', None))
+        layout.append(('self', None))
+
+        return layout
 
     def get(self):
+        print('remove this')
         df = self.transforms['ddG_fit_select'].get()
         return df
 
     def _source_updated(self, *events):
-        self._df = self.get()
-        if self._df is not None:
-            options = list(self._df.columns.unique(level=0))
-            self.param['reference_state'].objects = options
-            if self.reference_state is None and options:
-                self.reference_state = options[0]
+        # Triggered when hdxm objects are added
+        options = self.src.names
+        if len(options) >= 2:
+            self.widgets['add_comparison'].disabled = False
+
+        self.param['reference_state'].objects = options
+        if self.reference_state is None and options:
+            self.reference_state = options[0]
 
     def _action_add_comparison(self):
-        current_df = self.src.get_table('ddG_comparison')
+        current_df = self.src.get_table('drfu_comparison')
         if current_df is not None and self.comparison_name in current_df.columns.get_level_values(level=0):
             self.parent.logger.info(f"Comparison name {self.comparison_name!r} already exists")
             return
 
-        reference = self._df[self.reference_state]['dG']
-        test = self._df.xs('dG', axis=1, level=1).drop(self.reference_state, axis=1)
+        # RFU only app has no dGs,
+        if 'ddG_fit_select' in self.transforms:
+            self.add_ddG_comparison()
+        self.add_drfu_comparison()
+
+        self.parent.logger.info(f"Successfully added comparison set {self.comparison_name!r}")
+        self.src.updated = True
+
+    def add_ddG_comparison(self):
+        dG_df = self.transforms['ddG_fit_select'].get()
+        if dG_df is None:
+            return
+
+        reference = dG_df[self.reference_state]['dG']
+        test = dG_df.xs('dG', axis=1, level=1).drop(self.reference_state, axis=1)
         #todo repeated code in plot.ddG_scatter_figure
         ddG = test.subtract(reference, axis=0)
 
@@ -991,8 +1014,8 @@ class DifferentialControl(PyHDXControlPanel):
             names=names)
         ddG.columns = columns
 
-        cov_ref = self._df[self.reference_state, 'covariance'] ** 2
-        cov_test = self._df.xs('covariance', axis=1, level=1).drop(self.reference_state, axis=1) ** 2
+        cov_ref = dG_df[self.reference_state, 'covariance'] ** 2
+        cov_test = dG_df.xs('covariance', axis=1, level=1).drop(self.reference_state, axis=1) ** 2
         cov = cov_test.add(cov_ref, axis=0).pow(0.5)
         columns = pd.MultiIndex.from_product(
             [[self.comparison_name], cov.columns, ['covariance']],
@@ -1001,17 +1024,49 @@ class DifferentialControl(PyHDXControlPanel):
 
         combined = pd.concat([ddG, cov], axis=1)
 
-        #todo use _add_table method on source
-        if current_df is not None:
-            new_df = pd.concat([current_df, combined], axis=1)
-        else:
-            new_df = combined
+        categories = list(combined.columns.unique(level=1))
+        combined.columns = multiindex_astype(combined.columns, 1, 'category')
+        combined.columns = multiindex_set_categories(combined.columns, 1, categories, ordered=True)
 
-        #self.parent.sources['main'].tables['ddG_comparison'] = new_df
-        self.src.add_table('ddG_comparison', new_df)
+        self.src._add_table(combined, 'ddG_comparison')
 
         #self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
-        self.src.updated = True
+
+    def add_drfu_comparison(self):
+        #TODO adapt
+        # current_df = self.src.get_table('ddG_comparison')
+        # if current_df is not None and self.comparison_name in current_df.columns.get_level_values(level=0):
+        #     self.parent.logger.info(f"Comparison name {self.comparison_name!r} already exists")
+        #     return
+
+        rfu_df = self.src.get_table('rfu_residues')
+
+
+        reference = rfu_df[self.reference_state]
+        test = rfu_df.drop(self.reference_state, axis=1).\
+            reorder_levels(['exposure', 'state', 'quantity'], axis=1).\
+            sort_index(axis=1, level=0)
+
+        test = test.sort_index(axis=1, level=0)
+
+        drfu = test.sub(reference, axis='columns').\
+            reorder_levels(['state', 'exposure', 'quantity'], axis=1).\
+            sort_index(axis=1).\
+            dropna(how='all', axis=1)
+
+        # Expand multiindex level
+        tuples = [(self.comparison_name, *tup[:-1], 'drfu') for tup in drfu.columns]
+        drfu.columns = pd.MultiIndex.from_tuples(
+            tuples, names=['comparison_name', 'comparison_state', 'exposure', 'quantity']
+        )
+
+        # Set the 'comparison_state' level back to categorical
+        categories = list(drfu.columns.unique(level=1))
+        drfu.columns = multiindex_astype(drfu.columns, 1, 'category')
+        drfu.columns = multiindex_set_categories(drfu.columns, 1, categories, ordered=True)
+
+        #TODO should be public
+        self.src._add_table(drfu, 'drfu_comparison')
 
 
 class ColorTransformControl(PyHDXControlPanel):

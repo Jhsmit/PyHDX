@@ -43,6 +43,7 @@ def main_app():
         'logging_debug',
         'protein',
         'ddG_overlay',
+        'drfu',
         'rates',
         'gibbs_overlay',
         'peptide_mse',
@@ -65,6 +66,7 @@ def main_app():
 
     scatter_tab = pn.Tabs(
         ('RFU', get_view('rfu_scatter')),
+        ('ΔRFU', get_view('drfu')),
         ('Rates', get_view('rates')),
         ('ΔG', get_view('gibbs_overlay')),
         ('ΔΔG', get_view('ddG_overlay')),
@@ -108,6 +110,7 @@ def rfu_app():
 
     views_names = [
         'rfu_scatter',
+        'drfu',
         'coverage',
         'logging_info',
         'logging_debug',
@@ -129,6 +132,7 @@ def rfu_app():
 
     scatter_tab = pn.Tabs(
         ('RFU', get_view('rfu_scatter')),
+        ('ΔRFU', get_view('drfu')),
     )
 
     log_tab = pn.Tabs(
