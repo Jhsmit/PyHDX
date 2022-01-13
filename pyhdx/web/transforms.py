@@ -40,7 +40,8 @@ class Transform(param.Parameterized):
     @property
     def hash_key(self):
         """hashable key describing the transform"""
-        return tuple((item, make_tuple(val)) for item, val in self.param.get_param_values() if not item.startswith('_'))
+        excluded = ['updated', 'source', 'widgets']
+        return tuple((item, make_tuple(val)) for item, val in self.param.get_param_values() if not (item.startswith('_') or item in excluded))
 
     @property
     def hash(self):
@@ -155,9 +156,9 @@ class CrossSectionTransform(AppTransform):
 
     @param.depends('source.updated', watch=True)
     def update(self):
+
         if self.update_hash():
             #todo remove watchers when new transforms are created?
-
             old_index = self.index
             df = self.source.get()
 
@@ -215,7 +216,12 @@ class CrossSectionTransform(AppTransform):
     def _selector_changed(self, *events):
         #this sends multiple updated events as it triggers changes in other selectors
         for event in events:
-            current_index = self.selectors.index(event.obj)  # Index of the selector which was changed
+            try:
+                current_index = self.selectors.index(event.obj)  # Index of the selector which was changed
+            except ValueError:
+                # I suspect this happens when there is redraw and the selector which triggered the change is no longer
+                # in existence. So we can probaly ignore the event
+                return
 
             try:  # try/except when we are at the last selector
                 next_selector = self.selectors[current_index + 1]
