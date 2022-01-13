@@ -19,6 +19,10 @@ ddG_comparison (ddG)
 index: r_number
 columns: comparison_name, comparison_state, quantity
 
+drfu_comparison (drfu)
+index: r_number
+columns: comparison_name, comparison_state, exposure, quantity
+
 d_calc
 index: exposure
 columns: fit_ID, state, peptide_id, quantity

@@ -222,9 +222,10 @@ modules:
         opts:  # opts are not applied directly but matched to color dataframe and then applied
           - rfu
           - drfu
-        dependencies:
+        dependencies:  # listen to update event on these
           opts:
             - rfu
+            - drfu
 
   peptides:
     transforms:

@@ -541,7 +541,8 @@ class NGLColorView(View):
         # there should be one column which matches one of the keys in the cmap otps dict
         matching_columns = set(df.columns) & self._cmap_opts.keys()
         if not matching_columns:
-            self.parent.logger.debug("No matching color opts were found")
+            # todo logging.getlogger etc etc
+            print("No matching color opts were found")
             return
 
         qty = matching_columns.pop()

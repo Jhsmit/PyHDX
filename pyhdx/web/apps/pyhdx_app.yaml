@@ -547,6 +547,7 @@ modules:
           color: protein_select
         opts:  # opts are not applied directly but matched to color dataframe and then applied
           - rfu
+          - drfu
           - dG
           - ddG
         dependencies:
