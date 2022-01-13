@@ -335,7 +335,7 @@ class PeptideMasterTable(object):
         """
 
         try:
-            fd_df = self.get_data(*control_1)[['start', 'end', 'uptake']].set_index(['start', 'end'], verify_integrity=True)
+            fd_df = self.get_data(*control_1)[['_start', '_end', 'uptake']].set_index(['_start', '_end'], verify_integrity=True)
         except ValueError as e:
             raise ValueError("FD control has duplicate entries") from e
 
@@ -344,17 +344,17 @@ class PeptideMasterTable(object):
 
         try:
             if control_0 is None:
-                nd_df = self.get_data(*control_1).copy()[['start', 'end', 'uptake']].set_index(['start', 'end'], verify_integrity=True)
+                nd_df = self.get_data(*control_1).copy()[['_start', '_end', 'uptake']].set_index(['_start', '_end'], verify_integrity=True)
                 nd_df['uptake'] = 0
 
             else:
-                nd_df = self.get_data(*control_0)[['start', 'end', 'uptake']].set_index(['start', 'end'], verify_integrity=True)
+                nd_df = self.get_data(*control_0)[['_start', '_end', 'uptake']].set_index(['_start', '_end'], verify_integrity=True)
                 if nd_df.size == 0:
                     raise ValueError(f'No matching peptides with state {control_0[0]} and exposure {control_0[1]}')
         except ValueError as e:
             raise ValueError("ND control has duplicate entries") from e
 
-        self.data.set_index(['start', 'end'], append=True, inplace=True)
+        self.data.set_index(['_start', '_end'], append=True, inplace=True)
         self.data.reset_index(level=0, inplace=True)
 
         self.data['rfu'] = (self.data['uptake'] - nd_df['uptake']) / (fd_df['uptake'] - nd_df['uptake'])
