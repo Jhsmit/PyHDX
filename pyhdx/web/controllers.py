@@ -2029,6 +2029,12 @@ class GraphControl(PyHDXControlPanel):
                 client_widgets = [self.transforms[t].widgets[widget_name] for t in trs[1:]]
                 for client in client_widgets:
                     master_widget.link(client, value='value')
+                    if client.value != master_widget.value:
+                        # This can happen if the protein view table is changed (dRFU -> ddG), triggers redraw of selectors
+                        # And when switching back redrawn widgets do no have master widget value
+                        # TODO master widget should be copied so it never is redrawn and always save the state?
+                        # TODO unlink widgets after
+                        client.value = master_widget.value
 
                 output_widgets[widget_name] = master_widget
             else:
