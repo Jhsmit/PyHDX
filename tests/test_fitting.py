@@ -132,7 +132,7 @@ class TestSecBDataFit(object):
         errors = fr_global.get_squared_errors()
         assert errors.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
-    pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
+    @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended_cuda(self):
         check_deltaG = csv_to_protein(output_dir / 'ecSecB_torch_fit_epochs_20000.csv')
         initial_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
