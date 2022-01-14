@@ -541,7 +541,7 @@ modules:
 #          - ddG
     views:
       protein:  #NGL?
-        type: ngl_colors
+        type: pdbemolstar_colors
         sources:
           pdb: pdb
           color: protein_select

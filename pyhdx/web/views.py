@@ -15,6 +15,8 @@ from pyhdx.web.sources import Source
 from pyhdx.web.transforms import Transform
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
 from pyhdx.web.opts import CmapOpts
+from pyhdx.web.pdbe_molstar import PdbeMolStar
+
 
 
 class View(param.Parameterized):
@@ -559,6 +561,110 @@ class NGLColorView(View):
             color_list.append([c, resi])
 
         self.custom_color_scheme = color_list
+
+        return self._update_panel()  # check how and why this is needed
+
+    # this is called to initiate the view. perhaps should be removed / refacotred
+    # its also triggerd by any dependency trigger (in this case opts)
+    def update(self):
+        self._color_updated()
+
+        return self._update_panel()
+
+    @property
+    def panel(self):  # why the panebase unpack?
+        if isinstance(self._panel, PaneBase):
+            pane = self._panel
+            if len(pane.layout) == 1 and pane._unpack:
+                return pane.layout[0]
+            return pane._layout
+        return self._panel
+
+
+
+class PDBeMolStarColorView(View):
+    _type = 'pdbemolstar_colors'
+
+    # todo additioal render options (fog etc)
+
+    sources = param.Dict(
+        doc="Dict of sources for this view. "
+            "should be: pdb: PDBSource, color: TableSource (single-column tables)"
+    )
+
+    #representation = param.Selector(default='cartoon', objects=REPRESENTATIONS)
+
+    #effect = param.Selector(default=None, objects=[None, 'spin', 'rock'], allow_None=True)
+
+    #color_scheme = param.Selector(default='custom', objects=COLOR_SCHEMES)
+
+    #custom_color_scheme = param.List(precedence=-1)
+
+    #background_color = param.Color(default='#F7F7F7')
+
+    object = param.String('', doc='pdb string object', precedence=-1)
+
+    def __init__(self, **params):
+        #todo should generate widgets which can be displayed in the controller
+        super(PDBeMolStarColorView, self).__init__(**params)
+        self._pdbe = PdbeMolStar(molecule_id='1qyn', sizing_mode='stretch_both')
+
+        # params = self.param.params().keys() & self._ngl.param.params().keys() - {'name'}
+        # self.param.watch(self._update_params, list(params))
+
+        self.sources['pdb'].param.watch(self._pdb_updated, 'updated')
+        self.sources['color'].param.watch(self._color_updated, 'updated')
+
+        # field: opts for all cmap otps
+        self._cmap_opts = {opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)}
+
+
+    def _update_params(self, *events):
+        for event in events:
+            setattr(self._ngl, event.name, event.new)
+
+    def get_panel(self):
+        return self._pdbe
+
+    def _cleanup(self):
+        return None
+
+    def _get_params(self):
+        return None
+
+    def _pdb_updated(self, *events):
+        pdb_string = self.sources['pdb'].get()
+        print('todo load local pdb')
+        #self.object = pdb_string
+
+    def _color_updated(self, *event):
+        df = self.sources['color'].get()
+        if df is None:
+            return
+
+        # there should be one column which matches one of the keys in the cmap otps dict
+        matching_columns = set(df.columns) & self._cmap_opts.keys()
+        if not matching_columns:
+            # todo logging.getlogger etc etc
+            print("No matching color opts were found")
+            return
+
+        qty = matching_columns.pop()
+        opts = self._cmap_opts[qty]
+        series = df[qty] # take the column from the df, returns pd.Series
+        colors = opts.apply(df[qty])  # pd.Series with colors
+
+        # grp = colors.groupby(colors)  # Group to color and transform to ngl custom color scheme format
+        # color_list = []
+        # for c, pd_series in grp:
+        #     result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+        #
+        #     resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
+        #     color_list.append([c, resi])
+        #
+        # self.custom_color_scheme = color_list
+
+        self._pdbe.multi_color_residues(colors)
 
         return self._update_panel()  # check how and why this is needed
 
