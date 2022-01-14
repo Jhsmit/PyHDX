@@ -530,7 +530,7 @@ modules:
           ddG: ddG_comparison_select
     views:
       protein:  #NGL?
-        type: ngl_colors
+        type: pdbemolstar_colors
         sources:
           pdb: pdb
           color: protein_src
