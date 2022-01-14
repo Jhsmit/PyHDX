@@ -199,7 +199,7 @@ class TwoComponentAssociationModel(SingleKineticModel):
             print('uhoh')
             print(k1, k2, r)
             print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
-        k = np.asscalar(np.log(2) / np.exp(t_log))
+        k = (np.log(2) / np.exp(t_log)).item()
 
         return k
 
