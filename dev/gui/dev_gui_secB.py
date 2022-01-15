@@ -98,9 +98,11 @@ def init_dashboard():
     fit_control.patience = 100
     fit_control.learning_rate = 100
 
-    ngl = ctrl.views['protein']
-    ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
-    ctrl.views['protein'].object = pdb_string
+    # ngl = ctrl.views['protein']
+    # ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
+    # ctrl.views['protein'].object = pdb_string
+    #
+    # pdbe = ctrl.views['protein']
 
     fit_result = load_fitresult(fitresult_dir)
     src.add(fit_result, 'fit_1')
