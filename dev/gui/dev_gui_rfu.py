@@ -93,9 +93,54 @@ def reload_tables():
 
     #ctrl.views['protein'].object = pdb_string
 
+def init_mbp():
+    file_input = ctrl.control_panels['PeptideRFUFileInputControl']
 
 
-def init_dashboard():
+    # -------------------------------------- #
+    filename = 'MBPwt_4C_folding.csv'
+    binary_data = (test_dir / filename).read_bytes()
+    file_input.input_files = [binary_data]
+
+    file_input.fd_state = 'MBP_wt_native'
+    file_input.fd_exposure = 960.000061*60
+
+    file_input.nd_state = 'FD'
+    file_input.nd_exposure = 0.001000*60
+
+    file_input.exp_state = 'MBP_4C_fold_kinetix'
+    file_input.exp_exposures = file_input.exp_exposures[1:]
+
+    file_input.c_term = 375
+
+    file_input._action_add_dataset()
+
+
+    # -------------------------------------- #
+    filename = 'MBPp101_4C_fold.csv'
+    binary_data = (test_dir / filename).read_bytes()
+    file_input.input_files = [binary_data]
+
+    file_input.fd_state = 'NATIVE_MBPp101'
+    file_input.fd_exposure = 60.000004*60
+
+    file_input.nd_state = 'FD_MBPp101'
+    file_input.nd_exposure = 0.001000*60
+
+    file_input.exp_state = 'MBPp101_4C_folding_kinetix'
+    file_input.exp_exposures = file_input.exp_exposures[1:]
+
+    file_input.c_term = 375
+
+    file_input._action_add_dataset()
+
+    diff = ctrl.control_panels['DifferentialControl']
+    diff._action_add_comparison()
+
+    pdb_src = ctrl.sources['pdb']
+    pdb_src.add_from_pdb('1MPD')
+
+def init_ppia():
     filename = 'wt_ppiA_folding_4Cmodif_230120.csv'
     binary_data = (test_dir / filename).read_bytes()
 
@@ -112,12 +157,7 @@ def init_dashboard():
     file_input.exp_state = 'folding_4C_10secLabelling'
     file_input.exp_exposures = file_input.exp_exposures[1:]
 
-    # file_input.pH = yaml_dict['pH']
-    # file_input.temperature = yaml_dict['temperature']['value'] + temperature_offsets[yaml_dict['temperature']['unit'].lower()]
-    # file_input.d_percentage = yaml_dict['d_percentage']
-
-    file_input._action_add_dataset()
-
+    #file_input._action_add_dataset()
 
     pdb_src = ctrl.sources['pdb']
     pdb_src.add_from_pdb('1qyn')
@@ -129,7 +169,7 @@ def init_dashboard():
 #if __name__ == '__main__':
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
-pn.state.onload(init_dashboard)
+pn.state.onload(init_mbp)
 
 if __name__ == '__main__':
     pn.serve(tmpl, show=True, static_dirs={'pyhdx': STATIC_DIR})
