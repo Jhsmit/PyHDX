@@ -11,15 +11,13 @@ from pyhdx.support import autowrap, make_tuple
 from pyhdx.web.sources import Source
 from pyhdx.web.cache import Cache
 
-
+#ABC
 class Transform(param.Parameterized):
     """Gets data and applies transform"""
 
     _type = 'base'
 
     widgets = param.Dict(default={})
-
-    source = param.ClassSelector(class_=Source)
 
     updated = param.Event()
 
@@ -58,7 +56,66 @@ class Transform(param.Parameterized):
 
     def update(self):
         if self.update_hash():
-            self._update_options()
+            self._update_options()  # todo this shouldnt be here
+            self.updated = True
+
+
+class MultiTransform(Transform):
+    """transform which takes multiple sources as input"""
+
+    _type = None
+
+    sources = param.Dict(
+        doc='Dict of sources the transform takes as input'
+    )
+
+    @property
+    def source_hash(self):
+        return tuple(source.hash for source in self.sources.values())
+
+
+class SelectTransform(MultiTransform):
+
+    _type = 'select'
+
+    value = param.Selector()
+
+    labels = param.List(
+        default=[],
+        doc='Optional list of labels for sources to display as options in selectors'
+    )
+
+    def __init__(self, **params):
+        super().__init__(**params)
+        print(self.sources.keys())
+        for k, src in self.sources.items():
+            src.param.watch(self.update, ['updated'])
+            if src is None:
+                print(k, src)
+
+        self.labels = self.labels or list(self.sources.keys())
+        self.param['value'].objects = self.labels
+        if not self.value:
+            self.value = self.labels[0]
+        self.redraw()
+
+    # todo automagic widgets from labels
+    def _make_widgets(self):
+        return {'select': pn.Param(self.param, parameters=['value'], show_name=False)}
+
+    def redraw(self):
+        self.widgets = self._make_widgets()
+
+    def _update_options(self):
+        pass
+
+    def get(self):
+        return self.sources[self.value].get()
+
+    @pn.depends('value', watch=True)
+    def update(self, *events):
+        if self.update_hash():
+            self._update_options()  # todo this shouldnt be here
             self.updated = True
 
 
@@ -66,6 +123,8 @@ class TableSourceTransform(Transform):
     """transform which picks the correct table from the source"""
 
     _type = 'table_source'
+
+    source = param.ClassSelector(class_=Source)
 
     table = param.Selector(default=None, doc="""
       The table being transformed. """)
@@ -496,7 +555,7 @@ class ConcatTransform(AppTransform):
     def __init__(self, **params):
         raise NotImplementedError()
 
-
+#resampletransform?
 class SampleTransform(AppTransform):
     """subsamples dataframe along specified axis"""
 

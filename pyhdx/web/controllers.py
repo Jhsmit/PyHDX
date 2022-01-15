@@ -98,7 +98,7 @@ class DevTestControl(ControlPanel):
     def _layout(self):
         return [
             ('self', None),
-            # ('transforms.table_1_select', None),
+            #('transforms.protein_select', None),
             # ('transforms.table_2_select', None)
 
         ]
@@ -1987,19 +1987,8 @@ class GraphControl(PyHDXControlPanel):
         super(GraphControl, self).__init__(parent, **params)
 
         self.widget_transforms = [name for name, trs in self.transforms.items() if isinstance(trs, CrossSectionTransform)]
+        self._watchers = {}
 
-        # self.widget_transforms = [
-        #     'coverage_select',
-        #     'rfu_select',
-        #     'rates_select',
-        #     'dG_fit_select',
-        #     'ddG_comparison_select',
-        #     'peptide_select',
-        #     'peptide_mse_select',
-        #     'loss_select',
-        #     'd_calc_select',
-        #     'protein_select'
-        # ]  # list of names of transforms which should be compressed/displayed
         transforms = [self.transforms[f] for f in self.widget_transforms]
         for t in transforms:
             t.param.watch(self._transforms_redrawn, 'redrawn')
@@ -2023,18 +2012,21 @@ class GraphControl(PyHDXControlPanel):
                     grouped[vi] = [k]
 
         output_widgets = {}
+
         for widget_name, trs in grouped.items():
-            if len(trs) > 1:
+            if len(trs) > 1:  # If there are multiple in the same group, link them
                 master_widget = self.transforms[trs[0]].widgets[widget_name]
-                client_widgets = [self.transforms[t].widgets[widget_name] for t in trs[1:]]
-                for client in client_widgets:
-                    master_widget.link(client, value='value')
-                    if client.value != master_widget.value:
-                        # This can happen if the protein view table is changed (dRFU -> ddG), triggers redraw of selectors
-                        # And when switching back redrawn widgets do no have master widget value
-                        # TODO master widget should be copied so it never is redrawn and always save the state?
-                        # TODO unlink widgets after
-                        client.value = master_widget.value
+                client_widgets = [self.transforms[t].widgets[widget_name] for t in trs]
+
+                for watcher in self._watchers.get(widget_name, []):
+                    pass
+                    #TODO check these warnings
+                    #master_widget.param.unwatch(watcher)
+                self._watchers[widget_name] = []
+
+                for i, client in enumerate(client_widgets):
+                    watcher = master_widget.link(client, value='value')
+                    self._watchers[widget_name].append(watcher)
 
                 output_widgets[widget_name] = master_widget
             else:

@@ -24,12 +24,6 @@ transforms:
     type: table_source
     source: main
     table: drfu_comparison
-  protein_src:  # table source which exposued widget which can be used to select which table to use for colors
-    type: table_source
-    source: main
-    table_options:
-      - rfu_residues
-      - drfu_comparison
 
 opts:
   base:
@@ -208,24 +202,27 @@ modules:
 
   protein_view:
     transforms:
-      protein_select:
-        type: cross_section
-        source: protein_src
-        n_levels: -1
+      protein_src:
+        type: select
+        sources:
+          rfu: rfu_select
+          drfu: drfu_comparison_select
 
     views:
       protein:  #NGL?
         type: ngl_colors
         sources:
           pdb: pdb
-          color: protein_select
+          color: protein_src
         opts:  # opts are not applied directly but matched to color dataframe and then applied
           - rfu
           - drfu
-        dependencies:  # listen to update event on these
+
+        dependencies:
           opts:
             - rfu
             - drfu
+
 
   peptides:
     transforms:

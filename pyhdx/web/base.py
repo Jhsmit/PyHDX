@@ -167,6 +167,7 @@ class ControlPanel(param.Parameterized):
     def get_widget(self, param_name, widget_type, **kwargs):
         """get a single widget with for parameter param_name with type widget_type"""
 
+        # not sure if this function still exists
         return pn.Param.get_widget(getattr(self.param, param_name), widget_type, **kwargs)[0]
 
     @property
