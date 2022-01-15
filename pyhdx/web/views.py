@@ -616,7 +616,6 @@ class PDBeMolStarColorView(View):
         # field: opts for all cmap otps
         self._cmap_opts = {opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)}
 
-
     def _update_params(self, *events):
         for event in events:
             setattr(self._ngl, event.name, event.new)

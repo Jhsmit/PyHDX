@@ -460,7 +460,7 @@ state.viewerInstance.visual.select({data: [
                 data_list.append(data_dict)
 
         select = {'data': data_list, 'nonSelectedColor': non_selected_color}
-        #print(select)
+
         self._select = select
 
 
