@@ -87,11 +87,8 @@ class SelectTransform(MultiTransform):
 
     def __init__(self, **params):
         super().__init__(**params)
-        print(self.sources.keys())
         for k, src in self.sources.items():
             src.param.watch(self.update, ['updated'])
-            if src is None:
-                print(k, src)
 
         self.labels = self.labels or list(self.sources.keys())
         self.param['value'].objects = self.labels

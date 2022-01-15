@@ -515,7 +515,6 @@ class NGLColorView(View):
         # field: opts for all cmap otps
         self._cmap_opts = {opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)}
 
-
     def _update_params(self, *events):
         for event in events:
             setattr(self._ngl, event.name, event.new)
@@ -547,7 +546,6 @@ class NGLColorView(View):
 
         qty = matching_columns.pop()
         opts = self._cmap_opts[qty]
-        series = df[qty] # take the column from the df, returns pd.Series
         colors = opts.apply(df[qty])  # pd.Series with colors
 
         grp = colors.groupby(colors)  # Group to color and transform to ngl custom color scheme format

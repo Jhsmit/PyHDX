@@ -102,7 +102,6 @@ def rfu_app():
     ctrl.start()
 
 
-
     tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
     controllers = ctrl.control_panels.values()
     controls = pn.Accordion(*[controller.panel for controller in controllers], toggle=True)

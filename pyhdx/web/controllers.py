@@ -67,18 +67,6 @@ class DevTestControl(ControlPanel):
             print(drfu)
 
         drfu_selected = self.transforms['drfu_comparison_select'].get()
-
-        #
-        # f = self.transforms['peptide_select']
-        # df = f.get()
-        # print(df)
-        #
-        #
-        # ct = c['ColorTransformControl']
-        #
-        # # self.parent.logger.info('Info log')
-        # # self.parent.logger.debug('Debug log')
-
         print('break')
 
     def _action_test(self):
