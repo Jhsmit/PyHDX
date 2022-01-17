@@ -102,7 +102,8 @@ def init_dashboard():
     # ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
     # ctrl.views['protein'].object = pdb_string
     #
-    # pdbe = ctrl.views['protein']
+    pdbe = ctrl.views['protein']
+    pdbe._pdbe.molecule_id='1qyn'
 
     fit_result = load_fitresult(fitresult_dir)
     src.add(fit_result, 'fit_1')
