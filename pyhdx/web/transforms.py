@@ -302,7 +302,7 @@ class CrossSectionTransform(AppTransform):
         self.level = list(range(len(all_values)))
 
         #TODO:
-        # if self.update_hash() ? 
+        # if self.update_hash() ?
 
         self.updated = True
 

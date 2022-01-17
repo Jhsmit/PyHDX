@@ -2004,7 +2004,7 @@ class GraphControl(PyHDXControlPanel):
         for widget_name, trs in grouped.items():
             if len(trs) > 1:  # If there are multiple in the same group, link them
                 master_widget = self.transforms[trs[0]].widgets[widget_name]
-                client_widgets = [self.transforms[t].widgets[widget_name] for t in trs]
+                client_widgets = [self.transforms[t].widgets[widget_name] for t in trs[1:]]
 
                 for watcher in self._watchers.get(widget_name, []):
                     pass
