@@ -301,6 +301,9 @@ class CrossSectionTransform(AppTransform):
         self.key = [value if value != 'None' else slice(None) for value in all_values]
         self.level = list(range(len(all_values)))
 
+        #TODO:
+        # if self.update_hash() ? 
+
         self.updated = True
 
     @property
