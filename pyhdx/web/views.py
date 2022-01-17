@@ -605,7 +605,14 @@ class PDBeMolStarColorView(View):
     def __init__(self, **params):
         #todo should generate widgets which can be displayed in the controller
         super(PDBeMolStarColorView, self).__init__(**params)
-        self._pdbe = PdbeMolStar(molecule_id='1qyn', hide_water=True, sizing_mode='stretch_both')
+        self._pdbe = PdbeMolStar(
+            # molecule_id='1qyn',
+            hide_water=True,
+            sizing_mode='stretch_both',
+            hide_selection_icon=True,
+            hide_expand_icon=True
+
+        )
 
         # params = self.param.params().keys() & self._ngl.param.params().keys() - {'name'}
         # self.param.watch(self._update_params, list(params))
