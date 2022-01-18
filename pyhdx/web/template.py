@@ -79,12 +79,12 @@ class GoldenElvis(object):
         },
         """
 
-    def __init__(self, template, theme, title=None):
+    def __init__(self, main_controller, template, theme, title=None):
+        self.main_controller = main_controller
         self.template_cls = template
         self.theme_cls = theme
         self.title = title
 
-        self.main_controller = None
         self.panels = {}
 
 
@@ -95,16 +95,16 @@ class GoldenElvis(object):
 
         return base_string_template
 
-    def compose(self, main_controller, golden_layout_string):
+    def compose(self, golden_layout_string):
         """
         Creates a servable template from a golden layout js code string.
-        :param: main_controller: Application main controller
+        :param main_controller: Application main controller
         :param golden_layout_string: Result of nesting stacks, columns, rows, and panels
                                      using the methods in this class.
         """
 
-        self.main_controller = main_controller
-        controllers = main_controller.control_panels.values()
+
+        controllers = self.main_controller.control_panels.values()
         template_code = ReadString(self.jinja_base_string_template.substitute(main_body=golden_layout_string))
         self.template_cls._template = template_code
 
@@ -119,11 +119,9 @@ class GoldenElvis(object):
         title_widget = HTMLTitle(title=self.title)
         template.header.append(title_widget)
 
-        main_controller.template = template
+        return template
 
-        #return template
-
-    def view(self, fig_panel, title=None, width=None, height=None):
+    def view(self, view_name, title=None, width=None, height=None):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
@@ -139,23 +137,13 @@ class GoldenElvis(object):
 
         # It seems that these unique names cannot start with a number or they cannot be referenced directly
         # Therefore, currently tmpl.main.append cannot be used as this generates
+        fig_panel = self.main_controller.views[view_name]
         panel_ID = 'ID' + str(id(fig_panel))
         title = default_label_formatter(title or getattr(fig_panel, 'name', None))
 
-        if isinstance(fig_panel, list):
-            items = []
-            for p in fig_panel:
-                p.update()
-                params = p._get_params()
-                #print('keys', params.keys())
-                items.append(params['object'])
 
-            olay = items[0] * items[1]
-
-            item = pn.Row(olay, sizing_mode='stretch_both')
-        else:
-            fig_panel.update() # intialize
-            item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
+        fig_panel.update() # intialize
+        item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
         self.panels[panel_ID] = item
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""

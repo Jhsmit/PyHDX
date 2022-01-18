@@ -7,6 +7,8 @@ from pyhdx import VERSION_STRING
 from pyhdx.web.constructor import AppConstructor
 from pyhdx.web.log import logger
 from pyhdx.web.cache import MemoryCache, HybridHDFCache
+from pyhdx.web.template import GoldenElvis, ExtendedGoldenTemplate
+from pyhdx.web.theme import ExtendedGoldenDefaultTheme
 
 cache = MemoryCache(max_items=2000)
 
@@ -36,56 +38,37 @@ def main_app():
     controls = pn.Accordion(*[controller.panel for controller in controllers], toggle=True)
     tmpl.sidebar.append(controls)
 
-    views_names = [
-        'rfu_scatter',
-        'coverage',
-        'logging_info',
-        'logging_debug',
-        'protein',
-        'ddG_overlay',
-        'drfu',
-        'rates',
-        'gibbs_overlay',
-        'peptide_mse',
-        'peptide_overlay',
-        'loss_lines'
-        ]
+    elvis = GoldenElvis(ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme,
+                        title=VERSION_STRING)
 
-    views = {v: ctrl.views[v] for v in views_names}
-    [v.update() for v in views.values()]
-
-    # this should be on the view intances probably
-    def get_view(name):
-        return pn.Column(views[name].panel, sizing_mode='stretch_both')
-
-    cov_tab = pn.Tabs(
-        ('Coverage', get_view('coverage')),
-        ('Protein', get_view('protein')),
-        ('Peptide MSE', get_view('peptide_mse'))
+    tmpl = elvis.compose(
+        elvis.column(
+            elvis.row(  # top row
+                elvis.stack(
+                    elvis.view('coverage'),
+                    elvis.view('protein'),
+                    elvis.view('peptide_mse', title='Peptide MSE')
+                ),
+                elvis.stack(
+                    elvis.view('rfu_scatter', title='RFU'),
+                    elvis.view('drfu', title='ΔRFU'),
+                    elvis.view('rates'),
+                    elvis.view('gibbs_overlay', title='ΔG'),
+                    elvis.view('ddG_overlay', title='ΔΔG')
+                )
+            ),
+            elvis.row(  # second row
+                elvis.stack(
+                    elvis.view('logging_info', title='Info Log'),
+                    elvis.view('logging_debug', title='Debug Log')
+                ),
+                elvis.stack(
+                    elvis.view('peptide_overlay', title='Peptide'),
+                    elvis.view('loss_lines', title='Losses')
+                )
+            )
+        )
     )
-
-    scatter_tab = pn.Tabs(
-        ('RFU', get_view('rfu_scatter')),
-        ('ΔRFU', get_view('drfu')),
-        ('Rates', get_view('rates')),
-        ('ΔG', get_view('gibbs_overlay')),
-        ('ΔΔG', get_view('ddG_overlay')),
-    )
-
-    log_tab = pn.Tabs(
-        ('Info log', views['logging_info'].panel),
-        ('Debug log', views['logging_debug'].panel)
-    )
-
-    peptide_tab = pn.Tabs(
-        ('Peptide', get_view('peptide_overlay')),
-        ('Losses', get_view('loss_lines'))
-    )
-
-    tmpl.main[0:3, 0:6] = cov_tab
-    tmpl.main[0:3, 6:12] = scatter_tab
-    tmpl.main[3:5, 0:6] = log_tab
-    tmpl.main[3:5, 6:12] = peptide_tab
 
     return ctrl, tmpl
 
@@ -96,57 +79,35 @@ def rfu_app():
     yaml_dict = yaml.safe_load((cwd / 'apps' / 'rfu_app.yaml').read_text(encoding='utf-8'))
 
     ctr = AppConstructor(loggers={'pyhdx': rfu_app.logger}, cache=cache)
-
     ctrl = ctr.parse(yaml_dict)
 
     ctrl.start()
 
+    elvis = GoldenElvis(ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme,
+                        title=VERSION_STRING)
 
-    tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
-    controllers = ctrl.control_panels.values()
-    controls = pn.Accordion(*[controller.panel for controller in controllers], toggle=True)
-    tmpl.sidebar.append(controls)
-
-    views_names = [
-        'rfu_scatter',
-        'drfu',
-        'coverage',
-        'logging_info',
-        'logging_debug',
-        'protein',
-        'peptide_scatter'
-        ]
-
-    views = {v: ctrl.views[v] for v in views_names}
-    [v.update() for v in views.values()]
-
-    # this should be on the view intances probably
-    def get_view(name):
-        return pn.Column(views[name].panel, sizing_mode='stretch_both')
-
-    cov_tab = pn.Tabs(
-        ('Coverage', get_view('coverage')),
-        ('Protein', get_view('protein')),
+    tmpl = elvis.compose(
+        elvis.column(
+            elvis.row(  # top row
+                elvis.stack(
+                    elvis.view('coverage', title='Coverage'),
+                    elvis.view('protein'),
+                ),
+                elvis.stack(
+                    elvis.view('rfu_scatter', title='RFU'),
+                    elvis.view('drfu', title='ΔRFU'),
+                )
+            ),
+            elvis.row(  # second row
+                elvis.stack(
+                    elvis.view('logging_info', title='Info Log'),
+                    elvis.view('logging_debug', title='Debug Log')
+                ),
+                elvis.stack(
+                    elvis.view('peptide_scatter', title='Peptide'),
+                )
+            )
+        )
     )
-
-    scatter_tab = pn.Tabs(
-        ('RFU', get_view('rfu_scatter')),
-        ('ΔRFU', get_view('drfu')),
-    )
-
-    log_tab = pn.Tabs(
-        ('Info log', views['logging_info'].panel),
-        ('Debug log', views['logging_debug'].panel)
-    )
-
-    peptide_tab = pn.Tabs(
-        ('Peptide', get_view('peptide_scatter')),
-    )
-
-
-    tmpl.main[0:3, 0:6] = cov_tab
-    tmpl.main[0:3, 6:12] = scatter_tab
-    tmpl.main[3:5, 0:6] = log_tab
-    tmpl.main[3:5, 6:12] = peptide_tab
 
     return ctrl, tmpl
