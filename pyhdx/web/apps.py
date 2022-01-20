@@ -17,6 +17,9 @@ fmt = {'header_background': '#1d417a',
        'header_color': '#1d417a'
        }
 
+# default kwargs for normal views (not the logs)
+view_kwargs = {'scrollable': False}
+
 
 @logger('pyhdx')
 def main_app():
@@ -30,22 +33,22 @@ def main_app():
 
     elvis = GoldenElvis(ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme,
                         title=VERSION_STRING)
-
+    fmt_kwargs = {**fmt}
     tmpl = elvis.compose(
         elvis.column(
             elvis.row(  # top row
                 elvis.stack(
-                    elvis.view('coverage'),
-                    elvis.view('protein'),
-                    elvis.view('peptide_mse', title='Peptide MSE'),
+                    elvis.view('coverage', **view_kwargs),
+                    elvis.view('protein', **view_kwargs),
+                    elvis.view('peptide_mse', title='Peptide MSE', **view_kwargs),
                     width=61.803
                 ),
                 elvis.stack(
-                    elvis.view('rfu_scatter', title='RFU'),
-                    elvis.view('drfu', title='ΔRFU'),
-                    elvis.view('rates'),
-                    elvis.view('gibbs_overlay', title='ΔG'),
-                    elvis.view('ddG_overlay', title='ΔΔG')
+                    elvis.view('rfu_scatter', title='RFU', **view_kwargs),
+                    elvis.view('drfu', title='ΔRFU', **view_kwargs),
+                    elvis.view('rates', **view_kwargs),
+                    elvis.view('gibbs_overlay', title='ΔG', **view_kwargs),
+                    elvis.view('ddG_overlay', title='ΔΔG', **view_kwargs)
                 ),
                 height=61.803
             ),
@@ -55,11 +58,12 @@ def main_app():
                     elvis.view('logging_debug', title='Debug Log')
                 ),
                 elvis.stack(
-                    elvis.view('peptide_overlay', title='Peptide'),
-                    elvis.view('loss_lines', title='Losses')
+                    elvis.view('peptide_overlay', title='Peptide', **view_kwargs),
+                    elvis.view('loss_lines', title='Losses', **view_kwargs)
                 )
             )
         ),
+        **fmt_kwargs
     )
 
     return ctrl, tmpl
@@ -82,12 +86,12 @@ def rfu_app():
         elvis.column(
             elvis.row(  # top row
                 elvis.stack(
-                    elvis.view('coverage', title='Coverage'),
-                    elvis.view('protein'),
+                    elvis.view('coverage', title='Coverage', **view_kwargs),
+                    elvis.view('protein', **view_kwargs),
                 ),
                 elvis.stack(
-                    elvis.view('rfu_scatter', title='RFU'),
-                    elvis.view('drfu', title='ΔRFU'),
+                    elvis.view('rfu_scatter', title='RFU', **view_kwargs),
+                    elvis.view('drfu', title='ΔRFU', **view_kwargs),
                 )
             ),
             elvis.row(  # second row
@@ -96,7 +100,7 @@ def rfu_app():
                     elvis.view('logging_debug', title='Debug Log')
                 ),
                 elvis.stack(
-                    elvis.view('peptide_scatter', title='Peptide'),
+                    elvis.view('peptide_scatter', title='Peptide', **view_kwargs),
                 )
             )
         )

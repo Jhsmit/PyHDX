@@ -122,7 +122,7 @@ class GoldenElvis(object):
 
         return template
 
-    def view(self, view_name, title=None, width=None, height=None):
+    def view(self, view_name, title=None, width=None, height=None, scrollable=True):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
@@ -141,16 +141,17 @@ class GoldenElvis(object):
         panel_ID = 'ID' + str(id(fig_panel))
         title = default_label_formatter(title or getattr(fig_panel, 'name', None))
 
-
         fig_panel.update() # intialize
         item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
         self.panels[panel_ID] = item
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""
         height_str = "height: %s," % str(height) if height is not None else ""
-        #scroll_str = "css_classes: ['overflow:hidden']" if not scrollable else ""
-        #scroll_str = "overflow: hidden," if not scrollable else ""
-        settings = title_str + height_str + width_str #+ scroll_str
+        scroll_str = "css_classes: ['lm_content_noscroll']" if not scrollable else ""
+
+        # scroll_str = "css_classes: ['overflow-y: hidden !important']" # this doesnt work
+        #scroll_str = "overflow: 'hidden'," #if not scrollable else ""
+        settings = title_str + height_str + width_str + scroll_str
         return self.VIEW % (panel_ID, settings)
 
     def get_settings(self, **kwargs):

@@ -110,6 +110,10 @@ p.bk.golden-card-button {
   overflow-y: scroll !important;
 }
 
+.lm_content_noscroll {
+  overflow-y: hidden !important
+}
+
 .lm_item_container {
   overflow: hidden;
 }
