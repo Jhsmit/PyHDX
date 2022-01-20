@@ -11,9 +11,10 @@ from pyhdx.web.widgets import HTMLTitle
 
 dist_path = '/pyhdx/'
 
+SIDEBAR_WIDTH = 300
+
 
 class ExtendedGoldenTemplate(GoldenTemplate):
-    _template = pathlib.Path(__file__).parent / 'golden.html'
 
     def _template_resources(self):
         name = type(self).__name__.lower()
@@ -61,7 +62,8 @@ class GoldenElvis(object):
         """
         {
             type: '%s',
-            content: [ %s ]
+            content: [ %s ],
+            %s
         },
         """
 
@@ -95,7 +97,7 @@ class GoldenElvis(object):
 
         return base_string_template
 
-    def compose(self, golden_layout_string):
+    def compose(self, golden_layout_string, **kwargs):
         """
         Creates a servable template from a golden layout js code string.
         :param main_controller: Application main controller
@@ -103,21 +105,20 @@ class GoldenElvis(object):
                                      using the methods in this class.
         """
 
-
         controllers = self.main_controller.control_panels.values()
         template_code = ReadString(self.jinja_base_string_template.substitute(main_body=golden_layout_string))
         self.template_cls._template = template_code
 
-        template = self.template_cls(title=self.title, theme=self.theme_cls)
-        controls = pn.Accordion(*[controller.panel for controller in controllers], toggle=True)
+        template = self.template_cls(title=self.title, theme=self.theme_cls, **kwargs)
+        controls = pn.Accordion(*[controller.panel for controller in controllers],
+                                toggle=True,
+                                sizing_mode='fixed',
+                                width=SIDEBAR_WIDTH)
 
         template.sidebar.append(controls)
 
         for panel_ID, panel in self.panels.items():
             template._render_items[panel_ID] = (panel, ['main'])
-
-        title_widget = HTMLTitle(title=self.title)
-        template.header.append(title_widget)
 
         return template
 
@@ -129,7 +130,6 @@ class GoldenElvis(object):
         :param width: Initial width.
         :param height: Initial height.
         """
-
         #pn.config.js_files.update(fig_panel.js_files)
 
         # We need to register every panel with a unique name such that after
@@ -153,22 +153,33 @@ class GoldenElvis(object):
         settings = title_str + height_str + width_str #+ scroll_str
         return self.VIEW % (panel_ID, settings)
 
-    def _block(self, *args, container='stack'):
+    def get_settings(self, **kwargs):
+        settings = ''
+        for name, val in kwargs.items():
+            if isinstance(val, str):
+                settings += f"{name}: '{val}'"
+            elif isinstance(val, (float, int)):
+                settings += f"{name}: {val}"
+
+        return settings
+
+    def _block(self, *args, container='stack', **kwargs):
         """
         Creates nestable js code strings. Note that 'stack', 'colum' and 'row' are the
         strings dictated by the golden layout js code.
         """
         content = ''.join(arg for arg in args)
-        return self.NESTABLE % (container, content)
+        settings = self.get_settings(**kwargs)
+        return self.NESTABLE % (container, content, settings)
 
-    def stack(self, *args):
+    def stack(self, *args, **kwargs):
         """ Adds a 'tab' element."""
-        return self._block(*args, container='stack')
+        return self._block(*args, container='stack', **kwargs)
 
-    def column(self, *args):
+    def column(self, *args, **kwargs):
         """ Vertically aligned panels"""
-        return self._block(*args, container='column')
+        return self._block(*args, container='column', **kwargs)
 
-    def row(self, *args):
+    def row(self, *args, **kwargs):
         """ Horizontally aligned panels"""
-        return self._block(*args, container='row')
+        return self._block(*args, container='row', **kwargs)

@@ -8,19 +8,15 @@ from pyhdx.web.constructor import AppConstructor
 from pyhdx.web.log import logger
 from pyhdx.web.cache import MemoryCache, HybridHDFCache
 from pyhdx.web.template import GoldenElvis, ExtendedGoldenTemplate
-from pyhdx.web.theme import ExtendedGoldenDefaultTheme
+from pyhdx.web.theme import ExtendedGoldenDefaultTheme, ExtendedGoldenDarkTheme
 
 cache = MemoryCache(max_items=2000)
 
-#cache = HybridHDFCache(file_path ='test123.h5')
 
+fmt = {'header_background': '#1d417a',
+       'header_color': '#1d417a'
+       }
 
-fmt = {
-    'header_color': '#ffffff',  # this is the text
-    'header_background': '#00407A',
-    'accent_base_color': '#00407A',
-    'theme_toggle': False
-}
 
 @logger('pyhdx')
 def main_app():
@@ -30,13 +26,7 @@ def main_app():
     ctr = AppConstructor(loggers={'pyhdx': main_app.logger}, cache=cache)
 
     ctrl = ctr.parse(yaml_dict)
-
     ctrl.start()
-
-    tmpl = pn.template.FastGridTemplate(title=f'{VERSION_STRING}', **fmt)
-    controllers = ctrl.control_panels.values()
-    controls = pn.Accordion(*[controller.panel for controller in controllers], toggle=True)
-    tmpl.sidebar.append(controls)
 
     elvis = GoldenElvis(ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme,
                         title=VERSION_STRING)
@@ -47,7 +37,8 @@ def main_app():
                 elvis.stack(
                     elvis.view('coverage'),
                     elvis.view('protein'),
-                    elvis.view('peptide_mse', title='Peptide MSE')
+                    elvis.view('peptide_mse', title='Peptide MSE'),
+                    width=61.803
                 ),
                 elvis.stack(
                     elvis.view('rfu_scatter', title='RFU'),
@@ -55,7 +46,8 @@ def main_app():
                     elvis.view('rates'),
                     elvis.view('gibbs_overlay', title='ΔG'),
                     elvis.view('ddG_overlay', title='ΔΔG')
-                )
+                ),
+                height=61.803
             ),
             elvis.row(  # second row
                 elvis.stack(
@@ -67,7 +59,7 @@ def main_app():
                     elvis.view('loss_lines', title='Losses')
                 )
             )
-        )
+        ),
     )
 
     return ctrl, tmpl
