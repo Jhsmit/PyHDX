@@ -20,6 +20,8 @@ fmt = {'header_background': '#1d417a',
 # default kwargs for normal views (not the logs)
 view_kwargs = {'scrollable': False}
 
+fmt_kwargs = {**fmt}
+
 
 @logger('pyhdx')
 def main_app():
@@ -33,7 +35,6 @@ def main_app():
 
     elvis = GoldenElvis(ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme,
                         title=VERSION_STRING)
-    fmt_kwargs = {**fmt}
     tmpl = elvis.compose(
         elvis.column(
             elvis.row(  # top row
@@ -103,7 +104,8 @@ def rfu_app():
                     elvis.view('peptide_scatter', title='Peptide', **view_kwargs),
                 )
             )
-        )
+        ),
+        **fmt_kwargs
     )
 
     return ctrl, tmpl
