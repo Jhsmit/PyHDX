@@ -103,6 +103,8 @@ class PyHDXSource(TableSource):
         columns = pd.MultiIndex.from_tuples(tuples, names=['guess_ID', 'state', 'quantity'])
         df.columns = columns
         self._add_table(df, 'rates')
+        self.rate_results[name] = rates_result
+        self.param.trigger('rate_results')
         self.updated = True
 
 
