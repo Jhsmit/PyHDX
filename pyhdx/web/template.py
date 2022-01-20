@@ -11,9 +11,10 @@ from pyhdx.web.widgets import HTMLTitle
 
 dist_path = '/pyhdx/'
 
+SIDEBAR_WIDTH = 300
+
 
 class ExtendedGoldenTemplate(GoldenTemplate):
-    _template = pathlib.Path(__file__).parent / 'golden.html'
 
     def _template_resources(self):
         name = type(self).__name__.lower()
@@ -61,7 +62,8 @@ class GoldenElvis(object):
         """
         {
             type: '%s',
-            content: [ %s ]
+            content: [ %s ],
+            %s
         },
         """
 
@@ -79,12 +81,12 @@ class GoldenElvis(object):
         },
         """
 
-    def __init__(self, template, theme, title=None):
+    def __init__(self, main_controller, template, theme, title=None):
+        self.main_controller = main_controller
         self.template_cls = template
         self.theme_cls = theme
         self.title = title
 
-        self.main_controller = None
         self.panels = {}
 
 
@@ -95,35 +97,32 @@ class GoldenElvis(object):
 
         return base_string_template
 
-    def compose(self, main_controller, golden_layout_string):
+    def compose(self, golden_layout_string, **kwargs):
         """
         Creates a servable template from a golden layout js code string.
-        :param: main_controller: Application main controller
+        :param main_controller: Application main controller
         :param golden_layout_string: Result of nesting stacks, columns, rows, and panels
                                      using the methods in this class.
         """
 
-        self.main_controller = main_controller
-        controllers = main_controller.control_panels.values()
+        controllers = self.main_controller.control_panels.values()
         template_code = ReadString(self.jinja_base_string_template.substitute(main_body=golden_layout_string))
         self.template_cls._template = template_code
 
-        template = self.template_cls(title=self.title, theme=self.theme_cls)
-        controls = pn.Accordion(*[controller.panel for controller in controllers], toggle=True)
+        template = self.template_cls(title=self.title, theme=self.theme_cls, **kwargs)
+        controls = pn.Accordion(*[controller.panel for controller in controllers],
+                                toggle=True,
+                                sizing_mode='fixed',
+                                width=SIDEBAR_WIDTH)
 
         template.sidebar.append(controls)
 
         for panel_ID, panel in self.panels.items():
             template._render_items[panel_ID] = (panel, ['main'])
 
-        title_widget = HTMLTitle(title=self.title)
-        template.header.append(title_widget)
+        return template
 
-        main_controller.template = template
-
-        #return template
-
-    def view(self, fig_panel, title=None, width=None, height=None):
+    def view(self, view_name, title=None, width=None, height=None, scrollable=True):
         """
         Adds a viewable panel.
         :param view: The panel to show in this golden layout sub section.
@@ -131,7 +130,6 @@ class GoldenElvis(object):
         :param width: Initial width.
         :param height: Initial height.
         """
-
         #pn.config.js_files.update(fig_panel.js_files)
 
         # We need to register every panel with a unique name such that after
@@ -139,48 +137,50 @@ class GoldenElvis(object):
 
         # It seems that these unique names cannot start with a number or they cannot be referenced directly
         # Therefore, currently tmpl.main.append cannot be used as this generates
+        fig_panel = self.main_controller.views[view_name]
         panel_ID = 'ID' + str(id(fig_panel))
         title = default_label_formatter(title or getattr(fig_panel, 'name', None))
 
-        if isinstance(fig_panel, list):
-            items = []
-            for p in fig_panel:
-                p.update()
-                params = p._get_params()
-                #print('keys', params.keys())
-                items.append(params['object'])
-
-            olay = items[0] * items[1]
-
-            item = pn.Row(olay, sizing_mode='stretch_both')
-        else:
-            fig_panel.update() # intialize
-            item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
+        fig_panel.update() # intialize
+        item = pn.Row(fig_panel.panel, sizing_mode='stretch_both')  # Place figure in layout
         self.panels[panel_ID] = item
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""
         height_str = "height: %s," % str(height) if height is not None else ""
-        #scroll_str = "css_classes: ['overflow:hidden']" if not scrollable else ""
-        #scroll_str = "overflow: hidden," if not scrollable else ""
-        settings = title_str + height_str + width_str #+ scroll_str
+        scroll_str = "css_classes: ['lm_content_noscroll']" if not scrollable else ""
+
+        # scroll_str = "css_classes: ['overflow-y: hidden !important']" # this doesnt work
+        #scroll_str = "overflow: 'hidden'," #if not scrollable else ""
+        settings = title_str + height_str + width_str + scroll_str
         return self.VIEW % (panel_ID, settings)
 
-    def _block(self, *args, container='stack'):
+    def get_settings(self, **kwargs):
+        settings = ''
+        for name, val in kwargs.items():
+            if isinstance(val, str):
+                settings += f"{name}: '{val}'"
+            elif isinstance(val, (float, int)):
+                settings += f"{name}: {val}"
+
+        return settings
+
+    def _block(self, *args, container='stack', **kwargs):
         """
         Creates nestable js code strings. Note that 'stack', 'colum' and 'row' are the
         strings dictated by the golden layout js code.
         """
         content = ''.join(arg for arg in args)
-        return self.NESTABLE % (container, content)
+        settings = self.get_settings(**kwargs)
+        return self.NESTABLE % (container, content, settings)
 
-    def stack(self, *args):
+    def stack(self, *args, **kwargs):
         """ Adds a 'tab' element."""
-        return self._block(*args, container='stack')
+        return self._block(*args, container='stack', **kwargs)
 
-    def column(self, *args):
+    def column(self, *args, **kwargs):
         """ Vertically aligned panels"""
-        return self._block(*args, container='column')
+        return self._block(*args, container='column', **kwargs)
 
-    def row(self, *args):
+    def row(self, *args, **kwargs):
         """ Horizontally aligned panels"""
-        return self._block(*args, container='row')
+        return self._block(*args, container='row', **kwargs)

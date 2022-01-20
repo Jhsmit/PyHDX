@@ -35,7 +35,11 @@ views:
     source: base_src
     opts:
       - scatter
-
+  xy_line:
+    type: scatter
+    source: base_src
+    opts:
+      - scatter
 
 controllers:
   - dev

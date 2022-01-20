@@ -4,6 +4,7 @@ import panel as pn
 import param
 
 from pyhdx.web.main_controllers import MainController
+from pyhdx.web.template import SIDEBAR_WIDTH
 
 DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
 DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
@@ -73,7 +74,7 @@ class ControlPanel(param.Parameterized):
         return self.parent.views
 
     def make_box(self):
-        return pn.Column(*self.widget_list, name=self.header)
+        return pn.Column(*self.widget_list, name=self.header, width=SIDEBAR_WIDTH)
 
     def _update_box(self, *events):
         self.update_box()
