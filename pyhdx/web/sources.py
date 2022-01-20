@@ -107,7 +107,6 @@ class PyHDXSource(TableSource):
         self.param.trigger('rate_results')
         self.updated = True
 
-
     def _add_hdxm_object(self, hdxm, name):  # where name is new 'protein state' entry (or used for state (#todo clarify))
         # Add peptide data
         df = hdxm.data_wide.copy()
@@ -175,24 +174,6 @@ class PyHDXSource(TableSource):
 
         self.dG_fits[name] = fit_result
         self.updated = True
-
-    # def _fit_results_updated(self):  #todo method name / result dicts names
-    #     combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
-    #                          keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])
-    #     self.tables['dG_fits'] = combined
-    #
-    #     self.updated = True
-    #
-    #     # todo add d_exp etc
-    #     #cached?:
-
-    # @param.depends('rate_results', watch=True)
-    # def _rates_results_updated(self):
-    #     combined = pd.concat([fit_result.output for fit_result in self.rate_results.values()], axis=1,
-    #                          keys=self.rate_results.keys(), names=['guess_ID', 'state', 'quantity'])
-    #     self.tables['rates'] = combined
-    #
-    #     self.updated = True
 
     def _add_table(self, df, table, categorical=True): # TODO add_table is (name, dataframe)
         """
