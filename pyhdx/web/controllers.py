@@ -565,7 +565,7 @@ class InitialGuessControl(PyHDXControlPanel):
 
     header = 'Initial Guesses'
     fitting_model = param.Selector(default='Half-life (λ)', objects=['Half-life (λ)', 'Association'],
-                                   doc='Choose method for determining initial guesses.', constant=True) # TODO: dask fitting of asociation model is currently broken due to some nonserializable object
+                                   doc='Choose method for determining initial guesses.')
     dataset = param.Selector(default='', doc='Dataset to apply bounds to', label='Dataset (for bounds)')
     global_bounds = param.Boolean(default=False, doc='Set bounds globally across all datasets')
     lower_bound = param.Number(0., doc='Lower bound for association model fitting')
@@ -589,7 +589,6 @@ class InitialGuessControl(PyHDXControlPanel):
 
     def make_dict(self):
         widgets = self.generate_widgets(lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput)
-        widgets.update(pbar1=self.pbar1.view, pbar2=self.pbar2.view)
 
         return widgets
 
@@ -652,9 +651,7 @@ class InitialGuessControl(PyHDXControlPanel):
             self.parent.logger.info('No datasets loaded')
             return
 
-        src = self.sources['main']  # todo property base class?
-
-        if self.guess_name in itertools.chain(src.rate_results.keys(), self._guess_names.values()):
+        if self.guess_name in itertools.chain(self.src.rate_results.keys(), self._guess_names.values()):
             self.parent.logger.info(f"Guess with name {self.guess_name} already in use")
             return
 

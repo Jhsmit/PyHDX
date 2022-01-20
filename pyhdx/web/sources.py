@@ -83,8 +83,7 @@ class PyHDXSource(TableSource):
         elif isinstance(obj, TorchFitResult):
             self._add_dG_fit(obj, name)
         elif isinstance(obj, RatesFitResult):
-            self.rate_results[name] = obj
-            self.param.trigger('rate_results')
+            self._add_rates_fit(obj, name)
         else:
             raise ValueError(f"Unsupported object {obj!r}")
 
@@ -96,6 +95,16 @@ class PyHDXSource(TableSource):
     def names(self):
         """returns the names of all HDX Measurment objects loaded"""
         return list(self.hdxm_objects.keys())
+
+    def _add_rates_fit(self, rates_result, name):
+        df = rates_result.output.copy()
+
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(tuples, names=['guess_ID', 'state', 'quantity'])
+        df.columns = columns
+        self._add_table(df, 'rates')
+        self.updated = True
+
 
     def _add_hdxm_object(self, hdxm, name):  # where name is new 'protein state' entry (or used for state (#todo clarify))
         # Add peptide data
@@ -165,23 +174,23 @@ class PyHDXSource(TableSource):
         self.dG_fits[name] = fit_result
         self.updated = True
 
-    def _fit_results_updated(self):  #todo method name / result dicts names
-        combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
-                             keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])
-        self.tables['dG_fits'] = combined
+    # def _fit_results_updated(self):  #todo method name / result dicts names
+    #     combined = pd.concat([fit_result.output for fit_result in self.dG_fits.values()], axis=1,
+    #                          keys=self.dG_fits.keys(), names=['fit_ID', 'state', 'quantity'])
+    #     self.tables['dG_fits'] = combined
+    #
+    #     self.updated = True
+    #
+    #     # todo add d_exp etc
+    #     #cached?:
 
-        self.updated = True
-
-        # todo add d_exp etc
-        #cached?:
-
-    @param.depends('rate_results', watch=True)
-    def _rates_results_updated(self):
-        combined = pd.concat([fit_result.output for fit_result in self.rate_results.values()], axis=1,
-                             keys=self.rate_results.keys(), names=['guess_ID', 'state', 'quantity'])
-        self.tables['rates'] = combined
-
-        self.updated = True
+    # @param.depends('rate_results', watch=True)
+    # def _rates_results_updated(self):
+    #     combined = pd.concat([fit_result.output for fit_result in self.rate_results.values()], axis=1,
+    #                          keys=self.rate_results.keys(), names=['guess_ID', 'state', 'quantity'])
+    #     self.tables['rates'] = combined
+    #
+    #     self.updated = True
 
     def _add_table(self, df, table, categorical=True): # TODO add_table is (name, dataframe)
         """
@@ -191,6 +200,7 @@ class PyHDXSource(TableSource):
         :param categorical: True if top level of multiindex should be categorical
         :return:
         """
+
         if table in self.tables:
             current = self.tables[table]
             new = pd.concat([current, df], axis=1)
