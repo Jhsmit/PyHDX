@@ -12,8 +12,7 @@ class NumericInput(pn.widgets.input.Widget):
     NumericInput allows input of floats with bounds
     """
 
-    type = param.ClassSelector(default=None, class_=(type, tuple),
-                               is_instance=True)
+    type = param.ClassSelector(default=None, class_=(type, tuple), is_instance=True)
 
     value = param.Number(default=None)
 
@@ -21,31 +20,43 @@ class NumericInput(pn.widgets.input.Widget):
 
     end = param.Number(default=None, allow_None=True)
 
-    _rename = {'name': 'title', 'type': None, 'serializer': None, 'start': None, 'end': None}
+    _rename = {
+        "name": "title",
+        "type": None,
+        "serializer": None,
+        "start": None,
+        "end": None,
+    }
 
-    _source_transforms = {'value': """JSON.parse(value.replace(/'/g, '"'))"""}
+    _source_transforms = {"value": """JSON.parse(value.replace(/'/g, '"'))"""}
 
-    _target_transforms = {'value': """JSON.stringify(value).replace(/,/g, ", ").replace(/:/g, ": ")"""}
+    _target_transforms = {
+        "value": """JSON.stringify(value).replace(/,/g, ", ").replace(/:/g, ": ")"""
+    }
 
     _widget_type = _BkTextInput
 
     def __init__(self, **params):
 
         super(NumericInput, self).__init__(**params)
-        self._state = ''
+        self._state = ""
         self._validate(None)
-        self._callbacks.append(self.param.watch(self._validate, 'value'))
+        self._callbacks.append(self.param.watch(self._validate, "value"))
 
     def _validate(self, event):
-        if self.type is None: return
+        if self.type is None:
+            return
         new = self.value
         if not isinstance(new, self.type) and new is not None:
             if event:
                 self.value = event.old
-            types = repr(self.type) if isinstance(self.type, tuple) else self.type.__name__
-            raise ValueError('LiteralInput expected %s type but value %s '
-                             'is of type %s.' %
-                             (types, new, type(new).__name__))
+            types = (
+                repr(self.type) if isinstance(self.type, tuple) else self.type.__name__
+            )
+            raise ValueError(
+                "LiteralInput expected %s type but value %s "
+                "is of type %s." % (types, new, type(new).__name__)
+            )
 
     def _bound_value(self, value):
         if self.start is not None:
@@ -55,36 +66,36 @@ class NumericInput(pn.widgets.input.Widget):
         return value
 
     def _process_property_change(self, msg):
-        if 'value' in msg and msg['value'] is not None:
+        if "value" in msg and msg["value"] is not None:
             try:
-                value = float(msg['value'])
-                msg['value'] = self._bound_value(value)
-                if msg['value'] != value:
-                    self.param.trigger('value')
+                value = float(msg["value"])
+                msg["value"] = self._bound_value(value)
+                if msg["value"] != value:
+                    self.param.trigger("value")
             except ValueError:
-                msg.pop('value')
-        if 'placeholder' in msg and msg['placeholder'] is not None:
+                msg.pop("value")
+        if "placeholder" in msg and msg["placeholder"] is not None:
             try:
-                msg['placeholder'] = self._format_value(float(msg['placeholder']))
+                msg["placeholder"] = self._format_value(float(msg["placeholder"]))
             except ValueError:
-                msg.pop('placeholder')
+                msg.pop("placeholder")
         return msg
 
     def _process_param_change(self, msg):
         msg = super(NumericInput, self)._process_param_change(msg)
 
-        if 'start' in msg:
-            start = msg.pop('start')
+        if "start" in msg:
+            start = msg.pop("start")
             self.param.value.bounds[0] = start
-        if 'end' in msg:
-            end = msg.pop('end')
+        if "end" in msg:
+            end = msg.pop("end")
             self.param.value.bounds[1] = end
 
-        if 'value' in msg:
-            value = '' if msg['value'] is None else msg['value']
+        if "value" in msg:
+            value = "" if msg["value"] is None else msg["value"]
             value = as_unicode(value)
-            msg['value'] = value
-        msg['title'] = self.name
+            msg["value"] = value
+        msg["title"] = self.name
         return msg
 
 
@@ -93,9 +104,7 @@ class ColoredStaticText(StaticText):
 
 
 class HTMLTitle(HTML):
-    title = param.String(
-        doc="""Title"""
-    )
+    title = param.String(doc="""Title""")
     priority = 0
     _rename = dict(HTML._rename, title=None)
 
@@ -103,9 +112,10 @@ class HTMLTitle(HTML):
         super().__init__(**params)
         self._update_title()
 
-    @param.depends('title', watch=True)
+    @param.depends("title", watch=True)
     def _update_title(self):
         self.object = f"""<a class="title" href="" >{self.title}</a>"""
+
 
 REPRESENTATIONS = [
     # "base",
@@ -191,6 +201,7 @@ class NGL(ReactiveHTML):
 
 
     """
+
     object = param.String()
 
     extension = param.Selector(
@@ -199,8 +210,7 @@ class NGL(ReactiveHTML):
     )
 
     background_color = param.Color(
-        default='#F7F7F7',
-        doc='Color to use for the background'
+        default="#F7F7F7", doc="Color to use for the background"
     )
 
     representation = param.Selector(
@@ -212,8 +222,7 @@ class NGL(ReactiveHTML):
          """,
     )
 
-    color_scheme = param.Selector(default='chainid',
-                                  objects=COLOR_SCHEMES)
+    color_scheme = param.Selector(default="chainid", objects=COLOR_SCHEMES)
 
     custom_color_scheme = param.List(
         default=[["#258fdb", "*"]],
@@ -222,38 +231,40 @@ class NGL(ReactiveHTML):
         http://nglviewer.org/ngl/api/manual/coloring.html#custom-coloring.""",
     )
 
-    effect = param.Selector(default=None, objects=[None, 'spin', 'rock'], allow_None=True)
+    effect = param.Selector(
+        default=None, objects=[None, "spin", "rock"], allow_None=True
+    )
 
     _template = """
     <div id="ngl_stage" style="width:100%; height:100%;"></div>
     """
     _scripts = {
-        'render': """
+        "render": """
             var stage = new NGL.Stage(ngl_stage)        
             state._stage = stage
             state._stage.setParameters({ backgroundColor: data.background_color})
             stage.handleResize();
             self.updateStage()
         """,
-        'object': """
+        "object": """
             self.updateStage()
             """,
-        'color_scheme': """
+        "color_scheme": """
             self.setParameters()
             """,
-        'custom_color_scheme': """
+        "custom_color_scheme": """
             self.setParameters()
         """,
-        'background_color': """
+        "background_color": """
         state._stage.setParameters({ backgroundColor: data.background_color})
         """,
-        'setParameters': """
+        "setParameters": """
             if (state._stage.compList.length !== 0) {
                 const parameters = self.getParameters();
                 state._stage.compList[0].reprList[0].setParameters( parameters );
             }
             """,
-        'getParameters': """
+        "getParameters": """
             if (data.color_scheme==="custom"){
                 var scheme = NGL.ColormakerRegistry.addSelectionScheme( data.custom_color_scheme, "new scheme")
                 var parameters = {color: scheme}
@@ -265,13 +276,13 @@ class NGL(ReactiveHTML):
 
             return parameters
         """,
-        'representation': """
+        "representation": """
             const parameters = self.getParameters();
             const component = state._stage.compList[0];
             component.removeAllRepresentations();
             component.addRepresentation(data.representation, parameters);
             """,
-        'effect': """
+        "effect": """
             if (data.effect==="spin"){
                 state._stage.setSpin(true);
             } else if (data.effect==="rock"){
@@ -281,7 +292,7 @@ class NGL(ReactiveHTML):
                 state._stage.setRock(false);
             }
             """,
-        'updateStage': """
+        "updateStage": """
             parameters = self.getParameters();
             state._stage.removeAllComponents()
             state._stage.loadFile(new Blob([data.object], {type: 'text/plain'}), { ext: data.extension}).then(function (component) {
@@ -289,10 +300,9 @@ class NGL(ReactiveHTML):
               component.autoView();
             });
             """,
-        'after_layout': """
+        "after_layout": """
             state._stage.handleResize();
-            """
-
+            """,
     }
 
     __javascript__ = [
@@ -304,7 +314,7 @@ class LoggingMarkdown(Markdown):
     def __init__(self, header, **params):
         super(LoggingMarkdown, self).__init__(**params)
         self.header = header
-        self.contents = ''
+        self.contents = ""
         self.object = self.header + self.contents
 
     def write(self, line):
@@ -324,7 +334,9 @@ class ASyncProgressBar(param.Parameterized):
     @property
     def value(self):
         value = int(100 * (self.completed / self.num_tasks))
-        return max(0, min(value, 100)) # todo check why this is somethings out of bounds
+        return max(
+            0, min(value, 100)
+        )  # todo check why this is somethings out of bounds
 
     def reset(self):
         self.completed = 0
@@ -332,10 +344,15 @@ class ASyncProgressBar(param.Parameterized):
     def increment(self):
         self.completed += 1
 
-    @param.depends('completed', 'num_tasks')
+    @param.depends("completed", "num_tasks")
     def view(self):
         if self.value:
-            return pn.widgets.Progress(active=True, value=self.value, align="center", sizing_mode="stretch_width")
+            return pn.widgets.Progress(
+                active=True,
+                value=self.value,
+                align="center",
+                sizing_mode="stretch_width",
+            )
         else:
             return None
 

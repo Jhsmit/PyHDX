@@ -3,7 +3,6 @@ import pandas as pd
 
 
 class Cache(param.Parameterized):
-
     def __getitem__(self, item):
         return None
 
@@ -18,10 +17,7 @@ class MemoryCache(Cache):
 
     _cache = param.Dict(default={})
 
-    max_items = param.Integer(
-        None,
-        doc='Maximum number of items allowed in the cache'
-    )
+    max_items = param.Integer(None, doc="Maximum number of items allowed in the cache")
 
     def __getitem__(self, item):
         return self._cache.__getitem__(item)
@@ -44,6 +40,7 @@ class HybridHDFCache(Cache):
     Sometimes there are errors depending on the dtypes of dataframes stored
 
     """
+
     file_path = param.String()
 
     _store = param.ClassSelector(class_=pd.HDFStore)
@@ -75,14 +72,22 @@ class HybridHDFCache(Cache):
                 del self._store[key]
                 self._cache[key] = value
 
-        except (NotImplementedError, TypeError):  # pytables does not support categorical dtypes
+        except (
+            NotImplementedError,
+            TypeError,
+        ):  # pytables does not support categorical dtypes
             self._cache[key] = value
 
     def __setitem__(self, key, value):
         key = str(key)
-        if isinstance(value, pd.DataFrame) and value.memory_usage().sum() > self.bytes_threshold:
+        if (
+            isinstance(value, pd.DataFrame)
+            and value.memory_usage().sum() > self.bytes_threshold
+        ):
             self._store_put(key, value)
-        elif isinstance(value, pd.Series) and value.memory_usage() > self.bytes_threshold:
+        elif (
+            isinstance(value, pd.Series) and value.memory_usage() > self.bytes_threshold
+        ):
             self._store_put(key, value)
         else:
             self._cache[str(key)] = value

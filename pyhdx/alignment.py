@@ -25,9 +25,20 @@ def parse_clustal_string(s, num_proteins, whitelines=2, offset=0):
 
     """
     spacing = num_proteins + whitelines
-    lines = s.split('\n')
-    results = [''.join([re.search('(?<=\s{3})(.*)(?=\t)', line)[0].strip() for line in lines[i + offset::spacing]]) for i in range(num_proteins)]
-    names = [re.search('(.*)(?=\s{3})', lines[offset + i])[0].strip() for i in range(num_proteins)]
+    lines = s.split("\n")
+    results = [
+        "".join(
+            [
+                re.search("(?<=\s{3})(.*)(?=\t)", line)[0].strip()
+                for line in lines[i + offset :: spacing]
+            ]
+        )
+        for i in range(num_proteins)
+    ]
+    names = [
+        re.search("(.*)(?=\s{3})", lines[offset + i])[0].strip()
+        for i in range(num_proteins)
+    ]
 
     alignment = {name: result for name, result in zip(names, results)}
 
@@ -61,37 +72,47 @@ def align_dataframes(dataframes, alignment, first_r_numbers=None):
 
     """
 
-    #todo add option to merge/include sequence information in output dataframes
-    #todo add dict-like input for dataframes (multiindex dataframe)
+    # todo add option to merge/include sequence information in output dataframes
+    # todo add dict-like input for dataframes (multiindex dataframe)
 
-    assert len(alignment) == len(dataframes), "Length of dataframes and alignments does not match"
+    assert len(alignment) == len(
+        dataframes
+    ), "Length of dataframes and alignments does not match"
 
     if isinstance(alignment, dict):
         if not isinstance(dataframes, dict):
-            raise TypeError("'alignment' and 'dataframes' must either both be `dict` or `list`")
+            raise TypeError(
+                "'alignment' and 'dataframes' must either both be `dict` or `list`"
+            )
         align_list = list(alignment.values())
         df_list = list(dataframes.values())
         assert alignment.keys() == dataframes.keys(), "Keys of input dicts to not match"
     elif isinstance(alignment, list):
         if not isinstance(alignment, list):
-            raise TypeError("'alignment' and 'dataframes' must either both be `dict` or `list`")
+            raise TypeError(
+                "'alignment' and 'dataframes' must either both be `dict` or `list`"
+            )
         align_list = alignment
         df_list = dataframes
     else:
         raise TypeError("Invalid data type for 'alignment'")
 
-    first_r_numbers = first_r_numbers if first_r_numbers is not None else [1]*len(dataframes)
-    assert len(first_r_numbers) == len(df_list), "Length of first residue number list does not match number of dataframes"
+    first_r_numbers = (
+        first_r_numbers if first_r_numbers is not None else [1] * len(dataframes)
+    )
+    assert len(first_r_numbers) == len(
+        df_list
+    ), "Length of first residue number list does not match number of dataframes"
 
     dfs = []
     for df, align, r_offset in zip(df_list, align_list, first_r_numbers):
         align_array = np.array(list(align))
-        r_number = np.cumsum(align_array != '-').astype(float)
-        r_number[align_array == '-'] = np.nan
+        r_number = np.cumsum(align_array != "-").astype(float)
+        r_number[align_array == "-"] = np.nan
         r_number += r_offset - 1
-        index = pd.Index(r_number, name='r_number')
+        index = pd.Index(r_number, name="r_number")
 
-        result = df.reindex(index).reset_index().astype({'r_number': 'Int32'})
+        result = df.reindex(index).reset_index().astype({"r_number": "Int32"})
         dfs.append(result)
 
     keys = alignment.keys() if isinstance(alignment, dict) else None

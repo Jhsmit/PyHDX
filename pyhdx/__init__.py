@@ -1,4 +1,10 @@
-from .models import PeptideMasterTable, HDXTimepoint, HDXMeasurement, Coverage, HDXMeasurementSet
+from .models import (
+    PeptideMasterTable,
+    HDXTimepoint,
+    HDXMeasurement,
+    Coverage,
+    HDXMeasurementSet,
+)
 from .fileIO import read_dynamx
 from .fitting_torch import TorchFitResult
 from ._version import get_versions
@@ -9,9 +15,9 @@ except ModuleNotFoundError:
     pass
 
 
-__version__ = get_versions()['version']
+__version__ = get_versions()["version"]
 
-VERSION_STRING = f'PyHDX {__version__}'
+VERSION_STRING = f"PyHDX {__version__}"
 
 
 del get_versions

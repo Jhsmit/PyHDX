@@ -24,11 +24,16 @@ def make_tuple(item):
 
 def hash_dataframe(df):
     try:
-        tup = (*pd.util.hash_pandas_object(df, index=True).values, *df.columns, *df.columns.names, df.index.name)
+        tup = (
+            *pd.util.hash_pandas_object(df, index=True).values,
+            *df.columns,
+            *df.columns.names,
+            df.index.name,
+        )
 
     except TypeError:
         print(df)
-        print('hoi')
+        print("hoi")
 
     return hash(tup)
 
@@ -43,53 +48,66 @@ def multiindex_apply_function(
 
     args = args or []
     kwargs = kwargs or {}
-    new_index = index.set_levels(getattr(index.levels[level], func)(*args, **kwargs), level=level)
+    new_index = index.set_levels(
+        getattr(index.levels[level], func)(*args, **kwargs), level=level
+    )
 
     return new_index
 
 
 def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
 
-    new_index = multiindex_apply_function(index, level, 'astype', args=[dtype])
+    new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
     return new_index
 
 
 def multiindex_set_categories(
     index: pd.MultiIndex,
     level: int,
-    categories: Any,  #index-like
+    categories: Any,  # index-like
     ordered: bool = False,
-    rename: bool = False
-
+    rename: bool = False,
 ) -> pd.MultiIndex:
     new_index = multiindex_apply_function(
-        index, level, 'set_categories', args=[categories], kwargs=dict(ordered=ordered, rename=rename))
+        index,
+        level,
+        "set_categories",
+        args=[categories],
+        kwargs=dict(ordered=ordered, rename=rename),
+    )
     return new_index
 
 
 def multiindex_add_categories(
-        index: pd.MultiIndex,
-        level: int,
-        categories: Any,  # index-like
-
+    index: pd.MultiIndex,
+    level: int,
+    categories: Any,  # index-like
 ) -> pd.MultiIndex:
     new_index = multiindex_apply_function(
-        index, level, 'add_categories', args=[categories])
+        index, level, "add_categories", args=[categories]
+    )
     return new_index
 
 
 def multiindex_astype(
-        index: pd.MultiIndex,
-        level: int,
-        dtype: str,
+    index: pd.MultiIndex,
+    level: int,
+    dtype: str,
 ) -> pd.MultiIndex:
-    new_index = multiindex_apply_function(index, level, 'astype', args=[dtype])
+    new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
     return new_index
+
 
 # use tostring(print(df.to_string()))
 def df_fullstr(df):
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None,
-                           'display.expand_frame_repr', False):
+    with pd.option_context(
+        "display.max_rows",
+        None,
+        "display.max_columns",
+        None,
+        "display.expand_frame_repr",
+        False,
+    ):
         s = df.__str__()
 
     return s
@@ -179,7 +197,8 @@ def reduce_inter(args, gap_size=-1):
 
     gap_size += 1
 
-    if len(args) < 2: return args
+    if len(args) < 2:
+        return args
     args.sort()
     ret = [args[0]]
     for next_i, (s, e) in enumerate(args, start=1):
@@ -187,9 +206,13 @@ def reduce_inter(args, gap_size=-1):
             ret[-1] = ret[-1][0], max(ret[-1][1], e)
             break
 
-        ns, ne = args[next_i] # next start, next end
-        if e + gap_size > ns or ret[-1][1] + gap_size > ns:  # if current end is further than next start (overlap), OR current inverterval end later then next start
-            ret[-1] = ret[-1][0], max(e, ne, ret[-1][1]) # extend the end value of the current inverval by the new end
+        ns, ne = args[next_i]  # next start, next end
+        if (
+            e + gap_size > ns or ret[-1][1] + gap_size > ns
+        ):  # if current end is further than next start (overlap), OR current inverterval end later then next start
+            ret[-1] = ret[-1][0], max(
+                e, ne, ret[-1][1]
+            )  # extend the end value of the current inverval by the new end
         else:
             ret.append((ns, ne))
     return ret
@@ -197,7 +220,7 @@ def reduce_inter(args, gap_size=-1):
 
 @contextlib.contextmanager
 def temporary_seed(seed):
-    #https://stackoverflow.com/questions/49555991/can-i-create-a-local-numpy-random-seed
+    # https://stackoverflow.com/questions/49555991/can-i-create-a-local-numpy-random-seed
     state = np.random.get_state()
     np.random.seed(seed)
     try:
@@ -208,12 +231,11 @@ def temporary_seed(seed):
 
 def grouper(n, iterable, padvalue=None):
     "grouper(3, 'abcdefg', 'x') --> ('a','b','c'), ('d','e','f'), ('g','x','x')"
-    return itertools.zip_longest(*[iter(iterable)]*n, fillvalue=padvalue)
+    return itertools.zip_longest(*[iter(iterable)] * n, fillvalue=padvalue)
 
 
 def _get_f_width(data, sign):
     i = 1 if sign else 0
-
 
     w_pos = np.log10(np.nanmax(data)) + i
     w_neg = np.log10(np.nanmax(-data)) + 1
@@ -221,38 +243,47 @@ def _get_f_width(data, sign):
     w = np.nanmax([w_pos, w_neg]) + 1
     try:
         width = int(np.floor(w))
-    except OverflowError: # all zeros
+    except OverflowError:  # all zeros
         width = 0
     return width
 
 
-#move to fileIO?
-def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justify='left', sign=False, pad=''):
+# move to fileIO?
+def fmt_export(
+    arr,
+    delimiter="\t",
+    header=True,
+    sig_fig=8,
+    width="auto",
+    justify="left",
+    sign=False,
+    pad="",
+):
     warnings.warn("fmt_export is to pyhdx.fileIO", PendingDeprecationWarning)
     with np.testing.suppress_warnings() as sup:
         sup.filter(RuntimeWarning)
 
-        flag1 = '' if justify != 'left' else '-'
-        flag2 = '+' if sign else ''
-        flag3 = '0' if pad == '0' else ''
+        flag1 = "" if justify != "left" else "-"
+        flag2 = "+" if sign else ""
+        flag3 = "0" if pad == "0" else ""
         fmt = []
         hdr = []
         for j, name in enumerate(arr.dtype.names):
             dtype = arr[name].dtype
 
-            if dtype.kind in ['b']:
-                specifier = 'i'
-                precision = ''
+            if dtype.kind in ["b"]:
+                specifier = "i"
+                precision = ""
                 w = 4 if np.all(arr[name]) else 5
-            elif dtype.kind in ['i', 'u']:
-                specifier = 'i'
-                precision = ''
+            elif dtype.kind in ["i", "u"]:
+                specifier = "i"
+                precision = ""
 
                 w = _get_f_width(arr[name], sign)
 
-            elif dtype.kind in ['f', 'c']:
-                specifier = 'g'
-                precision = '.' + str(sig_fig)
+            elif dtype.kind in ["f", "c"]:
+                specifier = "g"
+                precision = "." + str(sig_fig)
 
                 # float notation width
 
@@ -261,38 +292,40 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
 
                 # scientific notation width
                 i = 1 if sign or np.any(arr[name] < 0) else 0
-                w_s = sig_fig + 4 + i + 1  # +1 for decimal point which is not always needed
+                w_s = (
+                    sig_fig + 4 + i + 1
+                )  # +1 for decimal point which is not always needed
                 w = min(w_f, w_s) + 1
 
-            elif dtype.kind in ['U', 'S', 'O']:
-                specifier = 's'
-                precision = ''
+            elif dtype.kind in ["U", "S", "O"]:
+                specifier = "s"
+                precision = ""
                 w = np.max([len(str(item)) for item in arr[name]])
             else:
-                raise TypeError(f'Invalid dtype kind {dtype.kind} for field {name}')
+                raise TypeError(f"Invalid dtype kind {dtype.kind} for field {name}")
 
-            if width == 'auto':
+            if width == "auto":
                 col_w = w
             elif isinstance(width, int):
                 col_w = width
             else:
-                raise ValueError('Invalid width')
+                raise ValueError("Invalid width")
 
             if header:
                 i = 2 if j == 0 else 0  # Additional space for header comment #
-                if width == 'auto':
+                if width == "auto":
                     _width = max(col_w, len(name) + i)
                 elif isinstance(width, int):
                     _width = col_w
 
-                func = str.ljust if justify == 'left' else str.rjust
-                fill = flag3 if flag3 else ' '
+                func = str.ljust if justify == "left" else str.rjust
+                fill = flag3 if flag3 else " "
                 h = func(name, _width - i, fill)
                 hdr.append(h)
             else:
                 _width = col_w
 
-            s = f'%{flag1}{flag2}{flag3}{_width}{precision}{specifier}'
+            s = f"%{flag1}{flag2}{flag3}{_width}{precision}{specifier}"
 
             fmt.append(s)
 
@@ -301,28 +334,38 @@ def fmt_export(arr, delimiter='\t', header=True, sig_fig=8, width='auto', justif
     return fmt, hdr
 
 
-#move to fileIO?
-def np_from_txt(file_path, delimiter='\t'):
-    warnings.warn("np_from_txt is moved to pyhdx.fileIO as txt_to_np", PendingDeprecationWarning)
+# move to fileIO?
+def np_from_txt(file_path, delimiter="\t"):
+    warnings.warn(
+        "np_from_txt is moved to pyhdx.fileIO as txt_to_np", PendingDeprecationWarning
+    )
 
     if isinstance(file_path, StringIO):
         file_obj = file_path
     else:
-        file_obj = open(file_path, 'r')
+        file_obj = open(file_path, "r")
 
     names = None
     header_lines = 0
     while True:
         header = file_obj.readline().strip()
-        if header.startswith('#'):
+        if header.startswith("#"):
             names = header[2:].split(delimiter)
             header_lines += 1
         else:
             break
     file_obj.seek(0)
 
-    return np.genfromtxt(file_obj, dtype=None, names=names, skip_header=header_lines, delimiter=delimiter,
-                         encoding=None, autostrip=True, comments=None)
+    return np.genfromtxt(
+        file_obj,
+        dtype=None,
+        names=names,
+        skip_header=header_lines,
+        delimiter=delimiter,
+        encoding=None,
+        autostrip=True,
+        comments=None,
+    )
 
 
 def try_wrap(start, end, wrap, margin=4):
@@ -340,7 +383,7 @@ def try_wrap(start, end, wrap, margin=4):
     x = np.zeros((wrap, len(start) + margin))
     wrap_gen = itertools.cycle(range(wrap))
     for i, s, e in zip(wrap_gen, start, end):
-        section = x[i, s: e + margin]
+        section = x[i, s : e + margin]
         if np.any(section):
             return False
         section[:] = 1
@@ -373,18 +416,24 @@ def autowrap(start, end, margin=4, step=5):
     return wrap
 
 
-#https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
+# https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
 def fields_view(arr, fields):
     dtype2 = np.dtype({name: arr.dtype.fields[name] for name in fields})
     return np.ndarray(arr.shape, dtype2, arr, 0, arr.strides)
 
 
-#https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
+# https://stackoverflow.com/questions/15182381/how-to-return-a-view-of-several-columns-in-numpy-structured-array/
 def make_view(arr, fields, dtype):
     offsets = [arr.dtype.fields[f][1] for f in fields]
     offset = min(offsets)
     stride = max(offsets)
-    return np.ndarray((len(arr), 2), buffer=arr, offset=offset, strides=(arr.strides[0], stride-offset), dtype=dtype)
+    return np.ndarray(
+        (len(arr), 2),
+        buffer=arr,
+        offset=offset,
+        strides=(arr.strides[0], stride - offset),
+        dtype=dtype,
+    )
 
 
 vhex = np.vectorize(hex)
@@ -406,11 +455,13 @@ def rgb_to_hex(rgb_a):
             r, g, b, a = rgb_a
         except ValueError:
             r, g, b = rgb_a
-        return f'#{r:02x}{g:02x}{b:02x}'
+        return f"#{r:02x}{g:02x}{b:02x}"
 
     elif isinstance(rgb_a, list):
         try:
-            rgba_array = np.array([[b, g, r, 0] for r, g, b, a in rgb_a], dtype=np.uint8)
+            rgba_array = np.array(
+                [[b, g, r, 0] for r, g, b, a in rgb_a], dtype=np.uint8
+            )
         except ValueError:
             # todo this only works with lists of list and gives to wrong result? tests needed
             rgba_array = np.array([[b, g, r, 0] for r, g, b in rgb_a], dtype=np.uint8)
@@ -419,7 +470,7 @@ def rgb_to_hex(rgb_a):
         # todo: allow rgb arrays
         assert rgb_a.shape[-1] == 4
         if rgb_a.data.c_contiguous:
-        #todo check for c-contigious
+            # todo check for c-contigious
             rgba_array = rgb_a
         else:
             rgba_array = np.array(rgb_a)
@@ -427,8 +478,8 @@ def rgb_to_hex(rgb_a):
         raise TypeError(f"Invalid type for 'rgb_a': {rgb_a}")
 
     ints = rgba_array.astype(np.uint8).view(dtype=np.uint32).byteswap()
-    padded = np.char.rjust(base_v(ints // 2**8, 16), 6, '0')
-    result = np.char.add('#', padded).squeeze()
+    padded = np.char.rjust(base_v(ints // 2 ** 8, 16), 6, "0")
+    result = np.char.add("#", padded).squeeze()
 
     return result
 
@@ -439,12 +490,12 @@ def rgb_to_hex(rgb_a):
 
 def hex_to_rgb(h):
     """returns rgb as int 0-255"""
-    r, g, b = tuple(int(h.lstrip('#')[2*i:2*i+2], 16) for i in range(3))
+    r, g, b = tuple(int(h.lstrip("#")[2 * i : 2 * i + 2], 16) for i in range(3))
     return r, g, b
 
 
 def hex_to_rgba(h, alpha=255):
-    r, g, b = tuple(int(h.lstrip('#')[2*i:2*i+2], 16) for i in range(3))
+    r, g, b = tuple(int(h.lstrip("#")[2 * i : 2 * i + 2], 16) for i in range(3))
     return r, g, b, alpha
 
 
@@ -457,12 +508,13 @@ def group_with_index(arr):
         i += c
 
 
-#move to output?
-#pymol coloring functions need cleaning/refactoring
+# move to output?
+# pymol coloring functions need cleaning/refactoring
 # remvoe color_to_pymol
 # instead use apply_cmap then color_pymol / color_pymol_script
 
-def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
+
+def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage="#8c8c8c"):
     """coverts colors (hexadecimal format) and corresponding residue numbers to pml
     script to color structures in pymol
     residue ranges in output are inclusive, incluive
@@ -471,12 +523,12 @@ def colors_to_pymol(r_number, color_arr, c_term=None, no_coverage='#8c8c8c'):
         optional residue number of the c terminal of the last peptide doedsnt cover the c terminal
     """
 
-    #todo replace with pandas dataframe magic
+    # todo replace with pandas dataframe magic
 
     c_term = c_term or np.max(r_number)
     pd_series = pd.Series(color_arr, index=r_number)
     pd_series = pd_series.reindex(np.arange(1, c_term + 1))
-    pd_series = pd_series.replace('nan', no_coverage)  # No coverage at nan entries
+    pd_series = pd_series.replace("nan", no_coverage)  # No coverage at nan entries
     pd_series = pd_series.replace(np.nan, no_coverage)  # Numpy NaNs
 
     return series_to_pymol(pd_series)
@@ -490,22 +542,25 @@ def apply_cmap(pd_series_or_df, cmap, norm=None):
     if isinstance(pd_series_or_df, pd.Series):
         return pd.Series(hex_colors, index=pd_series_or_df.index)
     elif isinstance(pd_series_or_df, pd.DataFrame):
-        return pd.DataFrame(hex_colors, index=pd_series_or_df.index, columns=pd_series_or_df.columns)
-
-
+        return pd.DataFrame(
+            hex_colors, index=pd_series_or_df.index, columns=pd_series_or_df.columns
+        )
 
 
 def color_pymol(pd_series, cmd, model=None):
     grp = pd_series.groupby(pd_series)
 
     for c, pd_series in grp:
-        result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+        result = [
+            list(g)
+            for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))
+        ]
         r, g, b = hex_to_rgb(c)
-        residues = [f'resi {g[0]}-{g[-1]}' for g in result]
-        selection = ' + '.join(residues)
+        residues = [f"resi {g[0]}-{g[-1]}" for g in result]
+        selection = " + ".join(residues)
 
         if model:
-            selection = f'model {model} and ({selection})'
+            selection = f"model {model} and ({selection})"
 
         cmd.set_color(c, [r, g, b])
         cmd.color(c, selection=selection)
@@ -530,38 +585,42 @@ def series_to_pymol(pd_series):
     # https://stackoverflow.com/questions/33483670/how-to-group-a-series-by-values-in-pandas
     grp = pd_series.groupby(pd_series)
 
-    s_out = ''
+    s_out = ""
     for c, pd_series in grp:
         r, g, b = hex_to_rgb(c)
-        s_out += f'set_color color_{c}, [{r},{g},{b}]\n'
+        s_out += f"set_color color_{c}, [{r},{g},{b}]\n"
 
     # https://stackoverflow.com/questions/30993182/how-to-get-the-index-range-of-a-list-that-the-values-satisfy-some-criterion-in-p
     for c, pd_series in grp:
-        result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
-        residues = [f'resi {g[0]}-{g[-1]}' for g in result]
+        result = [
+            list(g)
+            for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))
+        ]
+        residues = [f"resi {g[0]}-{g[-1]}" for g in result]
 
-        s_out += f'color color_{c}, ' + ' + '.join(residues) + '\n'
+        s_out += f"color color_{c}, " + " + ".join(residues) + "\n"
 
     return s_out
 
 
 def make_monomer(input_file, output_file):
-    """ reads input_file pdb file and removes all chains except chain A and all water"""
-    with open(input_file, 'r') as f_in:
-        with open(output_file, 'w') as f_out:
-            for line in iter(f_in.readline, ''):
+    """reads input_file pdb file and removes all chains except chain A and all water"""
+    with open(input_file, "r") as f_in:
+        with open(output_file, "w") as f_out:
+            for line in iter(f_in.readline, ""):
                 if line.startswith("COMPND") and "CHAIN" in line:
-                    res = re.findall(':(.*);', line)[0]
-                    line = line.replace(res + ';', ' A;' + ' '*(len(res) - 2))
-                if line.startswith("ATOM") and not ' A ' in line:
+                    res = re.findall(":(.*);", line)[0]
+                    line = line.replace(res + ";", " A;" + " " * (len(res) - 2))
+                if line.startswith("ATOM") and not " A " in line:
                     continue
                 elif line.startswith("HETATM") and "HOH" in line:
                     continue
                 f_out.write(line)
 
-#move t
+
+# move t
 # o output?
-def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
+def make_color_array(rates, colors, thds, no_coverage="#8c8c8c"):
     """
 
     :param rates: array of rates
@@ -571,7 +630,7 @@ def make_color_array(rates, colors, thds, no_coverage='#8c8c8c'):
     :return:
     """
 
-    output = np.full_like(rates, fill_value=no_coverage, dtype='U7')
+    output = np.full_like(rates, fill_value=no_coverage, dtype="U7")
     full_thds = [-np.inf] + list(thds) + [np.inf]
     for lower, upper, color in zip(full_thds[:-1], full_thds[1:], colors):
         b = (rates > lower) & (rates <= upper)
@@ -598,10 +657,10 @@ def multi_otsu(*rates, classes=3):
         tuple with thresholds
 
     """
-    all_rates = np.concatenate([data['rate'] for data in rates])
+    all_rates = np.concatenate([data["rate"] for data in rates])
     thd_rates = np.log(all_rates[~np.isnan(all_rates)])
     thds = threshold_multiotsu(thd_rates, classes=classes)
-    return tuple(np.e**thd for thd in thds)
+    return tuple(np.e ** thd for thd in thds)
 
 
 def scale(x, out_range=(-1, 1)):
@@ -628,7 +687,14 @@ def pprint_df_to_file(df, file_path_or_obj):
     file_path_or_obj : :obj:`str`, Path or :class:`~io.StringIO`
 
     """
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None, 'display.expand_frame_repr', False):  # more options can be specified also
+    with pd.option_context(
+        "display.max_rows",
+        None,
+        "display.max_columns",
+        None,
+        "display.expand_frame_repr",
+        False,
+    ):  # more options can be specified also
         if isinstance(file_path_or_obj, str):
             pth = Path(file_path_or_obj)
             pth.write_text(df.__str__())

@@ -32,9 +32,11 @@ class MainController(param.Parameterized):
 
     """
 
-    _type = 'base'
+    _type = "base"
 
-    sources = param.Dict({}, doc='Dictionary of source objects available for plotting', precedence=-1)
+    sources = param.Dict(
+        {}, doc="Dictionary of source objects available for plotting", precedence=-1
+    )
     transforms = param.Dict({}, doc="Dictionary of transforms")
     opts = param.Dict({}, doc="Dictionary of formatting options (opts)")
     views = param.Dict({}, doc="Dictionary of views")
@@ -45,9 +47,11 @@ class MainController(param.Parameterized):
         super(MainController, self).__init__(**params)
         self.client = client if client else Client()
 
-        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  #todo as param?
+        self.control_panels = {
+            ctrl.name: ctrl(self) for ctrl in control_panels
+        }  # todo as param?
 
-        self.template = None   # Panel template
+        self.template = None  # Panel template
         self.future_queue = []  # queue of tuples: (future, callback)
 
         self._update_views()
@@ -72,15 +76,13 @@ class MainController(param.Parameterized):
     def check_futures(self):
         if self.future_queue:
             for future, callback in self.future_queue[:]:
-                if future.status == 'finished':
+                if future.status == "finished":
                     callback(future)
                     self.future_queue.remove((future, callback))
 
     def start(self):
         refresh_rate = 1000
-        pn.state.add_periodic_callback(
-            self.check_futures, refresh_rate
-        )
+        pn.state.add_periodic_callback(self.check_futures, refresh_rate)
 
 
 class PyHDXController(MainController):
@@ -89,15 +91,13 @@ class PyHDXController(MainController):
 
     """
 
-    _type = 'pyhdx'
+    _type = "pyhdx"
 
-    sample_name = param.String(doc='Name describing the selected protein(s) state')
+    sample_name = param.String(doc="Name describing the selected protein(s) state")
 
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
 
     @property
     def logger(self):
-        return self.loggers['pyhdx']
-
-
+        return self.loggers["pyhdx"]

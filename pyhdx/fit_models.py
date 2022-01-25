@@ -30,7 +30,7 @@ class KineticsModel(object):
 
     def __init__(self, bounds):
         if bounds[1] < bounds[0]:
-            raise ValueError('Lower bound must be smaller than upper bound')
+            raise ValueError("Lower bound must be smaller than upper bound")
         self.bounds = bounds
         self.names = {}  # human name: dummy name
         self.sf_model = None
@@ -59,7 +59,7 @@ class KineticsModel(object):
         max = max if max is not None else self.bounds[1]
 
         value = value or np.mean(self.bounds)
-        dummy_name = 'pyhdx_par_{}'.format(self.par_index)
+        dummy_name = "pyhdx_par_{}".format(self.par_index)
         KineticsModel.par_index += 1
         p = Parameter(dummy_name, value=value, min=min, max=max)
         self.names[name] = dummy_name
@@ -79,7 +79,7 @@ class KineticsModel(object):
         p : :class:`~symfit.Variable`
 
         """
-        dummy_name = 'pyhdx_var_{}'.format(self.var_index)
+        dummy_name = "pyhdx_var_{}".format(self.var_index)
         KineticsModel.var_index += 1
         v = Variable(dummy_name)
         self.names[name] = dummy_name
@@ -119,20 +119,21 @@ class SingleKineticModel(KineticsModel):
 
 class TwoComponentAssociationModel(SingleKineticModel):
     """Two componenent Association"""
+
     def __init__(self, bounds):
         super(TwoComponentAssociationModel, self).__init__(bounds)
 
-        r = self.make_parameter('r', value=0.5, min=0, max=1)
-        k1 = self.make_parameter('k1')
-        k2 = self.make_parameter('k2')
-        t = self.make_variable('t')
-        y = self.make_variable('y')
+        r = self.make_parameter("r", value=0.5, min=0, max=1)
+        k1 = self.make_parameter("k1")
+        k2 = self.make_parameter("k2")
+        t = self.make_variable("t")
+        y = self.make_variable("y")
 
-        self.sf_model = Model({y: (1 - (r * exp(-k1*t) + (1 - r) * exp(-k2*t)))})
+        self.sf_model = Model({y: (1 - (r * exp(-k1 * t) + (1 - r) * exp(-k2 * t)))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
-        time_var = self.names['t']
+        time_var = self.names["t"]
         params[time_var] = t
         return self.sf_model(**params)
 
@@ -151,19 +152,21 @@ class TwoComponentAssociationModel(SingleKineticModel):
         k1_v = fsolve(func_short_ass, 1 / 2, args=(t[2], d[2]))[0]
         k2_v = fsolve(func_long_ass, 1 / 20, args=(t[-2], d[-2], k1_v))[0]
 
-        k1_p = self.get_parameter('k1')
+        k1_p = self.get_parameter("k1")
         k1_p.value = k1_v
-        k2_p = self.get_parameter('k2')
+        k2_p = self.get_parameter("k2")
         k2_p.value = k2_v
-        r_p = self.get_parameter('r')
+        r_p = self.get_parameter("r")
         r_p.value = 0.5
 
     def initial_grid(self, t, d, step=15):
-        kmax = 5 * np.log(1-0.98) / -t[1]
+        kmax = 5 * np.log(1 - 0.98) / -t[1]
         d_final = np.min([0.95, d[-1]])  # todo refactor norm
-        kmin = np.log(1-d_final) / -t[-1]
+        kmin = np.log(1 - d_final) / -t[-1]
 
-        tau_space = np.logspace(np.log10(1/kmax), np.log10(1/kmin), num=step, endpoint=True)
+        tau_space = np.logspace(
+            np.log10(1 / kmax), np.log10(1 / kmin), num=step, endpoint=True
+        )
         r_space = np.linspace(0.05, 0.95, num=step, endpoint=True)
 
         guess = np.column_stack([tau_space, tau_space, r_space])
@@ -183,20 +186,22 @@ class TwoComponentAssociationModel(SingleKineticModel):
 
         """
 
-        #todo generalize duplicate code for other models
-        r = params[self.names['r']]
-        k1 = params[self.names['k1']]
-        k2 = params[self.names['k2']]
+        # todo generalize duplicate code for other models
+        r = params[self.names["r"]]
+        k1 = params[self.names["k1"]]
+        k2 = params[self.names["k2"]]
 
-        #tau = r * tau1 + (1 - r) * tau2
+        # tau = r * tau1 + (1 - r) * tau2
 
         x0 = k1 if r > 0.5 else k2
 
         t_log = fsolve(self.min_func, np.log(x0), args=(k1, k2, r))
         try:
-            assert np.round(self.min_func(t_log, k1, k2, r), 5) == 0, 'Failed to find half life root'
+            assert (
+                np.round(self.min_func(t_log, k1, k2, r), 5) == 0
+            ), "Failed to find half life root"
         except AssertionError:
-            print('uhoh')
+            print("uhoh")
             print(k1, k2, r)
             print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
         k = (np.log(2) / np.exp(t_log)).item()
@@ -217,28 +222,29 @@ class TwoComponentAssociationModel(SingleKineticModel):
 
         """
         k = self.get_rate(**params)
-        return 1/k
+        return 1 / k
 
     @staticmethod
     def min_func(t_log, k1, k2, r):
         t = np.exp(t_log)
-        return 0.5 - r * np.exp(-k1*t) - (1 - r) * np.exp(-k2*t)
+        return 0.5 - r * np.exp(-k1 * t) - (1 - r) * np.exp(-k2 * t)
 
 
 class OneComponentAssociationModel(SingleKineticModel):
     """One component Association"""
+
     def __init__(self, bounds):
         super(OneComponentAssociationModel, self).__init__(bounds)
-        k1 = self.make_parameter('k1')
-        t = self.make_variable('t')
-        y = self.make_variable('y')
+        k1 = self.make_parameter("k1")
+        t = self.make_variable("t")
+        y = self.make_variable("y")
 
-        self.sf_model = Model({y: (1 - exp(-k1*t))})
+        self.sf_model = Model({y: (1 - exp(-k1 * t))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
 
-        time_var = self.names['t']
+        time_var = self.names["t"]
         params[time_var] = t
         return self.sf_model(**params)
 
@@ -256,34 +262,35 @@ class OneComponentAssociationModel(SingleKineticModel):
         """
         k1_v = fsolve(func_short_ass, 1 / 2, args=(t[3], d[3]))[0]
 
-        k1_p = self.get_parameter('k1')
+        k1_p = self.get_parameter("k1")
         k1_p.value = k1_v
 
     def get_rate(self, **params):
-        k1 = params[self.names['k1']]
+        k1 = params[self.names["k1"]]
         return k1
 
     def get_tau(self, **params):
         k = self.get_rate(**params)
-        return 1/k
+        return 1 / k
 
 
 class TwoComponentDissociationModel(SingleKineticModel):
     """Two componenent Association"""
+
     def __init__(self, bounds):
         super(TwoComponentDissociationModel, self).__init__(bounds)
 
-        r = self.make_parameter('r', value=0.5, min=0, max=1)
-        k1 = self.make_parameter('k1')
-        k2 = self.make_parameter('k2')
-        t = self.make_variable('t')
-        y = self.make_variable('y')
+        r = self.make_parameter("r", value=0.5, min=0, max=1)
+        k1 = self.make_parameter("k1")
+        k2 = self.make_parameter("k2")
+        t = self.make_variable("t")
+        y = self.make_variable("y")
 
-        self.sf_model = Model({y: (r * exp(-k1*t) + (1 - r) * exp(-k2*t))})
+        self.sf_model = Model({y: (r * exp(-k1 * t) + (1 - r) * exp(-k2 * t))})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
-        time_var = self.names['t']
+        time_var = self.names["t"]
         params[time_var] = t
         return self.sf_model(**params)
 
@@ -302,19 +309,21 @@ class TwoComponentDissociationModel(SingleKineticModel):
         k1_v = fsolve(func_short_ass, 1 / 2, args=(t[2], d[2]))[0]
         k2_v = fsolve(func_long_ass, 1 / 20, args=(t[-2], d[-2], k1_v))[0]
 
-        k1_p = self.get_parameter('k1')
+        k1_p = self.get_parameter("k1")
         k1_p.value = k1_v
-        k2_p = self.get_parameter('k2')
+        k2_p = self.get_parameter("k2")
         k2_p.value = k2_v
-        r_p = self.get_parameter('r')
+        r_p = self.get_parameter("r")
         r_p.value = 0.5
 
     def initial_grid(self, t, d, step=15):
-        kmax = 5 * np.log(1-0.98) / -t[1]
+        kmax = 5 * np.log(1 - 0.98) / -t[1]
         d_final = np.min([0.95, d[-1]])  # todo refactor norm
-        kmin = np.log(1-d_final) / -t[-1]
+        kmin = np.log(1 - d_final) / -t[-1]
 
-        tau_space = np.logspace(np.log10(1/kmax), np.log10(1/kmin), num=step, endpoint=True)
+        tau_space = np.logspace(
+            np.log10(1 / kmax), np.log10(1 / kmin), num=step, endpoint=True
+        )
         r_space = np.linspace(0.05, 0.95, num=step, endpoint=True)
 
         guess = np.column_stack([tau_space, tau_space, r_space])
@@ -334,20 +343,22 @@ class TwoComponentDissociationModel(SingleKineticModel):
 
         """
 
-        #todo generalize duplicate code for other models
-        r = params[self.names['r']]
-        k1 = params[self.names['k1']]
-        k2 = params[self.names['k2']]
+        # todo generalize duplicate code for other models
+        r = params[self.names["r"]]
+        k1 = params[self.names["k1"]]
+        k2 = params[self.names["k2"]]
 
-        #tau = r * tau1 + (1 - r) * tau2
+        # tau = r * tau1 + (1 - r) * tau2
 
         x0 = k1 if r > 0.5 else k2
 
         t_log = fsolve(self.min_func, np.log(x0), args=(k1, k2, r))
         try:
-            assert np.round(self.min_func(t_log, k1, k2, r), 5) == 0, 'Failed to find half life root'
+            assert (
+                np.round(self.min_func(t_log, k1, k2, r), 5) == 0
+            ), "Failed to find half life root"
         except AssertionError:
-            print('uhoh')
+            print("uhoh")
             print(k1, k2, r)
             print(np.round(self.min_func(t_log, k1, k2, r), 5) == 0)
         k = np.asscalar(np.log(2) / np.exp(t_log))
@@ -368,28 +379,29 @@ class TwoComponentDissociationModel(SingleKineticModel):
 
         """
         k = self.get_rate(**params)
-        return 1/k
+        return 1 / k
 
     @staticmethod
     def min_func(t_log, k1, k2, r):
         t = np.exp(t_log)
-        return - 0.5 + r * np.exp(-k1*t) + (1 - r) * np.exp(-k2*t)
+        return -0.5 + r * np.exp(-k1 * t) + (1 - r) * np.exp(-k2 * t)
 
 
 class OneComponentDissociationModel(SingleKineticModel):
     """One component Association"""
+
     def __init__(self, bounds):
         super(OneComponentDissociationModel, self).__init__(bounds)
-        k1 = self.make_parameter('k1')
-        t = self.make_variable('t')
-        y = self.make_variable('y')
+        k1 = self.make_parameter("k1")
+        t = self.make_variable("t")
+        y = self.make_variable("y")
 
-        self.sf_model = Model({y: exp(-k1*t)})
+        self.sf_model = Model({y: exp(-k1 * t)})
 
     def __call__(self, t, **params):
         """call model at time t, returns uptake values of peptides"""
 
-        time_var = self.names['t']
+        time_var = self.names["t"]
         params[time_var] = t
         return self.sf_model(**params)
 
@@ -407,16 +419,16 @@ class OneComponentDissociationModel(SingleKineticModel):
         """
         k1_v = fsolve(func_short_ass, 1 / 2, args=(t[3], d[3]))[0]
 
-        k1_p = self.get_parameter('k1')
+        k1_p = self.get_parameter("k1")
         k1_p.value = k1_v
 
     def get_rate(self, **params):
-        k1 = params[self.names['k1']]
+        k1 = params[self.names["k1"]]
         return k1
 
     def get_tau(self, **params):
         k = self.get_rate(**params)
-        return 1/k
+        return 1 / k
 
 
 def func_short_dis(k, tt, A):
@@ -462,7 +474,7 @@ def func_long_dis(k, tt, A, k1):
         Amplitude difference given tau, tt, A, tau1
 
     """
-    return (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt)) - A
+    return (0.5 * np.exp(-k1 * tt) + 0.5 * np.exp(-k * tt)) - A
 
 
 def func_short_ass(k, tt, A):
@@ -508,4 +520,4 @@ def func_long_ass(k, tt, A, k1):
         Amplitude difference given tau, tt, A, tau1
 
     """
-    return (1 - (0.5 * np.exp(-k1*tt) + 0.5 * np.exp(-k*tt))) - A
+    return (1 - (0.5 * np.exp(-k1 * tt) + 0.5 * np.exp(-k * tt))) - A

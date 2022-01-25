@@ -17,7 +17,7 @@ from pyhdx.config import cfg
 
 
 def protein_wrapper(func, *args, **kwargs):
-    metadata = kwargs.pop('metadata', {})
+    metadata = kwargs.pop("metadata", {})
     [metadata.update(arg.metadata) for arg in args if isinstance(arg, Protein)]
 
     df_args = [arg.df if isinstance(arg, Protein) else arg for arg in args]
@@ -54,12 +54,16 @@ class Protein(object):
         elif isinstance(data, pd.DataFrame):
             self.df = data.copy()
             if not self.df.index.is_integer():
-                raise ValueError(f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be integer index")
+                raise ValueError(
+                    f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be integer index"
+                )
 
         if not self.df.index.is_unique:
             raise ValueError("Protein dataframe indices must be unique")
 
-        new_index = pd.RangeIndex(start=self.df.index.min(), stop=self.df.index.max() + 1, name='r_number')
+        new_index = pd.RangeIndex(
+            start=self.df.index.min(), stop=self.df.index.max() + 1, name="r_number"
+        )
         self.df = self.df.reindex(new_index)
 
     def __str__(self):
@@ -92,7 +96,14 @@ class Protein(object):
         protein_out = Protein(df_out, index=df_out.index.name, **metadata)
         return protein_out
 
-    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+    def to_file(
+        self,
+        file_path,
+        include_version=True,
+        include_metadata=True,
+        fmt="csv",
+        **kwargs,
+    ):
         """
         Write Protein data to file.
 
@@ -116,7 +127,14 @@ class Protein(object):
         """
 
         metadata = self.metadata if include_metadata else include_metadata
-        dataframe_to_file(file_path, self.df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
+        dataframe_to_file(
+            file_path,
+            self.df,
+            include_version=include_version,
+            include_metadata=metadata,
+            fmt=fmt,
+            **kwargs,
+        )
 
     def get_k_int(self, temperature, pH, **kwargs):
         """
@@ -140,10 +158,14 @@ class Protein(object):
 
         """
 
-        if 'sequence' not in self:
-            raise ValueError('No sequence data available to calculate intrinsic exchange rates.')
+        if "sequence" not in self:
+            raise ValueError(
+                "No sequence data available to calculate intrinsic exchange rates."
+            )
 
-        sequence = list(self['sequence'])  # Includes 'X' padding at cterm if cterm > last peptide
+        sequence = list(
+            self["sequence"]
+        )  # Includes 'X' padding at cterm if cterm > last peptide
         k_int_array = k_int_from_sequence(sequence, temperature, pH, **kwargs)
         k_int = pd.Series(k_int_array, index=self.df.index)
 
@@ -228,45 +250,73 @@ class PeptideMasterTable(object):
 
     """
 
-    def __init__(self, data, drop_first=1, ignore_prolines=True, d_percentage=100., sort=True, remove_nan=True):
-        assert np.all(data['start'] < data['end']), 'All `start` entries must be smaller than their `end` entries'
-        assert 0 <= d_percentage <= 100., 'Deuteration percentage must be between 0 and 100'
-        d_percentage /= 100.
+    def __init__(
+        self,
+        data,
+        drop_first=1,
+        ignore_prolines=True,
+        d_percentage=100.0,
+        sort=True,
+        remove_nan=True,
+    ):
+        assert np.all(
+            data["start"] < data["end"]
+        ), "All `start` entries must be smaller than their `end` entries"
+        assert (
+            0 <= d_percentage <= 100.0
+        ), "Deuteration percentage must be between 0 and 100"
+        d_percentage /= 100.0
 
         self.data = data.copy().reset_index(drop=True)
-        self.data.index.name = 'peptide_index'
+        self.data.index.name = "peptide_index"
 
         if remove_nan:
-            self.data = self.data.dropna(subset=['uptake'])
+            self.data = self.data.dropna(subset=["uptake"])
         if sort:
-            self.data = self.data.sort_values(['start', 'end', 'sequence', 'state', 'exposure'])
+            self.data = self.data.sort_values(
+                ["start", "end", "sequence", "state", "exposure"]
+            )
 
-        for col in ['start', 'end', 'sequence']:
-            target = '_' + col
+        for col in ["start", "end", "sequence"]:
+            target = "_" + col
             if target in self.data:
                 continue
             else:
                 self.data[target] = self.data[col]
 
         # Convert sequence to upper case if not so already
-        self.data['sequence'] = self.data['sequence'].str.upper()
+        self.data["sequence"] = self.data["sequence"].str.upper()
         # Mark ignored prolines with lower case letters
         if ignore_prolines:
-            self.data['sequence'] = [s.replace('P', 'p') for s in self.data['sequence']]
+            self.data["sequence"] = [s.replace("P", "p") for s in self.data["sequence"]]
 
         # Find the total number of n terminal / c_terminal residues to remove
         # Todo: edge cases such as pure prolines or overlap between c terminal prolines and drop_first section (issue 32)
-        n_term = np.array([len(seq) - len(seq[drop_first:].lstrip('p')) for seq in self.data['sequence']])
-        c_term = np.array([len(seq) - len(seq.rstrip('p')) for seq in self.data['sequence']])
+        n_term = np.array(
+            [
+                len(seq) - len(seq[drop_first:].lstrip("p"))
+                for seq in self.data["sequence"]
+            ]
+        )
+        c_term = np.array(
+            [len(seq) - len(seq.rstrip("p")) for seq in self.data["sequence"]]
+        )
 
         # Mark removed n terminal residues with lower case x
-        self.data['sequence'] = ['x'*nt + s[nt:] for nt, s in zip(n_term, self.data['sequence'])]
-        self.data['start'] += n_term
-        self.data['end'] -= c_term
+        self.data["sequence"] = [
+            "x" * nt + s[nt:] for nt, s in zip(n_term, self.data["sequence"])
+        ]
+        self.data["start"] += n_term
+        self.data["end"] -= c_term
 
-        ex_residues = np.array([len(s) - s.count('x') - s.count('p') for s in self.data['sequence']]) * d_percentage
-        if 'ex_residues' not in self.data:
-            self.data['ex_residues'] = ex_residues
+        ex_residues = (
+            np.array(
+                [len(s) - s.count("x") - s.count("p") for s in self.data["sequence"]]
+            )
+            * d_percentage
+        )
+        if "ex_residues" not in self.data:
+            self.data["ex_residues"] = ex_residues
 
     def __len__(self):
         return self.data.shape[0]
@@ -287,12 +337,14 @@ class PeptideMasterTable(object):
         """
 
         if not isinstance(state, str):
-            raise TypeError(f'State must be type `str`, got {type(state)}')
+            raise TypeError(f"State must be type `str`, got {type(state)}")
         data = self.data.query(f'state == "{state}"').copy()
-        if 'uptake_corrected' in data.columns:
-            data.dropna(subset=['uptake_corrected'], inplace=True)
+        if "uptake_corrected" in data.columns:
+            data.dropna(subset=["uptake_corrected"], inplace=True)
         if len(data) == 0:
-            raise ValueError(f"No data found for state {state!r}, options are: {', '.join(self.data['state'].unique())}")
+            raise ValueError(
+                f"No data found for state {state!r}, options are: {', '.join(self.data['state'].unique())}"
+            )
 
         return data
 
@@ -308,11 +360,16 @@ class PeptideMasterTable(object):
         """
 
         back_exchange /= 100
-        rfu = self.data['uptake'] / ((1-back_exchange)*self.data['ex_residues'])
+        rfu = self.data["uptake"] / ((1 - back_exchange) * self.data["ex_residues"])
 
-        uptake_corrected = self.data['uptake'] / (1 - back_exchange)
+        uptake_corrected = self.data["uptake"] / (1 - back_exchange)
 
-        self.data = append_fields(self.data, ['rfu', 'uptake_corrected'], data=[rfu, uptake_corrected], usemask=False)
+        self.data = append_fields(
+            self.data,
+            ["rfu", "uptake_corrected"],
+            data=[rfu, uptake_corrected],
+            usemask=False,
+        )
 
     def set_control(self, control_1, control_0=None):
         """
@@ -335,32 +392,48 @@ class PeptideMasterTable(object):
         """
 
         try:
-            fd_df = self.get_data(*control_1)[['_start', '_end', 'uptake']].set_index(['_start', '_end'], verify_integrity=True)
+            fd_df = self.get_data(*control_1)[["_start", "_end", "uptake"]].set_index(
+                ["_start", "_end"], verify_integrity=True
+            )
         except ValueError as e:
             raise ValueError("FD control has duplicate entries") from e
 
         if fd_df.size == 0:
-            raise ValueError(f'No matching peptides with state {control_1[0]} and exposure {control_1[1]}')
+            raise ValueError(
+                f"No matching peptides with state {control_1[0]} and exposure {control_1[1]}"
+            )
 
         try:
             if control_0 is None:
-                nd_df = self.get_data(*control_1).copy()[['_start', '_end', 'uptake']].set_index(['_start', '_end'], verify_integrity=True)
-                nd_df['uptake'] = 0
+                nd_df = (
+                    self.get_data(*control_1)
+                    .copy()[["_start", "_end", "uptake"]]
+                    .set_index(["_start", "_end"], verify_integrity=True)
+                )
+                nd_df["uptake"] = 0
 
             else:
-                nd_df = self.get_data(*control_0)[['_start', '_end', 'uptake']].set_index(['_start', '_end'], verify_integrity=True)
+                nd_df = self.get_data(*control_0)[
+                    ["_start", "_end", "uptake"]
+                ].set_index(["_start", "_end"], verify_integrity=True)
                 if nd_df.size == 0:
-                    raise ValueError(f'No matching peptides with state {control_0[0]} and exposure {control_0[1]}')
+                    raise ValueError(
+                        f"No matching peptides with state {control_0[0]} and exposure {control_0[1]}"
+                    )
         except ValueError as e:
             raise ValueError("ND control has duplicate entries") from e
 
-        self.data.set_index(['_start', '_end'], append=True, inplace=True)
+        self.data.set_index(["_start", "_end"], append=True, inplace=True)
         self.data.reset_index(level=0, inplace=True)
 
-        self.data['rfu'] = (self.data['uptake'] - nd_df['uptake']) / (fd_df['uptake'] - nd_df['uptake'])
-        self.data['uptake_corrected'] = self.data['rfu'] * self.data['ex_residues']
+        self.data["rfu"] = (self.data["uptake"] - nd_df["uptake"]) / (
+            fd_df["uptake"] - nd_df["uptake"]
+        )
+        self.data["uptake_corrected"] = self.data["rfu"] * self.data["ex_residues"]
 
-        self.data = self.data.set_index('peptide_index', append=True).reset_index(level=[0, 1])
+        self.data = self.data.set_index("peptide_index", append=True).reset_index(
+            level=[0, 1]
+        )
 
     def select(self, **kwargs):
         """
@@ -404,12 +477,12 @@ class PeptideMasterTable(object):
     @property
     def states(self):
         """:class:`~numpy.ndarray` Array with unique states"""
-        return np.unique(self.data['state'])
+        return np.unique(self.data["state"])
 
     @property
     def exposures(self):
         """:class:`~numpy.ndarray` Array with unique exposures"""
-        return np.unique(self.data['exposure'])
+        return np.unique(self.data["exposure"])
 
 
 class Coverage(object):
@@ -444,14 +517,14 @@ class Coverage(object):
 
     """
 
-    def __init__(self, data, n_term=1, c_term=None, sequence=''):
-        assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
-        assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
-        self.data = data.sort_values(['start', 'end'], axis=0)
-        self.data.index.name = 'peptide_id' # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
+    def __init__(self, data, n_term=1, c_term=None, sequence=""):
+        assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
+        assert len(np.unique(data["state"])) == 1, "State entries are not unique"
+        self.data = data.sort_values(["start", "end"], axis=0)
+        self.data.index.name = "peptide_id"  # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
 
-        start = self.data['_start'].min()
-        end = self.data['_end'].max()
+        start = self.data["_start"].min()
+        end = self.data["_end"].max()
 
         if n_term:
             start = min(start, n_term)
@@ -459,49 +532,65 @@ class Coverage(object):
             c_term = len(sequence) + n_term - 1
         if c_term:
             if c_term + 1 < end:
-                raise ValueError("HDX data extends beyond c_term number, check 'sequence' or 'c_term'")
+                raise ValueError(
+                    "HDX data extends beyond c_term number, check 'sequence' or 'c_term'"
+                )
             end = c_term + 1  # c_term is inclusive, therefore plus one
 
-        r_number = pd.RangeIndex(start, end, name='r_number')  # r_number spanning the full protein range, not just the covered range
+        r_number = pd.RangeIndex(
+            start, end, name="r_number"
+        )  # r_number spanning the full protein range, not just the covered range
         # Full sequence
-        _seq = pd.Series(index=r_number, dtype='U').fillna('X')  # Full sequence
+        _seq = pd.Series(index=r_number, dtype="U").fillna("X")  # Full sequence
         # Sequence with lower case letters for no coverage due to n_terminal residues or prolines
-        seq = pd.Series(index=r_number, dtype='U').fillna('X')
+        seq = pd.Series(index=r_number, dtype="U").fillna("X")
         for idx in self.data.index[::-1]:
-            start, end = self.data.loc[idx, '_start'], self.data.loc[idx, '_end']
+            start, end = self.data.loc[idx, "_start"], self.data.loc[idx, "_end"]
 
-            _seq.loc[start: end-1] = list(self.data.loc[idx, '_sequence'])
-            seq.loc[start: end-1] = list(self.data.loc[idx, 'sequence'])# = list(d['sequence'])
+            _seq.loc[start : end - 1] = list(self.data.loc[idx, "_sequence"])
+            seq.loc[start : end - 1] = list(
+                self.data.loc[idx, "sequence"]
+            )  # = list(d['sequence'])
 
         if sequence:
             for r, s1, s2 in zip(r_number, sequence, _seq):
-                if s2 != 'X' and s1 != s2:
+                if s2 != "X" and s1 != s2:
                     raise ValueError(
-                        f"Mismatch in supplied sequence and peptides sequence at residue {r}, expected '{s2}', got '{s1}'")
+                        f"Mismatch in supplied sequence and peptides sequence at residue {r}, expected '{s2}', got '{s1}'"
+                    )
             if len(sequence) != len(_seq):
-                raise ValueError("Invalid length of supplied sequence. Please check 'n_term' and 'c_term' parameters")
+                raise ValueError(
+                    "Invalid length of supplied sequence. Please check 'n_term' and 'c_term' parameters"
+                )
             _seq = list(sequence)
 
-        #todo check if this is always correctly determined (n terminal residues usw)
-        exchanges = [s.isupper() and (s != 'X') for s in seq]  # Boolean array True if residue exchanges, full length
-        coverage = seq != 'X'  # Boolean array for coverage
-        protein_df = pd.DataFrame({'sequence': _seq, 'coverage': coverage, 'exchanges': exchanges}, index=r_number)
+        # todo check if this is always correctly determined (n terminal residues usw)
+        exchanges = [
+            s.isupper() and (s != "X") for s in seq
+        ]  # Boolean array True if residue exchanges, full length
+        coverage = seq != "X"  # Boolean array for coverage
+        protein_df = pd.DataFrame(
+            {"sequence": _seq, "coverage": coverage, "exchanges": exchanges},
+            index=r_number,
+        )
 
         # Inclusive, exclusive interval of peptides coverage across the whole protein
-        self.interval = (np.min(self.data['start']), np.max(self.data['end']))
-        self.protein = Protein(protein_df, index='r_number')
+        self.interval = (np.min(self.data["start"]), np.max(self.data["end"]))
+        self.protein = Protein(protein_df, index="r_number")
 
         # matrix dimensions N_peptides N_residues, dtype for TF compatibility
-        _exchanges = self['exchanges']  # Array only on covered part
-        self.X = np.zeros((len(self.data), self.interval[1] - self.interval[0]), dtype=int)
+        _exchanges = self["exchanges"]  # Array only on covered part
+        self.X = np.zeros(
+            (len(self.data), self.interval[1] - self.interval[0]), dtype=int
+        )
         self.Z = np.zeros_like(self.X, dtype=float)
         for row, idx in enumerate(self.data.index):
-            start, end = self.data.loc[idx, 'start'], self.data.loc[idx, 'end']
+            start, end = self.data.loc[idx, "start"], self.data.loc[idx, "end"]
             i0, i1 = self.r_number.get_loc(start), self.r_number.get_loc(end - 1)
-            #i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
-            self.X[row][i0:i1+1] = 1
-            self.Z[row][i0:i1+1] = _exchanges[i0:i1+1]
-        self.Z = self.Z / self.data['ex_residues'].to_numpy()[:, np.newaxis]
+            # i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
+            self.X[row][i0 : i1 + 1] = 1
+            self.Z[row][i0 : i1 + 1] = _exchanges[i0 : i1 + 1]
+        self.Z = self.Z / self.data["ex_residues"].to_numpy()[:, np.newaxis]
 
     def __len__(self):
         return len(self.data)
@@ -528,19 +617,19 @@ class Coverage(object):
             series = array_or_series
 
         # - 1 because interval is inclusive, exclusive and .loc slices inclusive, inclusive
-        covered_slice = series.loc[self.interval[0]:self.interval[1] - 1]
+        covered_slice = series.loc[self.interval[0] : self.interval[1] - 1]
 
         return covered_slice
 
     @property
     def percent_coverage(self):
         """:obj:`float`: Percentage of residues covered by peptides"""
-        return 100*np.mean(self.protein['coverage'])
+        return 100 * np.mean(self.protein["coverage"])
 
     @property
     def redundancy(self):
         """:obj:`float`: Average redundancy of peptides in regions with at least 1 peptide"""
-        x_coverage = self.X[:, self['coverage']]
+        x_coverage = self.X[:, self["coverage"]]
         return np.mean(np.sum(x_coverage, axis=0))
 
     @property
@@ -558,7 +647,7 @@ class Coverage(object):
     def r_number(self):
         """:class:`~pandas.RangeIndex`: Pandas index numbers corresponding to the part of the protein covered by peptides"""
 
-        return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
+        return pd.RangeIndex(self.interval[0], self.interval[1], name="r_number")
 
     @property
     def index(self):
@@ -568,11 +657,11 @@ class Coverage(object):
     @property
     def block_length(self):
         """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
-            along the `r_number` axis"""
+        along the `r_number` axis"""
 
         # indices are start and stop values of blocks
-        indices = np.sort(np.concatenate([self.data['start'], self.data['end']]))
-        #indices of insertion into r_number vector gives us blocks with taking prolines into account.
+        indices = np.sort(np.concatenate([self.data["start"], self.data["end"]]))
+        # indices of insertion into r_number vector gives us blocks with taking prolines into account.
         diffs = np.diff(np.searchsorted(self.r_number, indices))
 
         block_length = diffs[diffs != 0]
@@ -604,7 +693,7 @@ class Coverage(object):
             The size which defines a gap
 
         """
-        intervals = [(s, e) for s, e in zip(self.data['start'], self.data['end'])]
+        intervals = [(s, e) for s, e in zip(self.data["start"], self.data["end"])]
         sections = reduce_inter(intervals, gap_size=gap_size)
 
         return sections
@@ -612,8 +701,12 @@ class Coverage(object):
     def __eq__(self, other):
         """Coverage objects are considered equal if both objects fully match between their start, end and sequence fields"""
         assert isinstance(other, Coverage), "Other must be an instance of Coverage"
-        return len(self.data) == len(other.data) and np.all(self.data['start'] == other.data['start']) and \
-               np.all(self.data['end'] == other.data['end']) and np.all(self.data['sequence'] == other.data['sequence'])
+        return (
+            len(self.data) == len(other.data)
+            and np.all(self.data["start"] == other.data["start"])
+            and np.all(self.data["end"] == other.data["end"])
+            and np.all(self.data["sequence"] == other.data["sequence"])
+        )
 
 
 class HDXMeasurement(object):
@@ -645,18 +738,27 @@ class HDXMeasurement(object):
         Coverage object describing peptide layout.
 
     """
+
     def __init__(self, data, **metadata):
         self.metadata = metadata
-        assert len(data['state'].unique()) == 1
-        self.state = str(data['state'].iloc[0])
-        self.timepoints = np.sort(np.unique(data['exposure']))
+        assert len(data["state"].unique()) == 1
+        self.state = str(data["state"].iloc[0])
+        self.timepoints = np.sort(np.unique(data["exposure"]))
 
         # Obtain the intersection of peptides per timepoint
-        data_list = [(data[data['exposure'] == exposure]).set_index(['_start', '_end']) for exposure in self.timepoints]
+        data_list = [
+            (data[data["exposure"] == exposure]).set_index(["_start", "_end"])
+            for exposure in self.timepoints
+        ]
         index_intersection = reduce(pd.Index.intersection, [d.index for d in data_list])
-        intersected_data = [df.loc[index_intersection].reset_index() for df in data_list]
+        intersected_data = [
+            df.loc[index_intersection].reset_index() for df in data_list
+        ]
 
-        cov_kwargs = {kwarg: metadata.get(kwarg, default) for kwarg, default in zip(['c_term', 'n_term', 'sequence'], [None, 1, ''])}
+        cov_kwargs = {
+            kwarg: metadata.get(kwarg, default)
+            for kwarg, default in zip(["c_term", "n_term", "sequence"], [None, 1, ""])
+        }
 
         self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
@@ -665,16 +767,20 @@ class HDXMeasurement(object):
 
         if self.temperature and self.pH:
             k_int = self.coverage.protein.get_k_int(self.temperature, self.pH)
-            self.coverage.protein['k_int'] = k_int
+            self.coverage.protein["k_int"] = k_int
 
-        self.data = pd.concat(intersected_data, axis=0, ignore_index=True).\
-            sort_values(['start', 'end', 'sequence', 'exposure'])
-        self.data['peptide_id'] = self.data.index % self.Np
-        self.data.index.name = 'peptide_index'  # index is original index which continues along exposures
-        self.data_wide = self.data.\
-            pivot(index='peptide_id', columns=['exposure']).\
-            reorder_levels([1, 0], axis=1).\
-            sort_index(axis=1, level=0, sort_remaining=False)
+        self.data = pd.concat(intersected_data, axis=0, ignore_index=True).sort_values(
+            ["start", "end", "sequence", "exposure"]
+        )
+        self.data["peptide_id"] = self.data.index % self.Np
+        self.data.index.name = (
+            "peptide_index"  # index is original index which continues along exposures
+        )
+        self.data_wide = (
+            self.data.pivot(index="peptide_id", columns=["exposure"])
+            .reorder_levels([1, 0], axis=1)
+            .sort_index(axis=1, level=0, sort_remaining=False)
+        )
 
     def __str__(self):
         """
@@ -687,7 +793,7 @@ class HDXMeasurement(object):
 
         """
 
-        timepoints = ', '.join([f'{t:.2f}' for t in self.timepoints])
+        timepoints = ", ".join([f"{t:.2f}" for t in self.timepoints])
 
         s = f"""
         HDX Measurement: {self.name}
@@ -702,27 +808,27 @@ class HDXMeasurement(object):
         pH:                     {self.pH}             
         """
 
-        return textwrap.dedent(s.lstrip('\n'))
+        return textwrap.dedent(s.lstrip("\n"))
 
     def _repr_markdown_(self):
         s = str(self)
-        s = s.replace('\n', '<br>')
+        s = s.replace("\n", "<br>")
         return s
 
     @property
     def name(self):
         """:obj:`str`: HDX Measurement name"""
-        return self.metadata.get('name', self.state)
+        return self.metadata.get("name", self.state)
 
     @property
     def temperature(self):
         """:obj:`float`: Temperature of the H/D exchagne reaction (K)."""
-        return self.metadata.get('temperature', None)
+        return self.metadata.get("temperature", None)
 
     @property
     def pH(self):
         """pH of the H/D exchange reaction."""
-        return self.metadata.get('pH', None)
+        return self.metadata.get("pH", None)
 
     @property
     def Np(self):
@@ -741,7 +847,8 @@ class HDXMeasurement(object):
 
     def __len__(self):
         import warnings
-        warnings.warn('Use hdxm.Nt instead', DeprecationWarning)
+
+        warnings.warn("Use hdxm.Nt instead", DeprecationWarning)
         return len(self.timepoints)
 
     def __iter__(self):
@@ -754,7 +861,7 @@ class HDXMeasurement(object):
     def rfu_residues(self):
         """:class:`~pandas.DataFrame`: Relative fractional uptake per residue. Shape Nr x Nt"""
         df = pd.concat([v.rfu_residues for v in self], keys=self.timepoints, axis=1)
-        df.columns.name = 'exposure'
+        df.columns.name = "exposure"
 
         return df
 
@@ -762,14 +869,14 @@ class HDXMeasurement(object):
     def rfu_peptides(self):
         """:class:`~pandas.DataFrame`: Relative fractional uptake per peptide. Shape Np x Nt"""
         df = pd.concat([v.rfu_peptides for v in self], keys=self.timepoints, axis=1)
-        df.columns.name = 'exposure'
+        df.columns.name = "exposure"
         return df
 
     @property
     def d_exp(self):
         """:class:`~pandas.DataFrame`: D-uptake values (corrected). Shape Np x Nt"""
         df = pd.concat([v.d_exp for v in self], keys=self.timepoints, axis=1)
-        df.columns.name = 'exposure'
+        df.columns.name = "exposure"
         return df
 
     def get_tensors(self, exchanges=False, dtype=None):
@@ -795,16 +902,18 @@ class HDXMeasurement(object):
 
         """
 
-        if 'k_int' not in self.coverage.protein:
-            raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
+        if "k_int" not in self.coverage.protein:
+            raise ValueError(
+                "Unknown intrinsic rates of exchange, please supply pH and temperature parameters"
+            )
         try:
             d_exp = self.d_exp
         except ValueError:
             raise ValueError("HDX data is not corrected for back exchange.")
 
         if exchanges:
-            #this could be a method on coverage object similar to apply_interval; select exchanging
-            bools = self.coverage['exchanges'].to_numpy()
+            # this could be a method on coverage object similar to apply_interval; select exchanging
+            bools = self.coverage["exchanges"].to_numpy()
         else:
             bools = np.ones(self.Nr, dtype=bool)
 
@@ -812,11 +921,18 @@ class HDXMeasurement(object):
         device = cfg.TORCH_DEVICE
 
         tensors = {
-            'temperature': torch.tensor([self.temperature], dtype=dtype, device=device).unsqueeze(-1),
-            'X': torch.tensor(self.coverage.X[:, bools], dtype=dtype, device=device),
-            'k_int': torch.tensor(self.coverage['k_int'].to_numpy()[bools], dtype=dtype, device=device).unsqueeze(-1),
-            'timepoints': torch.tensor(self.timepoints, dtype=dtype, device=device).unsqueeze(0),
-            'd_exp': torch.tensor(self.d_exp.to_numpy(), dtype=dtype, device=device)}
+            "temperature": torch.tensor(
+                [self.temperature], dtype=dtype, device=device
+            ).unsqueeze(-1),
+            "X": torch.tensor(self.coverage.X[:, bools], dtype=dtype, device=device),
+            "k_int": torch.tensor(
+                self.coverage["k_int"].to_numpy()[bools], dtype=dtype, device=device
+            ).unsqueeze(-1),
+            "timepoints": torch.tensor(
+                self.timepoints, dtype=dtype, device=device
+            ).unsqueeze(0),
+            "d_exp": torch.tensor(self.d_exp.to_numpy(), dtype=dtype, device=device),
+        }
 
         return tensors
 
@@ -838,25 +954,38 @@ class HDXMeasurement(object):
             ΔG guess values
 
         """
-        if 'k_int' not in self.coverage.protein:
-            raise ValueError("Unknown intrinsic rates of exchange, please supply pH and temperature parameters")
+        if "k_int" not in self.coverage.protein:
+            raise ValueError(
+                "Unknown intrinsic rates of exchange, please supply pH and temperature parameters"
+            )
         if not isinstance(rates, pd.Series):
             raise TypeError("Rates input type should be pandas.Series")
 
-        p_guess = (self.coverage.protein['k_int'] / rates) - 1
+        p_guess = (self.coverage.protein["k_int"] / rates) - 1
 
-        p_guess.clip(0., None, inplace=True)  # Some initial guesses might have negative PF values
-        with np.errstate(divide='ignore'):
+        p_guess.clip(
+            0.0, None, inplace=True
+        )  # Some initial guesses might have negative PF values
+        with np.errstate(divide="ignore"):
             deltaG = np.log(p_guess) * constants.R * self.temperature
 
         deltaG.replace([np.inf, -np.inf], np.nan, inplace=True)
 
         if correct_c_term and self.coverage.protein.c_term in deltaG.index:
-            deltaG.loc[self.coverage.protein.c_term] = deltaG.loc[self.coverage.protein.c_term - 1]
+            deltaG.loc[self.coverage.protein.c_term] = deltaG.loc[
+                self.coverage.protein.c_term - 1
+            ]
 
         return deltaG
 
-    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+    def to_file(
+        self,
+        file_path,
+        include_version=True,
+        include_metadata=True,
+        fmt="csv",
+        **kwargs,
+    ):
         """
         Write the data in this HDX measurement to file.
 
@@ -882,7 +1011,14 @@ class HDXMeasurement(object):
         # should use self.metadata if include_metadata is the bool True otherwise if its a dict use that
         metadata = self.metadata if include_metadata else include_metadata
         df = self.data
-        dataframe_to_file(file_path, df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
+        dataframe_to_file(
+            file_path,
+            df,
+            include_version=include_version,
+            include_metadata=metadata,
+            fmt=fmt,
+            **kwargs,
+        )
 
 
 class HDXTimepoint(Coverage):
@@ -897,33 +1033,33 @@ class HDXTimepoint(Coverage):
     """
 
     def __init__(self, data, **kwargs):
-        assert len(np.unique(data['exposure'])) == 1, 'Exposure entries are not unique'
-        assert len(np.unique(data['state'])) == 1, 'State entries are not unique'
+        assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
+        assert len(np.unique(data["state"])) == 1, "State entries are not unique"
 
         super(HDXTimepoint, self).__init__(data, **kwargs)
 
-        self.state = self.data['state'][0]
-        self.exposure = self.data['exposure'][0]
+        self.state = self.data["state"][0]
+        self.exposure = self.data["exposure"][0]
 
     @property
     def rfu_peptides(self):
         """:class:`~pandas.Series`: Relative fractional uptake per peptide"""
-        return self.data['rfu']
+        return self.data["rfu"]
 
     @property
     def d_exp(self):
         """:class:`~pandas.Series`: Experimentally measured D-values (corrected)"""
-        return self.data['uptake_corrected']
+        return self.data["uptake_corrected"]
 
     @property
     def name(self):
         """:obj:`str`: Name of this peptidemeasurement"""
-        return self.state + '_' + str(self.exposure)
+        return self.state + "_" + str(self.exposure)
 
     @property
     def rfu_residues(self):
         """:class:`~pandas.Series`: Relative fractional uptake (RFU) per residue. Obtained by weighted averaging"""
-        return self.weighted_average('rfu')
+        return self.weighted_average("rfu")
 
     def calc_rfu(self, residue_rfu):
         """
@@ -965,12 +1101,14 @@ class HDXTimepoint(Coverage):
 
 
 class CoverageSet(object):
-    #todo perhaps this object should have X
+    # todo perhaps this object should have X
     def __init__(self, hdxm_list):
         self.hdxm_list = hdxm_list
 
-        #todo create Coverage object for the 3d case
-        intervals = np.array([hdxm_list.coverage.interval for hdxm_list in self.hdxm_list])
+        # todo create Coverage object for the 3d case
+        intervals = np.array(
+            [hdxm_list.coverage.interval for hdxm_list in self.hdxm_list]
+        )
         self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
         self.r_number = np.arange(*self.interval)
 
@@ -981,15 +1119,15 @@ class CoverageSet(object):
 
     @property
     def index(self):
-        """pd index: """
-        return pd.RangeIndex(self.interval[0], self.interval[1], name='r_number')
+        """pd index:"""
+        return pd.RangeIndex(self.interval[0], self.interval[1], name="r_number")
 
     def apply_interval(self, array_or_series):
         """Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
         region. Returned series length is equal to number of columns in the X matrix
 
         """
-        #todo testing and 2d array support
+        # todo testing and 2d array support
         if isinstance(array_or_series, np.ndarray):
             series = pd.Series(array_or_series, index=self.index)
             assert len(array_or_series) == len(self.index)
@@ -997,7 +1135,7 @@ class CoverageSet(object):
             series = array_or_series
 
         # - 1 because interval is inclusive, exclusive and .loc slices inclusive, inclusive
-        covered_slice = series.loc[self.interval[0]:self.interval[1] - 1]
+        covered_slice = series.loc[self.interval[0] : self.interval[1] - 1]
 
         return covered_slice
 
@@ -1026,11 +1164,11 @@ class CoverageSet(object):
             i1 = interval_sample[1] - self.interval[0]
 
             sr_mask[i, i0:i1] = True
-            st_mask[i, -hdxm.Nt:] = True
-            spr_mask[i, 0: hdxm.Np, i0:i1] = True
-            spt_mask[i, 0: hdxm.Np, -hdxm.Nt:] = True
+            st_mask[i, -hdxm.Nt :] = True
+            spr_mask[i, 0 : hdxm.Np, i0:i1] = True
+            spt_mask[i, 0 : hdxm.Np, -hdxm.Nt :] = True
 
-        mask_dict = {'sr': sr_mask, 'st': st_mask, 'spr': spr_mask, 'spt': spt_mask}
+        mask_dict = {"sr": sr_mask, "st": st_mask, "spr": spr_mask, "spt": spt_mask}
 
         return mask_dict
 
@@ -1060,11 +1198,13 @@ class HDXMeasurementSet(object):
 
         timepoints_values = np.concatenate([hdxm.timepoints for hdxm in self.hdxm_list])
         self.timepoints = np.zeros((self.Ns, self.Nt))
-        self.timepoints[self.masks['st']] = timepoints_values
+        self.timepoints[self.masks["st"]] = timepoints_values
 
-        d_values = np.concatenate([hdxm.d_exp.to_numpy().flatten() for hdxm in self.hdxm_list])
+        d_values = np.concatenate(
+            [hdxm.d_exp.to_numpy().flatten() for hdxm in self.hdxm_list]
+        )
         self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
-        self.d_exp[self.masks['spt']] = d_values
+        self.d_exp[self.masks["spt"]] = d_values
 
         # Index array of of shape Ns x y where indices apply to dG return aligned residues for
         self.aligned_indices = None
@@ -1103,8 +1243,12 @@ class HDXMeasurementSet(object):
     @property
     def rfu_residues(self):
         # todo make nlevel =3 with quantity 'rfu' column
-        rfu = pd.concat([hdxm.rfu_residues for hdxm in self],
-                  keys=self.names, names=['state', 'exposure'], axis=1)
+        rfu = pd.concat(
+            [hdxm.rfu_residues for hdxm in self],
+            keys=self.names,
+            names=["state", "exposure"],
+            axis=1,
+        )
 
         return rfu
 
@@ -1125,7 +1269,9 @@ class HDXMeasurementSet(object):
 
         """
 
-        guesses = [hdxm.guess_deltaG(rates_df[name]) for hdxm, name in zip(self, self.names)]
+        guesses = [
+            hdxm.guess_deltaG(rates_df[name]) for hdxm, name in zip(self, self.names)
+        ]
         deltaG = pd.concat(guesses, keys=self.names, axis=1)
 
         return deltaG
@@ -1141,49 +1287,76 @@ class HDXMeasurementSet(object):
         dfs = [hdxm.coverage.protein.df for hdxm in self.hdxm_list]
         self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
 
-        df = self.aligned_dataframes['r_number']
+        df = self.aligned_dataframes["r_number"]
 
         # Crop residue numbers to interval range
-        df = df[((self.coverage.interval[0] <= df) & (df < self.coverage.interval[1])).all(axis=1)]
-        df = df - self.coverage.interval[0]  # First residue in interval selected by index 0
-        df.dropna(how='any', inplace=True)  # Remove non-aligned residues
+        df = df[
+            ((self.coverage.interval[0] <= df) & (df < self.coverage.interval[1])).all(
+                axis=1
+            )
+        ]
+        df = (
+            df - self.coverage.interval[0]
+        )  # First residue in interval selected by index 0
+        df.dropna(how="any", inplace=True)  # Remove non-aligned residues
 
         self.aligned_indices = df.to_numpy(dtype=int).T
 
     def get_tensors(self, dtype=None):
-        #todo create correct shapes as per table X for all
+        # todo create correct shapes as per table X for all
         temperature = np.array([kf.temperature for kf in self.hdxm_list])
 
-        X_values = np.concatenate([hdxm.coverage.X.flatten() for hdxm in self.hdxm_list])
+        X_values = np.concatenate(
+            [hdxm.coverage.X.flatten() for hdxm in self.hdxm_list]
+        )
         X = np.zeros((self.Ns, self.Np, self.Nr))
-        X[self.masks['spr']] = X_values
+        X[self.masks["spr"]] = X_values
 
-        k_int_values = np.concatenate([hdxm.coverage['k_int'].to_numpy() for hdxm in self.hdxm_list])
+        k_int_values = np.concatenate(
+            [hdxm.coverage["k_int"].to_numpy() for hdxm in self.hdxm_list]
+        )
         k_int = np.zeros((self.Ns, self.Nr))
-        k_int[self.masks['sr']] = k_int_values
+        k_int[self.masks["sr"]] = k_int_values
 
         dtype = dtype or cfg.TORCH_DTYPE
         device = cfg.TORCH_DEVICE
 
         tensors = {
-            'temperature': torch.tensor(temperature, dtype=dtype, device=device).reshape(self.Ns, 1, 1),
-            'X': torch.tensor(X, dtype=dtype, device=device),
-            'k_int': torch.tensor(k_int, dtype=dtype, device=device).reshape(self.Ns, self.Nr, 1),
-            'timepoints': torch.tensor(self.timepoints, dtype=dtype, device=device).reshape(self.Ns, 1, self.Nt),
-            'd_exp': torch.tensor(self.d_exp, dtype=dtype, device=device)  #todo this is called uptake_corrected/D/uptake
+            "temperature": torch.tensor(
+                temperature, dtype=dtype, device=device
+            ).reshape(self.Ns, 1, 1),
+            "X": torch.tensor(X, dtype=dtype, device=device),
+            "k_int": torch.tensor(k_int, dtype=dtype, device=device).reshape(
+                self.Ns, self.Nr, 1
+            ),
+            "timepoints": torch.tensor(
+                self.timepoints, dtype=dtype, device=device
+            ).reshape(self.Ns, 1, self.Nt),
+            "d_exp": torch.tensor(
+                self.d_exp, dtype=dtype, device=device
+            ),  # todo this is called uptake_corrected/D/uptake
         }
 
         return tensors
 
     @property
     def exchanges(self):
-        values = np.concatenate([hdxm.coverage['exchanges'].to_numpy() for hdxm in self.hdxm_list])
+        values = np.concatenate(
+            [hdxm.coverage["exchanges"].to_numpy() for hdxm in self.hdxm_list]
+        )
         exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
-        exchanges[self.masks['sr']] = values
+        exchanges[self.masks["sr"]] = values
 
         return exchanges
 
-    def to_file(self, file_path, include_version=True, include_metadata=True, fmt='csv', **kwargs):
+    def to_file(
+        self,
+        file_path,
+        include_version=True,
+        include_metadata=True,
+        fmt="csv",
+        **kwargs,
+    ):
         """
         Write the data in this HDX measurement set to file.
 
@@ -1208,14 +1381,23 @@ class HDXMeasurementSet(object):
         dfs = []
         metadata = {}
         for hdxm in self.hdxm_list:
-            metadata[hdxm.name] = hdxm.metadata if include_metadata else include_metadata
+            metadata[hdxm.name] = (
+                hdxm.metadata if include_metadata else include_metadata
+            )
             dfs.append(hdxm.data)
 
         full_df = pd.concat(dfs, axis=1, keys=self.names)
-        dataframe_to_file(file_path, full_df, include_version=include_version, include_metadata=metadata, fmt=fmt, **kwargs)
+        dataframe_to_file(
+            file_path,
+            full_df,
+            include_version=include_version,
+            include_metadata=metadata,
+            fmt=fmt,
+            **kwargs,
+        )
 
 
-#https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
+# https://stackoverflow.com/questions/4494404/find-large-number-of-consecutive-values-fulfilling-condition-in-a-numpy-array
 def contiguous_regions(condition):
     """Finds contiguous True regions of the boolean array "condition". Returns
     a 2D array where the first column is the start index of the region and the
@@ -1223,7 +1405,7 @@ def contiguous_regions(condition):
 
     # Find the indicies of changes in "condition"
     d = np.diff(condition)
-    idx, = d.nonzero()
+    (idx,) = d.nonzero()
 
     # We need to start things after the change in "condition". Therefore,
     # we'll shift the index by 1 to the right.
@@ -1235,10 +1417,10 @@ def contiguous_regions(condition):
 
     if condition[-1]:
         # If the end of condition is True, append the length of the array
-        idx = np.r_[idx, condition.size] # Edit
+        idx = np.r_[idx, condition.size]  # Edit
 
     # Reshape the result into two columns
-    idx.shape = (-1,2)
+    idx.shape = (-1, 2)
     return idx
 
 
@@ -1262,12 +1444,15 @@ def hdx_intersection(hdx_list, fields=None):
         Output list of :class:`~pyhdx.models.HDXMeasurement`
     """
 
-    fields = fields or ['_start', '_end', 'exposure']
+    fields = fields or ["_start", "_end", "exposure"]
 
     full_arrays = [data_obj.full_data for data_obj in hdx_list]
     selected = array_intersection(full_arrays, fields=fields)
 
-    hdx_out = [HDXMeasurement(data, **data_obj.metadata) for data, data_obj in zip(selected, hdx_list)]
+    hdx_out = [
+        HDXMeasurement(data, **data_obj.metadata)
+        for data, data_obj in zip(selected, hdx_list)
+    ]
     return hdx_out
 
 
@@ -1279,7 +1464,7 @@ def array_intersection(arrays_list, fields):
     ----------
     arrays_list : :obj:`iterable`
         Iterable of input structured arrays
-    fields : :obj:`iterable` 
+    fields : :obj:`iterable`
         Iterable of fields to use to decide if entires are intersecting
 
     Returns
@@ -1289,6 +1474,8 @@ def array_intersection(arrays_list, fields):
 
     """
     intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays_list])
-    selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays_list]
+    selected = [
+        elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays_list
+    ]
 
     return selected

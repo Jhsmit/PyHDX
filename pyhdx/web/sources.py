@@ -13,7 +13,7 @@ from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dat
 class Source(param.Parameterized):
     """Base class for sources"""
 
-    _type = 'base'
+    _type = "base"
 
     updated = param.Event()
 
@@ -23,15 +23,11 @@ class Source(param.Parameterized):
 
 class TableSource(Source):
 
-    tables = param.Dict(
-        default={},
-        doc="Dictionary of tables (pd.DataFrames)")
+    tables = param.Dict(default={}, doc="Dictionary of tables (pd.DataFrames)")
 
-    hashes = param.Dict(
-        default={},
-        doc="Dictionary of table hashes")
+    hashes = param.Dict(default={}, doc="Dictionary of table hashes")
 
-    _type = 'table'
+    _type = "table"
 
     def get(self):
         if len(self.tables) == 1:
@@ -44,7 +40,7 @@ class TableSource(Source):
         self.hashes[table] = table_hash
         self.tables[table] = df
 
-        #todo self.updated = True?
+        # todo self.updated = True?
 
     def get_table(self, table):
         df = self.tables.get(table, None)
@@ -64,7 +60,7 @@ class TableSource(Source):
 
 
 class PyHDXSource(TableSource):
-    _type = 'pyhdx'
+    _type = "pyhdx"
 
     # see readme/tables_list for tables and their indexes
 
@@ -75,7 +71,7 @@ class PyHDXSource(TableSource):
     def from_file(self):
         pass
         # todo load hdxms first
-        #then use those to reload dG results
+        # then use those to reload dG results
 
     def add(self, obj, name):  # todo Name is None and use obj name?
         if isinstance(obj, HDXMeasurement):
@@ -100,39 +96,49 @@ class PyHDXSource(TableSource):
         df = rates_result.output.copy()
 
         tuples = [(name, *tup) for tup in df.columns]
-        columns = pd.MultiIndex.from_tuples(tuples, names=['guess_ID', 'state', 'quantity'])
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["guess_ID", "state", "quantity"]
+        )
         df.columns = columns
-        self._add_table(df, 'rates')
+        self._add_table(df, "rates")
         self.rate_results[name] = rates_result
-        self.param.trigger('rate_results')
+        self.param.trigger("rate_results")
         self.updated = True
 
-    def _add_hdxm_object(self, hdxm, name):  # where name is new 'protein state' entry (or used for state (#todo clarify))
+    def _add_hdxm_object(
+        self, hdxm, name
+    ):  # where name is new 'protein state' entry (or used for state (#todo clarify))
         # Add peptide data
         df = hdxm.data_wide.copy()
         tuples = [(name, *tup) for tup in df.columns]
-        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure', 'quantity'])
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["state", "exposure", "quantity"]
+        )
         df.columns = columns
-        self._add_table(df, 'peptides')
+        self._add_table(df, "peptides")
 
         # Add rfu per residue data
         df = hdxm.rfu_residues
-        tuples = [(name, column, 'rfu') for column in df.columns]
-        columns = pd.MultiIndex.from_tuples(tuples, names=['state', 'exposure', 'quantity'])
+        tuples = [(name, column, "rfu") for column in df.columns]
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["state", "exposure", "quantity"]
+        )
         df.columns = columns
-        self._add_table(df, 'rfu_residues')
+        self._add_table(df, "rfu_residues")
 
         self.hdxm_objects[name] = hdxm
-        self.param.trigger('hdxm_objects')
+        self.param.trigger("hdxm_objects")
         self.updated = True
 
     def _add_dG_fit(self, fit_result, name):
         # Add dG values table (+ covariances etc)
         df = fit_result.output.copy()
         tuples = [(name, *tup) for tup in df.columns]
-        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["fit_ID", "state", "quantity"]
+        )
         df.columns = columns
-        self._add_table(df, 'dG_fits')
+        self._add_table(df, "dG_fits")
 
         # Add calculated d-uptake values (#todo add method on FitResults object that does this?)
         timepoints = fit_result.hdxm_set.timepoints
@@ -147,35 +153,44 @@ class PyHDXSource(TableSource):
         Ns, Np, Nt = d_calc.shape
         reshaped = d_calc.reshape(Ns * Np, Nt)
         columns = pd.MultiIndex.from_product(
-            [[name], fit_result.hdxm_set.names, np.arange(Np), ['d_calc']],
-            names=['fit_ID', 'state', 'peptide_id', 'quantity'])
-        index = pd.Index(tvec, name='exposure')
+            [[name], fit_result.hdxm_set.names, np.arange(Np), ["d_calc"]],
+            names=["fit_ID", "state", "peptide_id", "quantity"],
+        )
+        index = pd.Index(tvec, name="exposure")
         df = pd.DataFrame(reshaped.T, index=index, columns=columns)
-        df = df.loc[:, (df != 0).any(axis=0)]  # remove zero columns, replace with NaN when possible
-        self._add_table(df, 'd_calc')
+        df = df.loc[
+            :, (df != 0).any(axis=0)
+        ]  # remove zero columns, replace with NaN when possible
+        self._add_table(df, "d_calc")
 
         # Add losses df
         df = fit_result.losses.copy()
-        tuples = [(name, column) for column in df.columns]  # losses df is not multiindex
-        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'loss_type'])
+        tuples = [
+            (name, column) for column in df.columns
+        ]  # losses df is not multiindex
+        columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "loss_type"])
         df.columns = columns
-        self._add_table(df, 'loss')
+        self._add_table(df, "loss")
 
-        #Add MSE per peptide df
+        # Add MSE per peptide df
         # current bug: convert dtypes drop column names: https://github.com/pandas-dev/pandas/issues/41435
         # use before assigning column names
         mse_df = fit_result.get_peptide_mse().convert_dtypes()
-        #mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1).convert_dtypes()
-        mse_df.index.name = 'peptide_id'
+        # mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1).convert_dtypes()
+        mse_df.index.name = "peptide_id"
         tuples = [(name, *tup) for tup in mse_df.columns]
-        columns = pd.MultiIndex.from_tuples(tuples, names=['fit_ID', 'state', 'quantity'])
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["fit_ID", "state", "quantity"]
+        )
         mse_df.columns = columns
-        self._add_table(mse_df, 'peptide_mse')
+        self._add_table(mse_df, "peptide_mse")
 
         self.dG_fits[name] = fit_result
         self.updated = True
 
-    def _add_table(self, df, table, categorical=True): # TODO add_table is (name, dataframe)
+    def _add_table(
+        self, df, table, categorical=True
+    ):  # TODO add_table is (name, dataframe)
         """
 
         :param df:
@@ -187,32 +202,37 @@ class PyHDXSource(TableSource):
         if table in self.tables:
             current = self.tables[table]
             new = pd.concat([current, df], axis=1)
-            categories = list(current.columns.unique(level=0)) + list(df.columns.unique(level=0))
+            categories = list(current.columns.unique(level=0)) + list(
+                df.columns.unique(level=0)
+            )
         else:
             new = df
             categories = list(df.columns.unique(level=0))
         if categorical:
-            new.columns = multiindex_astype(new.columns, 0, 'category')
-            new.columns = multiindex_set_categories(new.columns, 0, categories, ordered=True)
+            new.columns = multiindex_astype(new.columns, 0, "category")
+            new.columns = multiindex_set_categories(
+                new.columns, 0, categories, ordered=True
+            )
 
         self.add_table(table, new)
 
 
 class PDBSource(Source):
 
-    _type = 'pdb'
+    _type = "pdb"
 
-    pdb_files = param.Dict({}, doc='Dictionary with id: pdb_string pdb file entries')
+    pdb_files = param.Dict({}, doc="Dictionary with id: pdb_string pdb file entries")
 
     hashes = param.Dict({})
 
     max_entries = param.Number(
         1,
-        doc='set maximum size for pdb files. set to none for infinite size. set to one for single pdb mode')
+        doc="set maximum size for pdb files. set to none for infinite size. set to one for single pdb mode",
+    )
 
     def add_from_pdb(self, pdb_id):
         self._make_room()
-        url = f'http://files.rcsb.org/download/{pdb_id}.pdb'
+        url = f"http://files.rcsb.org/download/{pdb_id}.pdb"
         with urllib.request.urlopen(url) as response:
             pdb_string = response.read().decode()
 

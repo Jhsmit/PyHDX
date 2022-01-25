@@ -6,7 +6,7 @@ import torch
 import warnings
 
 
-__version__ = get_versions()['version']
+__version__ = get_versions()["version"]
 del get_versions
 
 
@@ -20,8 +20,8 @@ def read_config(path):
 
 def write_config(path, config):
     """write a config .ini file from a configparse.Configparser object"""
-    with open(path, 'w') as config_file:
-        version_string = '; pyhdx configuration file ' + __version__ + '\n\n'
+    with open(path, "w") as config_file:
+        version_string = "; pyhdx configuration file " + __version__ + "\n\n"
         config_file.write(version_string)
         config.write(config_file)
 
@@ -29,19 +29,19 @@ def write_config(path, config):
 def reset_config():
     """create a new config.ini file in the user home dir/.pyhdx folder"""
 
-    with open(config_file_path, 'w') as target:
-        version_string = '; pyhdx configuration file ' + __version__ + '\n\n'
+    with open(config_file_path, "w") as target:
+        version_string = "; pyhdx configuration file " + __version__ + "\n\n"
         target.write(version_string)
 
-        with open(current_dir / 'config.ini') as source:
+        with open(current_dir / "config.ini") as source:
             for line in source:
                 target.write(line)
 
-    #shutil.copy(current_dir / 'config.ini', config_file_path)
+    # shutil.copy(current_dir / 'config.ini', config_file_path)
 
 
 class Singleton(type):
-    #https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
+    # https://stackoverflow.com/questions/6760685/creating-a-singleton-in-python
     _instances = {}
 
     def __call__(cls, *args, **kwargs):
@@ -51,7 +51,6 @@ class Singleton(type):
 
 
 class ConfigurationSettings(metaclass=Singleton):
-
     def __init__(self, file_path=None):
         """
         Parameters
@@ -64,7 +63,7 @@ class ConfigurationSettings(metaclass=Singleton):
         if pth.exists():
             self._config = read_config(pth)
         else:
-            self._config = read_config(current_dir / 'config.ini')
+            self._config = read_config(current_dir / "config.ini")
 
     def load_config(self, pth):
         """load a new configuration from pth"""
@@ -95,27 +94,29 @@ class ConfigurationSettings(metaclass=Singleton):
         This method is used to update the configuration file.
         """
 
-        warnings.warn("write_config method is deprecation, use the module level function instead",
-                      DeprecationWarning)
+        warnings.warn(
+            "write_config method is deprecation, use the module level function instead",
+            DeprecationWarning,
+        )
 
         pth = path or config_file_path
 
-        with open(pth, 'w') as config_file:
+        with open(pth, "w") as config_file:
             self._config.write(config_file)
 
     @property
     def TORCH_DTYPE(self):
-        dtype = self.get('fitting', 'dtype')
-        if dtype in ['float64', 'double']:
+        dtype = self.get("fitting", "dtype")
+        if dtype in ["float64", "double"]:
             return torch.float64
-        elif dtype in ['float32', 'float']:
+        elif dtype in ["float32", "float"]:
             return torch.float32
         else:
-            raise ValueError(f'Unsupported data type: {dtype}')
+            raise ValueError(f"Unsupported data type: {dtype}")
 
     @property
     def TORCH_DEVICE(self):
-        device = self.get('fitting', 'device')
+        device = self.get("fitting", "device")
         return torch.device(device)
 
 
@@ -127,8 +128,8 @@ def valid_config():
     if not config_file_path.exists():
         return False
     else:
-        with open(config_file_path, 'r') as f:
-            version_string = f.readline().strip('; ').split(' ')[-1]
+        with open(config_file_path, "r") as f:
+            version_string = f.readline().strip("; ").split(" ")[-1]
 
         pyhdx_version = version.parse(__version__)
         cfg_version = version.parse(version_string)
@@ -137,11 +138,11 @@ def valid_config():
 
 
 home_dir = Path.home()
-config_dir = home_dir / '.pyhdx'
+config_dir = home_dir / ".pyhdx"
 config_dir.mkdir(parents=False, exist_ok=True)
 current_dir = Path(__file__).parent
 
-config_file_path = config_dir / 'config.ini'
+config_file_path = config_dir / "config.ini"
 if not valid_config():
     try:
         reset_config()

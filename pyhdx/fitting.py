@@ -10,14 +10,18 @@ from symfit import Fit
 from symfit.core.minimizers import DifferentialEvolution, Powell
 from tqdm import trange
 
-from pyhdx.fit_models import SingleKineticModel, TwoComponentAssociationModel, TwoComponentDissociationModel
+from pyhdx.fit_models import (
+    SingleKineticModel,
+    TwoComponentAssociationModel,
+    TwoComponentDissociationModel,
+)
 from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
 from pyhdx.support import temporary_seed
 from pyhdx.models import Protein, HDXMeasurementSet
 from pyhdx.config import cfg
 
-EmptyResult = namedtuple('EmptyResult', ['chi_squared', 'params'])
-er = EmptyResult(np.nan, {k: np.nan for k in ['tau1', 'tau2', 'r']})
+EmptyResult = namedtuple("EmptyResult", ["chi_squared", "params"])
+er = EmptyResult(np.nan, {k: np.nan for k in ["tau1", "tau2", "r"]})
 
 
 # Reguarlizers act on ΔG values, which are in kJ/mol and range typically from 0 to 40000 J/mol.
@@ -34,16 +38,13 @@ R1 = 1
 R2 = 1
 
 optimizer_defaults = {
-    'SGD': {
-        'lr': 1e4,
-        'momentum': 0.5,
-        'nesterov': True
-    },
+    "SGD": {"lr": 1e4, "momentum": 0.5, "nesterov": True},
 }
 
 # ------------------------------------- #
 # Rates fitting
 # ------------------------------------- #
+
 
 def get_bounds(times):
     """
@@ -70,7 +71,7 @@ def get_bounds(times):
     return b_lower, b_upper
 
 
-def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
+def _prepare_wt_avg_fit(hdxm, model_type="association", bounds=None):
     """
 
     Parameters
@@ -101,12 +102,12 @@ def _prepare_wt_avg_fit(hdxm, model_type='association', bounds=None):
             continue
         intervals.append((r_excl[i], r_excl[i + bl]))
         d_list.append(d)
-        if model_type == 'association':
+        if model_type == "association":
             model = TwoComponentAssociationModel(bounds)
-        elif model_type == 'dissociation':
+        elif model_type == "dissociation":
             model = TwoComponentDissociationModel(bounds)
         else:
-            raise ValueError('Invalid model type {}'.format(model_type))
+            raise ValueError("Invalid model type {}".format(model_type))
         # res = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
 
         models.append(model)
@@ -135,16 +136,24 @@ def fit_rates_half_time_interpolate(hdxm):
     """
     # find t_50
     interpolated = np.array(
-        [np.interp(0.5, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues.to_numpy()])  #iterate over residues
+        [
+            np.interp(0.5, d_uptake, hdxm.timepoints)
+            for d_uptake in hdxm.rfu_residues.to_numpy()
+        ]
+    )  # iterate over residues
     rate = np.log(2) / interpolated  # convert to rate
 
-    output = pd.DataFrame({'rate': rate}, index=hdxm.coverage.r_number)
-    result = GenericFitResult(output=output, fit_function='fit_rates_half_time_interpolate', name=hdxm.name)
+    output = pd.DataFrame({"rate": rate}, index=hdxm.coverage.r_number)
+    result = GenericFitResult(
+        output=output, fit_function="fit_rates_half_time_interpolate", name=hdxm.name
+    )
 
     return result
 
 
-def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=0.20, model_type='association', client=None, pbar=None):
+def fit_rates_weighted_average(
+    hdxm, bounds=None, chisq_thd=0.20, model_type="association", client=None, pbar=None
+):
     """
     Fit a model specified by 'model_type' to D-uptake kinetics. D-uptake is weighted averaged across peptides per
     timepoint to obtain residue-level D-uptake.
@@ -172,7 +181,9 @@ def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=0.20, model_type='as
     fit_result : :class:`~pyhdx.fitting.KineticsFitResult`
 
     """
-    d_list, intervals, models = _prepare_wt_avg_fit(hdxm, model_type=model_type, bounds=bounds)
+    d_list, intervals, models = _prepare_wt_avg_fit(
+        hdxm, model_type=model_type, bounds=bounds
+    )
     if pbar:
         raise NotImplementedError()
     else:
@@ -185,12 +196,12 @@ def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=0.20, model_type='as
             result = fit_kinetics(hdxm.timepoints, d, model, chisq_thd=chisq_thd)
             results.append(result)
     else:
-        iterables = [[hdxm.timepoints]*len(d_list), d_list, models]
+        iterables = [[hdxm.timepoints] * len(d_list), d_list, models]
 
         if isinstance(client, Client):
             futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
             results = client.gather(futures)
-        elif client == 'worker_client':
+        elif client == "worker_client":
             with worker_client() as client:
                 futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
                 results = client.gather(futures)
@@ -200,7 +211,7 @@ def fit_rates_weighted_average(hdxm, bounds=None, chisq_thd=0.20, model_type='as
     return fit_result
 
 
-def fit_rates(hdxm, method='wt_avg', **kwargs):
+def fit_rates(hdxm, method="wt_avg", **kwargs):
     """
     Fit observed rates of exchange to HDX-MS data in `hdxm`
 
@@ -219,7 +230,7 @@ def fit_rates(hdxm, method='wt_avg', **kwargs):
 
     """
 
-    if method == 'wt_avg':
+    if method == "wt_avg":
         result = fit_rates_weighted_average(hdxm, **kwargs)
     else:
         raise ValueError(f"Invalid value for 'method': {method}")
@@ -248,7 +259,7 @@ def fit_kinetics(t, d, model, chisq_thd=100):
     """
 
     if np.any(np.isnan(d)):
-        raise ValueError('There shouldnt be NaNs anymore')
+        raise ValueError("There shouldnt be NaNs anymore")
         er = EmptyResult(np.nan, {p.name: np.nan for p in model.sf_model.params})
         return er
 
@@ -257,16 +268,20 @@ def fit_kinetics(t, d, model, chisq_thd=100):
         fit = Fit(model.sf_model, t, d, minimizer=Powell)
         res = fit.execute()
 
-        if not check_bounds(res) or np.any(np.isnan(list(res.params.values()))) or res.chi_squared > chisq_thd:
+        if (
+            not check_bounds(res)
+            or np.any(np.isnan(list(res.params.values())))
+            or res.chi_squared > chisq_thd
+        ):
             fit = Fit(model.sf_model, t, d, minimizer=DifferentialEvolution)
-            #grid = model.initial_grid(t, d, step=5)
+            # grid = model.initial_grid(t, d, step=5)
             res = fit.execute()
 
     return res
 
 
 def check_bounds(fit_result):
-    """ Check if the obtained fit result is within bounds"""
+    """Check if the obtained fit result is within bounds"""
     for param in fit_result.model.params:
         value = fit_result.params[param.name]
         if value < param.min:
@@ -281,8 +296,20 @@ def check_bounds(fit_result):
 # ------------------------------------- #
 
 
-def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model, criterion, regularizer,
-                  epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS, callbacks=None, tqdm=True):
+def run_optimizer(
+    inputs,
+    output_data,
+    optimizer_klass,
+    optimizer_kwargs,
+    model,
+    criterion,
+    regularizer,
+    epochs=EPOCHS,
+    patience=PATIENCE,
+    stop_loss=STOP_LOSS,
+    callbacks=None,
+    tqdm=True,
+):
     """
 
     Runs optimization/fitting of PyTorch model.
@@ -320,7 +347,7 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
     optimizer_obj = optimizer_klass(model.parameters(), **optimizer_kwargs)
 
-    #todo these seeds should be temporary
+    # todo these seeds should be temporary
     np.random.seed(43)
     torch.manual_seed(43)
 
@@ -362,23 +389,29 @@ def run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs, model,
 
 def regularizer_1d(r1, param):
     reg_loss = r1 * torch.mean(torch.abs(param[:-1] - param[1:]))
-    return reg_loss * REGULARIZATION_SCALING,
+    return (reg_loss * REGULARIZATION_SCALING,)
 
 
 def regularizer_2d_mean(r1, r2, param):
-    #todo allow regularization wrt reference rather than mean
-    #param shape: Ns x Nr x 1
+    # todo allow regularization wrt reference rather than mean
+    # param shape: Ns x Nr x 1
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - torch.mean(param, axis=0))
 
-    return r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING, r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING
+    return (
+        r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING,
+        r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING,
+    )
 
 
 def regularizer_2d_reference(r1, r2, param):
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param - param[0])[1:]
 
-    return r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING, r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING
+    return (
+        r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING,
+        r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING,
+    )
 
 
 def regularizer_2d_aligned(r1, r2, indices, param):
@@ -387,7 +420,10 @@ def regularizer_2d_aligned(r1, r2, indices, param):
     d_ax1 = torch.abs(param[:, :-1, :] - param[:, 1:, :])
     d_ax2 = torch.abs(param[0][i0] - param[1][i1])
 
-    return r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING, r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING
+    return (
+        r1 * torch.mean(d_ax1) * REGULARIZATION_SCALING,
+        r2 * torch.mean(d_ax2) * REGULARIZATION_SCALING,
+    )
 
 
 def _loss_df(losses_array):
@@ -395,15 +431,28 @@ def _loss_df(losses_array):
     first column in losses array is mse loss, rest are regularzation losses
     """
 
-    loss_df = pd.DataFrame(losses_array, columns=['mse_loss'] + [f'reg_{i + 1}' for i in range(losses_array.shape[1] - 1)])
-    loss_df.index.name = 'epoch'
+    loss_df = pd.DataFrame(
+        losses_array,
+        columns=["mse_loss"]
+        + [f"reg_{i + 1}" for i in range(losses_array.shape[1] - 1)],
+    )
+    loss_df.index.name = "epoch"
     loss_df.index += 1
 
     return loss_df
 
 
-def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENCE, stop_loss=STOP_LOSS,
-                     optimizer='SGD', callbacks=None, **optimizer_kwargs):
+def fit_gibbs_global(
+    hdxm,
+    initial_guess,
+    r1=R1,
+    epochs=EPOCHS,
+    patience=PATIENCE,
+    stop_loss=STOP_LOSS,
+    optimizer="SGD",
+    callbacks=None,
+    **optimizer_kwargs,
+):
     """
     Fit Gibbs free energies globally to all D-uptake data in the supplied hdxm
 
@@ -434,39 +483,60 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
 
     """
 
-    fit_keys = ['r1', 'epochs', 'patience', 'stop_loss', 'optimizer']
+    fit_keys = ["r1", "epochs", "patience", "stop_loss", "optimizer"]
     locals_dict = locals()
     fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
     tensors = hdxm.get_tensors()
-    inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
-    output_data = tensors['d_exp']
+    inputs = [tensors[key] for key in ["temperature", "X", "k_int", "timepoints"]]
+    output_data = tensors["d_exp"]
 
     if isinstance(initial_guess, pd.Series):
-        assert initial_guess.index.inferred_type == 'integer', "Invalid dtype for initial guess index, must be 'integer'"
+        assert (
+            initial_guess.index.inferred_type == "integer"
+        ), "Invalid dtype for initial guess index, must be 'integer'"
         # Map guesses to covered residue range and fill NaN gaps
-        initial_guess = initial_guess.reindex(hdxm.coverage.r_number).interpolate(limit_direction='both')
+        initial_guess = initial_guess.reindex(hdxm.coverage.r_number).interpolate(
+            limit_direction="both"
+        )
         initial_guess = initial_guess.to_numpy()
 
     assert len(initial_guess) == hdxm.Nr, "Invalid length of initial guesses"
     assert not np.any(np.isnan(initial_guess)), "Initial guess has NaN entries"
 
     dtype = torch.float64
-    dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1))  #reshape (nr, 1)
+    dG_par = torch.nn.Parameter(
+        torch.tensor(
+            initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE
+        ).unsqueeze(-1)
+    )  # reshape (nr, 1)
 
     model = DeltaGFit(dG_par)
-    criterion = torch.nn.MSELoss(reduction='mean')
+    criterion = torch.nn.MSELoss(reduction="mean")
 
     # Take default optimizer kwargs and update them with supplied kwargs
-    optimizer_kwargs = {**optimizer_defaults.get(optimizer, {}), **optimizer_kwargs}  # Take defaults and override with user-specified
+    optimizer_kwargs = {
+        **optimizer_defaults.get(optimizer, {}),
+        **optimizer_kwargs,
+    }  # Take defaults and override with user-specified
     optimizer_klass = getattr(torch.optim, optimizer)
 
     reg_func = partial(regularizer_1d, r1)
 
     # returned_model is the same object as model
-    losses_array, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
-                                                         model, criterion, reg_func, epochs=epochs,
-                                                         patience=patience, stop_loss=stop_loss, callbacks=callbacks)
+    losses_array, returned_model = run_optimizer(
+        inputs,
+        output_data,
+        optimizer_klass,
+        optimizer_kwargs,
+        model,
+        criterion,
+        reg_func,
+        epochs=epochs,
+        patience=patience,
+        stop_loss=stop_loss,
+        callbacks=callbacks,
+    )
     losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
     hdxm_set = HDXMeasurementSet([hdxm])
@@ -475,8 +545,19 @@ def fit_gibbs_global(hdxm, initial_guess, r1=R1, epochs=EPOCHS, patience=PATIENC
     return result
 
 
-def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=False, epochs=EPOCHS, patience=PATIENCE,
-                           stop_loss=STOP_LOSS, optimizer='SGD', callbacks=None, **optimizer_kwargs):
+def fit_gibbs_global_batch(
+    hdx_set,
+    initial_guess,
+    r1=R1,
+    r2=R2,
+    r2_reference=False,
+    epochs=EPOCHS,
+    patience=PATIENCE,
+    stop_loss=STOP_LOSS,
+    optimizer="SGD",
+    callbacks=None,
+    **optimizer_kwargs,
+):
     """
     Fit Gibbs free energies globally to all D-uptake data in multiple HDX measurements
 
@@ -512,7 +593,16 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=Fa
     """
     # todo still some repeated code with fit_gibbs single
 
-    fit_keys = ['r1', 'r2', 'r2_reference', 'epochs', 'patience', 'stop_loss', 'optimizer', 'callbacks']
+    fit_keys = [
+        "r1",
+        "r2",
+        "r2_reference",
+        "epochs",
+        "patience",
+        "stop_loss",
+        "optimizer",
+        "callbacks",
+    ]
     locals_dict = locals()
     fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
@@ -524,8 +614,18 @@ def fit_gibbs_global_batch(hdx_set, initial_guess, r1=R1, r2=R2, r2_reference=Fa
     return _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs)
 
 
-def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=EPOCHS, patience=PATIENCE,
-                                   stop_loss=STOP_LOSS, optimizer='SGD', callbacks=None, **optimizer_kwargs):
+def fit_gibbs_global_batch_aligned(
+    hdx_set,
+    initial_guess,
+    r1=R1,
+    r2=R2,
+    epochs=EPOCHS,
+    patience=PATIENCE,
+    stop_loss=STOP_LOSS,
+    optimizer="SGD",
+    callbacks=None,
+    **optimizer_kwargs,
+):
     """
     Batch fit gibbs free energies to two HDX measurements. The supplied HDXMeasurementSet must have alignment information
     (supplied by HDXMeasurementSet.add_alignment)
@@ -558,16 +658,16 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=
     result: :class:`~pyhdx.fitting_torch.TorchBatchFitResult`
 
     """
-    #todo expand to N proteins
+    # todo expand to N proteins
 
-    assert hdx_set.Ns == 2, 'Aligned batch fitting is limited to two states'
+    assert hdx_set.Ns == 2, "Aligned batch fitting is limited to two states"
     if hdx_set.aligned_indices is None:
         raise ValueError("No alignment added to HDX measurements")
 
     indices = [torch.tensor(i, dtype=torch.long) for i in hdx_set.aligned_indices]
     reg_func = partial(regularizer_2d_aligned, r1, r2, indices)
 
-    fit_keys = ['r1', 'r2', 'epochs', 'patience', 'stop_loss', 'optimizer', 'callbacks']
+    fit_keys = ["r1", "r2", "epochs", "patience", "stop_loss", "optimizer", "callbacks"]
     locals_dict = locals()
     fit_kwargs = {k: locals_dict[k] for k in fit_keys}
 
@@ -577,16 +677,22 @@ def fit_gibbs_global_batch_aligned(hdx_set, initial_guess, r1=R1, r2=R2, epochs=
 def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     # @tejas docstrings
     tensors = hdx_set.get_tensors()
-    inputs = [tensors[key] for key in ['temperature', 'X', 'k_int', 'timepoints']]
-    output_data = tensors['d_exp']
+    inputs = [tensors[key] for key in ["temperature", "X", "k_int", "timepoints"]]
+    output_data = tensors["d_exp"]
 
     if isinstance(initial_guess, (pd.Series, pd.DataFrame)):
-        assert initial_guess.index.inferred_type == 'integer', "Invalid dtype for initial guess index, must be 'integer'"
+        assert (
+            initial_guess.index.inferred_type == "integer"
+        ), "Invalid dtype for initial guess index, must be 'integer'"
         # Map guesses to covered residue range and fill NaN gaps
-        initial_guess = initial_guess.reindex(hdx_set.coverage.index).interpolate(limit_direction='both') #TODO index vs r_number
-        initial_guess = initial_guess.to_numpy().T  # Pandas format is samples on column, need sample per row
+        initial_guess = initial_guess.reindex(hdx_set.coverage.index).interpolate(
+            limit_direction="both"
+        )  # TODO index vs r_number
+        initial_guess = (
+            initial_guess.to_numpy().T
+        )  # Pandas format is samples on column, need sample per row
 
-    if initial_guess.shape == (hdx_set.Nr, ):
+    if initial_guess.shape == (hdx_set.Nr,):
         # Broadcast guesses to number of samples
         initial_guess = np.broadcast_to(initial_guess, (hdx_set.Ns, hdx_set.Nr))
     elif initial_guess.shape == (hdx_set.Ns, hdx_set.Nr):
@@ -594,24 +700,40 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     else:
         raise ValueError("Invalid shape of initial guesses, must be (Nr, ) or (Ns, Nr")
 
-    dG_par = torch.nn.Parameter(torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(hdx_set.Ns, hdx_set.Nr, 1))
+    dG_par = torch.nn.Parameter(
+        torch.tensor(
+            initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE
+        ).reshape(hdx_set.Ns, hdx_set.Nr, 1)
+    )
 
     model = DeltaGFit(dG_par)
-    criterion = torch.nn.MSELoss(reduction='mean')
+    criterion = torch.nn.MSELoss(reduction="mean")
 
     # Take default optimizer kwargs and update them with supplied kwargs
-    optimizer_kwargs = {**optimizer_defaults.get(fit_kwargs['optimizer'], {}), **optimizer_kwargs}  # Take defaults and override with user-specified
-    optimizer_klass = getattr(torch.optim, fit_kwargs['optimizer'])
+    optimizer_kwargs = {
+        **optimizer_defaults.get(fit_kwargs["optimizer"], {}),
+        **optimizer_kwargs,
+    }  # Take defaults and override with user-specified
+    optimizer_klass = getattr(torch.optim, fit_kwargs["optimizer"])
 
-    loop_kwargs = {k: fit_kwargs[k] for k in ['epochs', 'patience', 'stop_loss']}
-    loop_kwargs['callbacks'] = fit_kwargs.pop('callbacks')
-    losses_array, returned_model = run_optimizer(inputs, output_data, optimizer_klass, optimizer_kwargs,
-                                                         model, criterion, reg_func, **loop_kwargs)
+    loop_kwargs = {k: fit_kwargs[k] for k in ["epochs", "patience", "stop_loss"]}
+    loop_kwargs["callbacks"] = fit_kwargs.pop("callbacks")
+    losses_array, returned_model = run_optimizer(
+        inputs,
+        output_data,
+        optimizer_klass,
+        optimizer_kwargs,
+        model,
+        criterion,
+        reg_func,
+        **loop_kwargs,
+    )
     losses = _loss_df(losses_array)
     fit_kwargs.update(optimizer_kwargs)
     result = TorchFitResult(hdx_set, model, losses=losses, **fit_kwargs)
 
     return result
+
 
 """
 this might still serve some use
@@ -655,15 +777,16 @@ class KineticsFitResult(object):
         Lis of :class:`~pyhdx.fit_models.KineticsModel`
 
     """
+
     def __init__(self, hdxm, intervals, results, models):
         """
         each model with corresponding interval covers a region in the protein corresponding to r_number
         """
         assert len(results) == len(models)
-#        assert len(models) == len(block_length)
+        #        assert len(models) == len(block_length)
         self.hdxm = hdxm
-        self.r_number = hdxm.coverage.r_number  #pandas RangeIndex
-        self.intervals = intervals  #inclusive, excluive
+        self.r_number = hdxm.coverage.r_number  # pandas RangeIndex
+        self.intervals = intervals  # inclusive, excluive
         self.results = results
         self.models = models
 
@@ -671,9 +794,9 @@ class KineticsFitResult(object):
     def model_type(self):
         # Most likely all current instances have model_type `single`
         if np.all([isinstance(m, SingleKineticModel) for m in self.models]):
-            return 'Single'
+            return "Single"
         else:
-            raise ValueError('Unsupported model types')
+            raise ValueError("Unsupported model types")
 
     @property
     def name(self):
@@ -681,15 +804,15 @@ class KineticsFitResult(object):
 
     def __call__(self, timepoints):
         """call the result with timepoints to get fitted uptake per peptide back"""
-        #todo outdated
+        # todo outdated
         d_list = []
-        if self.model_type == 'Single':
+        if self.model_type == "Single":
             for time in timepoints:
                 p = self.get_p(time)
                 p = np.nan_to_num(p)
                 d = self.hdxm.coverage.X.dot(p)
                 d_list.append(d)
-        elif self.model_type == 'Global':
+        elif self.model_type == "Global":
             for time in timepoints:
                 d = self.get_d(time)
                 d_list.append(d)
@@ -722,7 +845,9 @@ class KineticsFitResult(object):
 
     def __iter__(self):
         raise DeprecationWarning()
-        iterable = [(r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)]
+        iterable = [
+            (r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)
+        ]
         return iterable.__iter__()
 
     def get_param(self, name):
@@ -746,10 +871,10 @@ class KineticsFitResult(object):
         for (s, e), result, model in zip(self.intervals, self.results, self.models):
             try:
                 dummy_name = model.names[name]  ## dummy parameter name
-                value = result.params[dummy_name]  #value is scalar
-            except KeyError:   # is a lsqmodel funky town
-                value = model.get_param_values(name, **result.params)  #value is vector
-                #values = model.get_parameter(name)            #todo unify nomenclature param/parameter
+                value = result.params[dummy_name]  # value is scalar
+            except KeyError:  # is a lsqmodel funky town
+                value = model.get_param_values(name, **result.params)  # value is vector
+                # values = model.get_parameter(name)            #todo unify nomenclature param/parameter
 
             i0, i1 = np.searchsorted(self.r_number, [s, e])
             output[i0:i1] = value
@@ -759,7 +884,7 @@ class KineticsFitResult(object):
     @property
     def rate(self):
         """Returns an array with the exchange rates"""
-        #todo pd series/dataframe in favour of searchsorted
+        # todo pd series/dataframe in favour of searchsorted
         output = np.full_like(self.r_number, np.nan, dtype=float)
         for (s, e), result, model in zip(self.intervals, self.results, self.models):
             rate = model.get_rate(**result.params)
@@ -775,7 +900,7 @@ class KineticsFitResult(object):
     def get_output(self, names):
 
         # this does not seem to work:
-        #df_dict = {name: getattr(self, name, self.get_param(name)) for name in names}
+        # df_dict = {name: getattr(self, name, self.get_param(name)) for name in names}
         df_dict = {}
         for name in names:
             try:
@@ -790,7 +915,7 @@ class KineticsFitResult(object):
     @property
     def output(self):
         """:class:`~pandas.Dataframe`: Dataframe with fitted rates per residue"""
-        df = self.get_output(['rate', 'k1', 'k2', 'r'])
+        df = self.get_output(["rate", "k1", "k2", "r"])
         return df
 
 
@@ -809,8 +934,8 @@ class RatesFitResult:
     def output(self):
         dfs = [result.output for result in self.results]
         keys = [result.name for result in self.results]
-        combined_results = pd.concat(dfs, axis=1,
-                                     keys=keys,
-                                     names=['state', 'quantity'])
+        combined_results = pd.concat(
+            dfs, axis=1, keys=keys, names=["state", "quantity"]
+        )
 
         return combined_results

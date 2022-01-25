@@ -25,21 +25,21 @@ class View(param.Parameterized):
     _type = None
 
     opts = param.List(
-        default=[],
-        doc="list of opts dicts to apply on the plot",
-        precedence=-1)
+        default=[], doc="list of opts dicts to apply on the plot", precedence=-1
+    )
 
     dependencies = param.List(
         default=[],
         precedence=-1,
-        doc="Additional dependencies which trigger update when their `updated` event fires")
+        doc="Additional dependencies which trigger update when their `updated` event fires",
+    )
 
     def __init__(self, **params):
         super().__init__(**params)
         # todo allow for kwargs to be passed to DynamicMap's func
 
         for dep in self.dependencies:
-            dep.param.watch(self._update, ['updated'])
+            dep.param.watch(self._update, ["updated"])
 
         self.widgets = self.make_dict()
 
@@ -60,8 +60,14 @@ class View(param.Parameterized):
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
 
-        names = [p for p in self.param if self.param[p].precedence is None or self.param[p].precedence > 1]
-        widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
+        names = [
+            p
+            for p in self.param
+            if self.param[p].precedence is None or self.param[p].precedence > 1
+        ]
+        widgets = pn.Param(
+            self.param, show_name=False, show_labels=True, widgets=kwargs
+        )
 
         return {k: v for k, v in zip(names[1:], widgets)}
 
@@ -109,7 +115,9 @@ class View(param.Parameterized):
                         combined_list = opts_dict[k] + v
                         opts_dict[k] = combined_list
                     else:
-                        raise ValueError(f"Overlapping key {k!r} in opt {d.name!r} on view {self.name!r}")
+                        raise ValueError(
+                            f"Overlapping key {k!r} in opt {d.name!r} on view {self.name!r}"
+                        )
                 else:
                     opts_dict[k] = v
 
@@ -118,11 +126,13 @@ class View(param.Parameterized):
 
 class hvView(View):
 
-    source = param.ClassSelector(class_=(Source, Transform),
-                                 constant=True,
-                                 precedence=-1,
-                                 doc="""
-        The Source to query for the data.""")
+    source = param.ClassSelector(
+        class_=(Source, Transform),
+        constant=True,
+        precedence=-1,
+        doc="""
+        The Source to query for the data.""",
+    )
 
     _type = None
 
@@ -130,17 +140,10 @@ class hvView(View):
         super().__init__(**params)
         self._stream = None
 
-    @param.depends('source.updated', watch=True)  # no watch? # todo cache / checking if updates are needed?
+    @param.depends('source.updated', watch=True)
     def update(self):
         """
         Triggers an update in the View.
-
-        Parameters
-        ----------
-        events: tuple
-            param events that may trigger an update.
-        invalidate_cache : bool
-            Whether to clear the View's cache.
 
         Returns
         -------
@@ -177,7 +180,9 @@ class hvView(View):
             df = self.empty_df
 
         self._stream = Pipe(data=df)
-        return dict(object=self.get_plot(), sizing_mode='stretch_both')  # todo update sizing mode
+        return dict(
+            object=self.get_plot(), sizing_mode="stretch_both"
+        )  # todo update sizing mode
 
     @property
     def panel(self):
@@ -190,13 +195,13 @@ class hvView(View):
 
 
 class hvPlotView(hvView):
-    _type = 'hvplot'
+    _type = "hvplot"
 
     kind = param.String()
 
     def __init__(self, **params):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
-        super().__init__(**{k: v for k, v in params.items() if k in self.param})  # baseclass??
+        super().__init__(**{k: v for k, v in params.items() if k in self.param})
         self._stream = None
 
     def get_plot(self):
@@ -223,14 +228,16 @@ class hvPlotView(hvView):
 
     @property
     def empty_df(self):
-        df = pd.DataFrame({'null': [np.nan], 'y2': [np.nan]})
+        df = pd.DataFrame({"null": [np.nan], "y2": [np.nan]})
         return df
 
 
 class hvCurveView(hvView):
-    _type = 'curve'
+    _type = "curve"
 
-    x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
+    x = param.String(
+        None, doc="The column to render on the x-axis."
+    )  # todo these should be selectors
 
     y = param.String(None, doc="The column to render on the y-axis.")
 
@@ -267,14 +274,16 @@ class hvCurveView(hvView):
 
     @property
     def empty_df(self):
-        columns = (self.kdims or ['x']) + (self.vdims or ['y'])
+        columns = (self.kdims or ["x"]) + (self.vdims or ["y"])
         return pd.DataFrame([[np.nan] * len(columns)], columns=columns)
 
 
 class hvScatterAppView(hvView):
-    _type = 'scatter'
+    _type = "scatter"
 
-    x = param.String(None, doc="The column to render on the x-axis.")  # todo these should be selectors
+    x = param.String(
+        None, doc="The column to render on the x-axis."
+    )  # todo these should be selectors
 
     y = param.String(None, doc="The column to render on the y-axis.")
 
@@ -310,24 +319,24 @@ class hvScatterAppView(hvView):
 
     @property
     def empty_df(self):
-        dic = {self.x or 'x': [], self.y or 'y': []}
-        if 'color' in self.opts_dict:
-            dic[self.opts_dict['color']] = []
+        dic = {self.x or "x": [], self.y or "y": []}
+        if "color" in self.opts_dict:
+            dic[self.opts_dict["color"]] = []
         return pd.DataFrame(dic)
 
 
 class hvRectanglesAppView(hvView):
-    _type = 'rectangles'
+    _type = "rectangles"
 
-    x0 = param.String('x0')
+    x0 = param.String("x0")
 
-    x1 = param.String('x1')
+    x1 = param.String("x1")
 
-    y0 = param.String('y0')
+    y0 = param.String("y0")
 
-    y1 = param.String('y1')
+    y1 = param.String("y1")
 
-    vdims = param.List(['value'])
+    vdims = param.List(["value"])
 
     def __init__(self, **params):
         # todo left and right cannot be none?
@@ -347,9 +356,7 @@ class hvRectanglesAppView(hvView):
 
         """
 
-        func = partial(hv.Rectangles,
-                       kdims=self.kdims,
-                       vdims=self.vdims)
+        func = partial(hv.Rectangles, kdims=self.kdims, vdims=self.vdims)
         plot = hv.DynamicMap(func, streams=[self._stream])
 
         if self.opts_dict:
@@ -368,11 +375,15 @@ class hvRectanglesAppView(hvView):
 
 
 class hvErrorBarsAppView(hvView):
-    _type = 'errorbars'
+    _type = "errorbars"
 
-    pos = param.String('x', doc='Positions of the errobars, x-values for vertical errorbars')
+    pos = param.String(
+        "x", doc="Positions of the errobars, x-values for vertical errorbars"
+    )
 
-    value = param.String('y', doc="Values of the samples, y-values for vertical errorbars")
+    value = param.String(
+        "y", doc="Values of the samples, y-values for vertical errorbars"
+    )
 
     err = param.String(None, doc="Error values in both directions")
 
@@ -380,7 +391,7 @@ class hvErrorBarsAppView(hvView):
 
     err_neg = param.String(None, doc="Error values in negative direction")
 
-    horizontal = param.Boolean(False, doc='error bar direction')
+    horizontal = param.Boolean(False, doc="error bar direction")
 
     def __init__(self, **params):
 
@@ -401,10 +412,9 @@ class hvErrorBarsAppView(hvView):
 
         """
 
-        func = partial(hv.ErrorBars,
-                       kdims=self.kdims,
-                       vdims=self.vdims,
-                       horizontal=self.horizontal)
+        func = partial(
+            hv.ErrorBars, kdims=self.kdims, vdims=self.vdims, horizontal=self.horizontal
+        )
         plot = hv.DynamicMap(func, streams=[self._stream])
 
         if self.opts_dict:
@@ -419,7 +429,9 @@ class hvErrorBarsAppView(hvView):
         elif self.err is None and self.err_pos is not None and self.err_neg is not None:
             return [self.value, self.err_pos, self.err_neg]
         else:
-            raise ValueError("Must set either only 'err' or both 'err_pos' and 'err_neg'")
+            raise ValueError(
+                "Must set either only 'err' or both 'err_pos' and 'err_neg'"
+            )
 
     @property
     def kdims(self):
@@ -432,11 +444,9 @@ class hvErrorBarsAppView(hvView):
 
 
 class hvOverlayView(View):
-    _type = 'overlay'
+    _type = "overlay"
 
-    views = param.List(
-        doc='List of view instances to make overlay'
-    )
+    views = param.List(doc="List of view instances to make overlay")
 
     def update(self):
         self._update_panel()
@@ -447,7 +457,8 @@ class hvOverlayView(View):
     def get_plot(self):
         items = [view.get_plot() for view in self.views]
         plot = hv.Overlay(
-            items).collate()  # todo is collate always needed? Does it always return a DynamicMap? -> generalize
+            items
+        ).collate()  # todo is collate always needed? Does it always return a DynamicMap? -> generalize
 
         if self.opts_dict:
             plot = plot.apply.opts(**self.opts_dict)
@@ -455,7 +466,7 @@ class hvOverlayView(View):
         return plot
 
     def _get_params(self):
-        return dict(object=self.get_plot(), sizing_mode='stretch_both')
+        return dict(object=self.get_plot(), sizing_mode="stretch_both")
 
     def get_panel(self):
         kwargs = self._get_params()
@@ -473,47 +484,51 @@ class hvOverlayView(View):
 
 
 class NGLColorView(View):
-    _type = 'ngl_colors'
+    _type = "ngl_colors"
 
     # todo additioal render options (fog etc)
 
     sources = param.Dict(
         doc="Dict of sources for this view. "
-            "should be: pdb: PDBSource, color: TableSource (single-column tables)"
+        "should be: pdb: PDBSource, color: TableSource (single-column tables)"
     )
 
-    representation = param.Selector(default='cartoon', objects=REPRESENTATIONS)
+    representation = param.Selector(default="cartoon", objects=REPRESENTATIONS)
 
-    effect = param.Selector(default=None, objects=[None, 'spin', 'rock'], allow_None=True)
+    effect = param.Selector(
+        default=None, objects=[None, "spin", "rock"], allow_None=True
+    )
 
-    color_scheme = param.Selector(default='custom', objects=COLOR_SCHEMES)
+    color_scheme = param.Selector(default="custom", objects=COLOR_SCHEMES)
 
     custom_color_scheme = param.List(precedence=-1)
 
-    background_color = param.Color(default='#F7F7F7')
+    background_color = param.Color(default="#F7F7F7")
 
-    object = param.String('', doc='pdb string object', precedence=-1)
+    object = param.String("", doc="pdb string object", precedence=-1)
 
     def __init__(self, **params):
-        #todo should generate widgets which can be displayed in the controller
+        # todo should generate widgets which can be displayed in the controller
         super(NGLColorView, self).__init__(**params)
-        self._ngl = NGL(sizing_mode='stretch_both',  # todo sanitize order
-                        extension='pdb',
-                        effect=self.effect,
-                        color_scheme=self.color_scheme,
-                        representation=self.representation,
-                        object=self.object,
+        self._ngl = NGL(
+            sizing_mode="stretch_both",  # todo sanitize order
+            extension="pdb",
+            effect=self.effect,
+            color_scheme=self.color_scheme,
+            representation=self.representation,
+            object=self.object,
+        )
 
-                        )
-
-        params = self.param.params().keys() & self._ngl.param.params().keys() - {'name'}
+        params = self.param.params().keys() & self._ngl.param.params().keys() - {"name"}
         self.param.watch(self._update_params, list(params))
 
-        self.sources['pdb'].param.watch(self._pdb_updated, 'updated')
-        self.sources['color'].param.watch(self._color_updated, 'updated')
+        self.sources["pdb"].param.watch(self._pdb_updated, "updated")
+        self.sources["color"].param.watch(self._color_updated, "updated")
 
         # field: opts for all cmap otps
-        self._cmap_opts = {opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)}
+        self._cmap_opts = {
+            opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)
+        }
 
     def _update_params(self, *events):
         for event in events:
@@ -529,11 +544,11 @@ class NGLColorView(View):
         return None
 
     def _pdb_updated(self, *events):
-        pdb_string = self.sources['pdb'].get()
+        pdb_string = self.sources["pdb"].get()
         self.object = pdb_string
 
     def _color_updated(self, *event):
-        df = self.sources['color'].get()
+        df = self.sources["color"].get()
         if df is None:
             return
 
@@ -548,12 +563,19 @@ class NGLColorView(View):
         opts = self._cmap_opts[qty]
         colors = opts.apply(df[qty])  # pd.Series with colors
 
-        grp = colors.groupby(colors)  # Group to color and transform to ngl custom color scheme format
+        grp = colors.groupby(
+            colors
+        )  # Group to color and transform to ngl custom color scheme format
         color_list = []
         for c, pd_series in grp:
-            result = [list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))]
+            result = [
+                list(g)
+                for _, g in groupby(
+                    pd_series.index, key=lambda n, c=count(): n - next(c)
+                )
+            ]
 
-            resi = ' or '.join([f'{g[0]}-{g[-1]}' for g in result])
+            resi = " or ".join([f"{g[0]}-{g[-1]}" for g in result])
             color_list.append([c, resi])
 
         self.custom_color_scheme = color_list
@@ -578,25 +600,32 @@ class NGLColorView(View):
 
 
 class LoggingView(View):
-    _type = 'logging'
+    _type = "logging"
 
-    logger = param.ClassSelector(logging.Logger, doc='Logger object to show in Log view')
+    logger = param.ClassSelector(
+        logging.Logger, doc="Logger object to show in Log view"
+    )
 
-    level = param.Integer(default=10, doc='Logging level of the streamhandler redirecting logs to the view')
+    level = param.Integer(
+        default=10,
+        doc="Logging level of the streamhandler redirecting logs to the view",
+    )
 
     def __init__(self, *args, **params):
         super(LoggingView, self).__init__(**params)
-        title = self.opts_dict.get('title', 'Log Window')
-        self.markdown = LoggingMarkdown(f'### {title} \n', sizing_mode='stretch_both')
+        title = self.opts_dict.get("title", "Log Window")
+        self.markdown = LoggingMarkdown(f"### {title} \n", sizing_mode="stretch_both")
 
         self.sh = logging.StreamHandler(self.markdown)
-        self.sh.terminator = '  \n'
+        self.sh.terminator = "  \n"
         self.sh.setLevel(self.level)
-        formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', "%Y-%m-%d %H:%M:%S")
+        formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s]: %(message)s", "%Y-%m-%d %H:%M:%S"
+        )
         self.sh.setFormatter(formatter)
         self.logger.addHandler(self.sh)
 
-    @param.depends('level', watch=True)
+    @param.depends("level", watch=True)
     def _level_updated(self):
         self.sh.setLevel(self.level)
 

@@ -6,15 +6,28 @@ import param
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.template import SIDEBAR_WIDTH
 
-DEFAULT_RENDERERS = {'half-life': 'hex', 'fit1': 'triangle', 'fit2': 'circle', 'TF_rate': 'diamond', 'pfact': 'circle'}
-DEFAULT_COLORS = {'half-life': '#f37b21', 'fit1': '#2926e0', 'fit2': '#f20004', 'TF_rate': '#03ab1d', 'pfact': '#16187d',
-                  'uptake_corrected': '#000000', 'fr_pfact': '#ba0912'}
-#DEFAULT_CLASS_COLORS = ['#0e1875', '#fdaf61', '#d73027']  # rigid to flexible
-DEFAULT_CLASS_COLORS = ['#0a0ac2', '#0ac20a', '#c20a0a'][::-1]  #  (HSL xxx, 90, 40)
-#DEFAULT_CLASS_COLORS = ['#3d3df5', '#3df53d', '#f53d3d'][::-1] #  (HSL xxx, 90, 60)
+DEFAULT_RENDERERS = {
+    "half-life": "hex",
+    "fit1": "triangle",
+    "fit2": "circle",
+    "TF_rate": "diamond",
+    "pfact": "circle",
+}
+DEFAULT_COLORS = {
+    "half-life": "#f37b21",
+    "fit1": "#2926e0",
+    "fit2": "#f20004",
+    "TF_rate": "#03ab1d",
+    "pfact": "#16187d",
+    "uptake_corrected": "#000000",
+    "fr_pfact": "#ba0912",
+}
+# DEFAULT_CLASS_COLORS = ['#0e1875', '#fdaf61', '#d73027']  # rigid to flexible
+DEFAULT_CLASS_COLORS = ["#0a0ac2", "#0ac20a", "#c20a0a"][::-1]  #  (HSL xxx, 90, 40)
+# DEFAULT_CLASS_COLORS = ['#3d3df5', '#3df53d', '#f53d3d'][::-1] #  (HSL xxx, 90, 60)
 
 MIN_BORDER_LEFT = 65
-STATIC_DIR = Path(__file__).parent / 'static'
+STATIC_DIR = Path(__file__).parent / "static"
 
 
 class ControlPanel(param.Parameterized):
@@ -22,30 +35,34 @@ class ControlPanel(param.Parameterized):
 
     _type = None
 
-    header = 'Default Header'
+    header = "Default Header"
 
     parent = param.ClassSelector(MainController, precedence=-1)
 
-    _excluded = param.List([], precedence=-1,
+    _excluded = param.List(
+        [],
+        precedence=-1,
         doc="parameters whose widgets are excluded from the control panel view. This list can be modified to update "
-            "widget layout"
+        "widget layout",
     )
 
     def __init__(self, parent, **params):
-        #self.parent = parent
-        #self.ex
+        # self.parent = parent
+        # self.ex
         super(ControlPanel, self).__init__(parent=parent, **params)
 
-        self.widgets = self.make_dict()  # atm on some objects this is a list, others dict
+        self.widgets = (
+            self.make_dict()
+        )  # atm on some objects this is a list, others dict
         self._box = self.make_box()  # _panel equivalent
 
         if self._layout:
             for widget_source, contents in self._layout:
-                if widget_source != 'self':
-                    _type, name = widget_source.split('.')
-                    if _type == 'transforms':
+                if widget_source != "self":
+                    _type, name = widget_source.split(".")
+                    if _type == "transforms":
                         object = getattr(self, _type)[name]
-                        object.param.watch(self.update_box, ['redrawn'])
+                        object.param.watch(self.update_box, ["redrawn"])
 
     @property  # todo base class
     def own_widget_names(self):
@@ -54,7 +71,7 @@ class ControlPanel(param.Parameterized):
     @property
     def _layout(self):
         return [
-            ('self', self.own_widget_names),
+            ("self", self.own_widget_names),
         ]
 
     @property
@@ -85,9 +102,15 @@ class ControlPanel(param.Parameterized):
     def generate_widgets(self, **kwargs):
         """returns a dict with keys parameter names and values default mapped widgets"""
 
-        #todo respect precedence
-        names = [p for p in self.param if self.param[p].precedence is None or self.param[p].precedence > 1]
-        widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
+        # todo respect precedence
+        names = [
+            p
+            for p in self.param
+            if self.param[p].precedence is None or self.param[p].precedence > 1
+        ]
+        widgets = pn.Param(
+            self.param, show_name=False, show_labels=True, widgets=kwargs
+        )
 
         return {k: v for k, v in zip(names[1:], widgets)}
 
@@ -112,10 +135,10 @@ class ControlPanel(param.Parameterized):
         else:
             widget_list = []
             for widget_source, contents in self._layout:
-                if widget_source == 'self':
+                if widget_source == "self":
                     object = self
                 else:
-                    _type, name = widget_source.split('.')
+                    _type, name = widget_source.split(".")
                     object = getattr(self, _type)[name]
 
                 if isinstance(contents, list):
@@ -124,7 +147,7 @@ class ControlPanel(param.Parameterized):
                 elif isinstance(contents, str):
                     widget_list.append(object.widgets[contents])
                 elif contents is None:
-                    if hasattr(object, 'widgets'):
+                    if hasattr(object, "widgets"):
                         for item in object.widgets.values():
                             widget_list.append(item)
                     else:
@@ -145,7 +168,7 @@ class ControlPanel(param.Parameterized):
         return self.generate_widgets()
 
     def box_index(self, p_name_or_widget):
-        ""'return the index of the widget in the box with parameter p_name'
+        "" "return the index of the widget in the box with parameter p_name"
         if isinstance(p_name_or_widget, str):
             return list(self._box).index(self.widget_dict[p_name_or_widget])
         else:
@@ -157,7 +180,7 @@ class ControlPanel(param.Parameterized):
         self._box.pop(index)
 
     def box_insert_after(self, name_or_widget_after, name_or_widget_insert):
-        """insert widget corresponding to parameter with name after the widget name_after """
+        """insert widget corresponding to parameter with name after the widget name_after"""
         index = self.box_index(name_or_widget_after)
         if isinstance(name_or_widget_insert, str):
             widget = self.widget_dict[name_or_widget_insert]
@@ -169,10 +192,10 @@ class ControlPanel(param.Parameterized):
         """get a single widget with for parameter param_name with type widget_type"""
 
         # not sure if this function still exists
-        return pn.Param.get_widget(getattr(self.param, param_name), widget_type, **kwargs)[0]
+        return pn.Param.get_widget(
+            getattr(self.param, param_name), widget_type, **kwargs
+        )[0]
 
     @property
     def panel(self):
         return self._box
-
-
