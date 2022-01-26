@@ -44,3 +44,50 @@ PR what the new feature does, possible references to literature and how it shoul
 
 The PR should add new tests for the new feature and all current tests should pass. New functions and
 classes should have docstrings and ideally code examples and documentation should be added.
+
+Documentation
+~~~~~~~~~~~~~
+
+Docstrings use `numpydoc <https://numpydoc.readthedocs.io/en/latest/>`__ style headers.
+Parameters for `__init__` are documented at the `class` level. `intersphinx <http://www.sphinx-doc.org/en/stable/ext/intersphinx.html>`__
+is used to link to classes of external packages.
+Some guidelines for how to refer to objects or entities:
+
+* Variable, module function and class names: ```numpy```
+* Boolean values: ````True````
+* Python objects: ``:obj:`int```, ``:obj:`bool``
+* Numpy arrays: ``:class:`~numpy.ndarray```
+* Pandas dataframe: ``:class:`~pandas.DataFrame```
+* Optional array-like:  `` ``
+* Default values: ``copy : :obj:`bool`, default: ``True````
+
+Parameters:
+
+.. code::
+    Parameters
+    ----------
+    filename : :obj:`str`
+    copy : :obj:`bool`
+    dtype : data-type
+    iterable : iterable object
+    shape : int or tuple of int
+    files : list of str
+
+Args and kwargs:
+
+.. code::
+    *args : :obj:`tuple`
+        Additional arguments should be passed as keyword arguments
+    **kwargs : :obj:`dict`, optional
+        Extra arguments to `somefunction`.
+
+Properties:
+
+.. code::
+    *args : :obj:`tuple`
+        Additional arguments should be passed as keyword arguments
+    **kwargs : :obj:`dict`, optional
+        Extra arguments to `somefunction`.
+
+Future docstring typing will probably be through `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`__
+type hints.
