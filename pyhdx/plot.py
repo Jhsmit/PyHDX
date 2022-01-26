@@ -1,6 +1,7 @@
 from contextlib import contextmanager
 from copy import copy
 from pathlib import Path
+from typing import Type, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -56,16 +57,16 @@ CBAR_KWARGS = {
 
 
 def peptide_coverage_figure(
-    data,
-    wrap=None,
-    cmap="turbo",
-    norm=None,
-    color_field="rfu",
-    subplot_field="exposure",
-    rect_fields=("start", "end"),
-    rect_kwargs=None,
+    data: pd.DataFrame,
+    wrap: int = None,
+    cmap: Union[pplt.Colormap, mpl.colors.Colormap, str, tuple, dict] = "turbo",
+    norm: Type[mpl.colors.Normalize] = None,
+    color_field: str = "rfu",
+    subplot_field: str = "exposure",
+    rect_fields: tuple = ("start", "end"),
+    rect_kwargs: dict = None,
     **figure_kwargs,
-):
+) -> tuple:
 
     subplot_values = data[subplot_field].unique()
     sub_dfs = {

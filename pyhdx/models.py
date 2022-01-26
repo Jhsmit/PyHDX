@@ -206,7 +206,10 @@ class Protein(object):
 
 class PeptideMasterTable(object):
     """
-    Main peptide input object. The input pandas DataFrame `data` must have the following entires for each peptide:
+    Main peptide input object.
+
+    The input `~pandas.DataFrame`pandas DataFrame `data` must have the following
+    entires for each peptide:
 
     start: Residue number of the first amino acid in the peptide
     end: Residue number of the last amino acid in the peptide (inclusive)
