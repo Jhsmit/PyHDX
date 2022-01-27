@@ -1102,9 +1102,14 @@ class HDXMeasurementSet(object):
 
     @property
     def rfu_residues(self):
-        # todo make nlevel =3 with quantity 'rfu' column
         rfu = pd.concat([hdxm.rfu_residues for hdxm in self],
                   keys=self.names, names=['state', 'exposure'], axis=1)
+        columns = pd.MultiIndex.from_tuples(
+            tuples=[(*tup, 'rfu') for tup in rfu.columns],
+            names=['state', 'exposure', 'quantity']
+        )
+        
+        rfu.columns = columns
 
         return rfu
 
