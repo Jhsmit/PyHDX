@@ -436,7 +436,7 @@ def loss_figure(fit_result, **figure_kwargs):
     return fig, ax
 
 
-def linear_bars_figure(data, reference=None, groupby=None, field='dG', norm=None, cmap=None, **figure_kwargs):
+def linear_bars_figure(data, reference=None, groupby=None, sort=False, field='dG', norm=None, cmap=None, **figure_kwargs):
     #todo add sorting
 
     if reference is None and field == 'dG':
@@ -468,14 +468,14 @@ def linear_bars_figure(data, reference=None, groupby=None, field='dG', norm=None
     if norm is None:
         raise ValueError("No valid Norm found")
 
-    fig, axes, cbar = linear_bars(data, reference=reference, groupby=groupby, field=field, norm=norm, cmap=cmap,
+    fig, axes, cbar = linear_bars(data, reference=reference, groupby=groupby, sort=sort, field=field, norm=norm, cmap=cmap,
                                   sclf=sclf, **figure_kwargs)
     cbar.set_label(ylabel)
 
     return fig, axes, cbar
 
 
-def linear_bars(data, reference=None, groupby=None, field='dG', norm=None, cmap=None, sclf=1.,
+def linear_bars(data, reference=None, groupby=None, field='dG', norm=None, cmap=None, sclf=1., sort=False,
                 **figure_kwargs):
 
     if data.columns.nlevels == 2:
@@ -520,8 +520,18 @@ def linear_bars(data, reference=None, groupby=None, field='dG', norm=None, cmap=
     fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=hspace)
     axes_iter = iter(axes)
 
+    if sort in ['ascending', 'descending']:
+        srt_groups = plot_data.groupby(level=bars_level, axis=1).groups
+        values = [plot_data.loc[:, grp].mean().mean() for grp in srt_groups.values()]
+        idx = np.argsort(values)
+        if sort == 'descending':
+            idx = idx[::-1]
+    else:
+        idx = None 
+
     for grp_name, items in groups.items():
-        for i, item in enumerate(items):
+        items = items.values[idx] if idx is not None else items.values
+        for i, item in enumerate(items): # these items need to be sorted
             values = plot_data.xs(key=(*item[:plot_data.columns.nlevels - 1], field), axis=1)
             rmin, rmax = values.index.min(), values.index.max()
             extent = [rmin - 0.5, rmax + 0.5, 0, 1]
