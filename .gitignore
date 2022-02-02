@@ -105,3 +105,7 @@ ENV/
 
 # Dask
 dask-worker-space/
+
+
+# Generated conda requirements file
+_req-*.txt

@@ -36,15 +36,15 @@ def make_requirements_file(*extras):
     cp = ConfigParser()
     cp.read_string(Path('setup.cfg').read_text())
     base = convert(cp.get('options', 'install_requires').split('\n'))
-    Path('req-base.txt').write_text('\n'.join(base))
+    Path('_req-base.txt').write_text('\n'.join(base))
 
     for extra in extras:
         out = convert(cp.get('options.extras_require', extra).split('\n'))
-        Path(f'req-{extra}.txt').write_text('\n'.join(out))
+        Path(f'_req-{extra}.txt').write_text('\n'.join(out))
 
         base += out
 
-    Path(f'req-all.txt').write_text('\n'.join(base))
+    Path(f'_req-all.txt').write_text('\n'.join(base))
 
 # cp = ConfigParser()
 # cp.read_string(Path('setup.cfg').read_text())
