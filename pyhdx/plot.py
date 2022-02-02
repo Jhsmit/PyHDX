@@ -604,8 +604,6 @@ def linear_bars_figure(
     cmap=None,
     **figure_kwargs,
 ):
-    # todo add sorting
-
     if reference is None and field == "dG":
         cmap_default, norm_default = CMAP_NORM_DEFAULTS["dG"]
         ylabel = dG_ylabel
@@ -645,6 +643,7 @@ def linear_bars_figure(
         sclf=sclf,
         **figure_kwargs,
     )
+
     cbar.set_label(ylabel)
 
     return fig, axes, cbar
@@ -658,6 +657,7 @@ def linear_bars(
     norm=None,
     cmap=None,
     sclf=1.0,
+    sort=False,
     **figure_kwargs,
 ):
 
@@ -714,11 +714,19 @@ def linear_bars(
     )
     axes_iter = iter(axes)
 
+    if sort in ['ascending', 'descending']:
+        srt_groups = plot_data.groupby(level=bars_level, axis=1).groups
+        values = [plot_data.loc[:, grp].mean().mean() for grp in srt_groups.values()]
+        idx = np.argsort(values)
+        if sort == 'descending':
+            idx = idx[::-1]
+    else:
+        idx = None 
+
     for grp_name, items in groups.items():
-        for i, item in enumerate(items):
-            values = plot_data.xs(
-                key=(*item[: plot_data.columns.nlevels - 1], field), axis=1
-            )
+        items = items.values[idx] if idx is not None else items.values
+        for i, item in enumerate(items): # these items need to be sorted
+            values = plot_data.xs(key=(*item[:plot_data.columns.nlevels - 1], field), axis=1)
             rmin, rmax = values.index.min(), values.index.max()
             extent = [rmin - 0.5, rmax + 0.5, 0, 1]
             img = np.expand_dims(values, 0)
@@ -727,7 +735,7 @@ def linear_bars(
             label = item[bars_level]
             from matplotlib.axes import Axes
 
-            Axes.imshow(
+            Axes.imshow( #TODO use proplot pcolor or related function
                 ax,
                 norm(img),
                 aspect="auto",

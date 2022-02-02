@@ -44,10 +44,11 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
 
     data = read_dynamx(*input_files)
 
-    pmt = PeptideMasterTable(
-        data, d_percentage=yaml_dict["d_percentage"]
-    )  # todo add proline, n_term options
-    if "control" in yaml_dict.keys():  # Use a FD control for back exchange correction
+    pmt = PeptideMasterTable(data,
+                             drop_first=yaml_dict.get('drop_first', 1),
+                             d_percentage=yaml_dict['d_percentage'])  #todo add proline, n_term options
+
+    if 'control' in yaml_dict.keys():  # Use a FD control for back exchange correction
         # todo control should be set from an external file
         control_state = yaml_dict["control"]["state"]
         exposure_value = yaml_dict["control"]["exposure"]["value"]
