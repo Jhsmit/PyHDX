@@ -190,7 +190,7 @@ def peptide_coverage(
     ax.set_yticks([])
 
     _cbar_kwargs = cbar_kwargs or {}
-    cbar_kwargs = {**CBAR_KWARGS, **_cbar_kwargs}
+    cbar_kwargs = {**CBAR_KWARGS, **_cbar_kwargs} #TODO py39 dict union: d |= e or d | e
 
     if cbar and color_field:
         cbar_ax = ax.colorbar(cmap, norm=norm, **cbar_kwargs)
