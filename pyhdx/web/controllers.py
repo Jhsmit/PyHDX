@@ -1157,9 +1157,10 @@ class FitControl(PyHDXControlPanel):
         if self.fit_mode == "Batch":
             hdx_set = self.src.hdx_set
             rate_fit_output = self.src.rate_results[self.initial_guess].output
-            rate_fit_output.columns = rate_fit_output.columns.get_level_values(0)
 
-            gibbs_guess = hdx_set.guess_deltaG(rate_fit_output)
+            # Select only 'rate' columns, resulting df has state names as column names
+            sub_df = rate_fit_output.xs('rate', level=-1, axis=1)
+            gibbs_guess = hdx_set.guess_deltaG(sub_df)
 
             dask_future = self.parent.client.submit(
                 fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs
