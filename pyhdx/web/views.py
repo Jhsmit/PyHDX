@@ -1,3 +1,4 @@
+import itertools
 import logging
 from functools import partial
 from itertools import groupby, count
@@ -11,6 +12,8 @@ from holoviews.streams import Pipe
 from hvplot import hvPlotTabular
 from panel.pane.base import PaneBase
 
+from pyhdx.support import hex_to_rgb
+from pyhdx.web.pane import PDBeMolStar
 from pyhdx.web.sources import Source
 from pyhdx.web.transforms import Transform
 from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
@@ -475,6 +478,131 @@ class hvOverlayView(View):
 
     @property
     def panel(self):
+        if isinstance(self._panel, PaneBase):
+            pane = self._panel
+            if len(pane.layout) == 1 and pane._unpack:
+                return pane.layout[0]
+            return pane._layout
+        return self._panel
+
+
+class PDBeMolStarColorView(View):
+    _type = "pdbemolstar_colors"
+
+    sources = param.Dict(
+        doc="Dict of sources for this view. "
+        "should be: pdb: PDBSource, color: TableSource (single-column tables)"
+    )
+
+    representation = param.Selector(default="cartoon", objects=REPRESENTATIONS)
+
+    effect = param.Selector(
+        default=None, objects=[None, "spin", "rock"], allow_None=True
+    )
+
+    color_scheme = param.Selector(default="custom", objects=COLOR_SCHEMES)
+
+    custom_color_scheme = param.List(precedence=-1)
+
+    background_color = param.Color(default="#F7F7F7")
+
+    object = param.String("", doc="pdb string object", precedence=-1)
+
+    def __init__(self, **params):
+        # also accepts any PDBeMolstar kwargs
+        # todo should generate widgets which can be displayed in the controller
+        # get kwargs
+        kwargs = {k: v for k, v in params.items() if k not in self.param}
+        super().__init__(**{k: v for k, v in params.items() if k in self.param})
+        custom_data = { "url": "https://www.ebi.ac.uk/pdbe/coordinates/1cbs/chains?entityId=1&asymId=A&encoding=bcif", "format": "cif", "binary": True }
+
+        custom_data = {"url": "assets/1qyn.pdb", "format": "pdb"}
+
+        self.pdbe = PDBeMolStar(
+            sizing_mode="stretch_both",  # todo sanitize order
+            custom_data=custom_data,
+            **kwargs
+
+        )
+
+        #params = self.param.params().keys() & self._ngl.param.params().keys() - {"name"}
+        #self.param.watch(self._update_params, list(params))
+
+        self.sources["pdb"].param.watch(self._pdb_updated, "updated")
+        self.sources["color"].param.watch(self._color_updated, "updated")
+
+        # field: opts for all cmap otps
+        self._cmap_opts = {
+            opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)
+        }
+
+    def _update_params(self, *events):
+        for event in events:
+            setattr(self._ngl, event.name, event.new)
+
+    def get_panel(self):
+        return self.pdbe
+
+    def _cleanup(self):
+        return None
+
+    def _get_params(self):
+        return None
+
+    def _pdb_updated(self, *events):
+        pdb_url = self.sources["pdb"].get()
+        self.pdbe.custom_data = {"url": pdb_url, "format": "pdb"}
+
+    def _color_updated(self, *event):
+        df = self.sources["color"].get()
+        if df is None:
+            return
+
+        # there should be one column which matches one of the keys in the cmap otps dict
+        matching_columns = set(df.columns) & self._cmap_opts.keys()
+        if not matching_columns:
+            # todo logging.getlogger etc etc
+            print("No matching color opts were found")
+            return
+
+        qty = matching_columns.pop()
+        opts = self._cmap_opts[qty]
+        r, g, b, a = opts.cmap.get_bad()*255
+        no_coverage = {'r': r, 'g': g, 'b': b}
+        # pd.Series with colors, take entries with residue number index >= 1
+        color_series = opts.apply(df[qty]).loc[1:]
+
+        # Group subsequent residues with identical color values
+        # Use these grouped value to generate data dictionary to pass to PDBeMolstar
+        # to apply color scheme
+        colors = color_series.values
+        r_numbers = color_series.index.values
+        data_list = []
+        i = 0
+        for key, grp in itertools.groupby(colors):
+            size = sum(1 for x in grp)
+            data_elem = {
+                'start_residue_number': r_numbers[i],
+                'end_residue_number': r_numbers[i + size - 1],
+                'color': {k: v for k, v in zip('rgb', hex_to_rgb(key))}
+
+            }
+            data_list.append(data_elem)
+            i += size
+
+        self.pdbe.color(data_list, non_selected_color=no_coverage)
+
+        return self._update_panel()  # check how and why this is needed
+
+    # this is called to initiate the view. perhaps should be removed / refacotred
+    # its also triggerd by any dependency trigger (in this case opts)
+    def update(self):
+        self._color_updated()
+
+        return self._update_panel()
+
+    @property
+    def panel(self):  # why the panebase unpack?
         if isinstance(self._panel, PaneBase):
             pane = self._panel
             if len(pane.layout) == 1 and pane._unpack:

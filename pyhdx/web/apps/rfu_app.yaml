@@ -209,8 +209,8 @@ modules:
           drfu: drfu_comparison_select
 
     views:
-      protein:  #NGL?
-        type: ngl_colors
+      protein:
+        type: pdbemolstar_colors
         sources:
           pdb: pdb
           color: protein_src

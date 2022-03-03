@@ -105,6 +105,13 @@ class ConfigurationSettings(metaclass=Singleton):
             self._config.write(config_file)
 
     @property
+    def assets_dir(self):
+        spec_path = self.get("server", "assets_dir")
+        assets_dir = Path(spec_path.replace('~', str(home_dir)))
+
+        return assets_dir
+
+    @property
     def TORCH_DTYPE(self):
         dtype = self.get("fitting", "dtype")
         if dtype in ["float64", "double"]:
