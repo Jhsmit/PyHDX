@@ -1,5 +1,6 @@
 import itertools
 import logging
+import time
 from functools import partial
 from itertools import groupby, count
 
@@ -13,10 +14,11 @@ from hvplot import hvPlotTabular
 from panel.pane.base import PaneBase
 
 from pyhdx.support import hex_to_rgb
-from pyhdx.web.pane import PDBeMolStar
+from pyhdx.web.pane import PDBeMolStar, REPRESENTATIONS
 from pyhdx.web.sources import Source
 from pyhdx.web.transforms import Transform
-from pyhdx.web.widgets import LoggingMarkdown, NGL, REPRESENTATIONS, COLOR_SCHEMES
+from pyhdx.web.widgets import LoggingMarkdown, COLOR_SCHEMES, NGL
+from pyhdx.web.widgets import REPRESENTATIONS as NGL_REPRESENTATIONS
 from pyhdx.web.opts import CmapOpts
 
 
@@ -494,19 +496,20 @@ class PDBeMolStarColorView(View):
         "should be: pdb: PDBSource, color: TableSource (single-column tables)"
     )
 
-    representation = param.Selector(default="cartoon", objects=REPRESENTATIONS)
+    visual_style = param.Selector(default="cartoon", objects=REPRESENTATIONS)
 
-    effect = param.Selector(
-        default=None, objects=[None, "spin", "rock"], allow_None=True
+    lighting = param.Selector(
+        default="matte",
+        objects=["flat", "matte", "glossy", "metallic", "plastic"],
+        doc="Set the lighting",
     )
 
-    color_scheme = param.Selector(default="custom", objects=COLOR_SCHEMES)
+    spin = param.Boolean(
+        default=False,
+        doc="Toggle object spin"
+    )
 
-    custom_color_scheme = param.List(precedence=-1)
-
-    background_color = param.Color(default="#F7F7F7")
-
-    object = param.String("", doc="pdb string object", precedence=-1)
+    reset = param.Action(lambda self: self._action_reset())
 
     def __init__(self, **params):
         # also accepts any PDBeMolstar kwargs
@@ -514,9 +517,9 @@ class PDBeMolStarColorView(View):
         # get kwargs
         kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**{k: v for k, v in params.items() if k in self.param})
-        custom_data = { "url": "https://www.ebi.ac.uk/pdbe/coordinates/1cbs/chains?entityId=1&asymId=A&encoding=bcif", "format": "cif", "binary": True }
+        custom_data = {"url": "https://www.ebi.ac.uk/pdbe/coordinates/1cbs/chains?entityId=1&asymId=A&encoding=bcif", "format": "cif", "binary": True }
 
-        custom_data = {"url": "assets/1qyn.pdb", "format": "pdb"}
+        #custom_data = {"url": "assets/1qyn.pdb", "format": "pdb"}
 
         self.pdbe = PDBeMolStar(
             sizing_mode="stretch_both",  # todo sanitize order
@@ -525,20 +528,33 @@ class PDBeMolStarColorView(View):
 
         )
 
-        #params = self.param.params().keys() & self._ngl.param.params().keys() - {"name"}
-        #self.param.watch(self._update_params, list(params))
+        # link view params to pdbe params
+        params = self.param.params().keys() & self.pdbe.param.params().keys() - {"name"}
+        self.param.watch(self._update_params, list(params))
 
         self.sources["pdb"].param.watch(self._pdb_updated, "updated")
         self.sources["color"].param.watch(self._color_updated, "updated")
+
 
         # field: opts for all cmap otps
         self._cmap_opts = {
             opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)
         }
 
+    def _action_reset(self):
+        data = {
+            'camera': True
+        }
+        self.pdbe.reset(data)
+        self._color_updated('event') # todo new function without event arg
+
     def _update_params(self, *events):
+        rerender = ['visual_style', 'lighting']
         for event in events:
-            setattr(self._ngl, event.name, event.new)
+            setattr(self.pdbe, event.name, event.new)
+            if event.name in rerender:
+                time.sleep(0.5) # in the future preferably bind to load complete event
+                self._color_updated('event') # update?
 
     def get_panel(self):
         return self.pdbe
@@ -552,8 +568,12 @@ class PDBeMolStarColorView(View):
     def _pdb_updated(self, *events):
         pdb_url = self.sources["pdb"].get()
         self.pdbe.custom_data = {"url": pdb_url, "format": "pdb"}
+        self._color_updated('event')
 
     def _color_updated(self, *event):
+        if self.pdbe.custom_data is None:
+            return
+
         df = self.sources["color"].get()
         if df is None:
             return
@@ -595,7 +615,8 @@ class PDBeMolStarColorView(View):
         return self._update_panel()  # check how and why this is needed
 
     # this is called to initiate the view. perhaps should be removed / refacotred
-    # its also triggerd by any dependency trigger (in this case opts)
+    # its also triggerd by any dependency trigger (in this case opts )
+    # it is not triggered by sources triggering (which eg hvplot view does do)
     def update(self):
         self._color_updated()
 
@@ -621,7 +642,7 @@ class NGLColorView(View):
         "should be: pdb: PDBSource, color: TableSource (single-column tables)"
     )
 
-    representation = param.Selector(default="cartoon", objects=REPRESENTATIONS)
+    representation = param.Selector(default="cartoon", objects=NGL_REPRESENTATIONS)
 
     effect = param.Selector(
         default=None, objects=[None, "spin", "rock"], allow_None=True

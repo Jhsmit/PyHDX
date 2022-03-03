@@ -129,7 +129,7 @@ class PyHDXSource(TableSource):
         self._add_table(df, "rfu_residues")
 
         self.hdxm_objects[name] = hdxm
-        self.param.trigger("hdxm_objects")
+        self.param.trigger("hdxm_objects")  # protein controller listens here
         self.updated = True
 
     def _add_dG_fit(self, fit_result, name):
@@ -261,7 +261,9 @@ class PDBSource(Source):
             key = next(iter(self.pdb_files))
             del self.pdb_files[key]
             del self.hashes[key]
-            os.remove(cfg.assets_dir / f'{key}.pdb')
+            pdb_pth = cfg.assets_dir / f'{key}.pdb'
+            # if pdb_pth.exists():
+            #     os.remove(pdb_pth)
 
     def get(self):
         """returns the first entry in the pdb source"""

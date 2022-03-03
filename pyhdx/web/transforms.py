@@ -100,15 +100,16 @@ class SelectTransform(MultiTransform):
             self.value = self.labels[0]
         self.redraw()
 
+    @property
+    def source_hash(self):
+        return self.sources[self.value].hash
+
     # todo automagic widgets from labels
     def _make_widgets(self):
-        return {"select": pn.Param(self.param, parameters=["value"], show_name=False)}
+        return {"value": pn.Param(self.param, parameters=["value"], show_name=False)[0]}
 
     def redraw(self):
         self.widgets = self._make_widgets()
-
-    def _update_options(self):
-        pass
 
     def get(self):
         return self.sources[self.value].get()
@@ -116,7 +117,6 @@ class SelectTransform(MultiTransform):
     @pn.depends("value", watch=True)
     def update(self, *events):
         if self.update_hash():
-            self._update_options()  # todo this shouldnt be here
             self.updated = True
 
 
