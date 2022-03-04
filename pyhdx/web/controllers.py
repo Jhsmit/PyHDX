@@ -91,15 +91,8 @@ class DevTestControl(ControlPanel):
         print("break")
 
     def _action_test(self):
-        trs = self.transforms["peptide_select"]
-        cache = trs._cache
-        print(cache._cache.keys())
-        print(cache)
-        print(cache._store.keys())
-
-        for item in cache._store.keys():
-            print(item)
-            print(cache[item])
+        pdbe_view = self.views['protein']
+        pdbe_view.pdbe.test = not pdbe_view.pdbe.test
 
     @property
     def _layout(self):

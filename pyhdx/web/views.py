@@ -515,26 +515,15 @@ class PDBeMolStarColorView(View):
         # also accepts any PDBeMolstar kwargs
         # todo should generate widgets which can be displayed in the controller
         # get kwargs
-        kwargs = {k: v for k, v in params.items() if k not in self.param}
+        self.pdbe_kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**{k: v for k, v in params.items() if k in self.param})
-        custom_data = {"url": "https://www.ebi.ac.uk/pdbe/coordinates/1cbs/chains?entityId=1&asymId=A&encoding=bcif", "format": "cif", "binary": True }
 
-        #custom_data = {"url": "assets/1qyn.pdb", "format": "pdb"}
 
-        self.pdbe = PDBeMolStar(
-            sizing_mode="stretch_both",  # todo sanitize order
-            custom_data=custom_data,
-            **kwargs
-
-        )
-
-        # link view params to pdbe params
-        params = self.param.params().keys() & self.pdbe.param.params().keys() - {"name"}
-        self.param.watch(self._update_params, list(params))
+        self.pdbe = None
+        self._panel = pn.Row(sizing_mode='stretch_both')
 
         self.sources["pdb"].param.watch(self._pdb_updated, "updated")
         self.sources["color"].param.watch(self._color_updated, "updated")
-
 
         # field: opts for all cmap otps
         self._cmap_opts = {
@@ -548,16 +537,25 @@ class PDBeMolStarColorView(View):
         self.pdbe.reset(data)
         self._color_updated('event') # todo new function without event arg
 
+    #todo perhaps wrappertje @not_none('pdbe') which checks for None and returns
     def _update_params(self, *events):
+        if self.pdbe is None:
+            return
         rerender = ['visual_style', 'lighting']
         for event in events:
-            setattr(self.pdbe, event.name, event.new)
             if event.name in rerender:
-                time.sleep(0.5) # in the future preferably bind to load complete event
-                self._color_updated('event') # update?
+                color_data_dict = self.get_color_data()
+                color_data_dict["nonSelectedColor"] = color_data_dict.pop("non_selected_color")
+                self.pdbe.color_on_load = color_data_dict
+
+                # time.sleep(0.5) # in the future bind to load complete event
+                # self._color_updated('event') # update?
+
+            setattr(self.pdbe, event.name, event.new)
+
 
     def get_panel(self):
-        return self.pdbe
+        return self._panel
 
     def _cleanup(self):
         return None
@@ -565,25 +563,46 @@ class PDBeMolStarColorView(View):
     def _get_params(self):
         return None
 
+    def init_pdbe(self, pdb_url):
+        self.pdbe = PDBeMolStar(
+            sizing_mode="stretch_both",
+            custom_data={"url": pdb_url, "format": "pdb"},
+            **self.pdbe_kwargs
+
+        )
+
+        # link view params to pdbe params
+        params = self.param.params().keys() & self.pdbe.param.params().keys() - {"name"}
+        self.param.watch(self._update_params, list(params))
+        self._panel[:] = [self.pdbe]
+
     def _pdb_updated(self, *events):
         pdb_url = self.sources["pdb"].get()
-        self.pdbe.custom_data = {"url": pdb_url, "format": "pdb"}
-        self._color_updated('event')
 
-    def _color_updated(self, *event):
-        if self.pdbe.custom_data is None:
-            return
 
+
+        if self.pdbe is None:
+            self.init_pdbe(pdb_url)
+        else:
+            self.pdbe.custom_data = {"url": pdb_url, "format": "pdb"}
+
+        # color_data_dict = self.get_color_data()
+        # color_data_dict["nonSelectedColor"] = color_data_dict.pop("non_selected_color")
+        # self.pdbe.color_on_load = color_data_dict
+
+        # time.sleep(0.5) # todo link to done event
+        # self._color_updated('event')
+
+    def get_color_data(self):
         df = self.sources["color"].get()
         if df is None:
-            return
-
+            return None, None
         # there should be one column which matches one of the keys in the cmap otps dict
         matching_columns = set(df.columns) & self._cmap_opts.keys()
         if not matching_columns:
             # todo logging.getlogger etc etc
             print("No matching color opts were found")
-            return
+            return None, None
 
         qty = matching_columns.pop()
         opts = self._cmap_opts[qty]
@@ -610,16 +629,24 @@ class PDBeMolStarColorView(View):
             data_list.append(data_elem)
             i += size
 
-        self.pdbe.color(data_list, non_selected_color=no_coverage)
+        return {"data": data_list, "non_selected_color": no_coverage}
 
+    def _color_updated(self, *event):
+        if self.pdbe is None:
+            return
+
+        color_data_dict = self.get_color_data()
+        if color_data_dict is not None:
+            self.pdbe.color(**color_data_dict)
+
+        self.pdbe.color_on_load = color_data_dict
         return self._update_panel()  # check how and why this is needed
 
     # this is called to initiate the view. perhaps should be removed / refacotred
-    # its also triggerd by any dependency trigger (in this case opts )
+    # its also triggered by any dependency trigger (in this case opts )
     # it is not triggered by sources triggering (which eg hvplot view does do)
     def update(self):
         self._color_updated()
-
         return self._update_panel()
 
     @property
