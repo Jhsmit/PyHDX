@@ -214,6 +214,10 @@ modules:
         sources:
           pdb: pdb
           color: protein_src
+        hide_water: True
+        hide_non_standard: True
+        hide_heteroatoms: True
+        hide_carbs: True
         opts:  # opts are not applied directly but matched to color dataframe and then applied
           - rfu
           - drfu
