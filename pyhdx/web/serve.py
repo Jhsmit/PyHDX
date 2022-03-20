@@ -51,10 +51,13 @@ def run_apps():
     fh.setLevel(10)
     tornado_logger.addHandler(fh)
 
+    #TODO Clean assets dir from pdb files
+    Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)
+
     print("Welcome to the PyHDX server!")
     pn.serve(
         APP_DICT,
-        static_dirs={"pyhdx": STATIC_DIR},
+        static_dirs={"pyhdx": STATIC_DIR, "assets": str(cfg.assets_dir)},
         index=str(STATIC_DIR / "index.html"),
     )
 

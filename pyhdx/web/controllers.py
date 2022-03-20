@@ -1,6 +1,6 @@
 import itertools
 import sys
-import urllib.request
+import uuid
 import zipfile
 from datetime import datetime
 from io import StringIO, BytesIO
@@ -91,15 +91,8 @@ class DevTestControl(ControlPanel):
         print("break")
 
     def _action_test(self):
-        trs = self.transforms["peptide_select"]
-        cache = trs._cache
-        print(cache._cache.keys())
-        print(cache)
-        print(cache._store.keys())
-
-        for item in cache._store.keys():
-            print(item)
-            print(cache[item])
+        pdbe_view = self.views['protein']
+        pdbe_view.pdbe.test = not pdbe_view.pdbe.test
 
     @property
     def _layout(self):
@@ -1837,26 +1830,53 @@ class ProteinControl(PyHDXControlPanel):
         doc="Method of protein structure input",
         objects=["RCSB PDB Download", "PDB File"],
     )
-    file_binary = param.Parameter()
+    file_binary = param.Parameter(doc="Corresponds to file upload value")
     pdb_id = param.String(doc="RCSB ID of protein to download")
     load_structure = param.Action(lambda self: self._action_load_structure())
 
+    highlight_mode = param.Selector(
+        default="Single",
+        objects=["Single", "Range"]
+    )
+
+    highlight_range = param.Range(
+        default=(1,2),
+        step=1,
+        inclusive_bounds=[True, True],
+    )
+    highlight_value = param.Integer(
+        default=1
+    )
+
+    highlight = param.Action(lambda self: self._action_highlight())
+
+    clear_highlight = param.Action(lambda self: self._action_clear_highlight())
+
     def __init__(self, parent, **params):
         super(ProteinControl, self).__init__(
-            parent, _excluded=["file_binary"], **params
+            parent, _excluded=["file_binary", "highlight_range"], **params
         )
+        self.n_term, self.c_term = 1, 2
+        self.src.param.watch(self._hdxm_added, 'hdxm_objects')
+
         self.update_box()
 
     @property
     def _layout(self):
         return [
             ("self", self.own_widget_names),  # always use this instead of none?
-            ("transforms.protein_src", None),
+            ("transforms.protein_src", "value"),
+            ('views.protein', 'visual_style'),
+            ('views.protein', 'lighting'),
+            ('views.protein', 'spin'),
+            ('views.protein', 'reset'),
         ]
 
     def make_dict(self):
         return self.generate_widgets(
-            file_binary=pn.widgets.FileInput(multiple=False, accept=".pdb")
+            file_binary=pn.widgets.FileInput(multiple=False, accept=".pdb"),
+            highlight_range=pn.widgets.IntRangeSlider,
+            highlight_mode=pn.widgets.RadioButtonGroup,
         )
 
     @param.depends("input_mode", watch=True)
@@ -1868,11 +1888,37 @@ class ProteinControl(PyHDXControlPanel):
 
         self.update_box()
 
+    @param.depends("highlight_mode", watch=True)
+    def _update_highlight_mode(self):
+        if self.highlight_mode == "Single":
+            self._excluded = ["highlight_range"]
+        elif self.highlight_mode == "Range":
+            self._excluded = ["highlight_value"]
+
+        self.update_box()
+
+    def _action_highlight(self):
+        data = {
+            'color': {'r': 200, 'g': 105, 'b': 180},
+            'focus': True,
+        }
+
+        if self.highlight_mode == "Single":
+            data["residue_number"] = self.highlight_value
+        elif self.highlight_mode == "Range":
+            data["start_residue_number"] = self.highlight_range[0]
+            data["end_residue_number"] = self.highlight_range[1]
+
+        self.views['protein'].pdbe.highlight([data])
+
+    def _action_clear_highlight(self):
+        self.views['protein'].pdbe.clear_highlight()
+
     def _action_load_structure(self):
         if self.input_mode == "PDB File":
             pdb_string = self.file_binary.decode()
             self.parent.sources["pdb"].add_from_string(
-                pdb_string, "unknown"
+                pdb_string, f"local_{uuid.uuid4()}"
             )  # todo parse and extract pdb id?
 
         elif self.input_mode == "RCSB PDB Download":
@@ -1881,6 +1927,14 @@ class ProteinControl(PyHDXControlPanel):
                 return
 
             self.parent.sources["pdb"].add_from_pdb(self.pdb_id)
+
+    def _hdxm_added(self, *events):
+        hdxm_object = next(reversed(self.src.hdxm_objects.values()))
+        self.n_term = min(self.n_term, hdxm_object.coverage.protein.n_term)
+        self.c_term = max(self.c_term, hdxm_object.coverage.protein.c_term)
+
+        self.param['highlight_value'].bounds = (self.n_term, self.c_term)
+        self.param['highlight_range'].bounds = (self.n_term, self.c_term)
 
 
 class FileExportControl(PyHDXControlPanel):

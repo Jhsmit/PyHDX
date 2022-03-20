@@ -1,3 +1,4 @@
+import os
 import urllib.request
 
 import numpy as np
@@ -8,6 +9,7 @@ from pyhdx import TorchFitResult
 from pyhdx.fitting import RatesFitResult
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dataframe
+from pyhdx.config import cfg
 
 
 class Source(param.Parameterized):
@@ -127,7 +129,7 @@ class PyHDXSource(TableSource):
         self._add_table(df, "rfu_residues")
 
         self.hdxm_objects[name] = hdxm
-        self.param.trigger("hdxm_objects")
+        self.param.trigger("hdxm_objects")  # protein controller listens here
         self.updated = True
 
     def _add_dG_fit(self, fit_result, name):
@@ -233,27 +235,35 @@ class PDBSource(Source):
     def add_from_pdb(self, pdb_id):
         self._make_room()
         url = f"http://files.rcsb.org/download/{pdb_id}.pdb"
-        with urllib.request.urlopen(url) as response:
-            pdb_string = response.read().decode()
+        # with urllib.request.urlopen(url) as response:
+        #     pdb_string = response.read().decode()
 
-        self.pdb_files[pdb_id] = pdb_string
-        self.hashes[pdb_id] = hash(pdb_string)
+        self.pdb_files[pdb_id] = url
+        self.hashes[pdb_id] = hash(url)
         self.updated = True
 
     def add_from_string(self, pdb_string, pdb_id):
+        """Adds a PDB file from a string"""
         self._make_room()
-        self.pdb_files[pdb_id] = pdb_string
-        self.hashes[pdb_id] = hash(pdb_string)
+        url = f'assets/{pdb_id}.pdb'
+
+        (cfg.assets_dir / f'{pdb_id}.pdb').write_text(pdb_string)
+
+        self.pdb_files[pdb_id] = url
+        self.hashes[pdb_id] = hash(url)
         self.updated = True
 
     def _make_room(self):
-        """removes first entry of pdf_files dict if its at max capacity"""
+        """removes first entry of pdb_files dict if its at max capacity"""
         if self.max_entries is None:
             pass
         elif len(self.pdb_files) == self.max_entries:
             key = next(iter(self.pdb_files))
             del self.pdb_files[key]
             del self.hashes[key]
+            pdb_pth = cfg.assets_dir / f'{key}.pdb'
+            # if pdb_pth.exists():
+            #     os.remove(pdb_pth)
 
     def get(self):
         """returns the first entry in the pdb source"""
