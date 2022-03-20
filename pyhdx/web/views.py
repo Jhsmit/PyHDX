@@ -544,15 +544,14 @@ class PDBeMolStarColorView(View):
         rerender = ['visual_style', 'lighting']
         for event in events:
             if event.name in rerender:
-                color_data_dict = self.get_color_data()
-                color_data_dict["nonSelectedColor"] = color_data_dict.pop("non_selected_color")
-                self.pdbe.color_on_load = color_data_dict
+                # color_data_dict = self.get_color_data()
+                # color_data_dict["nonSelectedColor"] = color_data_dict.pop("non_selected_color")
+                # self.pdbe.color_on_load = color_data_dict
 
-                # time.sleep(0.5) # in the future bind to load complete event
-                # self._color_updated('event') # update?
+                time.sleep(2) # in the future bind to load complete event
+                self._color_updated('event') # update?
 
             setattr(self.pdbe, event.name, event.new)
-
 
     def get_panel(self):
         return self._panel
@@ -579,8 +578,6 @@ class PDBeMolStarColorView(View):
     def _pdb_updated(self, *events):
         pdb_url = self.sources["pdb"].get()
 
-
-
         if self.pdbe is None:
             self.init_pdbe(pdb_url)
         else:
@@ -590,8 +587,8 @@ class PDBeMolStarColorView(View):
         # color_data_dict["nonSelectedColor"] = color_data_dict.pop("non_selected_color")
         # self.pdbe.color_on_load = color_data_dict
 
-        # time.sleep(0.5) # todo link to done event
-        # self._color_updated('event')
+        time.sleep(2) # todo link to done event
+        self._color_updated('event')
 
     def get_color_data(self):
         df = self.sources["color"].get()
