@@ -17,6 +17,7 @@ from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.utils import load_state, fix_multiindex_dtypes
+from pyhdx.config import cfg
 
 sys._excepthook = sys.excepthook
 
@@ -98,12 +99,12 @@ def init_dashboard():
     fit_control.patience = 100
     fit_control.learning_rate = 100
 
-    ngl = ctrl.views['protein']
-    ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
-    ctrl.views['protein'].object = pdb_string
+    # ngl = ctrl.views['protein']
+    # ngl._ngl.pdb_string = Path(test_dir / '1qyn.pdb').read_text()
+    # ctrl.views['protein'].object = pdb_string
 
-    fit_result = load_fitresult(fitresult_dir)
-    src.add(fit_result, 'fit_1')
+    # fit_result = load_fitresult(fitresult_dir)
+    # src.add(fit_result, 'fit_1')
 
     diff = ctrl.control_panels['DifferentialControl']
     diff._action_add_comparison()
@@ -116,7 +117,7 @@ pn.state.onload(init_dashboard)
 
 
 if __name__ == '__main__':
-    pn.serve(tmpl, show=True, static_dirs={'pyhdx': STATIC_DIR})
+    pn.serve(tmpl, show=True, static_dirs={'pyhdx': STATIC_DIR, 'assets': cfg.assets_dir})
 
 elif __name__.startswith('bokeh_app'):
     tmpl.servable()
