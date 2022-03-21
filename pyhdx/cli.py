@@ -1,4 +1,5 @@
 import argparse
+import time
 from ipaddress import ip_address
 from pyhdx.web import serve
 from pyhdx.config import cfg
@@ -38,6 +39,14 @@ def main():
 
     if args.serve:
         serve.run_apps()
+
+    loop = True
+    while loop:
+        try:
+            time.sleep(1)
+        except KeyboardInterrupt:
+            print("Interrupted")
+            loop = False
 
 
 if __name__ == "__main__":
