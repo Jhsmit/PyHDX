@@ -75,7 +75,6 @@
               model: '<div class="sidebar-contents">{% for doc in docs %}{% for root in doc.roots %}{% if "nav" in root.tags %} {{ embed(root) }} {% endif %}{% endfor %}{% endfor %}</div>',
               width: 350,
             },
-            width: 20,
             isClosable: false
           },
           $main_body
@@ -84,7 +83,15 @@
     ],
     settings: {
       showPopoutIcon: false
-    }
+    },
+    dimensions: {
+      borderWidth: 5,
+      minItemHeight: 10,
+      minItemWidth: 10,
+      headerHeight: 35,
+      dragProxyWidth: 300,
+      dragProxyHeight: 200
+    },
   };
 
   var myLayout = new GoldenLayout(config, $$('#main-content'));
