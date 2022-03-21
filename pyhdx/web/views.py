@@ -593,13 +593,13 @@ class PDBeMolStarColorView(View):
     def get_color_data(self):
         df = self.sources["color"].get()
         if df is None:
-            return None, None
+            return None
         # there should be one column which matches one of the keys in the cmap otps dict
         matching_columns = set(df.columns) & self._cmap_opts.keys()
         if not matching_columns:
             # todo logging.getlogger etc etc
             print("No matching color opts were found")
-            return None, None
+            return None
 
         qty = matching_columns.pop()
         opts = self._cmap_opts[qty]
