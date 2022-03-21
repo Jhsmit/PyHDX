@@ -20,26 +20,26 @@ Installation with `pip`:
    $ pip install pyhdx==0.3.2
 
 
-Beta release (v0.4.0b7)
+Beta release (v0.4.0b8)
 -----------------------
 
 To install base PyHDX:
 
 .. code-block:: rst
 
-   $ pip install pyhdx==0.4.0b7
+   $ pip install pyhdx==0.4.0b8
 
 To install with web application:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b7[web]
+    $ pip install pyhdx==0.4.0b8[web]
 
 To install with pdf output:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b7[pdf]
+    $ pip install pyhdx==0.4.0b8[pdf]
 
 
 
