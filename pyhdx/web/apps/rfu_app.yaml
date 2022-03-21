@@ -218,6 +218,7 @@ modules:
         hide_non_standard: True
         hide_heteroatoms: True
         hide_carbs: True
+        hide_expand_icon: True
         opts:  # opts are not applied directly but matched to color dataframe and then applied
           - rfu
           - drfu
