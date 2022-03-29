@@ -58,7 +58,7 @@ class AppConstructor(param.Parameterized):
             opts=self.opts,
             views=self.views,
             loggers=self.loggers,
-            client=default_client(),
+            client=default_client(asynchronous=True),
             **kwargs,
             **main_ctrl,
         )

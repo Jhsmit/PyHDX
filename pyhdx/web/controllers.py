@@ -51,6 +51,111 @@ from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
 from pyhdx.web.transforms import CrossSectionTransform
 
+from panel.io.server import async_execute
+
+
+class AsyncControl(ControlPanel):
+    """temp controller for testing async"""
+
+    start_async = param.Action(lambda self: self._action_do_async())
+
+    async def myfunc(self):
+        ...
+
+    def _action_do_async(self):
+        ...
+
+
+from distributed import Variable, Queue, Lock, Pub, Sub, Client
+
+def blocking_function():
+    import time
+
+    pub = Pub('progress_1')
+
+    for i in range(11):
+        duration = np.clip(np.random.uniform(0.5, 0.5), 0.1, None)
+        time.sleep(duration)
+        pub.put(i*10)
+
+    df = pd.DataFrame({
+        'x': np.random.normal(loc=3, scale=2, size=100),
+        'y': np.random.normal(loc=2, scale=0.3, size=100),
+    })
+
+    return df
+
+
+class AsyncControlPanel(ControlPanel):
+    _type = 'async'
+
+    btn = param.Action(lambda self: self.do_stuff())
+
+    print = param.Action(lambda self: self.print_stuff())
+
+    #async_do = param.Action(lambda self:)
+
+    value = param.String()
+
+    slider = param.Number(2.4, bounds=(1., 4.))
+
+    @property
+    def src(self):
+        return self.sources['main']
+
+    def make_dict(self):
+        widgets = self.generate_widgets(pbar=pn.widgets.Progress)
+
+        widgets['pbar'] = pn.indicators.Progress(name='pbar 1')
+
+        return widgets
+
+    async def work_func(self):
+        # pbar = self.widgets['pbar']
+        # pbar.value = 0
+
+        scheduler_address = cfg.get("cluster", "scheduler_address")
+        #client = await Client(scheduler_address, asynchronous=True)
+        async with Client(scheduler_address, asynchronous=True) as client:
+            print(client)
+        #pub = Pub('progress', client=self.parent.client)  # must add uuid or session id ro whatever
+
+            future = client.submit(blocking_function)
+            sub = Sub('progress_1', client=client)
+            #
+            while True:
+                pbar_value = await sub.get()
+                print(pbar_value)
+            #     #self.widgets['pbar'].value = pbar_value
+                if pbar_value == 100:
+                    break
+            del sub
+
+            result = await future
+            #client.close()
+            #pbar.value = 0
+        print(result)
+        self.src.add_table('test_data', result)
+        self.src.updated = True
+
+        #self.src.param.trigger('updated')
+
+    def do_stuff(self):
+        # from panel.io.state import state
+        # state.curdoc.add_next_tick_callback(self.work_func)
+
+        async_execute(self.work_func)
+
+    @param.depends('slider', watch=True)
+    def _slider_updated(self):
+        self.value = str(self.slider)
+
+    def print_stuff(self):
+        print(self.parent.executor)
+        df = self.src.tables['test_data']
+        print()
+
+
 
 class DevTestControl(ControlPanel):
 
