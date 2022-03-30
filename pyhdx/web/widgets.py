@@ -1,12 +1,14 @@
 import panel as pn
 import param
-from dask.distributed import as_completed
+#from dask.distributed import as_completed
+from asyncio import as_completed
 from panel.pane import HTML, Markdown
 from panel.reactive import ReactiveHTML
 from panel.util import as_unicode
 from panel.widgets.input import _BkTextInput, StaticText
+from panel.viewable import Viewer
 
-
+# todo remove
 class NumericInput(pn.widgets.input.Widget):
     """
     NumericInput allows input of floats with bounds
@@ -189,7 +191,7 @@ EXTENSIONS = [
     "xml",
 ]
 
-
+#todo remove
 class NGL(ReactiveHTML):
     """
     The [NGL Viewer](https://github.com/nglviewer/ngl) can be used
@@ -323,20 +325,33 @@ class LoggingMarkdown(Markdown):
 
 
 class ASyncProgressBar(param.Parameterized):
-    completed = param.Integer(default=0)
-    num_tasks = param.Integer(default=10, bounds=(1, None))
+    completed = param.Integer(default=0, doc="Number of completed jobs")
+
+    num_tasks = param.Integer(default=10, doc="Total number of tasks", bounds=(1, None))
+
+    active = param.Boolean(False, doc="Toggles the progress bar 'active' display mode")
 
     async def run(self, futures):
-        async for task in as_completed(futures):
-            with pn.io.unlocked():
-                self.completed += 1
+        self.active = True
+        for task in as_completed(futures):
+            await task
+            self.active = False
+            self.completed += 1
+
+        self.reset()
 
     @property
     def value(self):
         value = int(100 * (self.completed / self.num_tasks))
-        return max(
+        # todo check why this is sometimes out of bounds
+        value = max(
             0, min(value, 100)
-        )  # todo check why this is somethings out of bounds
+        )
+
+        if value == 0 and self.active:
+            return None
+        else:
+            return value
 
     def reset(self):
         self.completed = 0
@@ -344,17 +359,17 @@ class ASyncProgressBar(param.Parameterized):
     def increment(self):
         self.completed += 1
 
-    @param.depends("completed", "num_tasks")
+    @param.depends("completed", "num_tasks", "active")
     def view(self):
-        if self.value:
+        if self.value != 0:
             return pn.widgets.Progress(
-                active=True,
+                active=self.active,
                 value=self.value,
                 align="center",
                 sizing_mode="stretch_width",
             )
         else:
-            return None
+            return pn.layout.Column()  # Or size 0 spacer?
 
 
 class CallbackProgress(pn.widgets.Progress):

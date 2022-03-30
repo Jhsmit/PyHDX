@@ -31,7 +31,6 @@ def main_app():
     ctr = AppConstructor(loggers={"pyhdx": main_app.logger}, cache=cache)
 
     ctrl = ctr.parse(yaml_dict)
-    ctrl.start()
 
     elvis = GoldenElvis(
         ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme, title=VERSION_STRING

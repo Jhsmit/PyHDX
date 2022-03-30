@@ -1,4 +1,5 @@
 import logging
+import warnings
 
 import panel as pn
 import param
@@ -51,38 +52,29 @@ class MainController(param.Parameterized):
             ctrl.name: ctrl(self) for ctrl in control_panels
         }  # todo as param?
 
-        self.template = None  # Panel template
-        self.future_queue = []  # queue of tuples: (future, callback)
+        self.template = None  # Panel template (remove?)
 
-        self._update_views()
-        self.start()
+        self.update()  # todo check to see if this is really needed
 
     # from lumen.target.Target
     def _rerender(self, *events, invalidate_cache=False):
         self._update_views(invalidate_cache=invalidate_cache)
 
+    # todo remove?
     def _update_views(self, invalidate_cache=True, update_views=True, events=[]):
+        warnings.warn("update view is deprecated", DeprecationWarning)
         for view in self.views.values():
             view.update()
 
     @property
     def panel(self):
+        warnings.warn('panel property is deprecated', DeprecationWarning)
+        #todo remove?
         return self.template
 
     def update(self):
-        for view in self.views:
+        for view in self.views.values():
             view.update()
-
-    def check_futures(self):
-        if self.future_queue:
-            for future, callback in self.future_queue[:]:
-                if future.status == "finished":
-                    callback(future)
-                    self.future_queue.remove((future, callback))
-
-    def start(self):
-        refresh_rate = 1000
-        pn.state.add_periodic_callback(self.check_futures, refresh_rate)
 
 
 class PyHDXController(MainController):

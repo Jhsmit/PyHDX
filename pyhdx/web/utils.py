@@ -9,6 +9,14 @@ time_factors = {"s": 1, "m": 60.0, "min": 60.0, "h": 3600, "d": 86400}
 temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}
 
 
+def get_view(widget):  # widget is viewable or widget or custom somthing with view method
+    """If the widget object has a `view` attribute, return this, otherwise return the widget"""
+    if hasattr(widget, 'view'):
+        return widget.view
+    else:
+        return widget
+
+
 def load_state(ctrl, yaml_dict, data_dir, name=None):
     """
     Load a HDXMeasurement into the web interface

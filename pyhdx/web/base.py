@@ -5,6 +5,7 @@ import param
 
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.template import SIDEBAR_WIDTH
+from pyhdx.web.utils import get_view
 
 DEFAULT_RENDERERS = {
     "half-life": "hex",
@@ -128,10 +129,10 @@ class ControlPanel(param.Parameterized):
         try:
             self._layout
         except AttributeError:
-            return list(self.widgets.values())
+            return [get_view(widget) for widget in self.widgets.values()]
 
         if self._layout is None:
-            return list(self.widgets.values())
+            return [get_view(widget) for widget in self.widgets.values()]
         else:
             widget_list = []
             for widget_source, contents in self._layout:
@@ -143,20 +144,20 @@ class ControlPanel(param.Parameterized):
 
                 if isinstance(contents, list):
                     for item in contents:
-                        widget_list.append(object.widgets[item])
+                        widget_list.append(get_view(object.widgets[item]))
                 elif isinstance(contents, str):
-                    widget_list.append(object.widgets[contents])
+                    widget_list.append(get_view(object.widgets[contents]))
                 elif contents is None:
                     if hasattr(object, "widgets"):
                         for item in object.widgets.values():
-                            widget_list.append(item)
+                            widget_list.append(get_view(item))
                     else:
                         panel = object.panel
                         if isinstance(panel, pn.layout.ListLike):
                             for item in panel:
-                                widget_list.append(item)
+                                widget_list.append(get_view(item))
                         else:
-                            widget_list.append(panel)
+                            widget_list.append(get_view(panel))
 
         return widget_list
 
