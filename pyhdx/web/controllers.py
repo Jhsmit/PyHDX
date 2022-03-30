@@ -2,6 +2,7 @@ import asyncio
 import itertools
 import sys
 import uuid
+import warnings
 import zipfile
 from datetime import datetime
 from functools import partial
@@ -129,7 +130,6 @@ class AsyncControlPanel(ControlPanel):
 
         print(result)
 
-        # must use something else. probably good old fashioned threaded queue? (no cannot pickle those)
         self.src.add_table('test_data', result)
         self.src.updated = True
 
@@ -1252,12 +1252,19 @@ class FitControl(PyHDXControlPanel):
         self.widgets["do_fit"].loading = True
 
         self.parent.logger.info(f"Current number of active jobs: {self._current_jobs}")
-        loop = asyncio.get_running_loop()
+        # try:
+        #     loop = asyncio.get_running_loop()
+        # except RuntimeError:
+        #     warnings.warn("No running event loop. This warning should only trigger during tests")
+        #     loop = asyncio.new_event_loop()
         if self.fit_mode == "Batch":
-            # Alternatively use async_execute
-            loop.create_task(self._batch_fit(self.fit_name))
+            # Alternatively use panel's async_execute + partial
+            func = partial(self._batch_fit, self.fit_name)
+            async_execute(func)
+            #loop.create_task(self._batch_fit(self.fit_name))
 
         else:
+            warnings.warn("Currently not implemented", NotImplementedError)
             data_objs = self.src.hdxm_objects.values()
             rates_df = self.src.rate_results[self.initial_guess].output
             gibbs_guesses = [

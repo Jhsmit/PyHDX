@@ -1,12 +1,16 @@
+import asyncio
+
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fileIO import csv_to_protein
-from pyhdx.web.apps import main_app#, diff_app
-from pyhdx.config import ConfigurationSettings
+from pyhdx.web.apps import main_app
+from pyhdx.config import cfg
 from pathlib import Path
 import torch
 import numpy as np
 import pytest
 import time
+
+from distributed.utils_test import cluster
 
 cwd = Path(__file__).parent
 input_dir = cwd / 'test_data' / 'input'
@@ -38,8 +42,6 @@ class TestMainGUISecB(object):
         cls.temperature, cls.pH = 273.15 + 30, 8.
         cls.hdxm = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
 
-        cfg = ConfigurationSettings()
-        cfg.set('cluster', 'scheduler_address', f'127.0.0.1:{test_port}')
         #cfg.set('cluster', 'port', str(test_port))
 
     def test_load_single_file(self):
@@ -71,7 +73,7 @@ class TestMainGUISecB(object):
 
         assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.630640188016708)
 
-    @pytest.mark.skip(reason="Hangs in GitHub Actions")
+    # @pytest.mark.skip(reason="Hangs in GitHub Actions")
     def test_batch_mode(self):
         fpath_1 = input_dir / 'ecSecB_apo.csv'
         fpath_2 = input_dir / 'ecSecB_dimer.csv'
@@ -79,7 +81,7 @@ class TestMainGUISecB(object):
         fpaths = [fpath_1, fpath_2]
         files = [p.read_bytes() for p in fpaths]
 
-        ctrl = main_app(client=None)
+        ctrl, tmpl = main_app()
         file_input = ctrl.control_panels['PeptideFileInputControl']
 
         file_input.input_files = files
@@ -90,20 +92,34 @@ class TestMainGUISecB(object):
         file_input.dataset_name = 'testname_123'
         file_input._action_add_dataset()
 
-        #assert ....
+        assert 'testname_123' in ctrl.sources['main'].hdxm_objects.keys()
+        rfu_df =  ctrl.sources['main'].get_table('rfu_residues')
+        assert rfu_df.shape == (146, 6)
+        assert rfu_df.columns.nlevels == 3
 
         file_input.exp_state = 'SecB his dimer apo'
         file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
         file_input._action_add_dataset()
 
+        assert 'SecB his dimer apo' in ctrl.sources['main'].hdxm_objects.keys()
+        rfu_df =  ctrl.sources['main'].get_table('rfu_residues')
+        assert len(rfu_df.columns) == 12
+        assert rfu_df.columns.nlevels == 3
+
         initial_guess = ctrl.control_panels['InitialGuessControl']
         initial_guess._action_fit()
 
-        # Wait until fitting futures are completed
-        while len(ctrl.future_queue) > 0:
-            ctrl.check_futures()
-            time.sleep(0.1)
+        with cluster() as (s, [a, b]):
+            cfg.set('cluster', 'scheduler_address', s['address'])
 
+            fit_control = ctrl.control_panels['FitControl']
+            fit_control.epochs = 10
+
+            fit_control.fit_name = 'testfit_1'
+            fit_control._action_fit()
+
+
+    def temp(self):
 
         #assert ....
         guesses = ctrl.sources['dataframe'].get('rates')
@@ -175,11 +191,10 @@ class TestMainGUISecB(object):
         src = ctrl.sources['main']
         src.add(self.hdxm, self.hdxm.name)
 
-
         ctrl.control_panels['InitialGuessControl']._action_fit()
 
         # todo Add tests
-        # assert 'half-life' in ctrl.sources.keys()
+        assert 'half-life' in ctrl.sources.keys()
         #
         # fit_control = ctrl.control_panels['FitControl']
         # fit_control.epochs = 10
