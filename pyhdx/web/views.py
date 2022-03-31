@@ -636,7 +636,6 @@ class PDBeMolStarColorView(View):
         if color_data_dict is not None:
             self.pdbe.color(**color_data_dict)
 
-        self.pdbe.color_on_load = color_data_dict
         return self._update_panel()  # check how and why this is needed
 
     # this is called to initiate the view. perhaps should be removed / refacotred

@@ -177,8 +177,6 @@ class PDBeMolStar(ReactiveHTML):
 
     _args = param.Dict(doc="Dictionary with function call arguments")
 
-    color_on_load = param.Dict(default={}, doc="Set dict to color after loading of structures completes")
-
     test = param.Boolean(default=False)
 
     _template = """
@@ -290,23 +288,10 @@ class PDBeMolStar(ReactiveHTML):
         state.getOptions=getOptions
         self.theme()
 
-
-        function colorOnLoad() {
-            console.log(data.color_on_load);
-        }
-
         state.viewerInstance = new PDBeMolstarPlugin();
         state.viewerInstance.render(pdbeViewer, state.getOptions());
 
         """,
-        "color_load_func": """
-        if (data.color_on_load) {
-            state.viewerInstance.visual.select(data.color_on_load);
-        }
-        console.log(data.color_on_load);
-        if (data.color_on_load) {
-        state.viewerInstance.visual.select(data.color_on_load);
-        }""",
         "rerender": """
         state.viewerInstance.visual.update(state.getOptions(), fullLoad=true)
         """,
@@ -356,11 +341,6 @@ class PDBeMolStar(ReactiveHTML):
         if(data._select) {
         state.viewerInstance.visual.select(data._select);
         }
-        """,
-        "test":"""
-        if (data.color_on_load) {
-            state.viewerInstance.visual.select(data.color_on_load);
-            }
         """,
         "_clear_selection": """
         state.viewerInstance.visual.clearSelection(data._args['number']);
