@@ -109,6 +109,11 @@ class TestMainGUISecB(object):
         initial_guess = ctrl.control_panels['InitialGuessControl']
         initial_guess._action_fit()
 
+        guesses = ctrl.sources['main'].get_table('rates')
+
+
+
+
         with cluster() as (s, [a, b]):
             cfg.set('cluster', 'scheduler_address', s['address'])
 
@@ -119,10 +124,7 @@ class TestMainGUISecB(object):
             fit_control._action_fit()
 
 
-    def temp(self):
 
-        #assert ....
-        guesses = ctrl.sources['dataframe'].get('rates')
 
 
         fit_control = ctrl.control_panels['FitControl']
@@ -185,18 +187,3 @@ class TestMainGUISecB(object):
         # renderer = cov_figure.figure.renderers[0]
         #
         # assert renderer.data_source.name == f'coverage_{self.series.state}'
-
-    def test_initial_guesses_and_fit(self):
-        ctrl, tmpl = main_app()
-        src = ctrl.sources['main']
-        src.add(self.hdxm, self.hdxm.name)
-
-        ctrl.control_panels['InitialGuessControl']._action_fit()
-
-        # todo Add tests
-        assert 'half-life' in ctrl.sources.keys()
-        #
-        # fit_control = ctrl.control_panels['FitControl']
-        # fit_control.epochs = 10
-        # fit_control._do_fitting()
-        #
