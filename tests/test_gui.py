@@ -4,9 +4,11 @@ import numpy as np
 import pytest
 import torch
 from distributed.utils_test import cluster
+import pandas as pd
 
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.config import cfg
+from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.support import hash_dataframe, hash_array
 from pyhdx.web.apps import main_app
 
@@ -98,15 +100,9 @@ class TestMainGUISecB(object):
         file_input._action_add_dataset()
 
         assert 'SecB his dimer apo' in ctrl.sources['main'].hdxm_objects.keys()
-        rfu_df =  ctrl.sources['main'].get_table('rfu_residues')
-        assert len(rfu_df.columns) == 12
-        assert rfu_df.columns.nlevels == 3
 
         initial_guess = ctrl.control_panels['InitialGuessControl']
         initial_guess._action_fit()
-
-        guesses = ctrl.sources['main'].get_table('rates')
-        assert hash_dataframe(guesses, method='md5') == '0cf36a1311d8fc482c267f81ce955959'
 
         with cluster() as (s, [a, b]):
             cfg.set('cluster', 'scheduler_address', s['address'])
@@ -123,12 +119,20 @@ class TestMainGUISecB(object):
         fit_control.fit_name = 'testfit_1'
         fit_control._action_fit()
 
-        fit_result = ctrl.sources['main'].get_table('dG_fits')
-        assert hash_dataframe(fit_result, method='md5') == '8817cfbf0b491096b68634018b29cbec'
+        table_names = ['loss', 'peptide_mse', 'rates', 'dG_fits', 'rfu_residues', 'peptides', 'd_calc']
+        for name in table_names:
+            ref = csv_to_dataframe(output_dir / 'gui' / f'{name}.csv')
+            test = ctrl.sources['main'].get_table(name)
+
+            for test_col, ref_col in zip(test.columns, ref.columns):
+                test_values = test[test_col].to_numpy()
+                if np.issubdtype(test_values.dtype, np.number):
+                    assert np.allclose(test_values, ref[ref_col].to_numpy(), equal_nan=True)
 
         color_transform_control = ctrl.control_panels['ColorTransformControl']
         color_transform_control._action_otsu()
 
+        fit_result = ctrl.sources['main'].get_table('dG_fits')
         values = fit_result['testfit_1']['testname_123']['dG']
         color_transform_control.quantity = 'dG'
         cmap, norm = color_transform_control.get_cmap_and_norm()
