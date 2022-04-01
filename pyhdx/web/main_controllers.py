@@ -3,7 +3,6 @@ import warnings
 
 import panel as pn
 import param
-from dask.distributed import Client
 
 
 class MainController(param.Parameterized):
@@ -44,9 +43,10 @@ class MainController(param.Parameterized):
 
     loggers = param.Dict({}, doc="Dictionary of loggers")
 
-    def __init__(self, control_panels, client=False, **params):
+    def __init__(self, control_panels, **params):
         super(MainController, self).__init__(**params)
-        self.client = client if client else Client()
+        #self.client = client if client else Client()
+        #check for client adress in config
 
         self.control_panels = {
             ctrl.name: ctrl(self) for ctrl in control_panels

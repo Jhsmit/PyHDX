@@ -58,7 +58,6 @@ class AppConstructor(param.Parameterized):
             opts=self.opts,
             views=self.views,
             loggers=self.loggers,
-            client=default_client(),  # no longer needed, client are made locally
             **kwargs,
             **main_ctrl,
         )
