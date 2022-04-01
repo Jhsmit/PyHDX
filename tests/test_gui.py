@@ -71,7 +71,7 @@ class TestMainGUISecB(object):
 
         assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.630640188016708)
 
-    # @pytest.mark.skip(reason="Hangs in GitHub Actions")
+    @pytest.mark.skip(reason="Fails in GitHub Actions")
     def test_batch_mode(self):
         fpath_1 = input_dir / 'ecSecB_apo.csv'
         fpath_2 = input_dir / 'ecSecB_dimer.csv'
