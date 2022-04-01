@@ -1,3 +1,4 @@
+import hashlib
 from typing import Iterable, List, Mapping, Any
 
 import numpy as np
@@ -22,8 +23,8 @@ def make_tuple(item):
         return item
 
 
-def hash_dataframe(df):
-    try:
+def hash_dataframe(df, method='builtin'):
+    if method == 'builtin':
         tup = (
             *pd.util.hash_pandas_object(df, index=True).values,
             *df.columns,
@@ -31,11 +32,36 @@ def hash_dataframe(df):
             df.index.name,
         )
 
-    except TypeError:
-        print(df)
-        print("hoi")
+        return hash(tup)
 
-    return hash(tup)
+    elif method == 'md5':
+        pd_values = list(pd.util.hash_pandas_object(df, index=True).values)
+        if isinstance(df.columns, pd.MultiIndex):
+            columns = [name for cols in df.columns for name in cols]
+        else:
+            columns = list(df.columns)
+
+        all_vals = pd_values + columns + list(df.index.names) + list(df.columns.names)
+        h = hashlib.md5()
+        for val in all_vals:
+            h.update(str(val).encode('UTF-8'))
+
+        return h.digest().hex()
+
+    else:
+        raise ValueError(f"Invalid method {method!r}, must be 'builtin' or 'md5'")
+
+
+def hash_array(array, method='builtin'):
+    if method == 'buitin':
+        return hash(array.data.tobytes())
+    elif method == 'md5':
+        h = hashlib.md5(array.data.tobytes())
+        return h.digest().hex()
+    else:
+        raise ValueError(f"Invalid method {method!r}, must be 'builtin' or 'md5'")
+
+
 
 
 def multiindex_apply_function(

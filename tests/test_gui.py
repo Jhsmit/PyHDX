@@ -2,6 +2,7 @@ import asyncio
 
 from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
 from pyhdx.fileIO import csv_to_protein
+from pyhdx.support import hash_dataframe, hash_array
 from pyhdx.web.apps import main_app
 from pyhdx.config import cfg
 from pathlib import Path
@@ -10,6 +11,7 @@ import numpy as np
 import pytest
 import time
 
+import pandas as pd
 from distributed.utils_test import cluster
 
 cwd = Path(__file__).parent
@@ -110,9 +112,7 @@ class TestMainGUISecB(object):
         initial_guess._action_fit()
 
         guesses = ctrl.sources['main'].get_table('rates')
-
-
-
+        assert hash_dataframe(guesses, method='md5') == '0cf36a1311d8fc482c267f81ce955959'
 
         with cluster() as (s, [a, b]):
             cfg.set('cluster', 'scheduler_address', s['address'])
@@ -123,67 +123,53 @@ class TestMainGUISecB(object):
             fit_control.fit_name = 'testfit_1'
             fit_control._action_fit()
 
-
-
-
-
         fit_control = ctrl.control_panels['FitControl']
         fit_control.epochs = 10
 
         fit_control.fit_name = 'testfit_1'
         fit_control._action_fit()
 
-        # Wait until fitting futures are completed
-        while len(ctrl.future_queue) > 0:
-            ctrl.check_futures()
-            time.sleep(0.1)
-        #assert ....
+        fit_result = ctrl.sources['main'].get_table('dG_fits')
+        assert hash_dataframe(fit_result, method='md5') == '8817cfbf0b491096b68634018b29cbec'
 
-        table = ctrl.sources['dataframe'].get('global_fit')
+        color_transform_control = ctrl.control_panels['ColorTransformControl']
+        color_transform_control._action_otsu()
 
-        # Test classification
-        # todo test log space
-        # todo probably values should be fixed otherwise tests are co-dependent
-        values = table['testfit_1']['testname_123']['dG']
-        classification = ctrl.control_panels['ClassificationControl']
-        classification._action_otsu()
-
-        cmap, norm = classification.get_cmap_and_norm()
+        values = fit_result['testfit_1']['testname_123']['dG']
+        color_transform_control.quantity = 'dG'
+        cmap, norm = color_transform_control.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 68474
-        assert colors.std() == 109.39692637364178
+        h = hash_array(colors, method='md5')
+        assert h == 'bac3602f877a53abd94be8bb5f9b72ec'
 
-        classification.mode = 'Continuous'
-        classification._action_linear()
+        color_transform_control.mode = 'Continuous'
+        color_transform_control._action_linear()
 
-        cmap, norm = classification.get_cmap_and_norm()
+        cmap, norm = color_transform_control.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 73090
-        assert colors.std() == 89.41501408256475
+        h = hash_array(colors, method='md5')
 
-        value_widget = classification.widgets['value_2']
-        value_widget.value = 10e3
+        assert h == '123085ba16b3a9374595b734f9e675e6'
 
-        cmap, norm = classification.get_cmap_and_norm()
-        colors = cmap(norm(values), bytes=True)
+        value_widget = color_transform_control.widgets['value_1']
+        value_widget.value = 25
+        cmap, norm = color_transform_control.get_cmap_and_norm()
+        assert norm.vmin == 25
 
-        assert colors.sum() == 73097
-        assert colors.std() == 91.9688274382922
-
-        classification.mode = 'Color map'
-        classification.library = 'colorcet'
-        classification.colormap = 'CET_C1'
-        cmap, norm = classification.get_cmap_and_norm()
+        color_transform_control.mode = 'Colormap'
+        color_transform_control.library = 'colorcet'
+        color_transform_control.colormap = 'CET_C1'
+        cmap, norm = color_transform_control.get_cmap_and_norm()
 
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 117289
-        assert colors.std() == 64.90120978241222
+        h = hash_array(colors, method='md5')
+        assert h == '0628b46e7975ed57490e84c169bc81ad'
 
-        #
+
+        # Future tests: check if renderers are present in figures
         # cov_figure = ctrl.figure_panels['CoverageFigure']
         # renderer = cov_figure.figure.renderers[0]
-        #
         # assert renderer.data_source.name == f'coverage_{self.series.state}'

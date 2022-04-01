@@ -1499,7 +1499,7 @@ class ColorTransformControl(PyHDXControlPanel):
         default="Colormap",
         objects=["Colormap", "Continuous", "Discrete"],
         doc="Choose color mode (interpolation between selected colors).",
-    )  # , 'ColorMap'])
+    )
     num_colors = param.Integer(
         2,
         bounds=(1, 10),
