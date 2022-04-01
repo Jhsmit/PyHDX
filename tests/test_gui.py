@@ -1,19 +1,14 @@
-import asyncio
-
-from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
-from pyhdx.fileIO import csv_to_protein
-from pyhdx.support import hash_dataframe, hash_array
-
-from pyhdx.web.apps import main_app
-from pyhdx.config import cfg
 from pathlib import Path
-import torch
+
 import numpy as np
 import pytest
-import time
-
-import pandas as pd
+import torch
 from distributed.utils_test import cluster
+
+from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
+from pyhdx.config import cfg
+from pyhdx.support import hash_dataframe, hash_array
+from pyhdx.web.apps import main_app
 
 cwd = Path(__file__).parent
 input_dir = cwd / 'test_data' / 'input'
@@ -44,8 +39,6 @@ class TestMainGUISecB(object):
         state_data = cls.pmt.get_state(cls.state)
         cls.temperature, cls.pH = 273.15 + 30, 8.
         cls.hdxm = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
-
-        #cfg.set('cluster', 'port', str(test_port))
 
     def test_load_single_file(self):
         with open(self.fpath, 'rb') as f:
