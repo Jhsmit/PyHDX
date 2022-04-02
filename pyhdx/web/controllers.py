@@ -1,5 +1,4 @@
 import asyncio
-import itertools
 import sys
 import uuid
 import warnings
@@ -15,6 +14,8 @@ import numpy as np
 import pandas as pd
 import panel as pn
 import param
+from distributed import Client
+from panel.io.server import async_execute
 from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
@@ -50,110 +51,9 @@ from pyhdx.support import (
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
+from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
-from pyhdx.web.transforms import CrossSectionTransform
-
-from panel.io.server import async_execute
-from panel.io.state import state
-
-
-class AsyncControl(ControlPanel):
-    """temp controller for testing async"""
-
-    start_async = param.Action(lambda self: self._action_do_async())
-
-    async def myfunc(self):
-        ...
-
-    def _action_do_async(self):
-        ...
-
-
-from distributed import Variable, Queue, Lock, Pub, Sub, Client, get_client
-
-
-def blocking_function(duration):
-    import time
-
-    time.sleep(duration)
-
-    df = pd.DataFrame({
-        'x': np.random.normal(loc=3, scale=2, size=100),
-        'y': np.random.normal(loc=2, scale=0.3, size=100),
-    })
-
-    return df
-
-
-class AsyncControlPanel(ControlPanel):
-    _type = 'async'
-
-    btn = param.Action(lambda self: self.do_stuff())
-
-    print = param.Action(lambda self: self.print_stuff())
-
-    #async_do = param.Action(lambda self:)
-
-    value = param.String()
-
-    slider = param.Number(2.4, bounds=(1., 4.))
-
-    @property
-    def src(self):
-        return self.sources['main']
-
-    def make_dict(self):
-        widgets = self.generate_widgets()
-
-        #widgets['pbar_box'] = pn.layout.Column()
-        widgets['pbar'] = ASyncProgressBar()
-        #widgets['pbar'] = pn.widgets.Progress(sizing_mode='stretch_width')
-
-        return widgets
-
-    async def work_func(self):
-        print('start')
-        scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address,  asynchronous=True) as client:
-            futures = []
-            for i in range(10):
-                duration = (i + np.random.rand()) / 3.
-                future = client.submit(blocking_function, duration)
-                futures.append(future)
-
-            await self.widgets['pbar'].run(futures)
-
-            results = await asyncio.gather(*futures)
-
-        result = pd.concat(results)
-
-        print(result)
-
-        self.src.add_table('test_data', result)
-        self.src.updated = True
-
-        #self.src.param.trigger('updated')
-
-    def do_stuff(self):
-        from panel.io.state import state
-        # state.curdoc.add_next_tick_callback(self.work_func)
-
-        # Looks like it only works once
-        # loop = asyncio.get_event_loop()
-        #loop = asyncio.get_running_loop()
-        #loop.create_task(self.work_func())
-        #asyncio.run(self.work_func())
-        async_execute(self.work_func)
-
-    @param.depends('slider', watch=True)
-    def _slider_updated(self):
-        self.value = str(self.slider)
-
-    def print_stuff(self):
-        print(self.parent.executor)
-        df = self.src.tables['test_data']
-        print()
 
 
 class DevTestControl(ControlPanel):
