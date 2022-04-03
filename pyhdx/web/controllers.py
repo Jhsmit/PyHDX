@@ -1,8 +1,10 @@
-import itertools
+import asyncio
 import sys
 import uuid
+import warnings
 import zipfile
 from datetime import datetime
+from functools import partial
 from io import StringIO, BytesIO
 
 import colorcet
@@ -12,6 +14,8 @@ import numpy as np
 import pandas as pd
 import panel as pn
 import param
+from distributed import Client
+from panel.io.server import async_execute
 from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
@@ -47,9 +51,9 @@ from pyhdx.support import (
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
+from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
-from pyhdx.web.transforms import CrossSectionTransform
 
 
 class DevTestControl(ControlPanel):
@@ -746,8 +750,13 @@ class InitialGuessControl(PyHDXControlPanel):
         default=False, doc="Set bounds globally across all datasets"
     )
     lower_bound = param.Number(0.0, doc="Lower bound for association model fitting")
+
     upper_bound = param.Number(0.0, doc="Upper bound for association model fitting")
+
     guess_name = param.String(default="Guess_1", doc="Name for the initial guesses")
+
+    _guess_names = param.List([], doc="List of current and future guess names", precedence=-1)
+
     do_fit1 = param.Action(
         lambda self: self._action_fit(),
         label="Calculate Guesses",
@@ -760,24 +769,20 @@ class InitialGuessControl(PyHDXControlPanel):
     )
 
     def __init__(self, parent, **params):
-        self.pbar1 = (
-            ASyncProgressBar()
-        )  # tqdm? https://github.com/holoviz/panel/pull/2079
-        self.pbar2 = ASyncProgressBar()
         _excluded = ["lower_bound", "upper_bound", "global_bounds", "dataset"]
         super(InitialGuessControl, self).__init__(parent, _excluded=_excluded, **params)
         self.src.param.watch(
             self._parent_hdxm_objects_updated, ["hdxm_objects"]
-        )  # todo refactor
+        )  # todo refactor ( to what?)
 
         self.update_box()
-
-        self._guess_names = {}
 
     def make_dict(self):
         widgets = self.generate_widgets(
             lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput
         )
+
+        widgets['pbar'] = ASyncProgressBar()
 
         return widgets
 
@@ -836,24 +841,26 @@ class InitialGuessControl(PyHDXControlPanel):
         self.widgets["do_fit1"].loading = False
 
     def _action_fit(self):
+        # Checking if data is available, should always be the case as button is locked before
         if (
             len(self.src.hdxm_objects) == 0
-        ):  # (Should be impossible as button is locked)
+        ):
             self.parent.logger.info("No datasets loaded")
             return
 
-        if self.guess_name in itertools.chain(
-            self.src.rate_results.keys(), self._guess_names.values()
-        ):
+        if self.guess_name in self._guess_names:
             self.parent.logger.info(f"Guess with name {self.guess_name} already in use")
             return
 
+        self._guess_names.append(self.guess_name)
         self.parent.logger.info("Started initial guess fit")
         self.param["do_fit1"].constant = True
         self.widgets["do_fit1"].loading = True
 
         num_samples = len(self.src.hdxm_objects)
         if self.fitting_model.lower() in ["association", "dissociation"]:
+            loop = asyncio.get_running_loop()
+            loop.create_task(self._fit_rates(self.guess_name))
             if self.global_bounds:
                 bounds = [(self.lower_bound, self.upper_bound)] * num_samples
             else:
@@ -865,19 +872,55 @@ class InitialGuessControl(PyHDXControlPanel):
                 bounds,
                 client="worker_client",
             )
+
+        # this is practically instantaneous and does not require dask
         elif (
             self.fitting_model == "Half-life (λ)"
-        ):  # this is practically instantaneous and does not require dask
-            futures = self.parent.client.map(
-                fit_rates_half_time_interpolate, self.src.hdxm_objects.values()
-            )
+        ):
+            results = map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
 
-        dask_future = self.parent.client.submit(
-            lambda args: args, futures
-        )  # combine multiple futures into one future
-        self._guess_names[dask_future.key] = self.guess_name
+            result_obj = RatesFitResult(list(results))
+            self.src.add(result_obj, self.guess_name)
 
-        self.parent.future_queue.append((dask_future, self.add_fit_result))
+            self.param["do_fit1"].constant = False
+            self.widgets["do_fit1"].loading = False
+            self.parent.logger.info(f"Finished initial guess fit {self.guess_name}")
+
+    async def _fit_rates(self, name):
+
+        num_samples = len(self.src.hdxm_objects)
+
+        scheduler_address = cfg.get("cluster", "scheduler_address")
+        self.widgets['pbar'].num_tasks = num_samples
+        async with Client(scheduler_address, asynchronous=True) as client:
+            if self.global_bounds:
+                bounds = [(self.lower_bound, self.upper_bound)] * num_samples
+            else:
+                bounds = self.bounds.values()
+            futures = []
+            for hdxm, bound in zip(self.src.hdxm_objects.values(), bounds):
+                future = client.submit(fit_rates_weighted_average, hdxm, bound)
+                futures.append(future)
+
+            # futures = client.map(
+            #     fit_rates_weighted_average,
+            #     self.src.hdxm_objects.values(),
+            #     bounds,
+            #     client="worker_client",
+            # )
+
+            print(futures)
+
+            await self.widgets['pbar'].run(futures)
+
+            results = await asyncio.gather(*futures)
+
+        result_obj = RatesFitResult(list(results))
+        self.src.add(result_obj, name)
+
+        self.param["do_fit1"].constant = False
+        self.widgets["do_fit1"].loading = False
+        self.parent.logger.info(f"Finished initial guess fit {name}")
 
 
 class FitControl(PyHDXControlPanel):
@@ -902,28 +945,34 @@ class FitControl(PyHDXControlPanel):
         bounds=(0, None),
         doc="Threshold loss difference below which to stop fitting.",
     )
+
     stop_patience = param.Integer(
         PATIENCE,
         bounds=(1, None),
         doc="Number of epochs where stop loss should be satisfied before stopping.",
     )
+
     learning_rate = param.Number(
         optimizer_defaults["SGD"]["lr"],
         bounds=(0, None),
         doc="Learning rate parameter for optimization.",
     )
+
     momentum = param.Number(
         optimizer_defaults["SGD"]["momentum"],
         bounds=(0, None),
         doc="Stochastic Gradient Descent momentum",
     )
+
     nesterov = param.Boolean(
         optimizer_defaults["SGD"]["nesterov"],
         doc="Use Nesterov type of momentum for SGD",
     )
+
     epochs = param.Integer(
         EPOCHS, bounds=(1, None), doc="Maximum number of epochs (iterations."
     )
+
     r1 = param.Number(
         R1,
         bounds=(0, None),
@@ -947,6 +996,8 @@ class FitControl(PyHDXControlPanel):
 
     fit_name = param.String("Gibbs_fit_1", doc="Name for for the fit result")
 
+    _fit_names = param.List([], precedence=-1, doc="List of names of completed and running fits")
+
     do_fit = param.Action(
         lambda self: self._action_fit(),
         constant=True,
@@ -962,10 +1013,11 @@ class FitControl(PyHDXControlPanel):
 
         self._current_jobs = 0
         self._max_jobs = 2  # todo config
-        self._fit_names = {}
 
     def make_dict(self):
         widgets = self.generate_widgets()
+        #widgets['pbar_col'] = pn.layout.Column()
+        widgets['pbar'] = ASyncProgressBar()
         # widgets['progress'] = CallbackProgress()
 
         return widgets
@@ -995,6 +1047,7 @@ class FitControl(PyHDXControlPanel):
         self.update_box()
 
     def add_fit_result(self, future):
+        raise DeprecationWarning('dont use this anymore!')
         try:
             name = self._fit_names.pop(future.key)
         except KeyError:
@@ -1071,52 +1124,7 @@ class FitControl(PyHDXControlPanel):
 
         else:  # one batchfit result
             self.src.add(result, name)
-            # self.parent.fit_results[name] = result  # todo this name can be changed by the time this is executed
-            # df = result.output
-            # # df.index.name = 'peptide index'
-            #
-            # # Create MSE losses df (per peptide, summed over timepoints)
-            # # -----------------------
-            # mse = result.get_mse()
-            # dfs = {}
-            # for mse_sample, hdxm in zip(mse, result.hdxm_set):
-            #     peptide_data = hdxm[0].data
-            #     mse_sum = np.sum(mse_sample, axis=1)
-            #     # Indexing of mse_sum with Np to account for zero-padding
-            #     data_dict = {'start': peptide_data['start'], 'end': peptide_data['end'], 'total_mse': mse_sum[:hdxm.Np]}
-            #     dfs[hdxm.name] = pd.DataFrame(data_dict)
-            #
-            # mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
-            #
-            # self.parent.logger.info('Finished PyTorch fit')
-            #
-            # # Create d_calc dataframe
-            # # -----------------------
-            # tp_flat = result.hdxm_set.timepoints.flatten()
-            # elem = tp_flat[np.nonzero(tp_flat)]
-            #
-            # time_vec = np.logspace(np.log10(elem.min()) - 1, np.log10(elem.max()), num=100, endpoint=True)
-            # stacked = np.stack([time_vec for i in range(result.hdxm_set.Ns)])
-            # d_calc = result(stacked)
-            #
-            # state_dfs = {}
-            # for hdxm, d_calc_state in zip(result.hdxm_set, d_calc):
-            #     peptide_dfs = []
-            #     pm_data = hdxm[0].data
-            #     for d_peptide, idx in zip(d_calc_state, pm_data.index):
-            #         peptide_id = f"{pm_data.loc[idx, 'start']}_{pm_data.loc[idx, 'end']}"
-            #         data_dict = {'timepoints': time_vec, 'd_calc': d_peptide, 'start_end': [peptide_id] * len(time_vec)}
-            #         peptide_dfs.append(pd.DataFrame(data_dict))
-            #     state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
-            # d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
-            #
-            # # Create losses/epoch dataframe
-            # # -----------------------------
-            # losses_df = result.losses.copy()
-            # losses_df.columns = pd.MultiIndex.from_product(
-            #     [['All states'], losses_df.columns],
-            #     names=['state_name', 'quantity']
-            # )
+
 
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}"
@@ -1129,14 +1137,12 @@ class FitControl(PyHDXControlPanel):
         self.widgets["do_fit"].loading = False
 
     def _action_fit(self):
-        if self.fit_name in itertools.chain(
-            self.src.dG_fits.keys(), self._fit_names.values()
-        ):
+        if self.fit_name in self._fit_names:
             self.parent.logger.info(
                 f"Fit result with name {self.fit_name} already in use"
             )
             return
-
+        self._fit_names.append(self.fit_name)
         self.parent.logger.info("Started PyTorch fit")
 
         self._current_jobs += 1
@@ -1144,21 +1150,21 @@ class FitControl(PyHDXControlPanel):
         #     self.widgets['do_fit'].constant = True
 
         self.widgets["do_fit"].loading = True
-        # self.widgets['progress'].max = self.epochs
 
         self.parent.logger.info(f"Current number of active jobs: {self._current_jobs}")
+        # try:
+        #     loop = asyncio.get_running_loop()
+        # except RuntimeError:
+        #     warnings.warn("No running event loop. This warning should only trigger during tests")
+        #     loop = asyncio.new_event_loop()
         if self.fit_mode == "Batch":
-            hdx_set = self.src.hdx_set
-            rate_fit_output = self.src.rate_results[self.initial_guess].output
+            # Alternatively use panel's async_execute + partial
+            func = partial(self._batch_fit, self.fit_name)
+            async_execute(func)
+            #loop.create_task(self._batch_fit(self.fit_name))
 
-            # Select only 'rate' columns, resulting df has state names as column names
-            sub_df = rate_fit_output.xs('rate', level=-1, axis=1)
-            gibbs_guess = hdx_set.guess_deltaG(sub_df)
-
-            dask_future = self.parent.client.submit(
-                fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs
-            )
         else:
+            warnings.warn("Currently not implemented", NotImplementedError)
             data_objs = self.src.hdxm_objects.values()
             rates_df = self.src.rate_results[self.initial_guess].output
             gibbs_guesses = [
@@ -1173,8 +1179,34 @@ class FitControl(PyHDXControlPanel):
             # See https://github.com/dask/distributed/pull/560
             dask_future = self.parent.client.submit(lambda args: args, futures)
 
-        self._fit_names[dask_future.key] = self.fit_name
-        self.parent.future_queue.append((dask_future, self.add_fit_result))
+    async def _batch_fit(self, name):
+        pbar = pn.widgets.Progress(bar_color='secondary', sizing_mode='stretch_width', active=True)
+        self.widgets['pbar'].active = True
+        hdx_set = self.src.hdx_set
+        rate_fit_output = self.src.rate_results[self.initial_guess].output
+
+        # Select only 'rate' columns, resulting df has state names as column names
+        sub_df = rate_fit_output.xs('rate', level=-1, axis=1)
+        gibbs_guess = hdx_set.guess_deltaG(sub_df)
+
+        scheduler_address = cfg.get("cluster", "scheduler_address")
+        async with Client(scheduler_address, asynchronous=True) as client:
+            future = client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
+            result = await future
+
+        self.src.add(result, name)
+
+        self._current_jobs -= 1
+        self.widgets['pbar'].active = False
+        self.widgets["do_fit"].loading = False
+        self.parent.logger.info(f"Finished PyTorch fit: {name}")
+        self.parent.logger.info(
+            f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}"
+        )
+        self.parent.logger.info(
+            f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
+            f"({result.regularization_percentage:.1f}%)"
+        )
 
     @property
     def fit_kwargs(self):
@@ -1367,7 +1399,7 @@ class ColorTransformControl(PyHDXControlPanel):
         default="Colormap",
         objects=["Colormap", "Continuous", "Discrete"],
         doc="Choose color mode (interpolation between selected colors).",
-    )  # , 'ColorMap'])
+    )
     num_colors = param.Integer(
         2,
         bounds=(1, 10),

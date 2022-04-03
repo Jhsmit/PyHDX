@@ -1,12 +1,16 @@
-from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
-from pyhdx.fileIO import csv_to_protein
-from pyhdx.web.apps import main_app#, diff_app
-from pyhdx.config import ConfigurationSettings
 from pathlib import Path
-import torch
+
 import numpy as np
 import pytest
-import time
+import torch
+from distributed.utils_test import cluster
+import pandas as pd
+
+from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
+from pyhdx.config import cfg
+from pyhdx.fileIO import csv_to_dataframe
+from pyhdx.support import hash_dataframe, hash_array
+from pyhdx.web.apps import main_app
 
 cwd = Path(__file__).parent
 input_dir = cwd / 'test_data' / 'input'
@@ -38,10 +42,6 @@ class TestMainGUISecB(object):
         cls.temperature, cls.pH = 273.15 + 30, 8.
         cls.hdxm = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
 
-        cfg = ConfigurationSettings()
-        cfg.set('cluster', 'scheduler_address', f'127.0.0.1:{test_port}')
-        #cfg.set('cluster', 'port', str(test_port))
-
     def test_load_single_file(self):
         with open(self.fpath, 'rb') as f:
             binary = f.read()
@@ -71,7 +71,7 @@ class TestMainGUISecB(object):
 
         assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.630640188016708)
 
-    @pytest.mark.skip(reason="Hangs in GitHub Actions")
+    @pytest.mark.skip(reason="Fails in GitHub Actions")
     def test_batch_mode(self):
         fpath_1 = input_dir / 'ecSecB_apo.csv'
         fpath_2 = input_dir / 'ecSecB_dimer.csv'
@@ -79,7 +79,7 @@ class TestMainGUISecB(object):
         fpaths = [fpath_1, fpath_2]
         files = [p.read_bytes() for p in fpaths]
 
-        ctrl = main_app(client=None)
+        ctrl, tmpl = main_app()
         file_input = ctrl.control_panels['PeptideFileInputControl']
 
         file_input.input_files = files
@@ -90,24 +90,28 @@ class TestMainGUISecB(object):
         file_input.dataset_name = 'testname_123'
         file_input._action_add_dataset()
 
-        #assert ....
+        assert 'testname_123' in ctrl.sources['main'].hdxm_objects.keys()
+        rfu_df =  ctrl.sources['main'].get_table('rfu_residues')
+        assert rfu_df.shape == (146, 6)
+        assert rfu_df.columns.nlevels == 3
 
         file_input.exp_state = 'SecB his dimer apo'
         file_input.dataset_name = 'SecB his dimer apo'  # todo catch error duplicate name
         file_input._action_add_dataset()
 
+        assert 'SecB his dimer apo' in ctrl.sources['main'].hdxm_objects.keys()
+
         initial_guess = ctrl.control_panels['InitialGuessControl']
         initial_guess._action_fit()
 
-        # Wait until fitting futures are completed
-        while len(ctrl.future_queue) > 0:
-            ctrl.check_futures()
-            time.sleep(0.1)
+        with cluster() as (s, [a, b]):
+            cfg.set('cluster', 'scheduler_address', s['address'])
 
+            fit_control = ctrl.control_panels['FitControl']
+            fit_control.epochs = 10
 
-        #assert ....
-        guesses = ctrl.sources['dataframe'].get('rates')
-
+            fit_control.fit_name = 'testfit_1'
+            fit_control._action_fit()
 
         fit_control = ctrl.control_panels['FitControl']
         fit_control.epochs = 10
@@ -115,73 +119,55 @@ class TestMainGUISecB(object):
         fit_control.fit_name = 'testfit_1'
         fit_control._action_fit()
 
-        # Wait until fitting futures are completed
-        while len(ctrl.future_queue) > 0:
-            ctrl.check_futures()
-            time.sleep(0.1)
-        #assert ....
+        table_names = ['loss', 'peptide_mse', 'rates', 'dG_fits', 'rfu_residues', 'peptides', 'd_calc']
+        for name in table_names:
+            ref = csv_to_dataframe(output_dir / 'gui' / f'{name}.csv')
+            test = ctrl.sources['main'].get_table(name)
 
-        table = ctrl.sources['dataframe'].get('global_fit')
+            for test_col, ref_col in zip(test.columns, ref.columns):
+                test_values = test[test_col].to_numpy()
+                if np.issubdtype(test_values.dtype, np.number):
+                    assert np.allclose(test_values, ref[ref_col].to_numpy(), equal_nan=True)
 
-        # Test classification
-        # todo test log space
-        # todo probably values should be fixed otherwise tests are co-dependent
-        values = table['testfit_1']['testname_123']['dG']
-        classification = ctrl.control_panels['ClassificationControl']
-        classification._action_otsu()
+        color_transform_control = ctrl.control_panels['ColorTransformControl']
+        color_transform_control._action_otsu()
 
-        cmap, norm = classification.get_cmap_and_norm()
+        fit_result = ctrl.sources['main'].get_table('dG_fits')
+        values = fit_result['testfit_1']['testname_123']['dG']
+        color_transform_control.quantity = 'dG'
+        cmap, norm = color_transform_control.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 68474
-        assert colors.std() == 109.39692637364178
+        h = hash_array(colors, method='md5')
+        assert h == 'bac3602f877a53abd94be8bb5f9b72ec'
 
-        classification.mode = 'Continuous'
-        classification._action_linear()
+        color_transform_control.mode = 'Continuous'
+        color_transform_control._action_linear()
 
-        cmap, norm = classification.get_cmap_and_norm()
+        cmap, norm = color_transform_control.get_cmap_and_norm()
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 73090
-        assert colors.std() == 89.41501408256475
+        h = hash_array(colors, method='md5')
 
-        value_widget = classification.widgets['value_2']
-        value_widget.value = 10e3
+        assert h == '123085ba16b3a9374595b734f9e675e6'
 
-        cmap, norm = classification.get_cmap_and_norm()
-        colors = cmap(norm(values), bytes=True)
+        value_widget = color_transform_control.widgets['value_1']
+        value_widget.value = 25
+        cmap, norm = color_transform_control.get_cmap_and_norm()
+        assert norm.vmin == 25
 
-        assert colors.sum() == 73097
-        assert colors.std() == 91.9688274382922
-
-        classification.mode = 'Color map'
-        classification.library = 'colorcet'
-        classification.colormap = 'CET_C1'
-        cmap, norm = classification.get_cmap_and_norm()
+        color_transform_control.mode = 'Colormap'
+        color_transform_control.library = 'colorcet'
+        color_transform_control.colormap = 'CET_C1'
+        cmap, norm = color_transform_control.get_cmap_and_norm()
 
         colors = cmap(norm(values), bytes=True)
 
-        assert colors.sum() == 117289
-        assert colors.std() == 64.90120978241222
+        h = hash_array(colors, method='md5')
+        assert h == '0628b46e7975ed57490e84c169bc81ad'
 
-        #
+
+        # Future tests: check if renderers are present in figures
         # cov_figure = ctrl.figure_panels['CoverageFigure']
         # renderer = cov_figure.figure.renderers[0]
-        #
         # assert renderer.data_source.name == f'coverage_{self.series.state}'
-
-    def test_initial_guesses_and_fit(self):
-        ctrl, tmpl = main_app()
-        src = ctrl.sources['main']
-        src.add(self.hdxm, self.hdxm.name)
-
-
-        ctrl.control_panels['InitialGuessControl']._action_fit()
-
-        # todo Add tests
-        # assert 'half-life' in ctrl.sources.keys()
-        #
-        # fit_control = ctrl.control_panels['FitControl']
-        # fit_control.epochs = 10
-        # fit_control._do_fitting()
-        #
