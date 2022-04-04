@@ -94,6 +94,15 @@ batch_result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=epochs)
 dataframe_to_file(output_dir / 'ecSecB_batch.csv', batch_result.output)
 dataframe_to_file(output_dir / 'ecSecB_batch.txt', batch_result.output, fmt='pprint')
 
+# Save errors and losses
+dataframe_to_file(output_dir / 'ecSecB_batch_peptide_mse.csv', batch_result.get_peptide_mse())
+dataframe_to_file(output_dir / 'ecSecB_batch_residue_mse.csv', batch_result.get_residue_mse())
+dataframe_to_file(output_dir / 'ecSecB_batch_loss.csv', batch_result.losses)
+
+
+# Aligned sequences test
+# -------------
+
 # Order is inverted compared to test!
 mock_alignment = {
     'dimer':   'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVY--------------EVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGA----YCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA-----------------',
