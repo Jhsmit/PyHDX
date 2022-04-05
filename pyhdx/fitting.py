@@ -680,6 +680,7 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
     inputs = [tensors[key] for key in ["temperature", "X", "k_int", "timepoints"]]
     output_data = tensors["d_exp"]
 
+    # Convert initial guess to numpy array
     if isinstance(initial_guess, (pd.Series, pd.DataFrame)):
         assert (
             initial_guess.index.inferred_type == "integer"

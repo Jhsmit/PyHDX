@@ -1017,8 +1017,19 @@ class FitControl(PyHDXControlPanel):
 
     initial_guess = param.Selector(doc="Name of dataset to use for initial guesses.")
 
+    guess_mode = param.Selector(
+        default='One-to-one',
+        objects=['One-to-one', 'One-to-many'],
+        doc="Use initial guesses for each protein state (one-to-one) or use one initial"
+            "guess for all protein states (one-to-many)"
+    )
+
+    guess_state = param.Selector(
+        doc="Which protein state to use for initial guess when using one-to-many guesses"
+    )
+
     fit_mode = param.Selector(
-        default="Batch", objects=["Batch", "Single"]
+        default="Single", objects=["Batch", "Single"]
     )
 
     stop_loss = param.Number(
@@ -1091,7 +1102,7 @@ class FitControl(PyHDXControlPanel):
         super(FitControl, self).__init__(parent, **params)
 
         self.src.param.watch(self._source_updated, ["updated"])
-
+        self._mode_updated()  # Initialize excluded widgets
         self._current_jobs = 0
         self._max_jobs = 2  # todo config
 
@@ -1108,113 +1119,40 @@ class FitControl(PyHDXControlPanel):
         if rate_objects:
             self.param["do_fit"].constant = False
 
-        self.param["initial_guess"].objects = rate_objects
+        fit_objects = list(self.src.dG_fits.keys())
+        self.param["initial_guess"].objects = rate_objects + fit_objects
         if not self.initial_guess and rate_objects:
             self.initial_guess = rate_objects[0]
 
-        hdxm_objects = [None] + list(self.src.hdxm_objects.keys())
-        self.param["reference"].objects = hdxm_objects
-        self._fit_mode_updated()
+        hdxm_objects = list(self.src.hdxm_objects.keys())
+        self.param["reference"].objects = [None] + hdxm_objects
+        self.param["guess_state"].objects = hdxm_objects
+        if not self.guess_state and hdxm_objects:
+            self.guess_state = hdxm_objects[0]
 
-    @param.depends("fit_mode", watch=True)
-    def _fit_mode_updated(self):
-        if self.fit_mode == "Batch" and len(self.src.hdxm_objects) > 1:
-            # self.param['r2'].constant = False
-            self._excluded = []
-        else:
-            # self.param['r2'].constant = True
-            self._excluded = ["r2", "reference"]
+        self._mode_updated()
 
+    @param.depends("guess_mode", 'fit_mode', watch=True)
+    def _mode_updated(self):
+        excluded = []
+        if not (self.fit_mode == "Batch" and len(self.src.hdxm_objects) > 1):
+            excluded += ["r2", "reference"]
+        if self.guess_mode == 'One-to-one':
+            excluded += ["guess_state"]
+        self._excluded = excluded
         self.update_box()
 
-    def add_fit_result(self, future):
-        raise DeprecationWarning('dont use this anymore!')
-        try:
-            name = self._fit_names.pop(future.key)
-        except KeyError:
-            return
+    # @param.depends("fit_mode", watch=True)
+    # def _fit_mode_updated(self):
+    #     if self.fit_mode == "Batch" and len(self.src.hdxm_objects) > 1:
+    #         # self.param['r2'].constant = False
+    #         self._excluded = []
+    #     else:
+    #         # self.param['r2'].constant = True
+    #         self._excluded = ["r2", "reference"]
+    #
+    #     self.update_box()
 
-        result = future.result()
-        self._current_jobs -= 1
-
-        self.parent.logger.info(f"Finished PyTorch fit: {name}")
-
-        # List of single fit results  (Currently outdated)
-        if isinstance(result, list):
-            self.parent.fit_results[name] = list(result)
-            output_dfs = {
-                fit_result.hdxm_set.name: fit_result.output for fit_result in result
-            }
-            df = pd.concat(output_dfs.values(), keys=output_dfs.keys(), axis=1)
-
-            # create mse losses dataframe
-            dfs = {}
-            for single_result in result:
-                # Determine mean squared errors per peptide, summed over timepoints
-                mse = single_result.get_mse()
-                mse_sum = np.sum(mse, axis=1)
-                peptide_data = single_result.hdxm_set[0].data
-                data_dict = {
-                    "start": peptide_data["start"],
-                    "end": peptide_data["end"],
-                    "total_mse": mse_sum,
-                }
-                dfs[single_result.hdxm_set.name] = pd.DataFrame(data_dict)
-            mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1)
-
-            # todo d calc for single fits
-            # todo losses for single fits
-
-            # Create d_calc dataframe
-            # -----------------------
-            # todo needs cleaning up
-            state_dfs = {}
-            for single_result in result:
-                tp_flat = single_result.hdxm_set.timepoints
-                elem = tp_flat[np.nonzero(tp_flat)]
-
-                time_vec = np.logspace(
-                    np.log10(elem.min()) - 1,
-                    np.log10(elem.max()),
-                    num=100,
-                    endpoint=True,
-                )
-                d_calc_state = single_result(time_vec)  # shape Np x Nt
-                hdxm = single_result.hdxm_set
-
-                peptide_dfs = []
-                pm_data = hdxm[0].data
-                for d_peptide, pm_row in zip(d_calc_state, pm_data):
-                    peptide_id = f"{pm_row['start']}_{pm_row['end']}"
-                    data_dict = {
-                        "timepoints": time_vec,
-                        "d_calc": d_peptide,
-                        "start_end": [peptide_id] * len(time_vec),
-                    }
-                    peptide_dfs.append(pd.DataFrame(data_dict))
-                state_dfs[hdxm.name] = pd.concat(peptide_dfs, axis=0, ignore_index=True)
-
-            d_calc_df = pd.concat(state_dfs.values(), keys=state_dfs.keys(), axis=1)
-
-            # Create losses/epoch dataframe
-            # -----------------------------
-            losses_dfs = {
-                fit_result.hdxm_set.name: fit_result.losses for fit_result in result
-            }
-            losses_df = pd.concat(losses_dfs.values(), keys=losses_dfs.keys(), axis=1)
-
-        else:  # one batchfit result
-            self.src.add(result, name)
-
-            self.parent.logger.info(
-                f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}"
-            )
-            self.parent.logger.info(
-                f"Total loss: {result.total_loss:.2f}, regularization loss: {result.reg_loss:.2f} "
-                f"({result.regularization_percentage:.1f}%)"
-            )
-
-        self.widgets["do_fit"].loading = False
 
     def _action_fit(self):
         if self.fit_name in self._fit_names:
@@ -1238,22 +1176,51 @@ class FitControl(PyHDXControlPanel):
         else:
             async_execute(self._single_fit)
 
+    def get_guesses(self):
+        ...
+
+        # initial guesses are rates
+        if self.initial_guess in self.src.rate_results:
+            rates_df = self.src.get_table('rates')
+
+            if self.guess_mode == 'One-to-one':
+                sub_df = rates_df.xs((self.initial_guess, 'rate'), level=[0, 2], axis=1)
+                gibbs_guess = self.src.hdx_set.guess_deltaG(sub_df)
+            elif self.guess_mode == 'One-to-many':
+                hdxm = self.src.hdxm_objects[self.guess_state]
+                rates_series = rates_df[(self.initial_guess, self.guess_state, 'rate')]
+                gibbs_guess = hdxm.guess_deltaG(rates_series)
+
+        # intial guess are dG values from previous fit
+        elif self.initial_guess in self.src.dG_fits:
+            dG_df = self.src.get_table('dG_fits')
+
+            if self.guess_mode == 'One-to-one':
+                gibbs_guess = dG_df.xs((self.initial_guess, '_dG'), level=[0, 2], axis=1)
+            elif self.guess_mode == 'One-to-many':
+                gibbs_guess = dG_df[(self.initial_guess, self.guess_state, '_dG')]
+
+        else:
+            self.parent.logger.debug(f"Initial guess {self.initial_guess!r} not found")
+
+        return gibbs_guess
+
     async def _single_fit(self):
         name = self.fit_name
 
-        # todo select fits?
-        data_objs = self.src.hdxm_objects.values()
-        rates_df = self.src.rate_results[self.initial_guess].output
-        kwargs = self.fit_kwargs  # is this needed to store locally?
-        gibbs_guesses = [
-            data_obj.guess_deltaG(rates_df[data_obj.name]["rate"])
-            for data_obj in data_objs
-        ]
+        # data_objs = self.src.hdxm_objects.values()
+        # rates_df = self.src.rate_results[self.initial_guess].output
+        gibbs_guesses = self.get_guesses() # returns either DataFrame or Series depending on guess mode
         futures = []
 
         scheduler_address = cfg.get("cluster", "scheduler_address")
         async with Client(scheduler_address, asynchronous=True) as client:
-            for hdxm, guess in zip(self.src.hdxm_objects.values(), gibbs_guesses):
+            for protein_state, hdxm in self.src.hdxm_objects.items():
+                if isinstance(gibbs_guesses, pd.Series):
+                    guess = gibbs_guesses
+                else:
+                    guess = gibbs_guesses[protein_state]
+
                 future = client.submit(fit_gibbs_global, hdxm, guess, **self.fit_kwargs)
                 futures.append(future)
 
@@ -1265,19 +1232,15 @@ class FitControl(PyHDXControlPanel):
         result = TorchFitResultSet(results)
         self.src.add(result, name)
         self._current_jobs -= 1
+        self.widgets['pbar'].active = False
+        self.widgets["do_fit"].loading = False
         self.parent.logger.info(f"Finished PyTorch fit: {name}")
-        # todo something about losses
 
     async def _batch_fit(self):
         self.widgets['pbar'].active = True
         name = self.fit_name
         hdx_set = self.src.hdx_set
-        rate_fit_output = self.src.rate_results[self.initial_guess].output
-
-        # Select only 'rate' columns, resulting df has state names as column names
-        sub_df = rate_fit_output.xs('rate', level=-1, axis=1)
-        gibbs_guess = hdx_set.guess_deltaG(sub_df)
-
+        gibbs_guess = self.get_guesses() 
         scheduler_address = cfg.get("cluster", "scheduler_address")
         async with Client(scheduler_address, asynchronous=True) as client:
             future = client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)

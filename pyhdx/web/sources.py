@@ -67,8 +67,8 @@ class PyHDXSource(TableSource):
     # see readme/tables_list for tables and their indexes
 
     hdxm_objects = param.Dict({})
-    rate_results = param.Dict({})  # dataframes?
-    dG_fits = param.Dict({})
+    rate_results = param.Dict({})  # dict of rate fitting / guesses results
+    dG_fits = param.Dict({})  # dict of torch fit result objects
 
     def from_file(self):
         pass
@@ -151,7 +151,6 @@ class PyHDXSource(TableSource):
         )
         df.columns = columns
 
-        # Reshape the d_calc numpy array (Ns x Np x Nt to pandas dataframe (index: Ns, columns: multiiindex Ns, Np)
         self._add_table(df, "d_calc")
 
         # Add losses df
