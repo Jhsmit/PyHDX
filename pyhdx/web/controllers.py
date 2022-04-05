@@ -14,11 +14,13 @@ import numpy as np
 import pandas as pd
 import panel as pn
 import param
+import yaml
 from distributed import Client
 from panel.io.server import async_execute
 from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
+from pyhdx.batch_processing import YamlParser
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import (
@@ -230,7 +232,22 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     header = "Peptide Input"
 
-    input_files = param.List()
+    input_mode = param.Selector(
+        default='Manual',
+        objects=['Manual', 'Batch']
+    )
+
+    input_files_label = param.String("Input files:")
+
+    input_files = param.List(
+        doc="HDX input files. Currently only support DynamX format"
+    )
+
+    batch_file_label = param.String("Batch file (yaml)")
+
+    batch_file = param.Parameter(
+        doc="Batch file input:"
+    )
 
     be_mode = param.Selector(
         doc="Select method of back exchange correction",
@@ -264,10 +281,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     drop_first = param.Integer(
         1, bounds=(0, None), doc="Select the number of N-terminal residues to ignore."
-    )
-
-    ignore_prolines = param.Boolean(
-        True, constant=True, doc="Prolines are ignored as they do not exchange D."
     )
 
     d_percentage = param.Number(
@@ -309,7 +322,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     add_dataset_button = param.Action(
         lambda self: self._action_add_dataset(),
-        label="Add measurement",
+        label="Add measurement(s)",
         doc="Parse selected peptides for further analysis and apply back-exchange correction",
     )
 
@@ -319,12 +332,12 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     def __init__(self, parent, **params):
         super(PeptideFileInputControl, self).__init__(
-            parent, _excluded=["be_percent"], **params
+            parent, _excluded=["be_percent", "batch_file", "batch_file_label"], **params
         )
         self.src.param.watch(self._hdxm_objects_updated, ["hdxm_objects"])
         self.update_box()
 
-        self._df = None  # Numpy array with raw input data (or is pd.Dataframe?)
+        self._df = None  # Dataframe with raw input data
 
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(
@@ -337,12 +350,13 @@ class PeptideFileInputControl(PyHDXControlPanel):
             width_policy="fixed",
         )
         return self.generate_widgets(
+            input_files_label=pn.widgets.StaticText(value=self.input_files_label),
             input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
+            batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
+            batch_file=pn.widgets.FileInput(name="Batch yaml file", accept='.yaml'),
             temperature=pn.widgets.FloatInput,
-            # be_mode=pn.widgets.RadioButtonGroup,
             be_percent=pn.widgets.FloatInput,
             d_percentage=pn.widgets.FloatInput,
-            # fd_percentage=pn.widgets.FloatInput,
             sequence=text_area,
         )
 
@@ -354,13 +368,23 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
         return widget_list
 
-    @param.depends("be_mode", watch=True)
-    def _update_be_mode(self):
-        # todo @tejas: Add test
+    @param.depends("be_mode", "input_mode", watch=True)
+    def _update_mode(self):
+        excluded = set()
         if self.be_mode == "FD Sample":
-            self._excluded = ["be_percent"]
+            excluded |= {"be_percent"}
         elif self.be_mode == "Flat percentage":
-            self._excluded = ["fd_state", "fd_exposure"]
+            excluded |= {"fd_state", "fd_exposure"}
+
+        if self.input_mode == 'Manual':
+            excluded |= {"batch_file", "batch_file_label"}
+        elif self.input_mode == 'Batch':
+            excluded |= {
+                 "be_mode", "fd_state", "fd_exposure", "be_percent", "exp_state", "exp_exposures",
+                "drop_first", "d_percentage", "temperature", "pH", "n_term", "c_term", "sequence", "dataset_name"
+            }
+
+        self._excluded = list(excluded)
 
         self.update_box()
 
@@ -458,6 +482,39 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     def _action_add_dataset(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
+        if self.input_mode == 'Manual':
+            self._add_dataset_manual()
+        elif self.input_mode == 'Batch':
+            self._add_dataset_batch()
+
+    def _add_dataset_batch(self):
+        if self._df is None:
+            self.parent.logger.info("No data loaded")
+            return
+        if self.src.hdxm_objects:
+            self.parent.logger.info("Can only batch load data when no data was previously loaded")
+            return
+
+        yaml_dict = yaml.safe_load(self.batch_file.decode("UTF-8"))
+        ios = {name: StringIO(byte_content.decode("UTF-8")) for name, byte_content in zip(self.widgets['input_files'].filename, self.input_files)}
+        filters = [lambda df: df.query('exposure > 0')]
+
+        parser = YamlParser(yaml_dict, data_src=ios, data_filters=filters)
+
+        for state in yaml_dict.keys():
+            hdxm = parser.load_hdxm(state, name=state)
+            self.src.add(hdxm, state)
+            self.parent.logger.info(
+                f"Loaded dataset {state} with experiment state {hdxm.state} "
+                f"({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)"
+            )
+            self.parent.logger.info(
+                f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "
+                f"Redundancy: {hdxm.coverage.redundancy:.2}"
+            )
+
+
+    def _add_dataset_manual(self):
 
         if self._df is None:
             self.parent.logger.info("No data loaded")
@@ -470,7 +527,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self._df,
             d_percentage=self.d_percentage,
             drop_first=self.drop_first,
-            ignore_prolines=self.ignore_prolines,
         )
         if self.be_mode == "FD Sample":
             control_0 = None  # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
@@ -560,10 +616,6 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
 
     drop_first = param.Integer(
         1, bounds=(0, None), doc="Select the number of N-terminal residues to ignore."
-    )
-
-    ignore_prolines = param.Boolean(
-        True, constant=True, doc="Prolines are ignored as they do not exchange D."
     )
 
     n_term = param.Integer(
@@ -770,7 +822,6 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
             self._df,
             d_percentage=self.d_percentage,
             drop_first=self.drop_first,
-            ignore_prolines=self.ignore_prolines,
         )
 
         peptides.set_control(
