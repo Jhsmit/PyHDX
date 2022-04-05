@@ -9,9 +9,16 @@ go through the functionality of the web interface per section.
 Peptide Input
 `````````````
 
+Peptide d-uptake data can be added into the web application either in 'Batch' or 'Manual' mode. Use :guilabel:`Input Mode`
+to switch between input modes.
+
+When using 'Batch', multiple measurements can be added quickly through an `yaml` file specification.
+An example of an `yaml` file can be found in 'tests/test-data' on GitHub.
+
+
+When using 'Single', each measurement and experimental metadata must be input manually.
 Use the :guilabel:`Browse` button to select peptide data files to upload. These should be 'peptide master tables' which
-is **long format** data
-where each entry should at least have the entries of:
+is **long format** data where each entry should at least have the entries of:
 
  - start (inclusive residue number at which the detected peptide starts, first residue = 1)
  - stop (inclusive residue number at which the detected peptide stops)
