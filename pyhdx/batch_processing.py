@@ -13,7 +13,7 @@ temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}
 class YamlParser(object):
     ""'object used to parse yaml data input files into PyHDX HDX Measurement object'
 
-    def __init__(self, yaml_dict, data_src=None, data_dict=None):
+    def __init__(self, yaml_dict, data_src=None, data_filters=None):
         self.yaml_dict = yaml_dict
         if isinstance(data_src, (os.PathLike, str)):
             self.data_src = Path(data_src)
@@ -21,6 +21,8 @@ class YamlParser(object):
             self.data_src = data_src
         else:
             raise TypeError(f"Invalid data type {type(data_src)!r}, must be path or dict")
+
+        self.data_filters = data_filters or []
 
     def load_data(self, *filenames, reader='dynamx'):
         if reader == 'dynamx':
@@ -32,8 +34,10 @@ class YamlParser(object):
             input_files = [self.data_src / filename for filename in filenames]
             df = read_func(*input_files)
         else:
-            input_files = [self.data_src[filename] for filename in filenames]
-            df = read_func(*input_files)
+            input_stringios = [self.data_src[filename] for filename in filenames]
+            df = read_func(*input_stringios)
+            for io in input_stringios:
+                io.seek(0)
 
         return df
 
@@ -91,6 +95,8 @@ class YamlParser(object):
             raise ValueError("Must specify either 'c_term' or 'sequence'")
 
         state_data = pmt.get_state(state_dict["state"])
+        for filter in self.data_filters:
+            state_data = filter(state_data)
 
         hdxm = HDXMeasurement(
             state_data,
