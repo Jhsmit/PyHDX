@@ -1,10 +1,108 @@
+import warnings
 from pathlib import Path
+import os
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fileIO import read_dynamx
 
 
 time_factors = {"s": 1, "m": 60.0, "min": 60.0, "h": 3600, "d": 86400}
 temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}
+
+# todo add data filters in yaml spec
+# todo add proline, n_term options
+class YamlParser(object):
+    ""'object used to parse yaml data input files into PyHDX HDX Measurement object'
+
+    def __init__(self, yaml_dict, data_src=None, data_dict=None):
+        self.yaml_dict = yaml_dict
+        if isinstance(data_src, (os.PathLike, str)):
+            self.data_src = Path(data_src)
+        elif isinstance(data_src, dict):
+            self.data_src = data_src
+        else:
+            raise TypeError(f"Invalid data type {type(data_src)!r}, must be path or dict")
+
+    def load_data(self, *filenames, reader='dynamx'):
+        if reader == 'dynamx':
+            read_func = read_dynamx
+        else:
+            raise NotImplementedError("Only reading of dynamx files is implemented")
+
+        if isinstance(self.data_src, Path):
+            input_files = [self.data_src / filename for filename in filenames]
+            df = read_func(*input_files)
+        else:
+            input_files = [self.data_src[filename] for filename in filenames]
+            df = read_func(*input_files)
+
+        return df
+
+    def load_hdxmset(self):
+        """batch read the full yaml spec into a hdxmeasurementset"""
+        hdxm_list = []
+        for state in self.yaml_dict.keys():
+            hdxm = self.load_hdxm(state, name=state)
+            hdxm_list.append(hdxm)
+
+        return HDXMeasurementSet(hdxm_list)
+
+    def load_hdxm(self, state, **kwargs):
+        """read a single protein state to hdxmeasurement
+        kwargs: additional kwargs passed to hdxmeasurementset
+        """
+
+        state_dict = self.yaml_dict[state]
+
+        filenames = state_dict["filenames"]
+        df = self.load_data(*filenames)
+
+        pmt = PeptideMasterTable(df,
+                                 drop_first=state_dict.get('drop_first', 1),
+                                 d_percentage=state_dict['d_percentage'])
+
+        if 'control' in state_dict.keys():  # Use a FD control for back exchange correction
+            # todo control should be set from an external file
+            control_state = state_dict["control"]["state"]
+            exposure_value = state_dict["control"]["exposure"]["value"]
+            exposure_units = state_dict["control"]["exposure"]["unit"]
+            control_exposure = exposure_value * time_factors[exposure_units]
+
+            pmt.set_control((control_state, control_exposure))
+        elif (
+                "be_percent" in state_dict.keys()
+        ):  # Flat back exchange percentage for all peptides\
+            pmt.set_backexchange(state_dict["be_percent"])
+        else:
+            raise ValueError("No valid back exchange control method specified")
+
+        temperature = state_dict["temperature"]["value"]
+        try:
+            t_offset = temperature_offsets[state_dict["temperature"]["unit"]]
+        except KeyError:
+            t_offset = temperature_offsets[state_dict["temperature"]["unit"].lower()]
+
+        temperature += t_offset
+
+        sequence = state_dict.get("sequence", "")
+        c_term = state_dict.get("c_term")
+        n_term = state_dict.get("n_term") or 1
+
+        if not (c_term or sequence):
+            raise ValueError("Must specify either 'c_term' or 'sequence'")
+
+        state_data = pmt.get_state(state_dict["state"])
+
+        hdxm = HDXMeasurement(
+            state_data,
+            temperature=temperature,
+            pH=state_dict["pH"],
+            sequence=sequence,
+            n_term=n_term,
+            c_term=c_term,
+            **kwargs
+        )
+
+        return hdxm
 
 
 def yaml_to_hdxmset(yaml_dict, data_dir=None, **kwargs):
@@ -20,6 +118,7 @@ def yaml_to_hdxmset(yaml_dict, data_dir=None, **kwargs):
 
 def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
     # todo perhas classmethod on HDXMeasurement object?
+    # merge with method in
     """
     Creates a :class:`~pyhdx.models.HDXMeasurement` object from dictionary input.
 
@@ -37,6 +136,8 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
         Output data object as specified by `yaml_dict`.
     """
 
+    warnings.warn('This method is deprecated in favor of YamlParser', DeprecationWarning)
+
     if data_dir is not None:
         input_files = [Path(data_dir) / fname for fname in yaml_dict["filenames"]]
     else:
@@ -46,7 +147,7 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
 
     pmt = PeptideMasterTable(data,
                              drop_first=yaml_dict.get('drop_first', 1),
-                             d_percentage=yaml_dict['d_percentage'])  #todo add proline, n_term options
+                             d_percentage=yaml_dict['d_percentage'])
 
     if 'control' in yaml_dict.keys():  # Use a FD control for back exchange correction
         # todo control should be set from an external file

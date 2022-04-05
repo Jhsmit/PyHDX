@@ -1,4 +1,4 @@
-from pyhdx.batch_processing import yaml_to_hdxm, yaml_to_hdxmset
+from pyhdx.batch_processing import yaml_to_hdxm, yaml_to_hdxmset, YamlParser
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 import numpy as np
 from pathlib import Path
@@ -24,6 +24,18 @@ class TestBatchProcessing(object):
         assert hdxm.name == 'SecB WT apo'
 
         hdxm_set = yaml_to_hdxmset(data_dict, data_dir=input_dir)
+        assert isinstance(hdxm_set, HDXMeasurementSet)
+        assert hdxm_set.names == list(data_dict.keys())
+
+        parser = YamlParser(data_dict, data_src=input_dir)
+
+        hdxm = parser.load_hdxm('SecB_tetramer')
+        assert isinstance(hdxm, HDXMeasurement)
+
+        assert hdxm.metadata['temperature'] == data_dict['SecB_tetramer']['temperature']['value'] + 273.15
+        assert hdxm.name == 'SecB WT apo'
+
+        hdxm_set = parser.load_hdxmset()
         assert isinstance(hdxm_set, HDXMeasurementSet)
         assert hdxm_set.names == list(data_dict.keys())
 
