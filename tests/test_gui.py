@@ -71,6 +71,26 @@ class TestMainGUISecB(object):
 
         assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.630640188016708)
 
+    def test_batch_input(self):
+
+        filenames = ['ecSecB_apo.csv', 'ecSecB_dimer.csv']
+        file_dict = {fname: (input_dir / fname).read_bytes() for fname in filenames}
+
+        ctrl, tmpl = main_app()
+
+        input_control = ctrl.control_panels['PeptideFileInputControl']
+        input_control.input_mode = 'Batch'
+        input_control.input_files = list(file_dict.values())
+        input_control.widgets['input_files'].filename = list(file_dict.keys())
+
+        input_control.batch_file = Path(input_dir / 'data_states.yaml').read_bytes()
+
+        input_control._action_add_dataset()
+
+        src = ctrl.sources['main']
+        assert len(src.hdxm_objects) == 2
+        # ... additional tests
+
     @pytest.mark.skip(reason="Fails in GitHub Actions")
     def test_batch_mode(self):
         fpath_1 = input_dir / 'ecSecB_apo.csv'
