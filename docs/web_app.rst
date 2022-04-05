@@ -79,30 +79,32 @@ Initial Guesses
 
 As a first step in the fitting procedure, initial guesses for the exchange kinetics need to be derived. This can be done
 through two options (:guilabel:`Fitting model`): 'Half-life' (fast but less accurate), or 'Association' (slower but more accurate).
-'Association' is bugged currently in 0.4.0b5, please use 'Half-life'  in the meanwhile.
 
-..
-    Using the
-    'Association' procedure is recommended. This model fits two time constants the the weighted-averaged uptake kinetics of
-    each residue. At :guilabel:`Lower bound` and :guilabel:`Upper bound` the bounds of these rate constants can be specified
-    but in most cases the autosuggested bounds are sufficient. The bounds can be changed per dataset by using the :guilabel:`Dataset`
-    field or for all datasets at the same time by ticking the :guilabel:`Global bounds` checkbox.
-    Rarely issues might arise when the initial guess rates are close to the specified bounds at which point the bounds should be
-    moved to contain a larger interval. This can be checked by comparing the fitted rates *k1* and *k2* (:menuselection:`File Export --> Target dataset --> rates`)
-    Both rates and associated amplitudes are converted to a single rate value used for initial guesses.
-    To calcualte guesses, select the model in the drop-down menu, assign a name to these initial guesses and the press
-    'Calculate Guesses'. The fitting is done in the background. When the fitting is done, the obtained rate is shown in the main area in the
-    tab 'Rates'. Note that these rates are merely an guesstimate of HDX rates and these rates should not be used for any
-    interpretation whatsoever but should only function to provide the global fit with initial guesses.
+
+Using the 'Association' procedure is recommended. This model fits two time constants the the weighted-averaged uptake kinetics of
+each residue. At :guilabel:`Lower bound` and :guilabel:`Upper bound` the bounds of these rate constants can be specified
+but in most cases the autosuggested bounds are sufficient. The bounds can be changed per dataset by using the :guilabel:`Dataset`
+field or for all datasets at the same time by ticking the :guilabel:`Global bounds` checkbox.
+Rarely issues might arise when the initial guess rates are close to the specified bounds at which point the bounds should be
+moved to contain a larger interval. This can be checked by comparing the fitted rates *k1* and *k2* (:menuselection:`File Export --> Target dataset --> rates`)
+Both rates and associated amplitudes are converted to a single rate value used for initial guesses.
+To calcualte guesses, select the model in the drop-down menu, assign a name to these initial guesses and the press
+'Calculate Guesses'. The fitting is done in the background. When the fitting is done, the obtained rate is shown in the main area in the
+tab 'Rates'. Note that these rates are merely an guesstimate of HDX rates and these rates should not be used for any
+interpretation whatsoever but should only function to provide the global fit with initial guesses.
 
 ΔG Fit
 ``````
 
 After the initial guesses are calculated we can move on the the global fit of the data. Details of the fitting equation
-can be found the PyHDX publication (currently `bioRxiv`_).
+can be found the PyHDX publication (currently `_ACS`_).
 
-At 'Initial guess', select which dataset to use for initial guesses (typically 'Guess_1').
-At 'Fit mode', users can choose either 'Batch' or 'Single' fitting. If only one datasets is loaded, only 'Single' is
+At :guilabel:`Initial guess`, select which dataset to use for initial guesses (typically 'Guess_1'). Both previous fits (ΔG values)
+or estimated HX rates can be used as initial guesses. The initial guesses can be applied as 'One-to-one', where each protein state
+gets initial guesses derived from that state, or 'One-to-many', where one protein state is use as initial guesses for all states.
+Users can switch between both modes using :guilabel:`Guess mode`.
+
+At :guilabel:`Fit mode`, users can choose either 'Batch' or 'Single' fitting. If only one datasets is loaded, only 'Single' is
 available. If 'Single' is selected, PyHDX will fit ΔG values for each datasets individually using the specified settings.
 In 'Batch' mode all data enters the fitting process at the same time. This allows for the use of a second regularizer
 between datasets. Note that when using 'Batch' mode, the relative magnitudes of the Mean Squared error losses and
@@ -118,7 +120,7 @@ learning rate should be 50-100. Smaller datasets require larger learning rates a
 The maximum number of epochs or fit iterations is set in the field :guilabel:`Epochs`.
 
 Finally, the fields :guilabel:`Regualizer 1` and :guilabel:`Regualizer 2` control the magnitude of the regualizers. Please refer
-to our `bioRxiv`_ manuscript for more details. In short, ``r1`` acts along consecutive residues and affects as a 'smoothing'
+to our `_ACS`_ publication for more details. In short, ``r1`` acts along consecutive residues and affects as a 'smoothing'
 along the primary structure. Higher values give a more smoothed result. This prevents overfitting or helps avoid problems
 in the 'non-identifiability' issue where in unresolved (no residue-level overlap) regions the correct kinetic components
 can be found (ΔGs of residues given correct choice of timepoints) but it cannot confidently be assigned to residues as
@@ -130,18 +132,20 @@ in ΔG differences (ΔΔG). When measuring HD exchange with differing experiment
 used or D-labelling temperature and pH, the datasets obtained will have different resolution, both 'spatially' (degree of
 resolved residues) and 'temporally' (range/accuracy of ΔGs). This can lead to artefactual differences in the final ΔΔG result, as
 features might be resolved in out dataset and not in the other, which will show up as ΔΔG.
+The penalty from `r2` can be calculated either with respect to a selected reference state (
 
 Specify a unique name at :guilabel:`Fit name` and press :guilabel:`Do Fitting` do start the fit. The :guilabel:`Info log`
 in the bottom right corner displays information on when the fit started and finished. The fitting runs in the background
-and multiple jobs can be executed at the same time. However, please take into account that these fits are computationally
+and multiple jobs can be executed at the same time when processing multiple protein states with :guilabel:`Fit mode` set to 'Single'.
+However, please take into account that these fits are computationally
 intensive and currently if multiple users submit too many jobs it might overwhelm our/your server.
 
-The output ΔG values are shown in the 'Gibbs' graph (bottom left).
+The output ΔG values are shown in the 'ΔG' graph.
 
 See also the :doc:`Fitting example <../examples/03_fitting>` section for more details on fitting and the effect of regualizers.
 
-Differential HDX (ΔΔG)
-``````````````````````
+Differential HDX
+````````````````
 
 This control panel can be used to generate differential HDX datasets. Select the fit to use with :guilabel:`Fit_ID`, then
 choose which state should be the reference state with :guilabel:`Reference state`. Assign a name to the new comparison and
@@ -150,19 +154,14 @@ The values are calculated by taking each state and subtracting the reference fro
 test if more flexible (lower ΔG) compared to the test, ΔΔG value are negative and appear on the top of the ΔΔG figure, by default
 colored green. Rigids parts are colored purple and are on the bottom of the graph. (note
 that the y axis is inverted as for the ΔG figure)
+When adding a comparison, ΔRFU values are automatically calculated, independent of the selected :guilabel:`Fit_ID`
 
 Color Transform
 ```````````````
 
-The color transform panel can be used to update color transforms for each data quantity (rfu, dG, ddG). Select which quantity
+The color transform panel can be used to update color transforms for each data quantity (rfu, drfu, dG, ddG). Select which quantity
 to update with :guilabel:`Target Quantity`. When selecting data quantities, the name of the current color map is shown
 below the selector.
-
-datasets based on results from the global fit. At :guilabel:`fit_ID`,
-choose which of the fit runs to use. Use :guilabel:`state_name` to choose which experimental states to apply the
-color map to, use '`*`' to select all states. Finally use :guilabel:`quantity` to select which output column to use (typically
-deltaG)
-
 
 :guilabel:`Mode` can be used to select between the available color modes; `Colormap`, `Continuous` and `Discrete`. `Discrete`
 splits the ΔG values in `n` categories, which are all assigned the same color. When using `Continuous`, `n` color 'nodes' can be
@@ -173,23 +172,25 @@ The number of categories can be set with :guilabel:`Number of colours`.
 When using `Discrete` coloring, the thresholds of the categories can be automatically determined by pressing the :guilabel:`Otsu`
 button (using Otsu's method). Use the button :guilabel:`Linear` to distribute threshold values automatically with equal
 distances between them, and the extrema at the largest/smallest data values.
+A color for residues which are covered by peptides can be chosen at :guilabel:`No coverage`.
 
-Toggle :guilabel:`Log space` to apply the color map in log space (typically used for colouring rates/protection factors).
 Assign an unique name using :guilabel:`Color transform name` and press :guilabel:`Update color transform` to create or
 update the color transform.
 
-A color for residues which are covered by peptides can be chosen at :guilabel:`No coverage`.
+
 The colors for the color groups or nodes can be chosen at the bottom of the controllers, as well as the exact position
 of the thresholds. These values must be input such that they are always in decreasing order.
 
-
 Protein Control
 ```````````````
-Selected datasets can be directly visualized on a protein structure using the built in `NGL`_ protein viewer.
-Use the selector :guilabel:`Input mode` to either directly download a PDB file from the RCSB PDB (specify :guilabel:`Pdb id`) or to upload a local .pdf file from your computer.
+Selected datasets can be directly visualized on a protein structure using the built in `PDBeMolStar`_ protein viewer.
+Use the selector :guilabel:`Input mode` to either directly download a PDB file from the RCSB PDB (specify :guilabel:`Pdb id`)
+or to upload a local .pdb file from your computer.
 
 The :guilabel:`Table` selector can be used to choose which of the data tables to use to assign colors to the 3D structure
-(rfu's, dG or ddG values).
+(RFU, ΔRFU, ΔG or ΔG values). :guilabel:`Visual Style` and :guilabel:`Lighting` can be used to tweak the appearance.
+
+Use the buttons and menu on the protein viewer itself to export the current image to .png format.
 
 
 
@@ -227,8 +228,8 @@ When selecting a dataset with an assigned color transform, the data can not only
 files with hexadecimal color codes.
 
 
-File Export
-```````````
+Figure Export
+`````````````
 
 This panel can be used to export publication quality figures of ΔG or ΔΔG values. Figure options are scatterplot,
 linear bars or rainbowclouds and export filetypes can be .png, .pdf, .svg or .eps.
@@ -253,5 +254,5 @@ in the browser (F5).
 
 
 
-.. _NGL: https://nglviewer.org
-.. _bioRxiv: https://doi.org/10.1101/2020.09.30.320887
+.. _PDBeMolStar: https://github.com/molstar/pdbe-molstar
+.. _ACS: https://doi.org/10.1021/acs.analchem.1c02155

@@ -108,26 +108,40 @@ class TestMainGUISecB(object):
             cfg.set('cluster', 'scheduler_address', s['address'])
 
             fit_control = ctrl.control_panels['FitControl']
+            fit_control.fit_mode = 'Batch'
             fit_control.epochs = 10
 
             fit_control.fit_name = 'testfit_1'
             fit_control._action_fit()
 
-        fit_control = ctrl.control_panels['FitControl']
-        fit_control.epochs = 10
+            table_names = ['loss', 'peptide_mse', 'rates', 'dG_fits', 'rfu_residues', 'peptides', 'd_calc']
+            for name in table_names:
+                ref = csv_to_dataframe(output_dir / 'gui' / f'{name}.csv')
+                test = ctrl.sources['main'].get_table(name)
 
-        fit_control.fit_name = 'testfit_1'
-        fit_control._action_fit()
+                for test_col, ref_col in zip(test.columns, ref.columns):
+                    test_values = test[test_col].to_numpy()
+                    if np.issubdtype(test_values.dtype, np.number):
+                        assert np.allclose(test_values, ref[ref_col].to_numpy(), equal_nan=True)
 
-        table_names = ['loss', 'peptide_mse', 'rates', 'dG_fits', 'rfu_residues', 'peptides', 'd_calc']
-        for name in table_names:
-            ref = csv_to_dataframe(output_dir / 'gui' / f'{name}.csv')
-            test = ctrl.sources['main'].get_table(name)
 
-            for test_col, ref_col in zip(test.columns, ref.columns):
-                test_values = test[test_col].to_numpy()
-                if np.issubdtype(test_values.dtype, np.number):
-                    assert np.allclose(test_values, ref[ref_col].to_numpy(), equal_nan=True)
+            fit_control.guess_mode = 'One-to-many'
+            fit_control.fit_name = 'testfit_2'
+            fit_control._action_fit()
+
+
+            fit_control.fit_mode = 'Single'
+            fit_control.guess_mode = 'One-to-one'
+            fit_control.fit_name = 'testfit_3'
+            fit_control._action_fit()
+
+            fit_control.initial_guess = 'testfit_2'
+            fit_control.guess_mode = 'One-to-many'
+            fit_control.guess_state = 'testname_123'
+            fit_control.fit_name = 'testfit_4'
+            fit_control._action_fit()
+
+
 
         color_transform_control = ctrl.control_panels['ColorTransformControl']
         color_transform_control._action_otsu()

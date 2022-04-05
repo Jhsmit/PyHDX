@@ -21,6 +21,7 @@ from pyhdx.web.template import GoldenElvis, ExtendedGoldenTemplate
 from pyhdx.web.theme import ExtendedGoldenDarkTheme, ExtendedGoldenDefaultTheme
 from pyhdx.web.utils import load_state
 from pyhdx.web.constructor import AppConstructor
+from dev_controllers import *
 
 sys._excepthook = sys.excepthook
 

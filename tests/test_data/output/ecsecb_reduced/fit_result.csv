@@ -1,5 +1,5 @@
-# PyHDX v0.4.0b6+46.g5237208.dirty 
-# 2022/01/12 13:55:53 (1641992153) 
+# PyHDX v0.4.0b8+3.g8beaeb9.dirty 
+# 2022/04/04 13:32:16 (1649071936) 
 # <metadata>{"r1": 2, "epochs": 1000, "patience": 50, "stop_loss": 5e-06, "optimizer": "SGD", "lr": 10000.0, "momentum": 0.5, "nesterov": true, "model_name": "DeltaGFit", "total_loss": 3.745552486152599, "mse_loss": 3.423048987339711, "reg_loss": 0.3225034988128881, "regularization_percentage": 8.610305155386062, "epochs_run": 1000}</metadata>
 # <pandas_kwargs>{"comment": "#", "header": [0, 1], "index_col": 0}</pandas_kwargs>
 state,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo,SecB WT apo

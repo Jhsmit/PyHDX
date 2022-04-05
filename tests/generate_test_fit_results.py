@@ -36,7 +36,7 @@ pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=Fa
 pmt.set_control(control)
 temperature, pH = 273.15 + 30, 8.
 
-hdxm = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence, temperature=temperature, pH=pH)
+hdxm_apo = HDXMeasurement(pmt.get_state('SecB WT apo'), sequence=sequence, temperature=temperature, pH=pH)
 
 data = pmt.get_state('SecB WT apo')
 reduced_data = data[data['end'] < 40]
@@ -52,7 +52,7 @@ fr_torch = fit_gibbs_global(hdxm_reduced, gibbs_guess, epochs=epochs, r1=2)
 save_fitresult(output_dir / 'ecsecb_reduced', fr_torch)
 
 if guess:
-    wt_avg_result = fit_rates_weighted_average(hdxm, bounds=(1e-2/60., 800/60.))
+    wt_avg_result = fit_rates_weighted_average(hdxm_apo, bounds=(1e-2 / 60., 800 / 60.))
     guess_output = wt_avg_result.output
     dataframe_to_file(output_dir / 'ecSecB_guess.csv', guess_output)
     dataframe_to_file(output_dir / 'ecSecB_guess.txt', guess_output, fmt='pprint')
@@ -60,21 +60,21 @@ else:
     guess_output = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
 # Export protein sequence and intrinsic rate of exchange
-hdxm.coverage.protein.to_file(output_dir / 'ecSecB_info.csv')
-hdxm.coverage.protein.to_file(output_dir / 'ecSecB_info.txt', fmt='pprint')
+hdxm_apo.coverage.protein.to_file(output_dir / 'ecSecB_info.csv')
+hdxm_apo.coverage.protein.to_file(output_dir / 'ecSecB_info.txt', fmt='pprint')
 
-rfu_df = hdxm.rfu_residues
+rfu_df = hdxm_apo.rfu_residues
 dataframe_to_file(output_dir / 'ecSecB_rfu_per_exposure.csv', rfu_df)
 dataframe_to_file(output_dir / 'ecSecB_rfu_per_exposure.txt', rfu_df, fmt='pprint')
 
-gibbs_guess = hdxm.guess_deltaG(guess_output['rate'])
-fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs, r1=2)
+gibbs_guess = hdxm_apo.guess_deltaG(guess_output['rate'])
+fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs, r1=2)
 
 dataframe_to_file(output_dir / f'ecSecB_torch_fit.csv', fr_torch.output)
 dataframe_to_file(output_dir / f'ecSecB_torch_fit.txt', fr_torch.output, fmt='pprint')
 
 
-fr_torch = fit_gibbs_global(hdxm, gibbs_guess, epochs=epochs_long, r1=2)
+fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs_long, r1=2)
 dataframe_to_file(output_dir / f'ecSecB_torch_fit_epochs_{epochs_long}.csv', fr_torch.output)
 dataframe_to_file(output_dir / f'ecSecB_torch_fit_epochs_{epochs_long}.txt', fr_torch.output, fmt='pprint')
 
@@ -86,13 +86,23 @@ dataframe_to_file(output_dir / f'ecSecB_torch_fit_epochs_{epochs_long}.txt', fr_
 hdxm_dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), sequence=sequence_dimer,
                             temperature=temperature, pH=pH)
 
-hdx_set = HDXMeasurementSet([hdxm_dimer, hdxm])
+hdx_set = HDXMeasurementSet([hdxm_dimer, hdxm_apo])
 
-gibbs_guess = hdx_set[0].guess_deltaG(guess_output['rate'])
+rates_df = pd.DataFrame({name: guess_output['rate'] for name in hdx_set.names})
+gibbs_guess = hdx_set.guess_deltaG(rates_df)
 batch_result = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=epochs)
 
 dataframe_to_file(output_dir / 'ecSecB_batch.csv', batch_result.output)
 dataframe_to_file(output_dir / 'ecSecB_batch.txt', batch_result.output, fmt='pprint')
+
+# Save errors and losses
+dataframe_to_file(output_dir / 'ecSecB_batch_peptide_mse.csv', batch_result.get_peptide_mse())
+dataframe_to_file(output_dir / 'ecSecB_batch_residue_mse.csv', batch_result.get_residue_mse())
+dataframe_to_file(output_dir / 'ecSecB_batch_loss.csv', batch_result.losses)
+
+
+# Aligned sequences test
+# -------------
 
 # Order is inverted compared to test!
 mock_alignment = {

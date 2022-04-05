@@ -6,8 +6,7 @@ import pandas as pd
 import pytest
 import torch
 import yaml
-from dask.distributed import LocalCluster
-from pandas.testing import assert_series_equal
+from pandas.testing import assert_series_equal, assert_frame_equal
 from pyhdx import PeptideMasterTable, HDXMeasurement
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe
@@ -23,6 +22,9 @@ output_dir = cwd / 'test_data' / 'output'
 np.random.seed(43)
 torch.manual_seed(43)
 
+sequence =       'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
+sequence_dimer = 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA'
+
 
 class TestSecBDataFit(object):
     @classmethod
@@ -36,15 +38,12 @@ class TestSecBDataFit(object):
 
         pf = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
         pf.set_control(control)
-        cls.hdxm_apo = HDXMeasurement(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH)
-        cls.hdxm_dimer = HDXMeasurement(pf.get_state('SecB his dimer apo'), temperature=cls.temperature, pH=cls.pH)
+        cls.hdxm_apo = HDXMeasurement(pf.get_state('SecB WT apo'), temperature=cls.temperature, pH=cls.pH, sequence=sequence)
+        cls.hdxm_dimer = HDXMeasurement(pf.get_state('SecB his dimer apo'), temperature=cls.temperature, pH=cls.pH, sequence=sequence_dimer)
 
         data = pf.get_state('SecB WT apo')
         reduced_data = data[data['end'] < 40]
         cls.reduced_hdxm = HDXMeasurement(reduced_data)
-
-        cluster = LocalCluster()
-        cls.address = cluster.scheduler_address
 
     def test_initial_guess_wt_average(self):
         result = fit_rates_weighted_average(self.reduced_hdxm)
@@ -152,12 +151,11 @@ class TestSecBDataFit(object):
         cfg.set('fitting', 'dtype', 'float64')
 
     def test_batch_fit(self, tmp_path):
-        hdx_set = HDXMeasurementSet([self.hdxm_apo, self.hdxm_dimer])
+        hdx_set = HDXMeasurementSet([self.hdxm_dimer, self.hdxm_apo])
         guess = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
 
         # Create rates dataframe
         rates_df = pd.DataFrame({name: guess['rate'] for name in hdx_set.names})
-
         gibbs_guess = hdx_set.guess_deltaG(rates_df)
         fr_global = fit_gibbs_global_batch(hdx_set, gibbs_guess, epochs=1000)
 
@@ -182,6 +180,20 @@ class TestSecBDataFit(object):
         errors = fr_global.get_squared_errors()
         assert errors.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
 
+        test = fr_global.get_peptide_mse().fillna(-1)
+        ref = csv_to_dataframe(output_dir / 'ecSecB_batch_peptide_mse.csv').fillna(-1)
+        assert_frame_equal(test, ref, atol=1e-1, rtol=5e-1)
+
+        test = fr_global.get_residue_mse().fillna(-1)
+        ref = csv_to_dataframe(output_dir / 'ecSecB_batch_residue_mse.csv').fillna(-1)
+        assert_frame_equal(test, ref, atol=1e-1, rtol=5e-1)
+
+        test = fr_global.losses.fillna(-1)
+        ref = csv_to_dataframe(output_dir / 'ecSecB_batch_loss.csv').fillna(-1)
+        assert_frame_equal(test, ref, atol=1e-3, rtol=1e-2)
+
+
+        # test alignment fit
         mock_alignment = {
             'apo':   'MSEQNNTEMTFQIQRIYTKDI------------SFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLG-------------------EETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRG----TFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA',
             'dimer': 'MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVY--------------EVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGA----YCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA-----------------',

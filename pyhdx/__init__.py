@@ -6,7 +6,7 @@ from .models import (
     HDXMeasurementSet,
 )
 from .fileIO import read_dynamx
-from .fitting_torch import TorchFitResult
+from .fitting_torch import TorchFitResult, TorchFitResultSet
 from ._version import get_versions
 
 try:
