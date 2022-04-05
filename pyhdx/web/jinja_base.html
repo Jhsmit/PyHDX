@@ -113,6 +113,18 @@
     container.getElement().html(componentState.model);
     container.on("resize", resize_dispatcher)
   })
+
+
+  // Absolute hackery to get GoldenLayout to initialize even though
+  // document is not ready. Without this bokeh will complain that
+  // DOM nodes to render roots into are not initialized in time.
+  // From: https://github.com/holoviz/panel/pull/3313
+  Object.defineProperty(document, 'readyState', {
+    get() { return readyState },
+    set(value) { return readyState = value },
+  });
+  document.readyState = 'complete'
+
   myLayout.init()
   window.addEventListener('resize', (event) => {
     if (!resizing) {
