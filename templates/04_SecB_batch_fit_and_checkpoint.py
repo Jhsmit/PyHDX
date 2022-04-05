@@ -11,31 +11,42 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
+import pandas as pd
 
-from pyhdx.fileIO import csv_to_protein, read_dynamx, dataframe_to_file, save_fitresult
+from pyhdx.fileIO import csv_to_protein, read_dynamx, dataframe_to_file, save_fitresult, csv_to_dataframe
 from pyhdx.fitting import fit_gibbs_global_batch
 from pyhdx.fitting_torch import CheckPoint
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 
-current_dir = Path(__file__).parent
-#current_dir = Path().cwd() / 'templates'  # pycharm scientific compat
 
+#%%
+
+# Pycharm scientific mode
+if '__file__' not in locals():
+    __file__ = Path().cwd() / 'templates' / 'script.py'
+
+current_dir = Path(__file__).parent
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
 data_dir = current_dir.parent / 'tests' / 'test_data'
-data = read_dynamx(data_dir / 'input' / 'ecSecB_apo.csv', data_dir / 'input' / 'ecSecB_dimer.csv')
 
+#%%
+
+data = read_dynamx(data_dir / 'input' / 'ecSecB_apo.csv', data_dir / 'input' / 'ecSecB_dimer.csv')
 pmt = PeptideMasterTable(data)
 pmt.set_control(('Full deuteration control', 0.167*60))
 
-st1 = HDXMeasurement(pmt.get_state('SecB his dimer apo'), pH=8, temperature=273.15 + 30)
-st2 = HDXMeasurement(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15 + 30)
+dimer = HDXMeasurement(pmt.get_state('SecB his dimer apo'), pH=8, temperature=273.15 + 30)
+apo = HDXMeasurement(pmt.get_state('SecB WT apo'), pH=8, temperature=273.15 + 30)
 
-hdx_set = HDXMeasurementSet([st1, st2])
+hdx_set = HDXMeasurementSet([dimer, apo])
 guess = csv_to_protein(data_dir / 'output' / 'ecSecB_guess.csv')
-gibbs_guess = hdx_set[0].guess_deltaG(guess['rate'])
+
+rates_df = pd.DataFrame({name: guess['rate'] for name in hdx_set.names})
+gibbs_guess = hdx_set.guess_deltaG(rates_df)
 
 
+#%%
 # Example fit with only 5000 epochs and high learning rate
 # Checkpoint stores model history every `epoch_step` epochs
 checkpoint = CheckPoint(epoch_step=250)

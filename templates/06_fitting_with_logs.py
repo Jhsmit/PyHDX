@@ -1,5 +1,5 @@
 """Perform fitting with a range of regularizers"""
-from pyhdx.batch_processing import yaml_to_hdxmset
+from pyhdx.batch_processing import yaml_to_hdxmset, YamlParser
 from pathlib import Path
 from pyhdx.fitting import fit_gibbs_global_batch
 import yaml
@@ -20,7 +20,8 @@ data_dict = yaml.safe_load(yaml_stream)
 output_dir = current_dir / 'fit'
 output_dir.mkdir(exist_ok=True)
 
-hdx_set = yaml_to_hdxmset(data_dict, data_dir=input_dir)
+parser = YamlParser(data_dict, data_src=input_dir)
+hdx_set = parser.load_hdxmset()
 
 rates_list = [csv_to_protein(current_dir / 'guesses' / f'{name}_rates_guess.csv')['rate'] for name in data_dict.keys()]
 gibbs_guess = hdx_set.guess_deltaG(rates_list)

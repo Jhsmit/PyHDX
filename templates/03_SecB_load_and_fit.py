@@ -20,8 +20,11 @@ fit_kwargs = {
 
 #%%
 
+# Pycharm scientific mode
+if '__file__' not in locals():
+    __file__ = Path().cwd() / 'templates' / 'script.py'
+
 current_dir = Path(__file__).parent
-#current_dir = Path().cwd() / 'templates'  # pycharm scientific compat
 output_dir = current_dir / 'output'
 output_dir.mkdir(exist_ok=True)
 test_data_dir = current_dir.parent / 'tests' / 'test_data'
