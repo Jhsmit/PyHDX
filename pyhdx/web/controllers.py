@@ -36,6 +36,7 @@ from pyhdx.fitting import (
     RatesFitResult,
 )
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection
+from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.plot import (
     dG_scatter_figure,
     ddG_scatter_figure,
@@ -54,6 +55,86 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
+
+
+
+def blocking_function(duration):
+    import time
+
+    time.sleep(duration)
+
+    df = pd.DataFrame({
+        'x': np.random.normal(loc=3, scale=2, size=100),
+        'y': np.random.normal(loc=2, scale=0.3, size=100),
+    })
+
+    return df
+
+
+class AsyncControlPanel(ControlPanel):
+    _type = 'async'
+
+    btn = param.Action(lambda self: self.do_stuff())
+
+    print = param.Action(lambda self: self.print_stuff())
+
+    #async_do = param.Action(lambda self:)
+
+    value = param.String()
+
+    slider = param.Number(2.4, bounds=(1., 4.))
+
+    field = param.String(default='init_value', doc='what is the value of this field during async?')
+
+    @property
+    def src(self):
+        return self.sources['main']
+
+    def make_dict(self):
+        widgets = self.generate_widgets()
+        widgets['pbar'] = ASyncProgressBar()
+
+        return widgets
+
+    async def work_func(self):
+        print('start')
+        print(self.field)
+        name = self.field # is indeed stored locally
+        scheduler_address = cfg.get("cluster", "scheduler_address")
+        async with Client(scheduler_address,  asynchronous=True) as client:
+            futures = []
+            for i in range(10):
+                duration = (i + np.random.rand()) / 3.
+                future = client.submit(blocking_function, duration)
+                futures.append(future)
+
+            await self.widgets['pbar'].run(futures)
+
+            results = await asyncio.gather(*futures)
+
+        result = pd.concat(results)
+
+        print(result)
+        print(self.field)
+        print(name)
+
+        self.src.add_table('test_data', result)
+        self.src.updated = True
+
+        #self.src.param.trigger('updated')
+
+    def do_stuff(self):
+
+        async_execute(self.work_func)
+
+    @param.depends('slider', watch=True)
+    def _slider_updated(self):
+        self.value = str(self.slider)
+
+    def print_stuff(self):
+        print(self.parent.executor)
+        df = self.src.tables['test_data']
+        print()
 
 
 class DevTestControl(ControlPanel):
@@ -937,7 +1018,7 @@ class FitControl(PyHDXControlPanel):
     initial_guess = param.Selector(doc="Name of dataset to use for initial guesses.")
 
     fit_mode = param.Selector(
-        default="Batch", objects=["Batch", "Single"], constant=True
+        default="Batch", objects=["Batch", "Single"]
     )
 
     stop_loss = param.Number(
@@ -1125,7 +1206,6 @@ class FitControl(PyHDXControlPanel):
         else:  # one batchfit result
             self.src.add(result, name)
 
-
             self.parent.logger.info(
                 f"Finished fitting in {len(result.losses)} epochs, final mean squared residuals is {result.mse_loss:.2f}"
             )
@@ -1152,36 +1232,45 @@ class FitControl(PyHDXControlPanel):
         self.widgets["do_fit"].loading = True
 
         self.parent.logger.info(f"Current number of active jobs: {self._current_jobs}")
-        # try:
-        #     loop = asyncio.get_running_loop()
-        # except RuntimeError:
-        #     warnings.warn("No running event loop. This warning should only trigger during tests")
-        #     loop = asyncio.new_event_loop()
+
         if self.fit_mode == "Batch":
-            # Alternatively use panel's async_execute + partial
-            func = partial(self._batch_fit, self.fit_name)
-            async_execute(func)
-            #loop.create_task(self._batch_fit(self.fit_name))
-
+            async_execute(self._batch_fit)
         else:
-            warnings.warn("Currently not implemented", NotImplementedError)
-            data_objs = self.src.hdxm_objects.values()
-            rates_df = self.src.rate_results[self.initial_guess].output
-            gibbs_guesses = [
-                data_obj.guess_deltaG(rates_df[data_obj.name]["rate"])
-                for data_obj in data_objs
-            ]
-            futures = self.parent.client.map(
-                fit_gibbs_global, data_objs, gibbs_guesses, **self.fit_kwargs
-            )
+            async_execute(self._single_fit)
 
-            # Combine list of futures into one future object
-            # See https://github.com/dask/distributed/pull/560
-            dask_future = self.parent.client.submit(lambda args: args, futures)
+    async def _single_fit(self):
+        name = self.fit_name
 
-    async def _batch_fit(self, name):
-        pbar = pn.widgets.Progress(bar_color='secondary', sizing_mode='stretch_width', active=True)
+        # todo select fits?
+        data_objs = self.src.hdxm_objects.values()
+        rates_df = self.src.rate_results[self.initial_guess].output
+        kwargs = self.fit_kwargs  # is this needed to store locally?
+        gibbs_guesses = [
+            data_obj.guess_deltaG(rates_df[data_obj.name]["rate"])
+            for data_obj in data_objs
+        ]
+        futures = []
+
+        scheduler_address = cfg.get("cluster", "scheduler_address")
+        async with Client(scheduler_address, asynchronous=True) as client:
+            for hdxm, guess in zip(self.src.hdxm_objects.values(), gibbs_guesses):
+                future = client.submit(fit_gibbs_global, hdxm, guess, **self.fit_kwargs)
+                futures.append(future)
+
+            self.widgets['pbar'].num_tasks = len(futures)
+            await self.widgets['pbar'].run(futures)
+
+            results = await asyncio.gather(*futures)
+
+        result = TorchFitResultSet(results)
+        self.src.add(result, name)
+        self._current_jobs -= 1
+        self.parent.logger.info(f"Finished PyTorch fit: {name}")
+        # todo something about losses
+
+    async def _batch_fit(self):
         self.widgets['pbar'].active = True
+        name = self.fit_name
         hdx_set = self.src.hdx_set
         rate_fit_output = self.src.rate_results[self.initial_guess].output
 

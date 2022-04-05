@@ -5,7 +5,7 @@ import numpy as np
 import pandas as pd
 import param
 
-from pyhdx import TorchFitResult
+from pyhdx import TorchFitResult, TorchFitResultSet
 from pyhdx.fitting import RatesFitResult
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dataframe
@@ -78,7 +78,7 @@ class PyHDXSource(TableSource):
     def add(self, obj, name):  # todo Name is None and use obj name?
         if isinstance(obj, HDXMeasurement):
             self._add_hdxm_object(obj, name)
-        elif isinstance(obj, TorchFitResult):
+        elif isinstance(obj, (TorchFitResult, TorchFitResultSet)):
             self._add_dG_fit(obj, name)
         elif isinstance(obj, RatesFitResult):
             self._add_rates_fit(obj, name)
@@ -142,35 +142,29 @@ class PyHDXSource(TableSource):
         df.columns = columns
         self._add_table(df, "dG_fits")
 
-        # Add calculated d-uptake values (#todo add method on FitResults object that does this?)
-        timepoints = fit_result.hdxm_set.timepoints
-        tmin = np.log10(timepoints[np.nonzero(timepoints)].min())
-        tmax = np.log10(timepoints.max())
-        pad = 0.05 * (tmax - tmin)  # 5% padding percentage
+        # Add calculated d-uptake values
+        df = fit_result.get_dcalc()
 
-        tvec = np.logspace(tmin - pad, tmax + pad, num=100, endpoint=True)
-        d_calc = fit_result(tvec)
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["fit_ID", "state", "peptide_id", "quantity"],
+        )
+        df.columns = columns
 
         # Reshape the d_calc numpy array (Ns x Np x Nt to pandas dataframe (index: Ns, columns: multiiindex Ns, Np)
-        Ns, Np, Nt = d_calc.shape
-        reshaped = d_calc.reshape(Ns * Np, Nt)
-        columns = pd.MultiIndex.from_product(
-            [[name], fit_result.hdxm_set.names, np.arange(Np), ["d_calc"]],
-            names=["fit_ID", "state", "peptide_id", "quantity"],
-        )
-        index = pd.Index(tvec, name="exposure")
-        df = pd.DataFrame(reshaped.T, index=index, columns=columns)
-        df = df.loc[
-            :, (df != 0).any(axis=0)
-        ]  # remove zero columns, replace with NaN when possible
         self._add_table(df, "d_calc")
 
         # Add losses df
         df = fit_result.losses.copy()
-        tuples = [
-            (name, column) for column in df.columns
-        ]  # losses df is not multiindex
-        columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "loss_type"])
+        if df.columns.nlevels == 1:
+            tuples = [
+                (name, column) for column in df.columns
+            ]
+            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "loss_type"])
+        else:
+            tuples = [(name, *tup) for tup in df.columns]
+            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "loss_type"])
+
         df.columns = columns
         self._add_table(df, "loss")
 

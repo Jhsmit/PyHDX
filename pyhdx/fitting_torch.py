@@ -127,13 +127,13 @@ class TorchFitResult(object):
             self.metadata["regularization_percentage"] = self.regularization_percentage
             self.metadata["epochs_run"] = len(self.losses)
 
-        names = [hdxm.name for hdxm in self.hdxm_set.hdxm_list]
+        self.names = [hdxm.name for hdxm in self.hdxm_set.hdxm_list]
 
         dfs = [
             self.generate_output(hdxm, self.dG[g_column])
             for hdxm, g_column in zip(self.hdxm_set, self.dG)
         ]
-        df = pd.concat(dfs, keys=names, names=["state", "quantity"], axis=1)
+        df = pd.concat(dfs, keys=self.names, names=["state", "quantity"], axis=1)
 
         self.output = df
 
@@ -252,7 +252,6 @@ class TorchFitResult(object):
 
         covariance, perr = estimate_errors(hdxm, dG)
 
-        index = pd.Index(hdxm.coverage.r_number, name="r_number")
         df = pd.DataFrame(out_dict, index=dG.index)
         df = df.join(covariance)
 
@@ -317,41 +316,134 @@ class TorchFitResult(object):
 
             output = self.model(*inputs)
 
-        # todo return as dataframe?
-        return output.detach().numpy()
+        array = output.detach().numpy()
+        return array
+
+    def get_dcalc(self, timepoints=None):
+        """returns calculated d uptake for optional timepoints
+        if no timepoints are given, a default set of logarithmically space timepoints is generated
+
+        """
+        if timepoints is None:
+            timepoints = self.hdxm_set.timepoints
+            tmin = np.log10(timepoints[np.nonzero(timepoints)].min())
+            tmax = np.log10(timepoints.max())
+            pad = 0.05 * (tmax - tmin)  # 5% padding percentage
+
+            tvec = np.logspace(tmin - pad, tmax + pad, num=100, endpoint=True)
+        else:
+            tvec = timepoints
+
+        df = self.eval(tvec)
+        return df
+
+    def eval(self, timepoints):
+        """evaluate the model at timepoints and return dataframe"""
+
+        assert timepoints.ndim == 1, 'Timepoints must be one-dimensional'
+
+        array = self(timepoints)
+
+        Ns, Np, Nt = array.shape
+        reshaped = array.reshape(Ns * Np, Nt)
+        columns = pd.MultiIndex.from_product(
+            [self.hdxm_set.names, np.arange(Np), ["d_calc"]],
+            names=["state", "peptide_id", "quantity"],
+        )
+        index = pd.Index(timepoints, name="exposure")
+        df = pd.DataFrame(reshaped.T, index=index, columns=columns)
+        df = df.loc[
+            :, (df != 0).any(axis=0)
+        ]  # remove zero columns, replace with NaN when possible
+
+        return df
 
     def __len__(self):
         return self.hdxm_set.Ns
 
 
-# class TorchSingleFitResult(TorchFitResult):
-#     def __init__(self, *args, **kwargs):
-#         super(TorchSingleFitResult, self).__init__(*args, **kwargs)
-#
-#         df = self.generate_output(self.hdxm_set, self.dG)
-#         self.output = Protein(df)
-#
-#     def __call__(self, timepoints):
-#         """ timepoints: Nt array (will be unsqueezed to 1 x Nt)
-#         output: Np x Nt array"""
-#         #todo fix and tests
-#         dtype = t.float64
-#
-#         with t.no_grad():
-#             tensors = self.hdxm_set.get_tensors()
-#             inputs = [tensors[key] for key in ['temperature', 'X', 'k_int']]
-#             inputs.append(t.tensor(timepoints, dtype=dtype).unsqueeze(0))
-#
-#             output = self.model(*inputs)
-#         return output.detach().numpy()
-#
-#     def __len__(self):
-#         return 1
+class TorchFitResultSet(object):
+    """
+    Set of multiple TorchFitResults
+    """
+
+    def __init__(self, results):
+        # todo enforce within fit result set always length one hdxm_sets in results objects?
+        # yes: but only in the GUI?
+        # -> asusme in GUI its one
+        self.results = results
+
+        dfs = [result.output for result in self.results]
+        self.output = pd.concat(dfs, axis=1)
+
+        dfs = [result.losses for result in self.results]
+        names = ['_'.join(result.hdxm_set.names) for result in self.results]
+        self.losses = pd.concat(dfs, axis=1, keys=names)
 
 
-# class TorchBatchFitResult(TorchFitResult):
-#     def __init__(self, *args, **kwargs):
-#         super(TorchBatchFitResult, self).__init__(*args, **kwargs)
+    @property
+    def metadata(self):
+        return {'_'.join(result.hdxm_set.names): result.metadata for result in self.results}
+
+
+
+    def to_file(
+        self,
+        file_path,
+        include_version=True,
+        include_metadata=True,
+        fmt="csv",
+        **kwargs,
+    ):
+        """save only output to file"""
+        metadata = self.metadata if include_metadata else include_metadata
+        dataframe_to_file(
+            file_path,
+            self.output,
+            include_version=include_version,
+            include_metadata=metadata,
+            fmt=fmt,
+            **kwargs,
+        )
+
+    def get_peptide_mse(self):
+        dfs = [result.get_peptide_mse() for result in self.results]
+        df = pd.concat(dfs, axis=1)
+
+        return df
+
+    def get_residue_mse(self):
+        dfs = [result.get_residue_mse() for result in self.results]
+        df = pd.concat(dfs, axis=1)
+
+        return df
+
+    def get_dcalc(self, timepoints=None):
+        # or do we want timepoints range per measurement? probably not
+        if timepoints is None:
+            all_timepoints = np.concatenate([result.hdxm_set.timepoints.flatten() for result in self.results])
+            tmin = np.log10(all_timepoints[np.nonzero(all_timepoints)].min())
+            tmax = np.log10(all_timepoints.max())
+
+            pad = 0.05 * (tmax - tmin)  # 5% padding percentage
+
+            tvec = np.logspace(tmin - pad, tmax + pad, num=100, endpoint=True)
+        else:
+            tvec = timepoints
+
+        dfs = [result.get_dcalc(tvec) for result in self.results]
+        df = pd.concat(dfs, axis=1)
+
+        return df
+
+    def eval(self, timepoints):
+        dfs = [result(timepoints) for result in self.results]
+        df = pd.concat(dfs, axis=1)
+
+        return df
+
+    def __len__(self):
+        return len(self.results)
 
 
 class Callback(object):
