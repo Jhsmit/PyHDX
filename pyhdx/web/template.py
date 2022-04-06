@@ -3,6 +3,7 @@ import pathlib
 import string
 
 import panel as pn
+from panel.io.resources import JS_URLS
 from panel.template import GoldenTemplate
 from panel.util import url_path
 from param.parameterized import default_label_formatter
@@ -15,28 +16,41 @@ SIDEBAR_WIDTH = 300
 
 
 class ExtendedGoldenTemplate(GoldenTemplate):
-    def _template_resources(self):
-        name = type(self).__name__.lower()
 
-        # External resources
-        css_files = dict(self._resources["css"])
-        for cssname, css in css_files.items():
-            css_path = url_path(css)
-            css_files[cssname] = dist_path + f"{name}/{css_path}"
-        js_files = dict(self._resources["js"])
-        for jsname, js in js_files.items():
-            js_path = url_path(js)
-            js_files[jsname] = dist_path + f"{name}/{js_path}"
+    ...
+    # _resources = {
+    #     'css': {
+    #         'goldenlayout': "https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/src/css/goldenlayout-base.css",
+    #         #'goldenlayout': './pyhdx/extendedgoldentemplate/latest/css/goldenlayout-base.css'
+    #     },
+    #     'js': {
+    #         'jquery': JS_URLS['jQuery'],
+    #         'goldenlayout': 'https://cdn.jsdelivr.net/npm/golden-layout@1.5.9/dist/goldenlayout.min.js'
+    #     }
+    # }
 
-        # CSS files
-        base_css = os.path.basename(self._css)
-        css_files["base"] = dist_path + f"{name}/{base_css}"
-        if self.theme:
-            theme = self.theme.find_theme(type(self))
-            if theme and theme.css:
-                basename = os.path.basename(theme.css)
-                css_files["theme"] = dist_path + f"{name}/{basename}"
-        return {"css": css_files, "js": js_files}
+     #def _template_resources(self):
+    #     name = type(self).__name__.lower()
+    #
+    #     # External resources
+    #     css_files = dict(self._resources["css"])
+    #     for cssname, css in css_files.items():
+    #         css_path = url_path(css)
+    #         css_files[cssname] = dist_path + f"{name}/{css_path}"
+    #     js_files = dict(self._resources["js"])
+    #     for jsname, js in js_files.items():
+    #         js_path = url_path(js)
+    #         js_files[jsname] = dist_path + f"{name}/{js_path}"
+    #
+    #     # CSS files
+    #     base_css = os.path.basename(self._css)
+    #     css_files["base"] = dist_path + f"{name}/{base_css}"
+    #     if self.theme:
+    #         theme = self.theme.find_theme(type(self))
+    #         if theme and theme.css:
+    #             basename = os.path.basename(theme.css)
+    #             css_files["theme"] = dist_path + f"{name}/{basename}"
+    #     return {"css": css_files, "js": js_files}
 
 
 class ReadString(str):
