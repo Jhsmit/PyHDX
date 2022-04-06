@@ -147,7 +147,6 @@ class LoadHDMeasurementSetTask(Task):
     out = param.ClassSelector(HDXMeasurementSet)
 
     def execute(self, *args, **kwargs):
-        print(self.cwd)
         state_spec = yaml.safe_load((self.cwd / self.state_file).read_text())
         parser = StateParser(state_spec, self.cwd, default_filters)
         hdxm_set = parser.load_hdxmset()
