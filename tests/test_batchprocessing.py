@@ -1,4 +1,4 @@
-from pyhdx.batch_processing import yaml_to_hdxm, yaml_to_hdxmset, YamlParser
+from pyhdx.batch_processing import yaml_to_hdxm, yaml_to_hdxmset, StateParser
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 import numpy as np
 from pathlib import Path
@@ -27,7 +27,7 @@ class TestBatchProcessing(object):
         assert isinstance(hdxm_set, HDXMeasurementSet)
         assert hdxm_set.names == list(data_dict.keys())
 
-        parser = YamlParser(data_dict, data_src=input_dir)
+        parser = StateParser(data_dict, data_src=input_dir)
 
         hdxm = parser.load_hdxm('SecB_tetramer')
         assert isinstance(hdxm, HDXMeasurement)

@@ -1,5 +1,5 @@
 """Load HDX-MS data from yaml spec and perform initial guess of exchange rates"""
-from pyhdx.batch_processing import YamlParser
+from pyhdx.batch_processing import StateParser
 from pathlib import Path
 from pyhdx.fitting import fit_rates_weighted_average
 import yaml
@@ -16,7 +16,7 @@ data_dict = yaml.safe_load(yaml_stream)
 # Requires local_cluster.py to be running (or other Dask client on default address in config)
 client = default_client()
 
-parser = YamlParser(data_dict, data_src=data_dir)
+parser = StateParser(data_dict, data_src=data_dir)
 for name in data_dict.keys():
     print(name)
     dic = data_dict[name]

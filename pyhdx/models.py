@@ -1219,6 +1219,12 @@ class HDXMeasurementSet(object):
     def __getitem__(self, item):
         return self.hdxm_list.__getitem__(item)
 
+    def get(self, name):
+        """find a HDXMeasurement by name"""
+
+        idx = self.names.index(name)
+        return self[idx]
+
     @property
     def Ns(self):
         return len(self.hdxm_list)
