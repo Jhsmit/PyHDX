@@ -142,7 +142,7 @@ Generate conda requirements files `from setup.cfg`:
     $ python _requirements.py
 
 
-First, if you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
+If you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
 Installation instructions are on the Pytorch_ website.
 
 Then, install the other base dependencies and optional extras. For example, to install PyHDX with web app:
