@@ -42,9 +42,51 @@ To install with pdf output:
     $ pip install pyhdx==0.4.0b8[pdf]
 
 
+Install from source
+-------------------
+
+Create a new conda environment:
+
+.. code-block::
+
+    $ conda create --name py38_pyhdx python=3.8
+    # conda activate py38_pyhdx
+
+Clone the github repository:
+
+.. code-block:: rst
+
+    $ git clone https://github.com/Jhsmit/PyHDX
+    $ cd PyHDX
+
+Generate conda requirements files from `setup.cfg`:
+
+.. code-block:: rst
+
+    $ python _requirements.py
+
+Install the base dependencies and optional extras. For example, to install PyHDX with web app:
+
+.. code-block:: rst
+
+    $ conda install --file _req-base.txt --file _req-web.txt
+
+To run the web application:
+
+.. code-block::
+
+    $ python pyhdx/web/serve.py
+
+This runs the pyhx web application without a Dask cluster to submit jobs to, so
+submitting a fitting job will give an error.
+
+To start a dask cluster separately, open another terminal tab and run:
+
+.. code-block:: rst
+
+    python local_cluster.py
 
 
-    
 
 Running the web server
 ----------------------
@@ -76,68 +118,65 @@ This will start a Dask cluster on the scheduler address as specified in the PyHD
 (user dir / .pyhdx folder)
 
 
-From sources
-------------
+Install from source
+-------------------
 
-1. Clone the PyHDX repository and cd into the project's root directory:
-    .. code-block:: rst
+Create a new conda environment:
 
-        git clone https://github.com/Jhsmit/PyHDX.git
-        cd PyHDX
+.. code-block::
+
+    $ conda create --name py38_pyhdx python=3.8
+    # conda activate py38_pyhdx
+
+Clone the github repository:
+
+.. code-block:: rst
+
+    $ git clone https://github.com/Jhsmit/PyHDX
+    $ cd PyHDX
+
+Generate conda requirements files `from setup.cfg`:
+
+.. code-block:: rst
+
+    $ python _requirements.py
 
 
-2. Create a ``conda`` environment
-
-    .. code-block:: rst
-
-        conda create --name <name> python=3.8
-
-3. Activate conda environment
-
-    .. code-block:: rst
-
-        conda activate <name>
-
-4. Install PyTorch
-
-If you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
+First, if you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
 Installation instructions are on the Pytorch_ website.
 
-5. Install other dependencies
+Then, install the other base dependencies and optional extras. For example, to install PyHDX with web app:
 
-    .. code-block:: rst
+.. code-block:: rst
 
-        conda install -c conda-forge pyhdx=0.4.0b7 --only-deps``
+    $ conda install --file _req-base.txt --file _req-web.txt
 
-This install dependencies only for base PyHDX. To install web application dependencies, 
-run the `_requirements.py` file in the PyHDX root folder. This generates `reqs-<extra>.txt` files which lists
-requirements.
+Optionally, install PyHDX in develop/editable mode
 
-    .. code-block:: rst
-        python _requirements.py
-        pip install -r reqs-base.txt -r req-web.txt -r req-web.txt
+.. code-block:: rst
 
-Or
+    conda develop .
 
-    .. code-block:: rst
-        python _requirements.py
-        conda install --file reqs-base.txt --file req-web.txt --file req-web.txt
+To run the web application:
 
+.. code-block::
 
-6. Install PyHDX in editable / development mode
+    $ python pyhdx/web/serve.py
 
-    .. code-block:: rst
+This runs the pyhx web application without a Dask cluster to submit jobs to, so
+submitting a fitting job will give an error.
 
-        conda develop .
+To start a dask cluster separately, open another terminal tab and run:
 
-    .. code-block:: rst
+.. code-block:: rst
 
-        pip install -e .
+    python local_cluster.py
+
 
 Dependencies
 ------------
 
-The requirements for PyHDX are listed in setup.cfg
+The requirements for PyHDX and its extras are listed in setup.cfg
 
 .. _Github repo: https://github.com/Jhsmit/pyhdx
 
