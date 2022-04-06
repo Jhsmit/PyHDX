@@ -23,7 +23,6 @@ def run_apps():
         print(
             f"No valid Dask scheduler found at specified address: '{scheduler_address}'"
         )
-        return
 
     log_root_dir = Path.home() / ".pyhdx" / "logs"
     log_dir = log_root_dir / datetime.datetime.now().strftime("%Y%m%d")
