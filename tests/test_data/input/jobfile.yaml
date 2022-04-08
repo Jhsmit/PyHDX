@@ -2,7 +2,7 @@ steps:
   - task: load_hdxm_set
     name: load_data
     state_file: data_states.yaml
-  - task: estimate_rates  # todo allow specification of method etc
+  - task: estimate_rates
     name: rates
     hdxm_set: $(load_data.out)
   - task: create_guess

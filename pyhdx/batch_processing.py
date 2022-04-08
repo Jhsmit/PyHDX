@@ -237,7 +237,7 @@ class JobParser(object):
 
     cwd = param.ClassSelector(Path, doc='Path of the current working directory')
 
-    def __init__(self, job_spec, cwd=None, ):
+    def __init__(self, job_spec, cwd=None):
         self.job_spec = job_spec
         self.cwd = cwd or Path().cwd()
 
