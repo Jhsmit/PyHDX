@@ -20,7 +20,7 @@ from panel.io.server import async_execute
 from proplot import to_hex
 from skimage.filters import threshold_multiotsu
 
-from pyhdx.batch_processing import YamlParser
+from pyhdx.batch_processing import StateParser
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import (
@@ -499,7 +499,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
         ios = {name: StringIO(byte_content.decode("UTF-8")) for name, byte_content in zip(self.widgets['input_files'].filename, self.input_files)}
         filters = [lambda df: df.query('exposure > 0')]
 
-        parser = YamlParser(yaml_dict, data_src=ios, data_filters=filters)
+        parser = StateParser(yaml_dict, data_src=ios, data_filters=filters)
 
         for state in yaml_dict.keys():
             hdxm = parser.load_hdxm(state, name=state)

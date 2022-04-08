@@ -1,0 +1,21 @@
+steps:
+  - task: load_hdxm_set
+    name: load_data
+    state_file: data_states.yaml
+  - task: estimate_rates
+    name: rates
+    hdxm_set: $(load_data.out)
+  - task: create_guess
+    name: guess
+    rates_df: $(rates.out.output)
+    hdxm_set: $(load_data.out)
+  - task: fit_global_batch
+    name: global_fit
+    hdxm_set: $(load_data.out)
+    initial_guess: $(guess.out)
+    kwargs:
+      epochs: 100
+      stop_loss: 1.e-6
+  - task: save_fit_result
+    fit_result: $(global_fit.out)
+    output_dir: fit_result_output_1
