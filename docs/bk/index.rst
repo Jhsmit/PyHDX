@@ -1,8 +1,3 @@
-.. PyHDX documentation master file, created by
-   sphinx-quickstart on Sun Apr 10 17:15:03 2022.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
 Welcome to PyHDX's documentation!
 =================================
 
@@ -16,11 +11,10 @@ Welcome to PyHDX's documentation!
    examples
    modules
    web_app_autodoc
-
+   history
 
 Indices and tables
 ==================
-
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`

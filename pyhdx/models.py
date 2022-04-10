@@ -1,7 +1,10 @@
+from __future__ import annotations
+
+import os
 import textwrap
 import warnings
 from functools import reduce, partial
-from typing import Optional
+from typing import Optional, Any
 
 import numpy as np
 import pandas as pd
@@ -217,17 +220,16 @@ class PeptideMasterTable(object):
     start: Residue number of the first amino acid in the peptide
     end: Residue number of the last amino acid in the peptide (inclusive)
     sequence: Amino acid sequence of the peptide (one letter code)
-    exposure: Typically the time the sample was exposed to a deuterated solution. This can correspond to other times if
-        the kinetics of the experiment are set up differently
+    exposure: The time the sample was exposed to a deuterated solution. Units are seconds.
     state: String describing to which state (experimental conditions) the peptide belongs
     uptake: Number of deuteriums the peptide has taken up
 
     The following fields are added to the `data` array upon initialization:
 
-    _start: Unmodified copy of initial start field
-    _end: Unmodified copy of initial end field
-    _sequence: Unmodified copy of initial sequence
-    ex_residues: Number of residues that undergo deuterium exchange. This number is calculated using the `drop_first` and
+    - `_start`: Unmodified copy of initial start field
+    - `_end`: Unmodified copy of initial end field
+    - `_sequence`: Unmodified copy of initial sequence
+    - `ex_residues`: Number of residues that undergo deuterium exchange. This number is calculated using the `drop_first` and
         `ignore_prolines` parameters
 
     N-terminal residues which are removed because they are either within `drop_first` or they are N-terminal prolines are
@@ -237,22 +239,23 @@ class PeptideMasterTable(object):
     The field `scores` is used in calculating exchange rates and can be set by either the `set_backexchange` or
     `set_control` methods.
 
-    :param data: Pandas dataframe with peptide entries
-    :param drop_first: Number of N-terminal amino acids to ignore
-    :param d_percentage: Percentage of deuterium in the labelling solution
-    :param ignore_prolines: Toggle ignoring of proline residues. Should always be set to `True`
-    :param sort: Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
-    :param remove_nan: Set to ``True`` to remove `NaN` entries in the 'uptake' column
+    Args:
+        data: Pandas dataframe with peptide entries
+        drop_first: Number of N-terminal amino acids to ignore
+        d_percentage: Percentage of deuterium in the labelling solution
+        ignore_prolines: Toggle ignoring of proline residues. Should always be set to ``True``
+        sort: Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
+        remove_nan: Set to ``True`` to remove ``NaN`` entries in the 'uptake' column
 
     """
 
     def __init__(
         self,
         data: pd.DataFrame,
-        drop_first:int = 1,
+        drop_first: int = 1,
         ignore_prolines: bool = True,
-        d_percentage:float = 100.0,
-        sort:bool = True,
+        d_percentage: float = 100.0,
+        sort: bool = True,
         remove_nan: bool = True,
     ):
         assert np.all(
@@ -323,7 +326,6 @@ class PeptideMasterTable(object):
         Rows with `NaN` entries for 'uptake_corrected' are removed
 
         :param state: Name of the 'state' entries to select
-
 
         :return: Dataframe of peptides from specified 'state'
 
@@ -478,34 +480,34 @@ class Coverage(object):
     Object describing layout and coverage of peptides and generating the corresponding matrices. Peptides should all
     belong to the same state and have the same exposure time.
 
-    Parameters
-    ----------
-    data : :class:`~pandas.DataFrame`
-        DataFrame with input peptides
-    c_term : :obj:`int`
-        Residue index number of the C-terminal residue (where first residue in index number 1)
-    n_term : :obj:`int`
-        Residue index of the N-terminal residue. Default value is 1, can be negative to accomodate for N-terminal
-        purification tags
-    sequence : :obj:`str`
-        Amino acid sequence of the protein in one-letter FASTA encoding. Optional, if not specified the amino acid sequence
-        from the peptide data is used to (partially) reconstruct the sequence. Supplied amino acid sequence must be
+    Args:
+    data: DataFrame with input peptides
+    n_term: Residue index of the N-terminal residue. Default value is 1, can be
+        negative to accomodate for N-terminal purification tags
+    c_term: Residue index number of the C-terminal residue (where first residue has
+        index number 1)
+    sequence: Amino acid sequence of the protein in one-letter FASTA encoding.
+        Optional, if not specified the amino acid sequence from the peptide data is used
+        to (partially) reconstruct the sequence. Supplied amino acid sequence must be
         compatible with sequence information in the peptides.
-
-    Attributes
-    ----------
-
-    X : :class:`~numpy.ndarray`
-        N x M matrix where N is the number of peptides and M equal to `prot_len`.
-        Values are 1/(ex_residues) where there is coverage.
-    Z : :class:`~numpy.ndarray`
-        N x M matrix where N is the number of peptides and M equal to `prot_len`.
-        Values are 1/(ex_residues) where there is coverage,
-        #todo account for prolines: so that rows sum to 1 is currently not true
 
     """
 
-    def __init__(self, data, n_term=1, c_term=None, sequence=""):
+    X: np.ndarray
+    """
+    N x M matrix where N is the number of peptides and M equal to `prot_len`.
+    Values are 1 where there is coverage.
+    """
+
+    Z: np.ndarray
+    """
+    N x M matrix where N is the number of peptides and M equal to `prot_len`.
+    Values are 1/(ex_residues) where there is coverage.
+    """
+    # todo account for prolines: so that rows sum to 1 is currently not true
+
+    def __init__(self, data:pd.DataFrame, n_term: int = 1, c_term: Optional[int] = None,
+                 sequence: Optional[str] = None) -> None:
         assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
         assert len(np.unique(data["state"])) == 1, "State entries are not unique"
         self.data = data.sort_values(["start", "end"], axis=0)
@@ -580,7 +582,7 @@ class Coverage(object):
             self.Z[row][i0 : i1 + 1] = _exchanges[i0 : i1 + 1]
         self.Z = self.Z / self.data["ex_residues"].to_numpy()[:, np.newaxis]
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.data)
 
     def __getitem__(self, item):
@@ -610,8 +612,8 @@ class Coverage(object):
         return covered_slice
 
     @property
-    def percent_coverage(self):
-        """:obj:`float`: Percentage of residues covered by peptides"""
+    def percent_coverage(self) -> float:
+        """Percentage of residues covered by peptides"""
         return 100 * np.mean(self.protein["coverage"])
 
     @property
@@ -698,36 +700,35 @@ class Coverage(object):
 
 
 class HDXMeasurement(object):
-    """
-    Main HDX data object. This object has peptide data of a single state but with multiple timepoints.
+    """Main HDX data object.
 
+    This object has peptide data of a single state but with multiple timepoints.
     Timepoint data is split into :class:`~pyhdx.models.PeptideMeasurements` objects for each timepoint
     Supplied data is made 'uniform' such that all timepoints have the same peptides
 
-    Parameters
-    ----------
-    data : :class:`~pandas.DataFrame`
-        Pandas dataframe with all peptides belonging to a single state.
-    **metadata
-        Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
-
-
-    Attributes
-    ----------
-    data: :class:`~pandas.DataFrame`
-        Pandas dataframe with all peptides
-    state : :obj:`str`
-        State of the HDX measurement
-    timepoints : :class:`~numpy.ndarray`
-        Array with exposure times (sorted)
-    peptides : :obj:`list`
-        List of :class:`~pyhdx.models.PeptideMeasurements`, one list element per timepoint.
-    coverage : :class:`~pyhdx.models.Coverage`
-        Coverage object describing peptide layout.
+    Args:
+        data: Dataframe with all peptides belonging to a single state.
+        **metadata: Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
 
     """
 
-    def __init__(self, data, **metadata):
+    # todo alphabetize?
+    data: pd.DataFrame
+    """Dataframe with all peptides"""
+
+    state: str
+    """Protein state label for this HDX measurement"""
+
+    timepoints: np.ndarray
+    """Deuterium exposure times"""
+
+    peptides: list[HDXTimepoint]
+    """List of :class:`.HDXTimepoint`, one per exposure timepoint"""
+
+    coverage: Coverage
+    """Coverage object describing peptide layout"""
+
+    def __init__(self, data: pd.DataFrame, **metadata: Any):
         self.metadata = metadata
         assert len(data["state"].unique()) == 1
         self.state = str(data["state"].iloc[0])
@@ -770,13 +771,10 @@ class HDXMeasurement(object):
             .sort_index(axis=1, level=0, sort_remaining=False)
         )
 
-    def __str__(self):
-        """
-        String representation of HDX measurement object.
+    def __str__(self) -> str:
+        """String representation of this HDX measurement object.
 
-        Returns
-        -------
-        s : `obj`:str:
+        Returns:
             Multiline string describing this HDX Measurement object
 
         """
@@ -798,42 +796,43 @@ class HDXMeasurement(object):
 
         return textwrap.dedent(s.lstrip("\n"))
 
-    def _repr_markdown_(self):
+    def _repr_markdown_(self) -> str:
+        """Markdown representation this HDX measurement object"""
         s = str(self)
         s = s.replace("\n", "<br>")
         return s
 
     @property
-    def name(self):
-        """:obj:`str`: HDX Measurement name"""
+    def name(self) -> str:
+        """HDX Measurement name"""
         return self.metadata.get("name", self.state)
 
     @property
-    def temperature(self):
-        """:obj:`float`: Temperature of the H/D exchagne reaction (K)."""
+    def temperature(self) -> Optional[float]:
+        """Temperature of the H/D exchange reaction (K)."""
         return self.metadata.get("temperature", None)
 
     @property
-    def pH(self):
+    def pH(self) -> Optional[float]:
         """pH of the H/D exchange reaction."""
         return self.metadata.get("pH", None)
 
     @property
-    def Np(self):
-        """:obj:`int`: Number of peptides."""
+    def Np(self) -> int:
+        """Number of peptides."""
         return self.coverage.Np
 
     @property
-    def Nr(self):
-        """:obj:`int`: Total number of residues spanned by the peptides."""
+    def Nr(self) -> int:
+        """Total number of residues spanned by the peptides."""
         return self.coverage.Nr
 
     @property
-    def Nt(self):
-        """:obj:`int`: Number of timepoints."""
+    def Nt(self) -> int:
+        """Number of timepoints."""
         return len(self.timepoints)
 
-    def __len__(self):
+    def __len__(self) -> int:
         import warnings
 
         warnings.warn("Use hdxm.Nt instead", DeprecationWarning)
@@ -846,30 +845,38 @@ class HDXMeasurement(object):
         return self.peptides.__getitem__(item)
 
     @property
-    def rfu_residues(self):
-        """:class:`~pandas.DataFrame`: Relative fractional uptake per residue. Shape Nr x Nt"""
+    def rfu_residues(self) -> pd.DataFrame:
+        """Relative fractional uptake per residue.
+
+        Shape of the returned DataFrame is Nr (rows) x Nt (columns)
+        """
         df = pd.concat([v.rfu_residues for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
 
         return df
 
     @property
-    def rfu_peptides(self):
-        """:class:`~pandas.DataFrame`: Relative fractional uptake per peptide. Shape Np x Nt"""
+    def rfu_peptides(self) -> pd.DataFrame:
+        """Relative fractional uptake per peptide.
+
+        Shape of the returned DataFrame is Np (rows) x Nt (columns)
+        """
         df = pd.concat([v.rfu_peptides for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
         return df
 
     @property
-    def d_exp(self):
-        """:class:`~pandas.DataFrame`: D-uptake values (corrected). Shape Np x Nt"""
+    def d_exp(self) -> pd.DataFrame:
+        """D-uptake values (corrected for back-exchange).
+
+        Shape of the returned DataFrame is Np (rows) x Nt (columns)
+        """
         df = pd.concat([v.d_exp for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
         return df
 
-    def get_tensors(self, exchanges=False, dtype=None):
-        """
-        Returns a dictionary of tensor variables for fitting to Linderstrøm-Lang kinetics.
+    def get_tensors(self, exchanges: bool = False, dtype: Optional[torch.dtype] = None) -> dict[str, torch.Tensor]:
+        """ Returns a dictionary of tensor variables for fitting HD kinetics.
 
         Tensor variables are (shape):
         Temperature (1 x 1)
@@ -878,15 +885,14 @@ class HDXMeasurement(object):
         timepoints (1 x Nt)
         d_exp (D) (Np x Nt)
 
-        Parameters
-        ----------
-        exchanges : :obj:`bool`
-            If True only returns tensor data describing residues which exchange (ie have peptides and are not prolines)
+        Args:
+            exchanges: If ``True`` only returns tensor data describing residues which exchange
+                (ie have peptides and are not prolines)
+            dtype: Optional Torch data type. Use torch.float32 for faster fitting of large data
+                sets, possibly at the expense of accuracy
 
-        Returns
-        -------
-
-        tensors : :obj:`dict`
+        Returns:
+            Dictionary with tensors
 
         """
 
@@ -895,7 +901,7 @@ class HDXMeasurement(object):
                 "Unknown intrinsic rates of exchange, please supply pH and temperature parameters"
             )
         try:
-            d_exp = self.d_exp
+            d_exp = self.d_exp  # noqa
         except ValueError:
             raise ValueError("HDX data is not corrected for back exchange.")
 
@@ -924,22 +930,18 @@ class HDXMeasurement(object):
 
         return tensors
 
-    def guess_deltaG(self, rates, correct_c_term=True):
-        """
-        Obtain ΔG initial guesses from apparent H/D exchange rates.
-        Units of input rates are per second.
+    def guess_deltaG(self, rates: pd.Series, correct_c_term: bool = True) -> pd.Series:
+        """Obtain ΔG initial guesses from apparent H/D exchange rates.
 
-        Parameters
-        ----------
-        rates : :class:`~pandas.Series`
-           Apparent exchange rate rates. Series index is protein residue number
-        crop : :obj:`bool`
-            If `True` the resulting :class:`~pandas.Series` is cropped to the residue interval covered by peptides.
+        Units of  rates are per second.
 
-        Returns
-        -------
-        dG : :class:`~pandas.Series`
-            ΔG guess values
+        Args:
+            rates: Apparent exchange rate rates (units s^-1). Series index is protein residue number
+            crop: If ``True`` the resulting :class:`~pandas.Series` is cropped to the residue
+                interval covered by peptides.
+
+        Returns:
+        dG: ΔG guess values (units kJ/mol)
 
         """
         if "k_int" not in self.coverage.protein:
@@ -968,30 +970,20 @@ class HDXMeasurement(object):
 
     def to_file(
         self,
-        file_path,
-        include_version=True,
-        include_metadata=True,
-        fmt="csv",
-        **kwargs,
-    ):
-        """
-        Write the data in this HDX measurement to file.
+        file_path: os.PathLike,
+        include_version: bool = True,
+        include_metadata: bool = True,
+        fmt: str = "csv",
+        **kwargs: Any,
+    ) -> None:
+        """Write the data in this HDX measurement to file.
 
-        Parameters
-        ----------
-        file_path : :obj:`str`
-            File path to create and write to.
-        include_version : :obj:`bool`
-            Set `True` to include PyHDX version and current time/date
-        fmt: :obj: `str`
-            Formatting to use, options are 'csv' or 'pprint'
-        include_metadata : :obj:`bool`
-            If `True`, the objects' metadata is included
-        **kwargs : :obj:`dict`, optional
-            Optional additional keyword arguments passed to `df.to_csv`
-        Returns
-        -------
-        None
+        Args:
+        file_path: File path to create and write to.
+        include_version: Set ``True`` to include PyHDX version and current time/date
+        fmt: Formatting to use, options are 'csv' or 'pprint'
+        include_metadata: If ``True``, the objects' metadata is included
+        **kwargs: Optional additional keyword arguments passed to `df.to_csv`
 
         """
 
@@ -1010,17 +1002,20 @@ class HDXMeasurement(object):
 
 
 class HDXTimepoint(Coverage):
-    """
-    Class with subset of peptides corresponding to only one state and exposure
+    """Class with subset of peptides corresponding to only one state and exposure
 
-    Parameters
-    ----------
-    data : :class:`~pandas.DataFrame`
-        Numpy structured array with input data
+    Args:
+        data: Dataframe with input data
 
     """
 
-    def __init__(self, data, **kwargs):
+    state: str
+    """Protein state label for this HDX timepoint"""
+
+    exposure: float
+    """Deuterium exposure time for this HDX timepoint (units seconds)"""
+
+    def __init__(self, data: pd.DataFrame, **kwargs) -> None:
         assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
         assert len(np.unique(data["state"])) == 1, "State entries are not unique"
 
@@ -1030,26 +1025,35 @@ class HDXTimepoint(Coverage):
         self.exposure = self.data["exposure"][0]
 
     @property
-    def rfu_peptides(self):
-        """:class:`~pandas.Series`: Relative fractional uptake per peptide"""
+    def rfu_peptides(self) -> pd.Series:
+        """Relative fractional uptake per peptide"""
         return self.data["rfu"]
 
     @property
-    def d_exp(self):
-        """:class:`~pandas.Series`: Experimentally measured D-values (corrected)"""
+    def d_exp(self) -> pd.Series:
+        """Experimentally measured D-values (corrected)"""
         return self.data["uptake_corrected"]
 
     @property
-    def name(self):
-        """:obj:`str`: Name of this peptidemeasurement"""
-        return self.state + "_" + str(self.exposure)
+    def name(self) -> str:
+        """Name of this HDX timepoint
+
+        Format is <state>_<exposure>
+        """
+        return f"{self.state}_{self.exposure}"
 
     @property
-    def rfu_residues(self):
-        """:class:`~pandas.Series`: Relative fractional uptake (RFU) per residue. Obtained by weighted averaging"""
+    def rfu_residues(self) -> pd.Series:
+        """Relative fractional uptake (RFU) per residue.
+
+        RFU values are obtained by weighted averaging, weight value is the length of
+        each peptide
+
+        """
         return self.weighted_average("rfu")
 
-    def calc_rfu(self, residue_rfu):
+    # todo allow pd.Series?
+    def calc_rfu(self, residue_rfu: np.ndarray) -> np.ndarray:
         """
         Calculates RFU per peptide given an array of individual residue scores
 
