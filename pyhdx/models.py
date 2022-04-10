@@ -1,6 +1,7 @@
 import textwrap
 import warnings
 from functools import reduce, partial
+from typing import Optional
 
 import numpy as np
 import pandas as pd
@@ -17,6 +18,7 @@ from pyhdx.config import cfg
 
 
 def protein_wrapper(func, *args, **kwargs):
+    warnings.warn("Protein wrapper and objects are deprecated", DeprecationWarning)
     metadata = kwargs.pop("metadata", {})
     [metadata.update(arg.metadata) for arg in args if isinstance(arg, Protein)]
 
@@ -47,6 +49,7 @@ class Protein(object):
     """
 
     def __init__(self, data, index=None, **metadata):
+        warnings.warn("Protein wrapper and objects are deprecated", DeprecationWarning)
         self.metadata = metadata
         if isinstance(data, dict) or isinstance(data, np.ndarray):
             self.df = pd.DataFrame(data)
@@ -208,8 +211,8 @@ class PeptideMasterTable(object):
     """
     Main peptide input object.
 
-    The input `~pandas.DataFrame`pandas DataFrame `data` must have the following
-    entires for each peptide:
+    The input :class:`~pandas.DataFrame` `data` must have the following
+    entries for each peptide:
 
     start: Residue number of the first amino acid in the peptide
     end: Residue number of the last amino acid in the peptide (inclusive)
@@ -234,33 +237,23 @@ class PeptideMasterTable(object):
     The field `scores` is used in calculating exchange rates and can be set by either the `set_backexchange` or
     `set_control` methods.
 
-
-    Parameters
-    ----------
-    data : :class:`~pandas.DataFrame`
-        Pandas DataFrame with peptide entries.
-    drop_first : :obj:`int`
-        Number of N-terminal amino acids to ignore. Default is 1.
-    d_percentage : :obj:`float`
-        Percentage of deuterium in the labelling solution.
-    ignore_prolines : :obj:`bool`
-        Boolean to toggle ignoring of proline residues. When True these residues are treated as if they're not present
-        in the protein.
-    sort : :obj:`bool`
-        Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
-    remove_nan : :obj:`bool`
-        Set to ``True`` to remove NaN entries in uptake
+    :param data: Pandas dataframe with peptide entries
+    :param drop_first: Number of N-terminal amino acids to ignore
+    :param d_percentage: Percentage of deuterium in the labelling solution
+    :param ignore_prolines: Toggle ignoring of proline residues. Should always be set to `True`
+    :param sort: Set to ``True`` to sort the input. Sort order is 'start', 'end', 'sequence', 'exposure', 'state'.
+    :param remove_nan: Set to ``True`` to remove `NaN` entries in the 'uptake' column
 
     """
 
     def __init__(
         self,
-        data,
-        drop_first=1,
-        ignore_prolines=True,
-        d_percentage=100.0,
-        sort=True,
-        remove_nan=True,
+        data: pd.DataFrame,
+        drop_first:int = 1,
+        ignore_prolines: bool = True,
+        d_percentage:float = 100.0,
+        sort:bool = True,
+        remove_nan: bool = True,
     ):
         assert np.all(
             data["start"] < data["end"]
@@ -321,21 +314,18 @@ class PeptideMasterTable(object):
         if "ex_residues" not in self.data:
             self.data["ex_residues"] = ex_residues
 
-    def __len__(self):
+    def __len__(self) -> int:
         return self.data.shape[0]
 
-    def get_state(self, state):
+    def get_state(self, state: str) -> pd.DataFrame:
         """
         Returns entries in the table with state 'state'
-        Rows with NaN entries for 'uptake_corrected' are removed
+        Rows with `NaN` entries for 'uptake_corrected' are removed
 
-        Parameters
-        ----------
-        state : :obj:`str`
+        :param state: Name of the 'state' entries to select
 
 
-        Returns
-        -------
+        :return: Dataframe of peptides from specified 'state'
 
         """
 
@@ -351,14 +341,11 @@ class PeptideMasterTable(object):
 
         return data
 
-    def set_backexchange(self, back_exchange):
+    def set_backexchange(self, back_exchange: float) -> None:
         """
         Sets the normalized percentage of uptake through a fixed backexchange value for all peptides.
 
-        Parameters
-        ----------
-        back_exchange :  :obj:`float`
-            Percentage of back exchange
+        :param back_exchange: Percentage of back exchange
 
         """
 
@@ -374,7 +361,7 @@ class PeptideMasterTable(object):
             usemask=False,
         )
 
-    def set_control(self, control_1, control_0=None):
+    def set_control(self, control_1: tuple[str, float], control_0: Optional[tuple[str, float]] = None):
         """
         Apply a control dataset to this object. The column 'RFU' is added to the object by normalizing its uptake
         value with respect to the control uptake value to one.
@@ -387,10 +374,8 @@ class PeptideMasterTable(object):
 
         Parameters
         ----------
-        control_1 : :obj:`tuple`
-            tuple with (`state`, `exposure`) for peptides to use for normalization (FD control)
-        control_0 : :obj:`tuple`, optional
-            tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values (ND control)
+        param: control_1: tuple with (`state`, `exposure`) for peptides to use for normalization (FD control)
+        param: control_0: tuple with (`state`, `exposure`) for peptides to use for zeroing uptake values (ND control)
 
         """
 

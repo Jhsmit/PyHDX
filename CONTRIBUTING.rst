@@ -58,7 +58,7 @@ Some guidelines for how to refer to objects or entities:
 * Python objects: ``:obj:`int```, ``:obj:`bool``
 * Numpy arrays: ``:class:`~numpy.ndarray```
 * Pandas dataframe: ``:class:`~pandas.DataFrame```
-* Optional array-like:  `` ``
+* Classes within the same module: ``:class:.HDXMeasurement``
 * Default values: ``copy : :obj:`bool`, default: ``True````
 
 Parameters:
@@ -89,5 +89,6 @@ Properties:
     **kwargs : :obj:`dict`, optional
         Extra arguments to `somefunction`.
 
-Future docstring typing will probably be through `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`__
-type hints.
+Additional resources:
+
+`Sphinx docstrings <https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html>`__

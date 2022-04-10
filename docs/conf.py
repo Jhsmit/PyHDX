@@ -35,7 +35,7 @@ nbsphinx_execute = 'never'
 
 # If your documentation needs a minimal Sphinx version, state it here.
 #
-needs_sphinx = '3.2.1'
+# needs_sphinx = '3.2.1'
 
 
 def setup(app):
@@ -48,10 +48,11 @@ extensions = [
     'sphinx.ext.intersphinx',
     'sphinx.ext.mathjax',
     'sphinx.ext.viewcode',
-    'numpydoc',
-    'nbsphinx',
+    # "myst_parser",
+    "sphinx_autodoc_typehints",
+    # 'nbsphinx',
     'sphinx_copybutton',
-    'IPython.sphinxext.ipython_console_highlighting'
+  #  'IPython.sphinxext.ipython_console_highlighting'
   #  'sphinxcontrib.bibtex'
 ]
 numpydoc_show_inherited_class_members = False
@@ -71,7 +72,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'PyHDX'
-copyright = u"2019, Jochem Smit"
+copyright = u"2022, Jochem Smit"
 author = u"Jochem Smit"
 
 # The version info for the project you're documenting, acts as replacement
@@ -178,15 +179,15 @@ texinfo_documents = [
      u'PyHDX Documentation',
      author,
      'pyhdx',
-     'One line description of project.',
-     'Miscellaneous'),
+     'Derive ΔG for single residues from HDX-MS data',
+     'Mass Spectrometry Software'),
 ]
 
 
-intersphinx_mapping = {'python': ('http://docs.python.org/2', None),
-                       'numpy': ('http://docs.scipy.org/doc/numpy/', None),
+intersphinx_mapping = {'python': ('https://docs.python.org/3/', None),
+                       'numpy': ('https://numpy.org/doc/stable/', None),
                        'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
-                       'matplotlib': ('http://matplotlib.sourceforge.net/', None),
-                       'pandas': ('http://pandas.pydata.org/pandas-docs/dev', None),
+                       'matplotlib': ('https://matplotlib.org/stable/', None),
+                       'pandas': ('https://pandas.pydata.org/docs/', None),
                        'torch': ('https://pytorch.org/docs/stable/', None),
                        'symfit': ('https://symfit.readthedocs.io/en/stable/', None)}
