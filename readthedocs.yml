@@ -19,4 +19,4 @@ formats:
   - pdf
 
 conda:
-  environment: environment.yml
+  environment: py38_linux.yml
