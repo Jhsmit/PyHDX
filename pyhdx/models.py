@@ -4,7 +4,7 @@ import os
 import textwrap
 import warnings
 from functools import reduce, partial
-from typing import Optional, Any
+from typing import Optional, Any, Union
 
 import numpy as np
 import pandas as pd
@@ -481,32 +481,31 @@ class Coverage(object):
     belong to the same state and have the same exposure time.
 
     Args:
-    data: DataFrame with input peptides
-    n_term: Residue index of the N-terminal residue. Default value is 1, can be
-        negative to accomodate for N-terminal purification tags
-    c_term: Residue index number of the C-terminal residue (where first residue has
-        index number 1)
-    sequence: Amino acid sequence of the protein in one-letter FASTA encoding.
-        Optional, if not specified the amino acid sequence from the peptide data is used
-        to (partially) reconstruct the sequence. Supplied amino acid sequence must be
-        compatible with sequence information in the peptides.
+        data: DataFrame with input peptides
+        n_term: Residue index of the N-terminal residue. Default value is 1, can be
+            negative to accomodate for N-terminal purification tags
+        c_term: Residue index number of the C-terminal residue (where first residue has
+            index number 1)
+        sequence: Amino acid sequence of the protein in one-letter FASTA encoding.
+            Optional, if not specified the amino acid sequence from the peptide data is used
+            to (partially) reconstruct the sequence. Supplied amino acid sequence must be
+            compatible with sequence information in the peptides.
 
     """
 
     X: np.ndarray
     """
-    N x M matrix where N is the number of peptides and M equal to `prot_len`.
-    Values are 1 where there is coverage.
+    Np x Nr matrix (peptides x residues). Values are 1 where residue j is in peptide i.
     """
 
     Z: np.ndarray
     """
-    N x M matrix where N is the number of peptides and M equal to `prot_len`.
-    Values are 1/(ex_residues) where there is coverage.
+    Np x Nr matrix (peptides x residues). Values are 1/(ex_residues) where residue j 
+    is in peptide i.
     """
     # todo account for prolines: so that rows sum to 1 is currently not true
 
-    def __init__(self, data:pd.DataFrame, n_term: int = 1, c_term: Optional[int] = None,
+    def __init__(self, data: pd.DataFrame, n_term: int = 1, c_term: Optional[int] = None,
                  sequence: Optional[str] = None) -> None:
         assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
         assert len(np.unique(data["state"])) == 1, "State entries are not unique"
@@ -585,18 +584,29 @@ class Coverage(object):
     def __len__(self) -> int:
         return len(self.data)
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> pd.Series:
+        """Gets columns from underlying protein and crops to interval.
+
+        Crop interval is equal to the coverage range of peptides in this :class:`.Coverage`
+        object.
+
+        """
         pd_series = self.protein[item]
         return self.apply_interval(pd_series)
 
-    def apply_interval(self, array_or_series):
-        """
-        Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
+    def apply_interval(self, array_or_series: Union[np.ndarray, pd.Series]) -> pd.Series:
+        """Returns the section of `array_or_series` in the interval
+
+
+        Given a Numpy array or Pandas series with a length equal to the full protein,
+        returns the section of the array equal to the covered
         region. Returned series length is equal to number of columns in the X matrix
 
-        Parameters
-        ----------
-        np.narray or pd.series
+        Args:
+            array_or_series: Input data object to crop to interval
+
+        Returns:
+            Input object cropped to interval of the interval spanned by the peptides
 
         """
 
@@ -607,7 +617,7 @@ class Coverage(object):
             series = array_or_series
 
         # - 1 because interval is inclusive, exclusive and .loc slices inclusive, inclusive
-        covered_slice = series.loc[self.interval[0] : self.interval[1] - 1]
+        covered_slice = series.loc[self.interval[0]: self.interval[1] - 1]
 
         return covered_slice
 
@@ -617,35 +627,34 @@ class Coverage(object):
         return 100 * np.mean(self.protein["coverage"])
 
     @property
-    def redundancy(self):
-        """:obj:`float`: Average redundancy of peptides in regions with at least 1 peptide"""
+    def redundancy(self) -> float:
+        """Average redundancy of peptides in regions with at least 1 peptide"""
         x_coverage = self.X[:, self["coverage"]]
         return np.mean(np.sum(x_coverage, axis=0))
 
     @property
-    def Np(self):
-        """:obj:`int`: Number of peptides."""
+    def Np(self) -> int:
+        """Number of peptides."""
         return self.X.shape[0]
 
     @property
-    def Nr(self):
-        """:obj:`int`: Total number of residues spanned by the peptides."""
-
+    def Nr(self) -> int:
+        """Total number of residues spanned by the peptides."""
         return self.X.shape[1]
 
+    #TODO homogenize this and next property
     @property
-    def r_number(self):
-        """:class:`~pandas.RangeIndex`: Pandas index numbers corresponding to the part of the protein covered by peptides"""
-
+    def r_number(self) -> pd.RangeIndex:
+        """Pandas index numbers corresponding to the part of the protein covered by peptides"""
         return pd.RangeIndex(self.interval[0], self.interval[1], name="r_number")
 
     @property
-    def index(self):
-        """:class:`~pandas.RangeIndex`: Pandas index numbers corresponding to the part of the protein covered by peptides"""
+    def index(self) -> pd.RangeIndex:
+        """Pandas index numbers corresponding to the part of the protein covered by peptides"""
         return self.r_number
 
     @property
-    def block_length(self):
+    def block_length(self) -> np.ndarray:
         """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
         along the `r_number` axis"""
 
@@ -670,17 +679,16 @@ class Coverage(object):
             z_norm = self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
         return z_norm
 
-    def get_sections(self, gap_size=-1):
+    def get_sections(self, gap_size: int = -1) -> list[tuple[int, int]]:
         """Get the intervals of independent sections of coverage.
 
         Intervals are inclusive, exclusive.
         Gaps are defined with `gap_size`, adjacent peptides with distances bigger than this value are considered not to
         overlap. Set to -1 to treat touching peptides as belonging to the same section.
 
-        Parameters
-        ----------
-        gap_size : :obj:`int`
-            The size which defines a gap
+        Args:
+            gap_size: The size which defines a gap
+
 
         """
         intervals = [(s, e) for s, e in zip(self.data["start"], self.data["end"])]
@@ -688,7 +696,7 @@ class Coverage(object):
 
         return sections
 
-    def __eq__(self, other):
+    def __eq__(self, other: Coverage):
         """Coverage objects are considered equal if both objects fully match between their start, end and sequence fields"""
         assert isinstance(other, Coverage), "Other must be an instance of Coverage"
         return (
@@ -702,9 +710,9 @@ class Coverage(object):
 class HDXMeasurement(object):
     """Main HDX data object.
 
-    This object has peptide data of a single state but with multiple timepoints.
-    Timepoint data is split into :class:`~pyhdx.models.PeptideMeasurements` objects for each timepoint
-    Supplied data is made 'uniform' such that all timepoints have the same peptides
+    This object has peptide data of a single state and with multiple timepoints.
+    Timepoint data is split into :class:`~pyhdx.models.PeptideMeasurements` objects for
+    each timepoint. Supplied data is made 'uniform' such that all timepoints have the same peptides
 
     Args:
         data: Dataframe with all peptides belonging to a single state.
@@ -712,7 +720,7 @@ class HDXMeasurement(object):
 
     """
 
-    # todo alphabetize?
+    # TODO alphabetize?
     data: pd.DataFrame
     """Dataframe with all peptides"""
 
@@ -934,14 +942,17 @@ class HDXMeasurement(object):
         """Obtain ΔG initial guesses from apparent H/D exchange rates.
 
         Units of  rates are per second.
+        As the intrinsic rate of exchange of the c-terminal residue is ~100 fold lower,
+        guess values for PF and ΔG are also much lower. Use the option `correct_c_term` to
+        set the c-terminal guess value equal to the value of the residue preceding it.
 
         Args:
-            rates: Apparent exchange rate rates (units s^-1). Series index is protein residue number
-            crop: If ``True`` the resulting :class:`~pandas.Series` is cropped to the residue
-                interval covered by peptides.
+            rates: Apparent exchange rate rates (units s^-1). Series index is protein residue number.
+            correct_c_term: If ``True``, sets the guess value of the c-terminal residue to the
+                value of the residue preceding it.
 
         Returns:
-        dG: ΔG guess values (units kJ/mol)
+            ΔG guess values (units kJ/mol)
 
         """
         if "k_int" not in self.coverage.protein:
@@ -979,11 +990,11 @@ class HDXMeasurement(object):
         """Write the data in this HDX measurement to file.
 
         Args:
-        file_path: File path to create and write to.
-        include_version: Set ``True`` to include PyHDX version and current time/date
-        fmt: Formatting to use, options are 'csv' or 'pprint'
-        include_metadata: If ``True``, the objects' metadata is included
-        **kwargs: Optional additional keyword arguments passed to `df.to_csv`
+            file_path: File path to create and write to.
+            include_version: Set ``True`` to include PyHDX version and current time/date
+            fmt: Formatting to use, options are 'csv' or 'pprint'
+            include_metadata: If ``True``, the objects' metadata is included
+            **kwargs: Optional additional keyword arguments passed to `df.to_csv`
 
         """
 
@@ -1006,6 +1017,7 @@ class HDXTimepoint(Coverage):
 
     Args:
         data: Dataframe with input data
+        **kwargs:
 
     """
 
@@ -1015,7 +1027,7 @@ class HDXTimepoint(Coverage):
     exposure: float
     """Deuterium exposure time for this HDX timepoint (units seconds)"""
 
-    def __init__(self, data: pd.DataFrame, **kwargs) -> None:
+    def __init__(self, data: pd.DataFrame, **kwargs: Any) -> None:
         assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
         assert len(np.unique(data["state"])) == 1, "State entries are not unique"
 
@@ -1072,29 +1084,36 @@ class HDXTimepoint(Coverage):
         rfu = self.Z.dot(residue_rfu)
         return rfu
 
-    def weighted_average(self, field):
+    def weighted_average(self, field: str) -> pd.Series:
         """
         Calculate per-residue weighted average of values in data column
 
-        Parameters
-        ----------
-        field : :obj:`str`
-            Data field (column) to calculated weighted average of
+        Args:
+            field: Data field (column) to calculated weighted average of
 
-        Returns
-        -------
-
+        Returns:
+            THe weighted averaging result
 
         """
 
         array = self.Z_norm.T.dot(self.data[field])
         series = pd.Series(array, index=self.index)
+
         return series
 
 
 class CoverageSet(object):
+    """Coverage object for multiple :class:`.HDXMeasurement` objects.
+
+    This objects finds the minimal interval of residue numbers which fit all :class:`.HDXMeasurement`s
+
+
+    Args:
+        hdxm_list: List of input :class:`.HDXMeasurment objects.
+
+    """
     # todo perhaps this object should have X
-    def __init__(self, hdxm_list):
+    def __init__(self, hdxm_list: list[HDXMeasurement]):
         self.hdxm_list = hdxm_list
 
         # todo create Coverage object for the 3d case
@@ -1102,18 +1121,21 @@ class CoverageSet(object):
             [hdxm_list.coverage.interval for hdxm_list in self.hdxm_list]
         )
         self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
+        # TODO should be pandas dataframe? or should be the same on both coverage objects
         self.r_number = np.arange(*self.interval)
 
+        # TODO properties?
         self.Ns = len(self.hdxm_list)
         self.Nr = len(self.r_number)
         self.Np = np.max([hdxm.Np for hdxm in self.hdxm_list])
         self.Nt = np.max([hdxm.Nt for hdxm in self.hdxm_list])
 
     @property
-    def index(self):
-        """pd index:"""
+    def index(self) -> pd.RangeIndex:
+        """Index of residue numbers"""
         return pd.RangeIndex(self.interval[0], self.interval[1], name="r_number")
 
+    #TODO in subclass
     def apply_interval(self, array_or_series):
         """Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
         region. Returned series length is equal to number of columns in the X matrix
@@ -1132,8 +1154,13 @@ class CoverageSet(object):
         return covered_slice
 
     @property
-    def s_r_mask(self):
-        """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
+    def s_r_mask(self) -> np.ndarray:
+        """Sample-residue mask
+
+        Boolean array where entries `ij` are ``True`` if residue `j` is covered by peptides of
+        sample `i` (Coverage aps not taken into account)
+        """
+
         mask = np.zeros((self.Ns, self.Nr), dtype=bool)
         for i, hdxm in enumerate(self.hdxm_list):
             interval_sample = hdxm.coverage.interval

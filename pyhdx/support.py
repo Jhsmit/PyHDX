@@ -205,16 +205,17 @@ def get_original_blocks(coverage):
     return block_length
 
 
-def reduce_inter(args, gap_size=-1):
-    """
+def reduce_inter(args: list[tuple[int, int]], gap_size: int = -1) -> list[tuple[int, int]]:
+    """Reduce overlapping intervals to its non-overlapping intveral parts
+
+    Author: Brent Pedersen
+    Source: https://github.com/brentp/interlap/blob/3c4a5923c97a5d9a11571e0c9ea5bb7ea4e784ee/interlap.py#L224
 
     gap_size : :obj:`int`
-            Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
-            with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
-            and larger values tolerate larger gap sizes.
+        Gaps of this size between adjacent peptides is not considered to overlap. A value of -1 means that peptides
+        with exactly zero overlap are separated. With gap_size=0 peptides with exactly zero overlap are not separated,
+        and larger values tolerate larger gap sizes.
 
-    #  https://github.com/brentp/interlap/blob/3c4a5923c97a5d9a11571e0c9ea5bb7ea4e784ee/interlap.py#L224
-    # MIT Liscence
     >>> reduce_inter([(2, 4), (4, 9)])
     [(2, 4), (4, 9)]
     >>> reduce_inter([(2, 6), (4, 10)])
