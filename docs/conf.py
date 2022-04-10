@@ -26,7 +26,7 @@ author = 'Jochem Smit'
 
 # Custom param gui formatting
 def setup(app):
-    from .paramdoc import param_format_basic
+    from paramdoc import param_format_basic
     app.connect("autodoc-process-docstring", param_format_basic, priority=-100)
 
 
