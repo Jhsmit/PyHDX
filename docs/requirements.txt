@@ -4,3 +4,4 @@ nbsphinx
 furo
 sphinx-copybutton
 sphinx-autodoc-typehints
+param
