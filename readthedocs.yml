@@ -18,5 +18,10 @@ sphinx:
 formats:
   - pdf
 
+
+python:
+  install:
+    - requirements: docs/requirements.txt
+
 #conda:
 #  environment: py38_linux.yml
