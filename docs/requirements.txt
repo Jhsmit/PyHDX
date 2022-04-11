@@ -9,7 +9,7 @@ torch==1.11.0
 tqdm==4.64.0
 typer==0.4.1
 dask==2022.2.0
-distributed==2022.4.0
+distributed==2022.2.0
 packaging==21.3
 param==1.12.1
 panel==0.12.7
