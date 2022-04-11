@@ -1,0 +1,7 @@
+panel>=0.12.6
+bokeh
+holoviews
+colorcet >= 3.0.0
+hvplot
+proplot==0.9.3
+pyyaml

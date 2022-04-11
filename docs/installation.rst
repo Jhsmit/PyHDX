@@ -121,13 +121,6 @@ This will start a Dask cluster on the scheduler address as specified in the PyHD
 Install from source
 -------------------
 
-Create a new conda environment:
-
-.. code-block::
-
-    $ conda create --name py38_pyhdx python=3.8
-    # conda activate py38_pyhdx
-
 Clone the github repository:
 
 .. code-block:: rst
@@ -135,23 +128,45 @@ Clone the github repository:
     $ git clone https://github.com/Jhsmit/PyHDX
     $ cd PyHDX
 
-Generate conda requirements files `from setup.cfg`:
+You can use one of the files in 'dev/deps/pinned' to install a pretested set of pinned
+dependencies.
+
+With `pip`:
 
 .. code-block:: rst
 
-    $ python _requirements.py
+    $ pip install -r dev/deps/pinned/py38_windows_pip.txt
+
+Or use 'py38_linux_pip.txt', which should be the same.
+
+With `conda`:
+
+.. code-block:: rst
+
+    $ conda env create -f dev/deps/pinned/py38_windows_conda.yml
 
 
 If you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
 Installation instructions are on the Pytorch_ website.
 
-Then, install the other base dependencies and optional extras. For example, to install PyHDX with web app:
+Then, install the other base dependencies and optional extras.
+
+Create a new conda environment:
+
+.. code-block::
+
+    $ conda create --name py38_pyhdx python=3.8
+    # conda activate py38_pyhdx
+
+To install all dependencies:
 
 .. code-block:: rst
 
-    $ conda install --file _req-base.txt --file _req-web.txt
+    $ conda install --file req-all.txt
 
-Optionally, install PyHDX in develop/editable mode
+Or choose which extras to install by using the 'req-<extra>.txt' files.
+
+Install PyHDX in develop/editable mode
 
 .. code-block:: rst
 

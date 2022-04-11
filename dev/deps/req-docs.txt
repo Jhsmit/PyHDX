@@ -1,0 +1,6 @@
+sphinx>=4.4.0
+ipykernel
+nbsphinx
+furo
+sphinx-copybutton
+sphinx-autodoc-typehints

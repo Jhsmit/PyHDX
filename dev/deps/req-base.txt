@@ -1,0 +1,14 @@
+hdxrate>=0.2.0
+numpy
+matplotlib==3.4.3
+pandas
+scikit-image
+scipy
+symfit>=0.5.5
+pytorch
+tqdm
+typer
+dask
+distributed
+packaging
+param
