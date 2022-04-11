@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 import warnings
 from functools import reduce
 from pathlib import Path
 import os
 import re
+from typing import Union, Any, Optional
 
 from pyhdx import TorchFitResult
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
@@ -23,9 +26,13 @@ temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}
 class StateParser(object):
     ""'object used to parse yaml state input files into PyHDX HDX Measurement object'
 
-    # todo yaml_dict -> state_spec
-    def __init__(self, state_spec, data_src=None, data_filters=None):
+    def __init__(self,
+                 state_spec: dict,
+                 data_src: Union[os.PathLike, dict, None],
+                 data_filters: list = None):
+
         self.state_spec = state_spec
+        data_src = data_src or '.'
         if isinstance(data_src, (os.PathLike, str)):
             self.data_src = Path(data_src)
         elif isinstance(data_src, dict):
@@ -35,7 +42,7 @@ class StateParser(object):
 
         self.data_filters = data_filters or []
 
-    def load_data(self, *filenames, reader='dynamx'):
+    def load_data(self, *filenames: os.PathLike, reader='dynamx') -> pd.DataFrame:
         if reader == 'dynamx':
             read_func = read_dynamx
         else:
@@ -52,7 +59,7 @@ class StateParser(object):
 
         return df
 
-    def load_hdxmset(self):
+    def load_hdxmset(self) -> HDXMeasurementSet:
         """batch read the full yaml spec into a hdxmeasurementset"""
         hdxm_list = []
         for state in self.state_spec.keys():
@@ -61,9 +68,16 @@ class StateParser(object):
 
         return HDXMeasurementSet(hdxm_list)
 
-    def load_hdxm(self, state, **kwargs):
-        """read a single protein state to hdxmeasurement
-        kwargs: additional kwargs passed to hdxmeasurementset
+    def load_hdxm(self, state: str, **kwargs: Any) -> HDXMeasurement:
+        """Read a single protein state to :class:`~pyhdx.models.HDXMeasurement`.
+
+        Args:
+            state: Name of the protein state to read.
+            **kwargs: Additional keyword arguments passed to :class:`~pyhdx.models.HDXMeasurement`.
+
+        Returns:
+            The requested :class:`~pyhdx.models.HDXMeasurement`.
+
         """
 
         state_dict = self.state_spec[state]
@@ -237,19 +251,19 @@ class JobParser(object):
 
     cwd = param.ClassSelector(Path, doc='Path of the current working directory')
 
-    def __init__(self, job_spec, cwd=None):
+    def __init__(self, job_spec: dict, cwd: Optional[os.PathLike] = None):
         self.job_spec = job_spec
         self.cwd = cwd or Path().cwd()
 
         self.tasks = {}
         self.task_classes = {cls._type: cls for cls in gen_subclasses(Task) if getattr(cls, "_type", None)}
 
-    def resolve_var(self, var_string):
+    def resolve_var(self, var_string: str) -> Any:
         task_name, *attrs = var_string.split('.')
 
         return reduce(getattr, attrs, self.tasks[task_name])
 
-    def execute(self):
+    def execute(self) -> None:
 
         for task_spec in self.job_spec['steps']:
             task_klass = self.task_classes[task_spec['task']]
