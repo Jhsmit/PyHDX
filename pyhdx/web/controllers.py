@@ -2050,7 +2050,7 @@ class ProteinControl(PyHDXControlPanel):
         self.views['protein'].pdbe.clear_highlight()
 
     def _action_load_structure(self):
-        if self.input_mode == "PDB File":
+        if self.input_mode == "PDB File" and self.file_binary is not None:
             pdb_string = self.file_binary.decode()
             self.parent.sources["pdb"].add_from_string(
                 pdb_string, f"local_{uuid.uuid4()}"
