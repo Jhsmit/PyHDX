@@ -4,7 +4,7 @@ import os
 import textwrap
 import warnings
 from functools import reduce, partial
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, Iterable
 
 import numpy as np
 import pandas as pd
@@ -883,6 +883,7 @@ class HDXMeasurement(object):
         df.columns.name = "exposure"
         return df
 
+    # todo check shapes of k_int and timepoints, compared to their shapes in hdxmeasurementset
     def get_tensors(self, exchanges: bool = False, dtype: Optional[torch.dtype] = None) -> dict[str, torch.Tensor]:
         """ Returns a dictionary of tensor variables for fitting HD kinetics.
 
@@ -947,7 +948,7 @@ class HDXMeasurement(object):
         set the c-terminal guess value equal to the value of the residue preceding it.
 
         Args:
-            rates: Apparent exchange rate rates (units s^-1). Series index is protein residue number.
+            rates: Apparent exchange rates (units s^-1). Series index is protein residue number.
             correct_c_term: If ``True``, sets the guess value of the c-terminal residue to the
                 value of the residue preceding it.
 
@@ -987,7 +988,7 @@ class HDXMeasurement(object):
         fmt: str = "csv",
         **kwargs: Any,
     ) -> None:
-        """Write the data in this HDX measurement to file.
+        """Write the data in this :class:`.HDXMeasurement` to file.
 
         Args:
             file_path: File path to create and write to.
@@ -1130,6 +1131,7 @@ class CoverageSet(object):
         self.Np = np.max([hdxm.Np for hdxm in self.hdxm_list])
         self.Nt = np.max([hdxm.Nt for hdxm in self.hdxm_list])
 
+    #TODO in subclass
     @property
     def index(self) -> pd.RangeIndex:
         """Index of residue numbers"""
@@ -1171,7 +1173,7 @@ class CoverageSet(object):
 
         return mask
 
-    def get_masks(self):
+    def get_masks(self) -> dict[str, np.ndarray]:
         """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
         sr_mask = np.zeros((self.Ns, self.Nr), dtype=bool)
         st_mask = np.zeros((self.Ns, self.Nt), dtype=bool)
@@ -1194,22 +1196,26 @@ class CoverageSet(object):
 
 class HDXMeasurementSet(object):
     """
-    Set of multiple :class:`~pyhdx.models.HDXMeasurement`
+    Set of multiple :class:`~pyhdx.models.HDXMeasurement` s
 
-    Parameters
-    ----------
-    hdxm_list :  :obj:`list`
-        or list of :class:`~pyhdx.models.HDXMeasurement`
+    Args:
+        hdxm_list: Input list of :class:`.HDXMeasurement`
 
-    Attributes
-    ----------
-    timepoints : :class:`~numpy.ndarray`
-        Ns x Nt array of zero-padded timepoints
-    d_exp : :class:`~numpy.ndarray`
-        Ns x Np x Nt array with zero-padded measured D-uptake values
     """
 
-    def __init__(self, hdxm_list):
+    timepoints: np.ndarray
+    """
+    Array with timepoints, shape is Ns x Nt, padded with zeros in case of samples with
+    unequal number of timepoints
+    """
+
+    # TODO this is a property on HDXMeasurement
+    d_exp: np.ndarray
+    """
+    Array with measured D-uptake values, shape is Ns x Np x Nt, padded with zeros.
+    """
+
+    def __init__(self, hdxm_list: list[HDXMeasurement]) -> None:
         self.hdxm_list = hdxm_list
 
         self.coverage = CoverageSet(hdxm_list)
@@ -1232,41 +1238,46 @@ class HDXMeasurementSet(object):
     def __iter__(self):
         return self.hdxm_list.__iter__()
 
-    def __getitem__(self, item):
+    def __getitem__(self, item: int) -> HDXMeasurement:
         return self.hdxm_list.__getitem__(item)
 
-    def get(self, name):
+    def get(self, name: str) -> HDXMeasurement:
         """find a HDXMeasurement by name"""
 
         idx = self.names.index(name)
         return self[idx]
 
     @property
-    def Ns(self):
+    def Ns(self) -> int:
         return len(self.hdxm_list)
 
     @property
-    def Nr(self):
+    def Nr(self) -> int:
         return self.coverage.Nr
 
     @property
-    def Np(self):
+    def Np(self) -> int:
         return np.max([hdxm.Np for hdxm in self.hdxm_list])
 
     @property
-    def Nt(self):
+    def Nt(self) -> int:
         return np.max([hdxm.Nt for hdxm in self.hdxm_list])
 
     @property
-    def temperature(self):
+    def temperature(self) -> np.ndarray:
         return np.array([hdxm.temperature for hdxm in self.hdxm_list])
 
     @property
-    def names(self):
+    def names(self) -> list[str]:
         return [hdxm.name for hdxm in self.hdxm_list]
 
     @property
-    def rfu_residues(self):
+    def rfu_residues(self) -> pd.DataFrame:
+        """Relative fractional uptake per residue.
+
+        Shape of the returned DataFrame is Nr (rows) x Ns*Nt (columns) and is multiindexed
+        by columns (state, exposure, quantity)
+        """
         rfu = pd.concat([hdxm.rfu_residues for hdxm in self],
                   keys=self.names, names=['state', 'exposure'], axis=1)
         columns = pd.MultiIndex.from_tuples(
@@ -1278,30 +1289,27 @@ class HDXMeasurementSet(object):
 
         return rfu
 
-    def guess_deltaG(self, rates_df):
-        """
-        Create dG guesses from rates
+    def guess_deltaG(self, rates_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+        """Obtain ΔG initial guesses from apparent H/D exchange rates.
 
-        Parameters
-        ----------
-        rates_df : :class:`~pandas.DataFrame`
-            Pandas dataframe with k_obs estimates. Column names must correspond to HDX measurement names.
+        Args:
+            rates_df: Pandas dataframe apparent exchange rates (units s^-1). Column names must
+                correspond to HDX measurement names.
+            **kwargs: Additional keyword arguments passed to :meth:`.HDXMeasurement.guess_deltaG`
 
-        Returns
-        -------
-
-        deltaG: :class:`~pandas.DataFrame`
-            ΔG guess values
+        Returns:
+            ΔG guess values (units kJ/mol)
 
         """
 
         guesses = [
-            hdxm.guess_deltaG(rates_df[name]) for hdxm, name in zip(self, self.names)
+            hdxm.guess_deltaG(rates_df[name], **kwargs) for hdxm, name in zip(self, self.names)
         ]
         deltaG = pd.concat(guesses, keys=self.names, axis=1)
 
         return deltaG
 
+    # TODO alignment should be given as dict
     def add_alignment(self, alignment, first_r_numbers=None):
         """
 
@@ -1328,8 +1336,23 @@ class HDXMeasurementSet(object):
 
         self.aligned_indices = df.to_numpy(dtype=int).T
 
-    def get_tensors(self, dtype=None):
-        # todo create correct shapes as per table X for all
+    def get_tensors(self, dtype: Optional[torch.dtype] = None) -> dict[str, torch.Tensor]:
+        """ Returns a dictionary of tensor variables for fitting HD kinetics.
+
+        Tensor variables are (shape):
+        Temperature (Ns x 1 x 1)
+        X (Ns x Np x Nr)
+        k_int (Ns x Nr)
+        timepoints (Ns x 1 x Nt)
+        d_exp (D) (Ns x Np x Nt)
+
+        Returns:
+            Dictionary with tensors
+
+        """
+        # todo create correct shapes as per table in docstring for all
+
+        #TODO property?
         temperature = np.array([kf.temperature for kf in self.hdxm_list])
 
         X_values = np.concatenate(
@@ -1366,7 +1389,12 @@ class HDXMeasurementSet(object):
         return tensors
 
     @property
-    def exchanges(self):
+    def exchanges(self) -> np.ndarray:
+        """Boolean mask ``True`` where there are residues which exchange
+
+        Shape of the returned array is Ns x Np
+
+        """
         values = np.concatenate(
             [hdxm.coverage["exchanges"].to_numpy() for hdxm in self.hdxm_list]
         )
@@ -1377,30 +1405,20 @@ class HDXMeasurementSet(object):
 
     def to_file(
         self,
-        file_path,
-        include_version=True,
-        include_metadata=True,
-        fmt="csv",
-        **kwargs,
-    ):
-        """
-        Write the data in this HDX measurement set to file.
+        file_path: os.PathLike,
+        include_version: bool = True,
+        include_metadata: bool = True,
+        fmt: str = "csv",
+        **kwargs: Any,
+    ) -> None:
+        """Write the data in this :class:`.HDXMeasurementSet` to file.
 
-        Parameters
-        ----------
-        file_path : :obj:`str`
-            File path to create and write to.
-        include_version : :obj:`bool`
-            Set ``True`` to include PyHDX version and current time/date
-        fmt: :obj: `str`
-            Formatting to use, options are 'csv' or 'pprint'
-        include_metadata : :obj:`bool`
-            If `True`, the objects' metadata is included
-        **kwargs : :obj:`dict`, optional
-            Optional additional keyword arguments passed to `df.to_csv`
-        Returns
-        -------
-        None
+        Args:
+            file_path: File path to create and write to.
+            include_version: Set ``True`` to include PyHDX version and current time/date
+            fmt: Formatting to use, options are 'csv' or 'pprint'
+            include_metadata: If ``True``, the objects' metadata is included
+            **kwargs: Optional additional keyword arguments passed to `df.to_csv`
 
         """
 
@@ -1450,25 +1468,25 @@ def contiguous_regions(condition):
     return idx
 
 
-def hdx_intersection(hdx_list, fields=None):
+def hdx_intersection(hdx_list: list[HDXMeasurement], fields: Optional[list[str]] = None):
     """
-    Finds the intersection between peptides in :class:`~pydhx.models.HDXMeasurement` and returns new objects such that
-    all peptides (coverage, exposure) between the measurements are identical.
+    Finds the intersection between peptides.
+
+    Peptides are supplied as :class:`.HDXMeasurement` objects. After the intersection of
+    peptides is found, new objects are returned where all peptides (coverage, exposure)
+    between the measurements are identical.
 
     Optionally intersections by custom fields can be made.
 
-    Parameters
-    ----------
-    hdx_list : :obj:`list`
-        Input list of :class:`~pyhdx.models.HDXMeasurement`
-    fields : :obj:`list`
-        By which fields to take the intersections. Default is ['_start', '_end', 'exposure']
+    Args:
+        hdx_list: Input list of :class:`.HDXMeasurement`
+        fields: By which fields to take the intersections. Default is ['_start', '_end', 'exposure']
 
-    Returns
-    -------
-    hdx_out : :obj:`list`
-        Output list of :class:`~pyhdx.models.HDXMeasurement`
+    Returns:
+        hdx_out: Output list of :class:`.HDXMeasurement`
     """
+
+    raise warnings.warn("'hdx_intersection' method is outdated", NotImplementedError)
 
     fields = fields or ["_start", "_end", "exposure"]
 
@@ -1482,26 +1500,21 @@ def hdx_intersection(hdx_list, fields=None):
     return hdx_out
 
 
-def array_intersection(arrays_list, fields):
+def array_intersection(arrays: Iterable[np.ndarray], fields: Iterable[str]) -> list[np.ndarray]:
     """
     Find and return the intersecting entries in multiple arrays.
 
-    Parameters
-    ----------
-    arrays_list : :obj:`iterable`
-        Iterable of input structured arrays
-    fields : :obj:`iterable`
-        Iterable of fields to use to decide if entires are intersecting
+    Args:
+        arrays: Iterable of input structured arrays
+        fields: Iterable of fields to use to decide if entires are intersecting
 
-    Returns
-    -------
-    selected : :obj:`iterable`
-        Output iterable of arrays with only intersecting entries.
-
+    Returns:
+        selected: Output iterable of arrays with only intersecting entries.
     """
-    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays_list])
+
+    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays])
     selected = [
-        elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays_list
+        elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays
     ]
 
     return selected
