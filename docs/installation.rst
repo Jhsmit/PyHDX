@@ -145,7 +145,7 @@ With `conda`:
 
     $ conda env create -f dev/deps/pinned/py38_windows_conda.yml
 
-
+Otherwise, you try your luck with the latest versions of the dependencies.
 If you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
 Installation instructions are on the Pytorch_ website.
 
