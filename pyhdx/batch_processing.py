@@ -52,7 +52,7 @@ class StateParser(object):
             input_files = [self.data_src / filename for filename in filenames]
             df = read_func(*input_files)
         else:
-            input_stringios = [self.data_src[filename] for filename in filenames]
+            input_stringios = [self.data_src[Path(filename).name] for filename in filenames]
             df = read_func(*input_stringios)
             for io in input_stringios:
                 io.seek(0)
