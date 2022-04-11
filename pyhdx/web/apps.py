@@ -80,8 +80,6 @@ def rfu_app():
     ctr = AppConstructor(loggers={"pyhdx": rfu_app.logger}, cache=cache)
     ctrl = ctr.parse(yaml_dict)
 
-    ctrl.start()
-
     elvis = GoldenElvis(
         ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme, title=VERSION_STRING
     )
