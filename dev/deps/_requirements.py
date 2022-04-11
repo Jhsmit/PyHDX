@@ -25,7 +25,7 @@ import yaml
 # Pycharm scientific mode compat
 if '__file__' not in locals():
     __file__ = Path().resolve() / 'dev' / 'deps' / '_requirements.py'
-cwd = __file__.parent
+cwd = Path(__file__).parent
 cwd
 
 #%%
@@ -52,7 +52,8 @@ EXTRAS = ['web', 'pdf', 'docs']
 
 def read_setup_cfg():
     cp = ConfigParser()
-    cp.read_string(Path('setup.cfg').read_text())
+    setup_file = cwd.parent.parent / 'setup.cfg'
+    cp.read_string(setup_file.read_text())
 
     raw_deps = {}
 
@@ -129,23 +130,11 @@ def make_requirements_files(extras: Optional[list[str]] = None):
     selected = {k: convert(v) for k, v in raw_deps.items() if k in selection}
 
     for s, dep_list in selected.items():
-        (cwd / Path(f'req-{s}.txt')).write_text('\n'.join(dep_list))
+        (cwd / Path(f'req-{s}.txt')).write_text('\n'.join(sorted(dep_list)))
 
     all_deps = set(reduce(add, selected.values()))
-    (cwd / Path(f'req-all.txt')).write_text('\n'.join(all_deps))
+    (cwd / Path(f'req-all.txt')).write_text('\n'.join(sorted(all_deps)))
 
-
-
-#%%
-
-make_requirements_files()
-
-platforms = ['linux', 'windows']
-for os in platforms:
-    conda_file = Path(f'pinned/py38_{os}_conda.yml')
-    pip_file = Path(f'pinned/py38_{os}_pip.txt')
-
-    conda_to_pip(conda_file, pip_file)
 
 #%%
 
