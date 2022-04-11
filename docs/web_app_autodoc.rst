@@ -12,10 +12,13 @@ Main Application
 ^^^^^^^^^^^^^^^^
 
 .. autoclass:: pyhdx.web.controllers.PeptideFileInputControl
-.. autoclass:: pyhdx.web.controllers.CoverageControl
 .. autoclass:: pyhdx.web.controllers.InitialGuessControl
 .. autoclass:: pyhdx.web.controllers.FitControl
-.. autoclass:: pyhdx.web.controllers.GraphControl
-.. autoclass:: pyhdx.web.controllers.ProteinControl
+.. autoclass:: pyhdx.web.controllers.DifferentialControl
 .. autoclass:: pyhdx.web.controllers.ColorTransformControl
+.. autoclass:: pyhdx.web.controllers.ProteinControl
+.. autoclass:: pyhdx.web.controllers.GraphControl
 .. autoclass:: pyhdx.web.controllers.FileExportControl
+.. autoclass:: pyhdx.web.controllers.FigureExportControl
+.. autoclass:: pyhdx.web.controllers.SessionManagerControl
+
