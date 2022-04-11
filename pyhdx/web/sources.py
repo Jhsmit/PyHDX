@@ -196,7 +196,7 @@ class PyHDXSource(TableSource):
 
         if table in self.tables:
             current = self.tables[table]
-            new = pd.concat([current, df], axis=1)
+            new = pd.concat([current, df], axis=1, sort=True)
             categories = list(current.columns.unique(level=0)) + list(
                 df.columns.unique(level=0)
             )
