@@ -22,6 +22,9 @@ formats:
 python:
   install:
     - requirements: docs/requirements.txt
+    - method: pip
+      path: .
+
 
 #conda:
 #  environment: py38_linux.yml
