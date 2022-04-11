@@ -1,27 +1,25 @@
+from __future__ import annotations
+
 import re
 import numpy as np
 import pandas as pd
 
 
-def parse_clustal_string(s, num_proteins, whitelines=2, offset=0):
-    """
-    Takes input clustal result and parses it to dictionary with concatenated aligned sequences.
+def parse_clustal_string(s: str, num_proteins: int, whitelines: int = 2, offset: int = 0) -> dict:
+    """Takes input Clustal result and parses it to a dictionary.
 
-    Parameters
-    ----------
-    s : :obj:`str`:
-        Input clustal string.
-    num_proteins : :obj:`int`
-        Number of aligned proteins in the clustal result.
-    whitelines : :obj:`int`
-        Number of white lines between each block of alinged proteins.
-    offset : :obj:`int`
-        Number of lines before alignment information starts
+    Keys in the output dict are IDs of the protein as input into clustal. Values are aligned
+    (containing '-' for gaps) and concatenated FASTA sequences.
 
-    Returns
-    -------
-    alignment : :obj:`dict`
-        Concatenated aligned result
+    Args:
+        s: Input Clustal string.
+        num_proteins: Number of aligned proteins in the clustal result.
+        whitelines: Number of white lines between each block of aligned proteins. Default
+            value is 2.
+        offset: Number of lines before alignment information starts.
+
+    Returns:
+        Dictionary with concatenated aligned result
 
     """
     spacing = num_proteins + whitelines
@@ -29,14 +27,14 @@ def parse_clustal_string(s, num_proteins, whitelines=2, offset=0):
     results = [
         "".join(
             [
-                re.search("(?<=\s{3})(.*)(?=\t)", line)[0].strip()
+                re.search(r"(?<=\s{3})(.*)(?=\t)", line)[0].strip()
                 for line in lines[i + offset :: spacing]
             ]
         )
         for i in range(num_proteins)
     ]
     names = [
-        re.search("(.*)(?=\s{3})", lines[offset + i])[0].strip()
+        re.search(r"(.*)(?=\s{3})", lines[offset + i])[0].strip()
         for i in range(num_proteins)
     ]
 
@@ -44,7 +42,7 @@ def parse_clustal_string(s, num_proteins, whitelines=2, offset=0):
 
     return alignment
 
-
+#TODO should take dicts only
 def align_dataframes(dataframes, alignment, first_r_numbers=None):
 
     """

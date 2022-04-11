@@ -1,0 +1,2 @@
+proplot==0.9.3
+pylatex

@@ -3,7 +3,7 @@ numpy==1.22.3
 matplotlib==3.4.3
 pandas==1.4.2
 scikit-image==0.19.2
-scipy==1.7.3
+scipy==1.8.0
 symfit==0.5.5
 torch==1.11.0
 tqdm==4.64.0

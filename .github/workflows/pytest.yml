@@ -28,5 +28,5 @@ jobs:
       run: |
         pytest -v --cov=./
     - name: Upload to codecov
-      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.8'
+      if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.9'
       uses: codecov/codecov-action@v1

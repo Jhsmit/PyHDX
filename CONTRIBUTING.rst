@@ -58,28 +58,25 @@ Some guidelines for how to refer to objects or entities:
 * Python objects: ``:obj:`int```, ``:obj:`bool``
 * Numpy arrays: ``:class:`~numpy.ndarray```
 * Pandas dataframe: ``:class:`~pandas.DataFrame```
-* Optional array-like:  `` ``
+* Classes within the same module: ``:class:.HDXMeasurement``
 * Default values: ``copy : :obj:`bool`, default: ``True````
+* Refer to arguments / parameters with single ticks: ```param1```
 
-Parameters:
-
-.. code::
-    Parameters
-    ----------
-    filename : :obj:`str`
-    copy : :obj:`bool`
-    dtype : data-type
-    iterable : iterable object
-    shape : int or tuple of int
-    files : list of str
-
-Args and kwargs:
 
 .. code::
-    *args : :obj:`tuple`
-        Additional arguments should be passed as keyword arguments
-    **kwargs : :obj:`dict`, optional
-        Extra arguments to `somefunction`.
+    class Coverage(object):
+    """Single docstring line description.
+
+    Args:
+        data: Dataframe with input peptides.
+        c_term: Residue index number of the C-terminal residue (where first residue in index number 1).
+        * args: Additional arguments
+        **metadata: kwargs named metadata.
+
+
+    """
+
+
 
 Properties:
 
@@ -89,5 +86,8 @@ Properties:
     **kwargs : :obj:`dict`, optional
         Extra arguments to `somefunction`.
 
-Future docstring typing will probably be through `PEP 484 <https://www.python.org/dev/peps/pep-0484/>`__
-type hints.
+Additional resources:
+
+`Sphinx docstrings <https://sphinx-rtd-tutorial.readthedocs.io/en/latest/docstrings.html>`__
+`Mypy cheatsheet <https://mypy.readthedocs.io/en/latest/cheat_sheet_py3.html>__
+`Google styleguild <https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings>__
