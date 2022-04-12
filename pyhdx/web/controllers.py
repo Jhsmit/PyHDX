@@ -513,7 +513,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 f"Redundancy: {hdxm.coverage.redundancy:.2}"
             )
 
-
     def _add_dataset_manual(self):
 
         if self._df is None:
@@ -1954,7 +1953,6 @@ class ColorTransformControl(PyHDXControlPanel):
 
 
 class ProteinControl(PyHDXControlPanel):
-    # todo needs a pdbsource to get the object from
 
     _type = "protein"
 
@@ -1966,7 +1964,9 @@ class ProteinControl(PyHDXControlPanel):
         objects=["RCSB PDB Download", "PDB File"],
     )
     file_binary = param.Parameter(doc="Corresponds to file upload value")
+
     pdb_id = param.String(doc="RCSB ID of protein to download")
+
     load_structure = param.Action(lambda self: self._action_load_structure())
 
     highlight_mode = param.Selector(
@@ -2014,22 +2014,21 @@ class ProteinControl(PyHDXControlPanel):
             highlight_mode=pn.widgets.RadioButtonGroup,
         )
 
-    @param.depends("input_mode", watch=True)
-    def _update_input_mode(self):
+    @param.depends("input_mode", "highlight_mode", watch=True)
+    def _update_mode(self):
+        _excluded = []
+
         if self.input_mode == "PDB File":
-            self._excluded = ["pdb_id"]
+            _excluded.append("pdb_id")
         elif self.input_mode == "RCSB PDB Download":
-            self._excluded = ["file_binary"]
+            _excluded.append("file_binary")
 
-        self.update_box()
-
-    @param.depends("highlight_mode", watch=True)
-    def _update_highlight_mode(self):
         if self.highlight_mode == "Single":
-            self._excluded = ["highlight_range"]
+            _excluded.append("highlight_range")
         elif self.highlight_mode == "Range":
-            self._excluded = ["highlight_value"]
+            _excluded.append("highlight_value")
 
+        self._excluded = _excluded
         self.update_box()
 
     def _action_highlight(self):
