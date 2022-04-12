@@ -2000,6 +2000,7 @@ class ProteinControl(PyHDXControlPanel):
     def _layout(self):
         return [
             ("self", self.own_widget_names),  # always use this instead of none?
+            ('views.protein', 'highlight_color'),
             ("transforms.protein_src", "value"),
             ('views.protein', 'visual_style'),
             ('views.protein', 'lighting'),

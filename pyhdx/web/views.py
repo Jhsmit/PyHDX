@@ -509,6 +509,8 @@ class PDBeMolStarColorView(View):
         doc="Toggle object spin"
     )
 
+    highlight_color = param.Color(default="#ff6699", doc="Color for mouseover highlighting")
+
     reset = param.Action(lambda self: self._action_reset())
 
     def __init__(self, **params):
