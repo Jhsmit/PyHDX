@@ -60,15 +60,15 @@ opts:
   errorbars:
     type: generic
     line_alpha: 0.5
-    line_color: '#8c8c8c'
+    line_color: '#b3b3b3'
     apply_ranges: False  # Do not rescale axis based on the error bars
     hooks:
       - handle: glyph
         attr: upper_head.line_color
-        value: '#8c8c8c'
+        value: '#b3b3b3'
       - handle: glyph
         attr: lower_head.line_color
-        value: '#8c8c8c'
+        value: '#b3b3b3'
   scatter:
     type: generic
     size: 8
