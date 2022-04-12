@@ -2011,7 +2011,7 @@ class ProteinControl(PyHDXControlPanel):
     def make_dict(self):
         return self.generate_widgets(
             file_binary=pn.widgets.FileInput(multiple=False, accept=".pdb"),
-            highlight_range=pn.widgets.EditableRangeSlider(format='int', step=1),
+            highlight_range=pn.widgets.IntRangeSlider,
             highlight_mode=pn.widgets.RadioButtonGroup,
         )
 
