@@ -992,17 +992,6 @@ class InitialGuessControl(PyHDXControlPanel):
         if self.fitting_model.lower() in ["association", "dissociation"]:
             loop = asyncio.get_running_loop()
             loop.create_task(self._fit_rates(self.guess_name))
-            if self.global_bounds:
-                bounds = [(self.lower_bound, self.upper_bound)] * num_samples
-            else:
-                bounds = self.bounds.values()
-
-            futures = self.parent.client.map(
-                fit_rates_weighted_average,
-                self.src.hdxm_objects.values(),
-                bounds,
-                client="worker_client",
-            )
 
         # this is practically instantaneous and does not require dask
         elif (
@@ -1030,17 +1019,8 @@ class InitialGuessControl(PyHDXControlPanel):
                 bounds = self.bounds.values()
             futures = []
             for hdxm, bound in zip(self.src.hdxm_objects.values(), bounds):
-                future = client.submit(fit_rates_weighted_average, hdxm, bound)
+                future = client.submit(fit_rates_weighted_average, hdxm, bound, client='worker_client')
                 futures.append(future)
-
-            # futures = client.map(
-            #     fit_rates_weighted_average,
-            #     self.src.hdxm_objects.values(),
-            #     bounds,
-            #     client="worker_client",
-            # )
-
-            print(futures)
 
             await self.widgets['pbar'].run(futures)
 
