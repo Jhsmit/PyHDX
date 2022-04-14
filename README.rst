@@ -25,6 +25,8 @@ PyHDX
 
 `PyHDX stable documentation <https://pyhdx.readthedocs.io/en/stable/>`_
 
+`PyHDX on YouTube <https://www.youtube.com/channel/UCTro6Iv1BhvjUPYZNu5TJWg>`_
+
 .. raw:: html
 
     <img src="images/screenshot_pyhdx040b5.png" width="1000" />
