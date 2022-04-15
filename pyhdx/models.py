@@ -355,13 +355,8 @@ class PeptideMasterTable(object):
         rfu = self.data["uptake"] / ((1 - back_exchange) * self.data["ex_residues"])
 
         uptake_corrected = self.data["uptake"] / (1 - back_exchange)
-
-        self.data = append_fields(
-            self.data,
-            ["rfu", "uptake_corrected"],
-            data=[rfu, uptake_corrected],
-            usemask=False,
-        )
+        self.data['uptake_corrected'] = uptake_corrected
+        self.data['rfu'] = rfu
 
     def set_control(self, control_1: tuple[str, float], control_0: Optional[tuple[str, float]] = None):
         """
