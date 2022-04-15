@@ -229,8 +229,8 @@ class PeptideMasterTable(object):
     - `_start`: Unmodified copy of initial start field
     - `_end`: Unmodified copy of initial end field
     - `_sequence`: Unmodified copy of initial sequence
-    - `ex_residues`: Number of residues that undergo deuterium exchange. This number is calculated using the `drop_first` and
-        `ignore_prolines` parameters
+    - `ex_residues`: Number of residues that undergo deuterium exchange. This number is calculated using the `drop_first`,
+        `ignore_prolines`, and `d_percentage` parameters.
 
     N-terminal residues which are removed because they are either within `drop_first` or they are N-terminal prolines are
     marked with 'x' in the `sequence` field. Prolines which are removed because they are in the middle of a peptide are
@@ -420,6 +420,8 @@ class PeptideMasterTable(object):
             fd_df["uptake"] - nd_df["uptake"]
         )
         self.data["uptake_corrected"] = self.data["rfu"] * self.data["ex_residues"]
+        self.data["fd_uptake"] = fd_df["uptake"]
+        self.data["nd_uptake"] = nd_df["uptake"]
 
         self.data = self.data.set_index("peptide_index", append=True).reset_index(
             level=[0, 1]
