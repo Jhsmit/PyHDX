@@ -1,0 +1,45 @@
+@import url("https://golden-layout.com/assets/css/goldenlayout-light-theme.css");
+
+#header {
+  background-color: #00aa41;
+}
+
+.bk.bk-input-group {
+  color: black;
+}
+
+.lm_content {
+  background-color: #ffffff;
+}
+
+.lm_header .lm_tab {
+  background-color: #efefef;
+  padding-top: 3px;
+  padding-bottom: 4px !important;
+  height: 30px !important;
+  line-height: 28px;
+  font-size: 17px;
+}
+
+.lm_header .lm_tab.lm_active {
+  padding-top: 0px;
+  border-top: 3px #52BDEC solid;
+  background-color: #ffffff;
+  padding-bottom: 3px !important;
+}
+
+.lm_header {
+  background-color: white;
+}
+
+/* works but shows up briefly */
+.lm_splitter {
+    background: #116E8A;
+    opacity: .001;
+    transition: opacity 1000ms ease
+}
+
+.lm_splitter:hover {
+  opacity: 1;
+  background: #00407A !important;
+}
