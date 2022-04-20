@@ -336,7 +336,7 @@ def residue_scatter_figure(
 
     return fig, axes, cbar_ax
 
-
+# todo allow colorbar_scatter to take rfus
 def residue_scatter(
     ax, hdxm, field="rfu", cmap="viridis", norm=None, cbar=True, **kwargs
 ):
@@ -922,7 +922,7 @@ def rainbowclouds(
 
     return cbar
 
-
+# todo this should also take Pd.Series?
 def colorbar_scatter(
     ax,
     data,
