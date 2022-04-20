@@ -4,8 +4,8 @@ Installation
 
 Currently the recommended version to use is the latest beta release (v0.4.0bx)
 
-Stable release (v0.3.2)
------------------------
+Stable release
+--------------
 
 Installation with `conda`:
 
@@ -17,29 +17,19 @@ Installation with `pip`:
 
 .. code-block:: rst
 
-   $ pip install pyhdx==0.3.2
-
-
-Beta release (v0.4.0b8)
------------------------
-
-To install base PyHDX:
-
-.. code-block:: rst
-
-   $ pip install pyhdx==0.4.0b8
+   $ pip install pyhdx
 
 To install with web application:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b8[web]
+    $ pip install pyhdx[web]
 
 To install with pdf output:
 
 .. code-block:: rst
 
-    $ pip install pyhdx==0.4.0b8[pdf]
+    $ pip install pyhdx[pdf]
 
 
 Install from source
