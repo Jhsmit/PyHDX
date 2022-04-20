@@ -33,7 +33,6 @@ PyHDX
 
 
 PyHDX is python project which can be used to derive Gibbs free energy from HDX-MS data.
-Currently version 0.3.2 is the stable release. Version 0.4.0 is released as beta.
 
 Installation 
 ============
@@ -42,14 +41,19 @@ Installation of the latest stable beta with `pip`:
 
 .. code-block:: console
 
-    pip install pyhdx==0.4.0b8
+    pip install pyhdx
 
 Installation with web interface extra:
 
 .. code-block:: console
 
-    pip install pyhdx==0.4.0b8[web]
+    pip install pyhdx[web]
 
+Conda install (includes web interface extra):
+
+.. code-block:: console
+
+    conda install pyhdx
 
 Run PyHDX
 =========
@@ -69,12 +73,12 @@ Web Application
 ===============
 
 The PyHDX web application is currently hosted at:
-http://pyhdx.jhsmit.org/main
+http://pyhdx.jhsmit.org
 
 A test file can be downloaded from `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/input/ecSecB_apo.csv>`_ and `here <https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/input/ecSecB_dimer.csv>`_. (right click, save as).
 
-The 0.4.0b4 version of PyHDX (featuring batch fitting / multiple states) is hosted at:
-http://pyhdx-beta.jhsmit.org/main
+A beta version might be available at:
+http://pyhdx-beta.jhsmit.org
 
 The latest beta docs are found `here <https://pyhdx.readthedocs.io/en/latest/>`_
 
