@@ -18,7 +18,7 @@ from pyhdx.fitting import (
     fit_rates_half_time_interpolate,
     GenericFitResult,
 )
-from pyhdx.batch_processing import yaml_to_hdxmset
+from pyhdx.batch_processing import StateParser
 from pyhdx.models import HDXMeasurementSet
 
 cwd = Path(__file__).parent
@@ -269,8 +269,10 @@ class TestSecBDataFit(object):
     # batch fit on delta N/C tail dataset
     def test_batch_fit_delta(self, tmp_path):
         yaml_file = input_dir / "data_states_deltas.yaml"
-        yaml_dict = yaml.safe_load(yaml_file.read_text())
-        hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
+        yaml_spec = yaml.safe_load(yaml_file.read_text())
+        parser = StateParser(yaml_spec, data_src=input_dir)
+
+        hdxm_set = parser.load_hdxmset()
         guess_output = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
         gibbs_guess = hdxm_set[0].guess_deltaG(guess_output["rate"])
