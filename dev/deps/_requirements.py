@@ -12,6 +12,9 @@ web
 """
 #%%
 
+from __future__ import annotations
+
+
 from configparser import ConfigParser
 from functools import reduce
 from operator import add
@@ -47,7 +50,7 @@ def convert(req_list: list, reverse: bool = False):
 
 #%%
 
-EXTRAS = ["web", "pdf", "docs"]
+EXTRAS = ["web", "pdf", "docs", "dev"]
 
 
 def read_setup_cfg():
@@ -115,17 +118,6 @@ def conda_to_pip(conda_yml: Path, pip_txt: Path, extras: Optional[list[str]] = N
     (cwd / pip_txt).write_text("\n".join(output))
 
 
-conda_file = Path("pinned/py38_linux_conda.yml")
-pip_file = Path("pinned/py38_linux_pip.txt")
-
-conda_to_pip(conda_file, pip_file)
-
-#%%
-
-
-#%%
-
-
 def make_requirements_files(extras: Optional[list[str]] = None):
     extras = extras or EXTRAS
     selection = ["base"] + extras
@@ -144,7 +136,7 @@ def make_requirements_files(extras: Optional[list[str]] = None):
 
 if __name__ == "__main__":
     make_requirements_files()
-
+    #
     platforms = ["linux", "windows"]
     for os in platforms:
         conda_file = Path(f"pinned/py38_{os}_conda.yml")
