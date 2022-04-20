@@ -64,9 +64,6 @@ Running isort the Python code import sorter
 def pytest(
     command,
     test_files="tests",
-    integrationtest=False,
-    test_results="test_results",
-    open_results=True,
 ):
     """Runs pytest to identify failing tests
 
@@ -74,14 +71,8 @@ def pytest(
         command {[type]} -- Invoke command object
 
     Keyword Arguments:
-        root_dir {str} -- The directory from which to run the tests
         test_files {str} -- A space separated list of folders and files to test. (default: {'tests})
-        integrationtest {bool} -- If True tests marked integrationtest or functionaltest will be
-            run. Otherwise not. (default: {False})
-        test_results {string} -- If not None test reports will be generated in the test_results
-            folder
-        open_results {bool} -- If True test reports in the 'test_results' folder will be opened in
-            a browser
+
 
     # Print running pytest
     """
@@ -92,18 +83,11 @@ Running pytest the test framework
 """
     )
     # Build the command_string
-    command_string = f"pytest {test_files} --cov=./"
-    if not integrationtest:
-        command_string += ' -m "not functionaltest and not integrationtest"'
-    if test_results:
-        command_string += f" --cov-report html:{test_results}/cov_html"
+    command_string = f"pytest {test_files}"
 
     # Run the command_string
     command.run(command_string, echo=True)
 
-    # Open the test coverage report in a browser
-    if test_results and open_results:
-        command.run(f"start {test_results}/cov_html/index.html")
 
 
 @task()
