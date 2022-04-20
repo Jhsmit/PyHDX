@@ -94,12 +94,11 @@ Running pytest the test framework
     )
     # Build the command_string
     command_string = (
-        f"pytest {test_files} --doctest-modules --cov='src/panel_vegafusion'"
+        f"pytest {test_files} --cov=./"
     )
     if not integrationtest:
         command_string += ' -m "not functionaltest and not integrationtest"'
     if test_results:
-        # command_string += f" --junitxml={test_results}/test-results-api.xml"
         command_string += f" --cov-report html:{test_results}/cov_html"
 
     # Run the command_string
@@ -107,11 +106,11 @@ Running pytest the test framework
 
     # Open the test coverage report in a browser
     if test_results and open_results:
-        command.run("start test_results/cov_html/index.html")
+        command.run(f"start {test_results}/cov_html/index.html")
 
 
 @task()
-def pylint(command, files="setup.py tasks dont_fret tests"):
+def pylint(command, files="setup.py tasks pyhdx tests"):
     """Runs pylint (linter) on all .py files recursively to identify coding errors
 
     Arguments:
@@ -134,7 +133,7 @@ sniffs for code smells and offers simple refactoring suggestions.
 
 
 @task
-def mypy(command, files="setup.py tasks dont_fret tests"):
+def mypy(command, files="setup.py tasks pyhdx tests"):
     """Runs mypy (static type checker) on all .py files recursively
 
     Arguments:
@@ -152,7 +151,7 @@ Running mypy for identifying python type errors
 
 
 @task(
-    pre=[isort, black, pylint, mypy, pytest],
+    pre=[isort, black, bandit, flake8, pylint, mypy, pytest],
     aliases=["pre_commit", "test"],
     name="all",
 )
