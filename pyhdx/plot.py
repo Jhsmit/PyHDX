@@ -190,7 +190,10 @@ def peptide_coverage(
     ax.set_yticks([])
 
     _cbar_kwargs = cbar_kwargs or {}
-    cbar_kwargs = {**CBAR_KWARGS, **_cbar_kwargs} #TODO py39 dict union: d |= e or d | e
+    cbar_kwargs = {
+        **CBAR_KWARGS,
+        **_cbar_kwargs,
+    }  # TODO py39 dict union: d |= e or d | e
 
     if cbar and color_field:
         cbar_ax = ax.colorbar(cmap, norm=norm, **cbar_kwargs)
@@ -335,6 +338,7 @@ def residue_scatter_figure(
     axes.format(xlabel=r_xlabel)
 
     return fig, axes, cbar_ax
+
 
 # todo allow colorbar_scatter to take rfus
 def residue_scatter(
@@ -714,19 +718,21 @@ def linear_bars(
     )
     axes_iter = iter(axes)
 
-    if sort in ['ascending', 'descending']:
+    if sort in ["ascending", "descending"]:
         srt_groups = plot_data.groupby(level=bars_level, axis=1).groups
         values = [plot_data.loc[:, grp].mean().mean() for grp in srt_groups.values()]
         idx = np.argsort(values)
-        if sort == 'descending':
+        if sort == "descending":
             idx = idx[::-1]
     else:
-        idx = None 
+        idx = None
 
     for grp_name, items in groups.items():
         items = items.values[idx] if idx is not None else items.values
-        for i, item in enumerate(items): # these items need to be sorted
-            values = plot_data.xs(key=(*item[:plot_data.columns.nlevels - 1], field), axis=1)
+        for i, item in enumerate(items):  # these items need to be sorted
+            values = plot_data.xs(
+                key=(*item[: plot_data.columns.nlevels - 1], field), axis=1
+            )
             rmin, rmax = values.index.min(), values.index.max()
             extent = [rmin - 0.5, rmax + 0.5, 0, 1]
             img = np.expand_dims(values, 0)
@@ -735,7 +741,7 @@ def linear_bars(
             label = item[bars_level]
             from matplotlib.axes import Axes
 
-            Axes.imshow( #TODO use proplot pcolor or related function
+            Axes.imshow(  # TODO use proplot pcolor or related function
                 ax,
                 norm(img),
                 aspect="auto",
@@ -922,6 +928,7 @@ def rainbowclouds(
 
     return cbar
 
+
 # todo this should also take Pd.Series?
 def colorbar_scatter(
     ax,
@@ -1005,12 +1012,7 @@ def redundancy(ax, hdxm, cmap=None, norm=None):
     img = np.expand_dims(redundancy, 0)
 
     collection = ax.pcolormesh(
-        pplt.edges(x),
-        np.array([0, 1]),
-        img,
-        extend="max",
-        cmap=cmap,
-        norm=norm,
+        pplt.edges(x), np.array([0, 1]), img, extend="max", cmap=cmap, norm=norm,
     )
     ax.format(yticks=[], title="Redundancy")
     return collection
@@ -1028,12 +1030,7 @@ def resolution(ax, hdxm, cmap=None, norm=None):
     img = np.expand_dims(resolution, 0)
 
     collection = ax.pcolormesh(
-        pplt.edges(x),
-        np.array([0, 1]),
-        img,
-        extend="max",
-        cmap=cmap,
-        norm=norm,
+        pplt.edges(x), np.array([0, 1]), img, extend="max", cmap=cmap, norm=norm,
     )
     ax.format(yticks=[], title="Resolution")
     return collection

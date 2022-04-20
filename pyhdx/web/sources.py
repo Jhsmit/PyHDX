@@ -156,13 +156,13 @@ class PyHDXSource(TableSource):
         # Add losses df
         df = fit_result.losses.copy()
         if df.columns.nlevels == 1:
-            tuples = [
-                (name, column) for column in df.columns
-            ]
+            tuples = [(name, column) for column in df.columns]
             columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "loss_type"])
         else:
             tuples = [(name, *tup) for tup in df.columns]
-            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "loss_type"])
+            columns = pd.MultiIndex.from_tuples(
+                tuples, names=["fit_ID", "state", "loss_type"]
+            )
 
         df.columns = columns
         self._add_table(df, "loss")
@@ -238,9 +238,9 @@ class PDBSource(Source):
     def add_from_string(self, pdb_string, pdb_id):
         """Adds a PDB file from a string"""
         self._make_room()
-        url = f'assets/{pdb_id}.pdb'
+        url = f"assets/{pdb_id}.pdb"
 
-        (cfg.assets_dir / f'{pdb_id}.pdb').write_text(pdb_string)
+        (cfg.assets_dir / f"{pdb_id}.pdb").write_text(pdb_string)
 
         self.pdb_files[pdb_id] = url
         self.hashes[pdb_id] = hash(url)
@@ -254,7 +254,7 @@ class PDBSource(Source):
             key = next(iter(self.pdb_files))
             del self.pdb_files[key]
             del self.hashes[key]
-            pdb_pth = cfg.assets_dir / f'{key}.pdb'
+            pdb_pth = cfg.assets_dir / f"{key}.pdb"
             # if pdb_pth.exists():
             #     os.remove(pdb_pth)
 

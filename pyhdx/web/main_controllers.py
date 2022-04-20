@@ -45,8 +45,8 @@ class MainController(param.Parameterized):
 
     def __init__(self, control_panels, **params):
         super(MainController, self).__init__(**params)
-        #self.client = client if client else Client()
-        #check for client adress in config
+        # self.client = client if client else Client()
+        # check for client adress in config
 
         self.control_panels = {
             ctrl.name: ctrl(self) for ctrl in control_panels
@@ -68,8 +68,8 @@ class MainController(param.Parameterized):
 
     @property
     def panel(self):
-        warnings.warn('panel property is deprecated', DeprecationWarning)
-        #todo remove?
+        warnings.warn("panel property is deprecated", DeprecationWarning)
+        # todo remove?
         return self.template
 
     def update(self):

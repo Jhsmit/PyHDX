@@ -355,10 +355,14 @@ class PeptideMasterTable(object):
         rfu = self.data["uptake"] / ((1 - back_exchange) * self.data["ex_residues"])
 
         uptake_corrected = self.data["uptake"] / (1 - back_exchange)
-        self.data['uptake_corrected'] = uptake_corrected
-        self.data['rfu'] = rfu
+        self.data["uptake_corrected"] = uptake_corrected
+        self.data["rfu"] = rfu
 
-    def set_control(self, control_1: tuple[str, float], control_0: Optional[tuple[str, float]] = None):
+    def set_control(
+        self,
+        control_1: tuple[str, float],
+        control_0: Optional[tuple[str, float]] = None,
+    ):
         """
         Apply a control dataset to this object. The column 'RFU' is added to the object by normalizing its uptake
         value with respect to the control uptake value to one.
@@ -502,8 +506,13 @@ class Coverage(object):
     """
     # todo account for prolines: so that rows sum to 1 is currently not true
 
-    def __init__(self, data: pd.DataFrame, n_term: int = 1, c_term: Optional[int] = None,
-                 sequence: Optional[str] = None) -> None:
+    def __init__(
+        self,
+        data: pd.DataFrame,
+        n_term: int = 1,
+        c_term: Optional[int] = None,
+        sequence: Optional[str] = None,
+    ) -> None:
         assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
         assert len(np.unique(data["state"])) == 1, "State entries are not unique"
         self.data = data.sort_values(["start", "end"], axis=0)
@@ -591,7 +600,9 @@ class Coverage(object):
         pd_series = self.protein[item]
         return self.apply_interval(pd_series)
 
-    def apply_interval(self, array_or_series: Union[np.ndarray, pd.Series]) -> pd.Series:
+    def apply_interval(
+        self, array_or_series: Union[np.ndarray, pd.Series]
+    ) -> pd.Series:
         """Returns the section of `array_or_series` in the interval
 
 
@@ -614,7 +625,7 @@ class Coverage(object):
             series = array_or_series
 
         # - 1 because interval is inclusive, exclusive and .loc slices inclusive, inclusive
-        covered_slice = series.loc[self.interval[0]: self.interval[1] - 1]
+        covered_slice = series.loc[self.interval[0] : self.interval[1] - 1]
 
         return covered_slice
 
@@ -639,7 +650,7 @@ class Coverage(object):
         """Total number of residues spanned by the peptides."""
         return self.X.shape[1]
 
-    #TODO homogenize this and next property
+    # TODO homogenize this and next property
     @property
     def r_number(self) -> pd.RangeIndex:
         """Pandas index numbers corresponding to the part of the protein covered by peptides"""
@@ -881,7 +892,9 @@ class HDXMeasurement(object):
         return df
 
     # todo check shapes of k_int and timepoints, compared to their shapes in hdxmeasurementset
-    def get_tensors(self, exchanges: bool = False, dtype: Optional[torch.dtype] = None) -> dict[str, torch.Tensor]:
+    def get_tensors(
+        self, exchanges: bool = False, dtype: Optional[torch.dtype] = None
+    ) -> dict[str, torch.Tensor]:
         """ Returns a dictionary of tensor variables for fitting HD kinetics.
 
         Tensor variables are (shape):
@@ -1110,6 +1123,7 @@ class CoverageSet(object):
         hdxm_list: List of input :class:`.HDXMeasurment objects.
 
     """
+
     # todo perhaps this object should have X
     def __init__(self, hdxm_list: list[HDXMeasurement]):
         self.hdxm_list = hdxm_list
@@ -1128,13 +1142,13 @@ class CoverageSet(object):
         self.Np = np.max([hdxm.Np for hdxm in self.hdxm_list])
         self.Nt = np.max([hdxm.Nt for hdxm in self.hdxm_list])
 
-    #TODO in subclass
+    # TODO in subclass
     @property
     def index(self) -> pd.RangeIndex:
         """Index of residue numbers"""
         return pd.RangeIndex(self.interval[0], self.interval[1], name="r_number")
 
-    #TODO in subclass
+    # TODO in subclass
     def apply_interval(self, array_or_series):
         """Given a Numpy array or Pandas series with a length equal to the full protein, returns the section of the array equal to the covered
         region. Returned series length is equal to number of columns in the X matrix
@@ -1275,13 +1289,17 @@ class HDXMeasurementSet(object):
         Shape of the returned DataFrame is Nr (rows) x Ns*Nt (columns) and is multiindexed
         by columns (state, exposure, quantity)
         """
-        rfu = pd.concat([hdxm.rfu_residues for hdxm in self],
-                  keys=self.names, names=['state', 'exposure'], axis=1)
-        columns = pd.MultiIndex.from_tuples(
-            tuples=[(*tup, 'rfu') for tup in rfu.columns],
-            names=['state', 'exposure', 'quantity']
+        rfu = pd.concat(
+            [hdxm.rfu_residues for hdxm in self],
+            keys=self.names,
+            names=["state", "exposure"],
+            axis=1,
         )
-        
+        columns = pd.MultiIndex.from_tuples(
+            tuples=[(*tup, "rfu") for tup in rfu.columns],
+            names=["state", "exposure", "quantity"],
+        )
+
         rfu.columns = columns
 
         return rfu
@@ -1300,7 +1318,8 @@ class HDXMeasurementSet(object):
         """
 
         guesses = [
-            hdxm.guess_deltaG(rates_df[name], **kwargs) for hdxm, name in zip(self, self.names)
+            hdxm.guess_deltaG(rates_df[name], **kwargs)
+            for hdxm, name in zip(self, self.names)
         ]
         deltaG = pd.concat(guesses, keys=self.names, axis=1)
 
@@ -1333,7 +1352,9 @@ class HDXMeasurementSet(object):
 
         self.aligned_indices = df.to_numpy(dtype=int).T
 
-    def get_tensors(self, dtype: Optional[torch.dtype] = None) -> dict[str, torch.Tensor]:
+    def get_tensors(
+        self, dtype: Optional[torch.dtype] = None
+    ) -> dict[str, torch.Tensor]:
         """ Returns a dictionary of tensor variables for fitting HD kinetics.
 
         Tensor variables are (shape):
@@ -1349,7 +1370,7 @@ class HDXMeasurementSet(object):
         """
         # todo create correct shapes as per table in docstring for all
 
-        #TODO property?
+        # TODO property?
         temperature = np.array([kf.temperature for kf in self.hdxm_list])
 
         X_values = np.concatenate(
@@ -1465,7 +1486,9 @@ def contiguous_regions(condition):
     return idx
 
 
-def hdx_intersection(hdx_list: list[HDXMeasurement], fields: Optional[list[str]] = None):
+def hdx_intersection(
+    hdx_list: list[HDXMeasurement], fields: Optional[list[str]] = None
+):
     """
     Finds the intersection between peptides.
 
@@ -1497,7 +1520,9 @@ def hdx_intersection(hdx_list: list[HDXMeasurement], fields: Optional[list[str]]
     return hdx_out
 
 
-def array_intersection(arrays: Iterable[np.ndarray], fields: Iterable[str]) -> list[np.ndarray]:
+def array_intersection(
+    arrays: Iterable[np.ndarray], fields: Iterable[str]
+) -> list[np.ndarray]:
     """
     Find and return the intersecting entries in multiple arrays.
 

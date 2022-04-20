@@ -33,7 +33,6 @@ Running Black the Python code formatter
     command.run("black .", echo=True)
 
 
-
 @task()
 def flake8(command):
     """Runs flake8 linter."""
@@ -93,9 +92,7 @@ Running pytest the test framework
 """
     )
     # Build the command_string
-    command_string = (
-        f"pytest {test_files} --cov=./"
-    )
+    command_string = f"pytest {test_files} --cov=./"
     if not integrationtest:
         command_string += ' -m "not functionaltest and not integrationtest"'
     if test_results:

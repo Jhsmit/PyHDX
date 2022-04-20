@@ -51,7 +51,9 @@ class PDBeMolStar(ReactiveHTML):
 
     """
 
-    molecule_id = param.String(default=None, doc="PDB id to load. Example: '1qyn' or '1cbs'")
+    molecule_id = param.String(
+        default=None, doc="PDB id to load. Example: '1qyn' or '1cbs'"
+    )
 
     custom_data = param.Dict(
         doc="""Load data from a specific data source. Example: 
@@ -67,7 +69,7 @@ class PDBeMolStar(ReactiveHTML):
 
     alphafold_view = param.Boolean(
         default=False,
-        doc="Applies AlphaFold confidence score colouring theme for alphafold model"
+        doc="Applies AlphaFold confidence score colouring theme for alphafold model",
     )
 
     assembly_id = param.String(doc="Specify assembly")
@@ -78,7 +80,9 @@ class PDBeMolStar(ReactiveHTML):
         doc="Color of the background. If `None`, colors default is chosen depending on the color theme",
     )
 
-    highlight_color = param.Color(default="#ff6699", doc="Color for mouseover highlighting")
+    highlight_color = param.Color(
+        default="#ff6699", doc="Color for mouseover highlighting"
+    )
 
     select_color = param.Color(default="#0c0d11", doc="Color for selections")
 
@@ -87,8 +91,9 @@ class PDBeMolStar(ReactiveHTML):
     )
 
     # Todo: Determine if it should be default or light theme
-    theme = param.Selector(default="default", objects=["default", "dark"],
-                           doc="CSS theme to use")
+    theme = param.Selector(
+        default="default", objects=["default", "dark"], doc="CSS theme to use"
+    )
 
     hide_polymer = param.Boolean(default=False, doc="Hide polymer")
 
@@ -109,14 +114,17 @@ class PDBeMolStar(ReactiveHTML):
     hide_settings_icon = param.Boolean(default=False, doc="Hide the settings menu")
 
     hide_selection_icon = param.Boolean(
-        default=False, doc="Hide the selection icon"  # Default False, set False/True for True
+        default=False,
+        doc="Hide the selection icon",  # Default False, set False/True for True
     )
 
     # Todo requires testing with a trajectory file
     hide_animation_icon = param.Boolean(default=False, doc="Hide the animation icon")
 
     pdbe_url = param.String(
-        default=None, constant=True, doc="Url for PDB data. Mostly used for internal testing"
+        default=None,
+        constant=True,
+        doc="Url for PDB data. Mostly used for internal testing",
     )
 
     load_maps = param.Boolean(
@@ -127,8 +135,9 @@ class PDBeMolStar(ReactiveHTML):
         default=False, doc="Adds 'annotation' control in the menu"
     )
 
-    domain_annotation = param.Boolean(default=False,
-                                      doc="Adds 'annotation' control in the menu")
+    domain_annotation = param.Boolean(
+        default=False, doc="Adds 'annotation' control in the menu"
+    )
 
     low_precision_coords = param.Boolean(
         default=False, doc="Load low precision coordinates from the model server"
@@ -136,7 +145,9 @@ class PDBeMolStar(ReactiveHTML):
 
     hide_controls = param.Boolean(default=True, doc="Hide the control menu")
 
-    expanded = param.Boolean(default=False, doc="""Display full-screen by default on load""")
+    expanded = param.Boolean(
+        default=False, doc="""Display full-screen by default on load"""
+    )
 
     landscape = param.Boolean(
         default=True,  # Changed to True because it works best with Panel currently
@@ -167,11 +178,15 @@ class PDBeMolStar(ReactiveHTML):
 
     _clear_highlight = param.Boolean(doc="Event to trigger clearing of highlights")
 
-    _select = param.Dict(doc="Dictionary used for selections and coloring these selections")
+    _select = param.Dict(
+        doc="Dictionary used for selections and coloring these selections"
+    )
 
     _clear_selection = param.Boolean(doc="Clear selection event trigger")
 
-    _highlight = param.Dict(doc="Dictionary used for selections and coloring these selections")
+    _highlight = param.Dict(
+        doc="Dictionary used for selections and coloring these selections"
+    )
 
     _reset = param.Boolean(doc="Reset event trigger")
 
@@ -356,7 +371,6 @@ class PDBeMolStar(ReactiveHTML):
         "_reset": """
         state.viewerInstance.visual.reset(data._args['data'])""",
         "resize": "state.viewerInstance.canvas.handleResize()",
-
     }
 
     def color(self, data, non_selected_color=None):
@@ -421,4 +435,4 @@ class PDBeMolStar(ReactiveHTML):
         self._reset = not self._reset
 
     def _load_complete(self, event):
-        print('aww yeah')
+        print("aww yeah")

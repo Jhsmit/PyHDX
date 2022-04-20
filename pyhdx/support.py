@@ -25,8 +25,8 @@ def make_tuple(item):
         return item
 
 
-def hash_dataframe(df, method='builtin'):
-    if method == 'builtin':
+def hash_dataframe(df, method="builtin"):
+    if method == "builtin":
         tup = (
             *pd.util.hash_pandas_object(df, index=True).values,
             *df.columns,
@@ -36,7 +36,7 @@ def hash_dataframe(df, method='builtin'):
 
         return hash(tup)
 
-    elif method == 'md5':
+    elif method == "md5":
         pd_values = list(pd.util.hash_pandas_object(df, index=True).values)
         if isinstance(df.columns, pd.MultiIndex):
             columns = [name for cols in df.columns for name in cols]
@@ -46,7 +46,7 @@ def hash_dataframe(df, method='builtin'):
         all_vals = pd_values + columns + list(df.index.names) + list(df.columns.names)
         h = hashlib.md5()
         for val in all_vals:
-            h.update(str(val).encode('UTF-8'))
+            h.update(str(val).encode("UTF-8"))
 
         return h.digest().hex()
 
@@ -54,16 +54,14 @@ def hash_dataframe(df, method='builtin'):
         raise ValueError(f"Invalid method {method!r}, must be 'builtin' or 'md5'")
 
 
-def hash_array(array, method='builtin'):
-    if method == 'buitin':
+def hash_array(array, method="builtin"):
+    if method == "buitin":
         return hash(array.data.tobytes())
-    elif method == 'md5':
+    elif method == "md5":
         h = hashlib.md5(array.data.tobytes())
         return h.digest().hex()
     else:
         raise ValueError(f"Invalid method {method!r}, must be 'builtin' or 'md5'")
-
-
 
 
 def multiindex_apply_function(
@@ -107,9 +105,7 @@ def multiindex_set_categories(
 
 
 def multiindex_add_categories(
-    index: pd.MultiIndex,
-    level: int,
-    categories: Any,  # index-like
+    index: pd.MultiIndex, level: int, categories: Any,  # index-like
 ) -> pd.MultiIndex:
     new_index = multiindex_apply_function(
         index, level, "add_categories", args=[categories]
@@ -117,11 +113,7 @@ def multiindex_add_categories(
     return new_index
 
 
-def multiindex_astype(
-    index: pd.MultiIndex,
-    level: int,
-    dtype: str,
-) -> pd.MultiIndex:
+def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str,) -> pd.MultiIndex:
     new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
     return new_index
 
@@ -207,7 +199,9 @@ def get_original_blocks(coverage):
     return block_length
 
 
-def reduce_inter(args: list[tuple[int, int]], gap_size: int = -1) -> list[tuple[int, int]]:
+def reduce_inter(
+    args: list[tuple[int, int]], gap_size: int = -1
+) -> list[tuple[int, int]]:
     """Reduce overlapping intervals to its non-overlapping intveral parts
 
     Author: Brent Pedersen
@@ -239,8 +233,9 @@ def reduce_inter(args: list[tuple[int, int]], gap_size: int = -1) -> list[tuple[
         if (
             e + gap_size > ns or ret[-1][1] + gap_size > ns
         ):  # if current end is further than next start (overlap), OR current inverterval end later then next start
-            ret[-1] = ret[-1][0], max(
-                e, ne, ret[-1][1]
+            ret[-1] = (
+                ret[-1][0],
+                max(e, ne, ret[-1][1]),
             )  # extend the end value of the current inverval by the new end
         else:
             ret.append((ns, ne))

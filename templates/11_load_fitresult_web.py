@@ -9,13 +9,15 @@ import sys
 import panel as pn
 
 current_dir = Path(__file__).parent
-fit_result = load_fitresult(current_dir.parent / 'tests' /'test_data' / 'output' / 'ecsecb_tetramer_dimer')
+fit_result = load_fitresult(
+    current_dir.parent / "tests" / "test_data" / "output" / "ecsecb_tetramer_dimer"
+)
 
 ctrl, tmpl = main_app()
 
-src = ctrl.sources['main']
+src = ctrl.sources["main"]
 for hdxm in fit_result.hdxm_set:
     src.add(hdxm, hdxm.name)
-src.add(fit_result, 'fitresult_1')
+src.add(fit_result, "fitresult_1")
 
-pn.serve(tmpl, show=True, static_dirs={'pyhdx': STATIC_DIR})
+pn.serve(tmpl, show=True, static_dirs={"pyhdx": STATIC_DIR})

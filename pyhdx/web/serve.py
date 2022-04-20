@@ -50,7 +50,7 @@ def run_apps():
     fh.setLevel(10)
     tornado_logger.addHandler(fh)
 
-    #TODO Clean assets dir from pdb files
+    # TODO Clean assets dir from pdb files
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)
 
     print("Welcome to the PyHDX server!")

@@ -133,7 +133,9 @@ class TorchFitResult(object):
             self.generate_output(hdxm, self.dG[g_column])
             for hdxm, g_column in zip(self.hdxm_set, self.dG)
         ]
-        df = pd.concat(dfs, keys=self.names, names=["state", "quantity"], axis=1, sort=True)
+        df = pd.concat(
+            dfs, keys=self.names, names=["state", "quantity"], axis=1, sort=True
+        )
 
         self.output = df
 
@@ -151,7 +153,11 @@ class TorchFitResult(object):
             dfs[hdxm.name] = df
 
         mse_df = pd.concat(
-            dfs.values(), keys=dfs.keys(), names=["state", "quantity"], axis=1, sort=True
+            dfs.values(),
+            keys=dfs.keys(),
+            names=["state", "quantity"],
+            axis=1,
+            sort=True,
         )
 
         return mse_df
@@ -174,7 +180,9 @@ class TorchFitResult(object):
             residue_mse = pd.Series(residue_mse_values, index=hdxm.coverage.r_number)
             residue_mse_list.append(residue_mse)
 
-        residue_mse = pd.concat(residue_mse_list, keys=self.hdxm_set.names, axis=1, sort=True)
+        residue_mse = pd.concat(
+            residue_mse_list, keys=self.hdxm_set.names, axis=1, sort=True
+        )
         columns = pd.MultiIndex.from_tuples(
             [(name, "residue_mse") for name in self.hdxm_set.names],
             names=["state", "quantity"],
@@ -340,7 +348,7 @@ class TorchFitResult(object):
     def eval(self, timepoints):
         """evaluate the model at timepoints and return dataframe"""
 
-        assert timepoints.ndim == 1, 'Timepoints must be one-dimensional'
+        assert timepoints.ndim == 1, "Timepoints must be one-dimensional"
 
         array = self(timepoints)
 
@@ -377,13 +385,14 @@ class TorchFitResultSet(object):
         self.output = pd.concat(dfs, axis=1, sort=True)
 
         dfs = [result.losses for result in self.results]
-        names = ['_'.join(result.hdxm_set.names) for result in self.results]
+        names = ["_".join(result.hdxm_set.names) for result in self.results]
         self.losses = pd.concat(dfs, axis=1, keys=names, sort=True)
-
 
     @property
     def metadata(self):
-        return {'_'.join(result.hdxm_set.names): result.metadata for result in self.results}
+        return {
+            "_".join(result.hdxm_set.names): result.metadata for result in self.results
+        }
 
     def to_file(
         self,
@@ -419,7 +428,9 @@ class TorchFitResultSet(object):
     def get_dcalc(self, timepoints=None):
         # or do we want timepoints range per measurement? probably not
         if timepoints is None:
-            all_timepoints = np.concatenate([result.hdxm_set.timepoints.flatten() for result in self.results])
+            all_timepoints = np.concatenate(
+                [result.hdxm_set.timepoints.flatten() for result in self.results]
+            )
             tmin = np.log10(all_timepoints[np.nonzero(all_timepoints)].min())
             tmax = np.log10(all_timepoints.max())
 
@@ -434,10 +445,10 @@ class TorchFitResultSet(object):
 
         return df
 
-    #TODO needs testing and probably the data types are wrong here
+    # TODO needs testing and probably the data types are wrong here
     def eval(self, timepoints):
         dfs = [result(timepoints) for result in self.results]
-        df = pd.concat(dfs, axis=1)  #TODO sort=True?
+        df = pd.concat(dfs, axis=1)  # TODO sort=True?
 
         return df
 

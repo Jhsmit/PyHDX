@@ -12,14 +12,15 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('.'))
+
+sys.path.insert(0, os.path.abspath("."))
 
 
 # -- Project information -----------------------------------------------------
 
-project = 'PyHDX'
-copyright = '2022, Jochem Smit'
-author = 'Jochem Smit'
+project = "PyHDX"
+copyright = "2022, Jochem Smit"
+author = "Jochem Smit"
 
 
 # -- General configuration ---------------------------------------------------
@@ -27,6 +28,7 @@ author = 'Jochem Smit'
 # Custom param gui formatting
 def setup(app):
     from paramdoc import param_format_basic
+
     app.connect("autodoc-process-docstring", param_format_basic, priority=-100)
 
 
@@ -34,23 +36,22 @@ def setup(app):
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    'sphinx.ext.autodoc',  # autodoc docstrings
-    'sphinx.ext.intersphinx',
-    'nbsphinx',  # jupyter notebooks in docs
-    'sphinx.ext.mathjax',  # render latex style math
-    'sphinx.ext.viewcode',     # view code links
+    "sphinx.ext.autodoc",  # autodoc docstrings
+    "sphinx.ext.intersphinx",
+    "nbsphinx",  # jupyter notebooks in docs
+    "sphinx.ext.mathjax",  # render latex style math
+    "sphinx.ext.viewcode",  # view code links
     "sphinx_autodoc_typehints",  # autodoc type hints
     "sphinx.ext.napoleon",  # google style docstrings
-
 ]
 
 # Add any paths that contain templates here, relative to this directory.
-templates_path = ['_templates']
+templates_path = ["_templates"]
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+exclude_patterns = ["_build", "Thumbs.db", ".DS_Store"]
 
 
 # -- Options for HTML output -------------------------------------------------
@@ -63,12 +64,14 @@ html_theme = "furo"
 # Add any paths that contain custom static files (such as style sheets) here,
 # relative to this directory. They are copied after the builtin static files,
 # so a file named "default.css" will overwrite the builtin "default.css".
-html_static_path = ['_static']
+html_static_path = ["_static"]
 
-intersphinx_mapping = {'python': ('https://docs.python.org/3/', None),
-                       'numpy': ('https://numpy.org/doc/stable/', None),
-                       'scipy': ('http://docs.scipy.org/doc/scipy/reference/', None),
-                       'matplotlib': ('https://matplotlib.org/stable/', None),
-                       'pandas': ('https://pandas.pydata.org/docs/', None),
-                       'torch': ('https://pytorch.org/docs/stable/', None),
-                       'symfit': ('https://symfit.readthedocs.io/en/stable/', None)}
+intersphinx_mapping = {
+    "python": ("https://docs.python.org/3/", None),
+    "numpy": ("https://numpy.org/doc/stable/", None),
+    "scipy": ("http://docs.scipy.org/doc/scipy/reference/", None),
+    "matplotlib": ("https://matplotlib.org/stable/", None),
+    "pandas": ("https://pandas.pydata.org/docs/", None),
+    "torch": ("https://pytorch.org/docs/stable/", None),
+    "symfit": ("https://symfit.readthedocs.io/en/stable/", None),
+}

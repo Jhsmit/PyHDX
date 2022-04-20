@@ -59,58 +59,61 @@ from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar
 
 
-
 def blocking_function(duration):
     import time
 
     time.sleep(duration)
 
-    df = pd.DataFrame({
-        'x': np.random.normal(loc=3, scale=2, size=100),
-        'y': np.random.normal(loc=2, scale=0.3, size=100),
-    })
+    df = pd.DataFrame(
+        {
+            "x": np.random.normal(loc=3, scale=2, size=100),
+            "y": np.random.normal(loc=2, scale=0.3, size=100),
+        }
+    )
 
     return df
 
 
 class AsyncControlPanel(ControlPanel):
-    _type = 'async'
+    _type = "async"
 
     btn = param.Action(lambda self: self.do_stuff())
 
     print = param.Action(lambda self: self.print_stuff())
 
-    #async_do = param.Action(lambda self:)
+    # async_do = param.Action(lambda self:)
 
     value = param.String()
 
-    slider = param.Number(2.4, bounds=(1., 4.))
+    slider = param.Number(2.4, bounds=(1.0, 4.0))
 
-    field = param.String(default='init_value', doc='what is the value of this field during async?')
+    field = param.String(
+        default="init_value", doc="what is the value of this field during async?"
+    )
 
     @property
     def src(self):
-        return self.sources['main']
+        return self.sources["main"]
 
     def make_dict(self):
         widgets = self.generate_widgets()
-        widgets['pbar'] = ASyncProgressBar()
+        widgets["pbar"] = ASyncProgressBar()
 
         return widgets
 
     async def work_func(self):
-        print('start')
+        print("start")
         print(self.field)
-        name = self.field # is indeed stored locally
+        name = self.field  # is indeed stored locally
         scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address,  asynchronous=True) as client:
+        async with Client(scheduler_address, asynchronous=True) as client:
             futures = []
             for i in range(10):
-                duration = (i + np.random.rand()) / 3.
+                duration = (i + np.random.rand()) / 3.0
                 future = client.submit(blocking_function, duration)
                 futures.append(future)
 
-            await self.widgets['pbar'].run(futures)
+            await self.widgets["pbar"].run(futures)
 
             results = await asyncio.gather(*futures)
 
@@ -120,22 +123,22 @@ class AsyncControlPanel(ControlPanel):
         print(self.field)
         print(name)
 
-        self.src.add_table('test_data', result)
+        self.src.add_table("test_data", result)
         self.src.updated = True
 
-        #self.src.param.trigger('updated')
+        # self.src.param.trigger('updated')
 
     def do_stuff(self):
 
         async_execute(self.work_func)
 
-    @param.depends('slider', watch=True)
+    @param.depends("slider", watch=True)
     def _slider_updated(self):
         self.value = str(self.slider)
 
     def print_stuff(self):
         print(self.parent.executor)
-        df = self.src.tables['test_data']
+        df = self.src.tables["test_data"]
         print()
 
 
@@ -178,7 +181,7 @@ class DevTestControl(ControlPanel):
         print("break")
 
     def _action_test(self):
-        pdbe_view = self.views['protein']
+        pdbe_view = self.views["protein"]
         pdbe_view.pdbe.test = not pdbe_view.pdbe.test
 
     @property
@@ -232,10 +235,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     header = "Peptide Input"
 
-    input_mode = param.Selector(
-        default='Manual',
-        objects=['Manual', 'Batch']
-    )
+    input_mode = param.Selector(default="Manual", objects=["Manual", "Batch"])
 
     input_files_label = param.String("Input files:")
 
@@ -245,9 +245,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     batch_file_label = param.String("Batch file (yaml)")
 
-    batch_file = param.Parameter(
-        doc="Batch file input:"
-    )
+    batch_file = param.Parameter(doc="Batch file input:")
 
     be_mode = param.Selector(
         doc="Select method of back exchange correction",
@@ -353,7 +351,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             input_files_label=pn.widgets.StaticText(value=self.input_files_label),
             input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
             batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
-            batch_file=pn.widgets.FileInput(name="Batch yaml file", accept='.yaml'),
+            batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
             temperature=pn.widgets.FloatInput,
             be_percent=pn.widgets.FloatInput,
             d_percentage=pn.widgets.FloatInput,
@@ -376,12 +374,24 @@ class PeptideFileInputControl(PyHDXControlPanel):
         elif self.be_mode == "Flat percentage":
             excluded |= {"fd_state", "fd_exposure"}
 
-        if self.input_mode == 'Manual':
+        if self.input_mode == "Manual":
             excluded |= {"batch_file", "batch_file_label"}
-        elif self.input_mode == 'Batch':
+        elif self.input_mode == "Batch":
             excluded |= {
-                 "be_mode", "fd_state", "fd_exposure", "be_percent", "exp_state", "exp_exposures",
-                "drop_first", "d_percentage", "temperature", "pH", "n_term", "c_term", "sequence", "dataset_name"
+                "be_mode",
+                "fd_state",
+                "fd_exposure",
+                "be_percent",
+                "exp_state",
+                "exp_exposures",
+                "drop_first",
+                "d_percentage",
+                "temperature",
+                "pH",
+                "n_term",
+                "c_term",
+                "sequence",
+                "dataset_name",
             }
 
         self._excluded = list(excluded)
@@ -482,9 +492,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     def _action_add_dataset(self):
         """Apply controls to :class:`~pyhdx.models.PeptideMasterTable` and set :class:`~pyhdx.models.HDXMeasurement`"""
-        if self.input_mode == 'Manual':
+        if self.input_mode == "Manual":
             self._add_dataset_manual()
-        elif self.input_mode == 'Batch':
+        elif self.input_mode == "Batch":
             self._add_dataset_batch()
 
     def _add_dataset_batch(self):
@@ -492,12 +502,19 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self.parent.logger.info("No data loaded")
             return
         if self.src.hdxm_objects:
-            self.parent.logger.info("Can only batch load data when no data was previously loaded")
+            self.parent.logger.info(
+                "Can only batch load data when no data was previously loaded"
+            )
             return
 
         yaml_dict = yaml.safe_load(self.batch_file.decode("UTF-8"))
-        ios = {name: StringIO(byte_content.decode("UTF-8")) for name, byte_content in zip(self.widgets['input_files'].filename, self.input_files)}
-        filters = [lambda df: df.query('exposure > 0')]
+        ios = {
+            name: StringIO(byte_content.decode("UTF-8"))
+            for name, byte_content in zip(
+                self.widgets["input_files"].filename, self.input_files
+            )
+        }
+        filters = [lambda df: df.query("exposure > 0")]
 
         parser = StateParser(yaml_dict, data_src=ios, data_filters=filters)
 
@@ -523,9 +540,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             return
 
         peptides = PeptideMasterTable(
-            self._df,
-            d_percentage=self.d_percentage,
-            drop_first=self.drop_first,
+            self._df, d_percentage=self.d_percentage, drop_first=self.drop_first,
         )
         if self.be_mode == "FD Sample":
             control_0 = None  # = (self.zero_state, self.zero_exposure) if self.zero_state != 'None' else None
@@ -818,9 +833,7 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
             return
 
         peptides = PeptideMasterTable(
-            self._df,
-            d_percentage=self.d_percentage,
-            drop_first=self.drop_first,
+            self._df, d_percentage=self.d_percentage, drop_first=self.drop_first,
         )
 
         peptides.set_control(
@@ -886,7 +899,9 @@ class InitialGuessControl(PyHDXControlPanel):
 
     guess_name = param.String(default="Guess_1", doc="Name for the initial guesses")
 
-    _guess_names = param.List([], doc="List of current and future guess names", precedence=-1)
+    _guess_names = param.List(
+        [], doc="List of current and future guess names", precedence=-1
+    )
 
     do_fit1 = param.Action(
         lambda self: self._action_fit(),
@@ -913,7 +928,7 @@ class InitialGuessControl(PyHDXControlPanel):
             lower_bound=pn.widgets.FloatInput, upper_bound=pn.widgets.FloatInput
         )
 
-        widgets['pbar'] = ASyncProgressBar()
+        widgets["pbar"] = ASyncProgressBar()
 
         return widgets
 
@@ -973,9 +988,7 @@ class InitialGuessControl(PyHDXControlPanel):
 
     def _action_fit(self):
         # Checking if data is available, should always be the case as button is locked before
-        if (
-            len(self.src.hdxm_objects) == 0
-        ):
+        if len(self.src.hdxm_objects) == 0:
             self.parent.logger.info("No datasets loaded")
             return
 
@@ -994,10 +1007,10 @@ class InitialGuessControl(PyHDXControlPanel):
             loop.create_task(self._fit_rates(self.guess_name))
 
         # this is practically instantaneous and does not require dask
-        elif (
-            self.fitting_model == "Half-life (λ)"
-        ):
-            results = map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
+        elif self.fitting_model == "Half-life (λ)":
+            results = map(
+                fit_rates_half_time_interpolate, self.src.hdxm_objects.values()
+            )
 
             result_obj = RatesFitResult(list(results))
             self.src.add(result_obj, self.guess_name)
@@ -1011,7 +1024,7 @@ class InitialGuessControl(PyHDXControlPanel):
         num_samples = len(self.src.hdxm_objects)
 
         scheduler_address = cfg.get("cluster", "scheduler_address")
-        self.widgets['pbar'].num_tasks = num_samples
+        self.widgets["pbar"].num_tasks = num_samples
         async with Client(scheduler_address, asynchronous=True) as client:
             if self.global_bounds:
                 bounds = [(self.lower_bound, self.upper_bound)] * num_samples
@@ -1019,10 +1032,12 @@ class InitialGuessControl(PyHDXControlPanel):
                 bounds = self.bounds.values()
             futures = []
             for hdxm, bound in zip(self.src.hdxm_objects.values(), bounds):
-                future = client.submit(fit_rates_weighted_average, hdxm, bound, client='worker_client')
+                future = client.submit(
+                    fit_rates_weighted_average, hdxm, bound, client="worker_client"
+                )
                 futures.append(future)
 
-            await self.widgets['pbar'].run(futures)
+            await self.widgets["pbar"].run(futures)
 
             results = await asyncio.gather(*futures)
 
@@ -1048,19 +1063,17 @@ class FitControl(PyHDXControlPanel):
     initial_guess = param.Selector(doc="Name of dataset to use for initial guesses.")
 
     guess_mode = param.Selector(
-        default='One-to-one',
-        objects=['One-to-one', 'One-to-many'],
+        default="One-to-one",
+        objects=["One-to-one", "One-to-many"],
         doc="Use initial guesses for each protein state (one-to-one) or use one initial"
-            "guess for all protein states (one-to-many)"
+        "guess for all protein states (one-to-many)",
     )
 
     guess_state = param.Selector(
         doc="Which protein state to use for initial guess when using one-to-many guesses"
     )
 
-    fit_mode = param.Selector(
-        default="Single", objects=["Batch", "Single"]
-    )
+    fit_mode = param.Selector(default="Single", objects=["Batch", "Single"])
 
     stop_loss = param.Number(
         STOP_LOSS,
@@ -1118,7 +1131,9 @@ class FitControl(PyHDXControlPanel):
 
     fit_name = param.String("Gibbs_fit_1", doc="Name for for the fit result")
 
-    _fit_names = param.List([], precedence=-1, doc="List of names of completed and running fits")
+    _fit_names = param.List(
+        [], precedence=-1, doc="List of names of completed and running fits"
+    )
 
     do_fit = param.Action(
         lambda self: self._action_fit(),
@@ -1138,8 +1153,8 @@ class FitControl(PyHDXControlPanel):
 
     def make_dict(self):
         widgets = self.generate_widgets()
-        #widgets['pbar_col'] = pn.layout.Column()
-        widgets['pbar'] = ASyncProgressBar()
+        # widgets['pbar_col'] = pn.layout.Column()
+        widgets["pbar"] = ASyncProgressBar()
         # widgets['progress'] = CallbackProgress()
 
         return widgets
@@ -1162,12 +1177,12 @@ class FitControl(PyHDXControlPanel):
 
         self._mode_updated()
 
-    @param.depends("guess_mode", 'fit_mode', watch=True)
+    @param.depends("guess_mode", "fit_mode", watch=True)
     def _mode_updated(self):
         excluded = []
         if not (self.fit_mode == "Batch" and len(self.src.hdxm_objects) > 1):
             excluded += ["r2", "reference"]
-        if self.guess_mode == 'One-to-one':
+        if self.guess_mode == "One-to-one":
             excluded += ["guess_state"]
         self._excluded = excluded
         self.update_box()
@@ -1182,7 +1197,6 @@ class FitControl(PyHDXControlPanel):
     #         self._excluded = ["r2", "reference"]
     #
     #     self.update_box()
-
 
     def _action_fit(self):
         if self.fit_name in self._fit_names:
@@ -1211,24 +1225,26 @@ class FitControl(PyHDXControlPanel):
 
         # initial guesses are rates
         if self.initial_guess in self.src.rate_results:
-            rates_df = self.src.get_table('rates')
+            rates_df = self.src.get_table("rates")
 
-            if self.guess_mode == 'One-to-one':
-                sub_df = rates_df.xs((self.initial_guess, 'rate'), level=[0, 2], axis=1)
+            if self.guess_mode == "One-to-one":
+                sub_df = rates_df.xs((self.initial_guess, "rate"), level=[0, 2], axis=1)
                 gibbs_guess = self.src.hdx_set.guess_deltaG(sub_df)
-            elif self.guess_mode == 'One-to-many':
+            elif self.guess_mode == "One-to-many":
                 hdxm = self.src.hdxm_objects[self.guess_state]
-                rates_series = rates_df[(self.initial_guess, self.guess_state, 'rate')]
+                rates_series = rates_df[(self.initial_guess, self.guess_state, "rate")]
                 gibbs_guess = hdxm.guess_deltaG(rates_series)
 
         # intial guess are dG values from previous fit
         elif self.initial_guess in self.src.dG_fits:
-            dG_df = self.src.get_table('dG_fits')
+            dG_df = self.src.get_table("dG_fits")
 
-            if self.guess_mode == 'One-to-one':
-                gibbs_guess = dG_df.xs((self.initial_guess, '_dG'), level=[0, 2], axis=1)
-            elif self.guess_mode == 'One-to-many':
-                gibbs_guess = dG_df[(self.initial_guess, self.guess_state, '_dG')]
+            if self.guess_mode == "One-to-one":
+                gibbs_guess = dG_df.xs(
+                    (self.initial_guess, "_dG"), level=[0, 2], axis=1
+                )
+            elif self.guess_mode == "One-to-many":
+                gibbs_guess = dG_df[(self.initial_guess, self.guess_state, "_dG")]
 
         else:
             self.parent.logger.debug(f"Initial guess {self.initial_guess!r} not found")
@@ -1240,7 +1256,9 @@ class FitControl(PyHDXControlPanel):
 
         # data_objs = self.src.hdxm_objects.values()
         # rates_df = self.src.rate_results[self.initial_guess].output
-        gibbs_guesses = self.get_guesses() # returns either DataFrame or Series depending on guess mode
+        gibbs_guesses = (
+            self.get_guesses()
+        )  # returns either DataFrame or Series depending on guess mode
         futures = []
 
         scheduler_address = cfg.get("cluster", "scheduler_address")
@@ -1254,32 +1272,34 @@ class FitControl(PyHDXControlPanel):
                 future = client.submit(fit_gibbs_global, hdxm, guess, **self.fit_kwargs)
                 futures.append(future)
 
-            self.widgets['pbar'].num_tasks = len(futures)
-            await self.widgets['pbar'].run(futures)
+            self.widgets["pbar"].num_tasks = len(futures)
+            await self.widgets["pbar"].run(futures)
 
             results = await asyncio.gather(*futures)
 
         result = TorchFitResultSet(results)
         self.src.add(result, name)
         self._current_jobs -= 1
-        self.widgets['pbar'].active = False
+        self.widgets["pbar"].active = False
         self.widgets["do_fit"].loading = False
         self.parent.logger.info(f"Finished PyTorch fit: {name}")
 
     async def _batch_fit(self):
-        self.widgets['pbar'].active = True
+        self.widgets["pbar"].active = True
         name = self.fit_name
         hdx_set = self.src.hdx_set
-        gibbs_guess = self.get_guesses() 
+        gibbs_guess = self.get_guesses()
         scheduler_address = cfg.get("cluster", "scheduler_address")
         async with Client(scheduler_address, asynchronous=True) as client:
-            future = client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
+            future = client.submit(
+                fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs
+            )
             result = await future
 
         self.src.add(result, name)
 
         self._current_jobs -= 1
-        self.widgets['pbar'].active = False
+        self.widgets["pbar"].active = False
         self.widgets["do_fit"].loading = False
         self.parent.logger.info(f"Finished PyTorch fit: {name}")
         self.parent.logger.info(
@@ -1949,19 +1969,12 @@ class ProteinControl(PyHDXControlPanel):
 
     load_structure = param.Action(lambda self: self._action_load_structure())
 
-    highlight_mode = param.Selector(
-        default="Single",
-        objects=["Single", "Range"]
-    )
+    highlight_mode = param.Selector(default="Single", objects=["Single", "Range"])
 
     highlight_range = param.Range(
-        default=(1,2),
-        step=1,
-        inclusive_bounds=[True, True],
+        default=(1, 2), step=1, inclusive_bounds=[True, True],
     )
-    highlight_value = param.Integer(
-        default=1
-    )
+    highlight_value = param.Integer(default=1)
 
     highlight = param.Action(lambda self: self._action_highlight())
 
@@ -1972,7 +1985,7 @@ class ProteinControl(PyHDXControlPanel):
             parent, _excluded=["file_binary", "highlight_range"], **params
         )
         self.n_term, self.c_term = 1, 2
-        self.src.param.watch(self._hdxm_added, 'hdxm_objects')
+        self.src.param.watch(self._hdxm_added, "hdxm_objects")
 
         self.update_box()
 
@@ -1980,12 +1993,12 @@ class ProteinControl(PyHDXControlPanel):
     def _layout(self):
         return [
             ("self", self.own_widget_names),  # always use this instead of none?
-            ('views.protein', 'highlight_color'),
+            ("views.protein", "highlight_color"),
             ("transforms.protein_src", "value"),
-            ('views.protein', 'visual_style'),
-            ('views.protein', 'lighting'),
-            ('views.protein', 'spin'),
-            ('views.protein', 'reset'),
+            ("views.protein", "visual_style"),
+            ("views.protein", "lighting"),
+            ("views.protein", "spin"),
+            ("views.protein", "reset"),
         ]
 
     def make_dict(self):
@@ -2014,8 +2027,8 @@ class ProteinControl(PyHDXControlPanel):
 
     def _action_highlight(self):
         data = {
-            'color': {'r': 200, 'g': 105, 'b': 180},
-            'focus': True,
+            "color": {"r": 200, "g": 105, "b": 180},
+            "focus": True,
         }
 
         if self.highlight_mode == "Single":
@@ -2024,10 +2037,10 @@ class ProteinControl(PyHDXControlPanel):
             data["start_residue_number"] = self.highlight_range[0]
             data["end_residue_number"] = self.highlight_range[1]
 
-        self.views['protein'].pdbe.highlight([data])
+        self.views["protein"].pdbe.highlight([data])
 
     def _action_clear_highlight(self):
-        self.views['protein'].pdbe.clear_highlight()
+        self.views["protein"].pdbe.clear_highlight()
 
     def _action_load_structure(self):
         if self.input_mode == "PDB File" and self.file_binary is not None:
@@ -2048,8 +2061,8 @@ class ProteinControl(PyHDXControlPanel):
         self.n_term = min(self.n_term, hdxm_object.coverage.protein.n_term)
         self.c_term = max(self.c_term, hdxm_object.coverage.protein.c_term)
 
-        self.param['highlight_value'].bounds = (self.n_term, self.c_term)
-        self.param['highlight_range'].bounds = (self.n_term, self.c_term)
+        self.param["highlight_value"].bounds = (self.n_term, self.c_term)
+        self.param["highlight_range"].bounds = (self.n_term, self.c_term)
 
 
 class FileExportControl(PyHDXControlPanel):
@@ -2088,12 +2101,10 @@ class FileExportControl(PyHDXControlPanel):
             label="Download table", callback=self.table_export_callback
         )
         widgets["export_pml"] = pn.widgets.FileDownload(
-            label="Download pml scripts",
-            callback=self.pml_export_callback,
+            label="Download pml scripts", callback=self.pml_export_callback,
         )
         widgets["export_colors"] = pn.widgets.FileDownload(
-            label="Download colors",
-            callback=self.color_export_callback,
+            label="Download colors", callback=self.color_export_callback,
         )
 
         widget_order = [
@@ -2243,8 +2254,7 @@ class FigureExportControl(PyHDXControlPanel):
         widgets = self.generate_widgets()
 
         widgets["export_figure"] = pn.widgets.FileDownload(
-            label="Download figure",
-            callback=self.figure_export_callback,
+            label="Download figure", callback=self.figure_export_callback,
         )
 
         widget_order = [

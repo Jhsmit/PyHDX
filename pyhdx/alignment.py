@@ -5,7 +5,9 @@ import numpy as np
 import pandas as pd
 
 
-def parse_clustal_string(s: str, num_proteins: int, whitelines: int = 2, offset: int = 0) -> dict:
+def parse_clustal_string(
+    s: str, num_proteins: int, whitelines: int = 2, offset: int = 0
+) -> dict:
     """Takes input Clustal result and parses it to a dictionary.
 
     Keys in the output dict are IDs of the protein as input into clustal. Values are aligned
@@ -42,7 +44,8 @@ def parse_clustal_string(s: str, num_proteins: int, whitelines: int = 2, offset:
 
     return alignment
 
-#TODO should take dicts only
+
+# TODO should take dicts only
 def align_dataframes(dataframes, alignment, first_r_numbers=None):
 
     """

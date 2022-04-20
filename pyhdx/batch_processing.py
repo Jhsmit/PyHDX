@@ -10,8 +10,14 @@ from typing import Union, Any, Optional
 from pyhdx import TorchFitResult
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fileIO import read_dynamx, csv_to_dataframe, save_fitresult
-from pyhdx.fitting import fit_rates_half_time_interpolate, fit_rates_weighted_average, \
-    fit_gibbs_global, fit_gibbs_global_batch, RatesFitResult, GenericFitResult
+from pyhdx.fitting import (
+    fit_rates_half_time_interpolate,
+    fit_rates_weighted_average,
+    fit_gibbs_global,
+    fit_gibbs_global_batch,
+    RatesFitResult,
+    GenericFitResult,
+)
 import param
 import pandas as pd
 from pyhdx.support import gen_subclasses
@@ -24,26 +30,30 @@ temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}
 # todo add data filters in state spec?
 # todo add proline, n_term options
 class StateParser(object):
-    ""'object used to parse yaml state input files into PyHDX HDX Measurement object'
+    "" "object used to parse yaml state input files into PyHDX HDX Measurement object"
 
-    def __init__(self,
-                 state_spec: dict,
-                 data_src: Union[os.PathLike, dict, None],
-                 data_filters: list = None):
+    def __init__(
+        self,
+        state_spec: dict,
+        data_src: Union[os.PathLike, dict, None],
+        data_filters: list = None,
+    ):
 
         self.state_spec = state_spec
-        data_src = data_src or '.'
+        data_src = data_src or "."
         if isinstance(data_src, (os.PathLike, str)):
             self.data_src = Path(data_src)
         elif isinstance(data_src, dict):
             self.data_src = data_src
         else:
-            raise TypeError(f"Invalid data type {type(data_src)!r}, must be path or dict")
+            raise TypeError(
+                f"Invalid data type {type(data_src)!r}, must be path or dict"
+            )
 
         self.data_filters = data_filters or []
 
-    def load_data(self, *filenames: os.PathLike, reader='dynamx') -> pd.DataFrame:
-        if reader == 'dynamx':
+    def load_data(self, *filenames: os.PathLike, reader="dynamx") -> pd.DataFrame:
+        if reader == "dynamx":
             read_func = read_dynamx
         else:
             raise NotImplementedError("Only reading of dynamx files is implemented")
@@ -52,7 +62,9 @@ class StateParser(object):
             input_files = [self.data_src / filename for filename in filenames]
             df = read_func(*input_files)
         else:
-            input_stringios = [self.data_src[Path(filename).name] for filename in filenames]
+            input_stringios = [
+                self.data_src[Path(filename).name] for filename in filenames
+            ]
             df = read_func(*input_stringios)
             for io in input_stringios:
                 io.seek(0)
@@ -85,11 +97,15 @@ class StateParser(object):
         filenames = state_dict["filenames"]
         df = self.load_data(*filenames)
 
-        pmt = PeptideMasterTable(df,
-                                 drop_first=state_dict.get('drop_first', 1),
-                                 d_percentage=state_dict['d_percentage'])
+        pmt = PeptideMasterTable(
+            df,
+            drop_first=state_dict.get("drop_first", 1),
+            d_percentage=state_dict["d_percentage"],
+        )
 
-        if 'control' in state_dict.keys():  # Use a FD control for back exchange correction
+        if (
+            "control" in state_dict.keys()
+        ):  # Use a FD control for back exchange correction
             # todo control should be set from an external file
             control_state = state_dict["control"]["state"]
             exposure_value = state_dict["control"]["exposure"]["value"]
@@ -98,7 +114,7 @@ class StateParser(object):
 
             pmt.set_control((control_state, control_exposure))
         elif (
-                "be_percent" in state_dict.keys()
+            "be_percent" in state_dict.keys()
         ):  # Flat back exchange percentage for all peptides\
             pmt.set_backexchange(state_dict["be_percent"])
         else:
@@ -130,31 +146,30 @@ class StateParser(object):
             sequence=sequence,
             n_term=n_term,
             c_term=c_term,
-            **kwargs
+            **kwargs,
         )
 
         return hdxm
 
 
 process_functions = {
-    'csv_to_dataframe': csv_to_dataframe,
-    'fit_rates_half_time_interpolate': fit_rates_half_time_interpolate,
-    'fit_rates_weighted_average': fit_rates_weighted_average,
-    'fit_gibbs_global': fit_gibbs_global
-
+    "csv_to_dataframe": csv_to_dataframe,
+    "fit_rates_half_time_interpolate": fit_rates_half_time_interpolate,
+    "fit_rates_weighted_average": fit_rates_weighted_average,
+    "fit_gibbs_global": fit_gibbs_global,
 }
 
 # task objects should be param
 class Task(param.Parameterized):
     ...
 
-    scheduler_address = param.String(doc='Optional scheduler adress for dask task')
+    scheduler_address = param.String(doc="Optional scheduler adress for dask task")
 
-    cwd = param.ClassSelector(Path, doc='Path of the current working directory')
+    cwd = param.ClassSelector(Path, doc="Path of the current working directory")
 
 
 class LoadHDMeasurementSetTask(Task):
-    _type = 'load_hdxm_set'
+    _type = "load_hdxm_set"
 
     state_file = param.String()  # = string path
 
@@ -169,16 +184,18 @@ class LoadHDMeasurementSetTask(Task):
 
 
 class EstimateRates(Task):
-    _type = 'estimate_rates'
+    _type = "estimate_rates"
 
     hdxm_set = param.ClassSelector(HDXMeasurementSet)
 
-    select_state = param.String(doc='If set, only use this state for creating initial guesses')
+    select_state = param.String(
+        doc="If set, only use this state for creating initial guesses"
+    )
 
     out = param.ClassSelector((RatesFitResult, GenericFitResult))
 
     def execute(self, *args, **kwargs):
-        if self.select_state: # refactor to 'state' ?
+        if self.select_state:  # refactor to 'state' ?
             hdxm = self.hdxm_set.get(self.select_state)
             result = fit_rates_half_time_interpolate(hdxm)
         else:
@@ -193,11 +210,13 @@ class EstimateRates(Task):
 
 # todo allow guesses from deltaG
 class ProcessGuesses(Task):
-    _type = 'create_guess'
+    _type = "create_guess"
 
     hdxm_set = param.ClassSelector(HDXMeasurementSet)
 
-    select_state = param.String(doc='If set, only use this state for creating initial guesses')
+    select_state = param.String(
+        doc="If set, only use this state for creating initial guesses"
+    )
 
     rates_df = param.ClassSelector(pd.DataFrame)
 
@@ -207,26 +226,27 @@ class ProcessGuesses(Task):
         if self.select_state:
             hdxm = self.hdxm_set.get(self.select_state)
             if self.rates_df.columns.nlevels == 2:
-                rates_series = self.rates_df[(self.select_state, 'rate')]
+                rates_series = self.rates_df[(self.select_state, "rate")]
             else:
-                rates_series = self.rates_df['rate']
+                rates_series = self.rates_df["rate"]
 
             guess = hdxm.guess_deltaG(rates_series)
 
         else:
-            rates = self.rates_df.xs('rate', level=-1, axis=1)
+            rates = self.rates_df.xs("rate", level=-1, axis=1)
             guess = self.hdxm_set.guess_deltaG(rates)
 
         self.out = guess
 
 
 class FitGlobalBatch(Task):
-    _type = 'fit_global_batch'
+    _type = "fit_global_batch"
 
     hdxm_set = param.ClassSelector(HDXMeasurementSet)
 
     initial_guess = param.ClassSelector(
-        (pd.Series, pd.DataFrame), doc='Initial guesses for fits')
+        (pd.Series, pd.DataFrame), doc="Initial guesses for fits"
+    )
 
     out = param.ClassSelector(TorchFitResult)
 
@@ -237,7 +257,7 @@ class FitGlobalBatch(Task):
 
 
 class SaveFitResult(Task):
-    _type = 'save_fit_result'
+    _type = "save_fit_result"
 
     fit_result = param.ClassSelector(TorchFitResult)
 
@@ -249,36 +269,40 @@ class SaveFitResult(Task):
 
 class JobParser(object):
 
-    cwd = param.ClassSelector(Path, doc='Path of the current working directory')
+    cwd = param.ClassSelector(Path, doc="Path of the current working directory")
 
     def __init__(self, job_spec: dict, cwd: Optional[os.PathLike] = None):
         self.job_spec = job_spec
         self.cwd = cwd or Path().cwd()
 
         self.tasks = {}
-        self.task_classes = {cls._type: cls for cls in gen_subclasses(Task) if getattr(cls, "_type", None)}
+        self.task_classes = {
+            cls._type: cls
+            for cls in gen_subclasses(Task)
+            if getattr(cls, "_type", None)
+        }
 
     def resolve_var(self, var_string: str) -> Any:
-        task_name, *attrs = var_string.split('.')
+        task_name, *attrs = var_string.split(".")
 
         return reduce(getattr, attrs, self.tasks[task_name])
 
     def execute(self) -> None:
 
-        for task_spec in self.job_spec['steps']:
-            task_klass = self.task_classes[task_spec['task']]
-            skip = {'args', 'kwargs', 'task'}
+        for task_spec in self.job_spec["steps"]:
+            task_klass = self.task_classes[task_spec["task"]]
+            skip = {"args", "kwargs", "task"}
 
             resolved_params = {}
             for par_name in task_spec.keys() - skip:
                 value = task_spec[par_name]
                 if isinstance(value, str):
-                    m = re.findall(r'\$\((.*?)\)', value)
+                    m = re.findall(r"\$\((.*?)\)", value)
                     if m:
                         value = self.resolve_var(m[0])
                 resolved_params[par_name] = value
             task = task_klass(cwd=self.cwd, **resolved_params)
-            task.execute(*task_spec.get('args', []), **task_spec.get('kwargs', {}))
+            task.execute(*task_spec.get("args", []), **task_spec.get("kwargs", {}))
 
             self.tasks[task.name] = task
 
@@ -294,10 +318,9 @@ def yaml_to_hdxmset(yaml_dict, data_dir=None, **kwargs):
 
     return HDXMeasurementSet(hdxm_list)
 
+
 # todo configurable
-default_filters = [
-    lambda df: df.query('exposure > 0')
-]
+default_filters = [lambda df: df.query("exposure > 0")]
 
 
 def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
@@ -320,7 +343,9 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
         Output data object as specified by `yaml_dict`.
     """
 
-    warnings.warn('This method is deprecated in favor of StateParser', DeprecationWarning)
+    warnings.warn(
+        "This method is deprecated in favor of StateParser", DeprecationWarning
+    )
 
     if data_dir is not None:
         input_files = [Path(data_dir) / fname for fname in yaml_dict["filenames"]]
@@ -329,11 +354,13 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
 
     data = read_dynamx(*input_files)
 
-    pmt = PeptideMasterTable(data,
-                             drop_first=yaml_dict.get('drop_first', 1),
-                             d_percentage=yaml_dict['d_percentage'])
+    pmt = PeptideMasterTable(
+        data,
+        drop_first=yaml_dict.get("drop_first", 1),
+        d_percentage=yaml_dict["d_percentage"],
+    )
 
-    if 'control' in yaml_dict.keys():  # Use a FD control for back exchange correction
+    if "control" in yaml_dict.keys():  # Use a FD control for back exchange correction
         # todo control should be set from an external file
         control_state = yaml_dict["control"]["state"]
         exposure_value = yaml_dict["control"]["exposure"]["value"]
@@ -375,7 +402,7 @@ def yaml_to_hdxm(yaml_dict, data_dir=None, data_filters=None, **kwargs):
         sequence=sequence,
         n_term=n_term,
         c_term=c_term,
-        **kwargs
+        **kwargs,
     )
 
     return hdxm
@@ -444,9 +471,7 @@ def load_from_yaml_v040b2(yaml_dict, data_dir=None, **kwargs):  # pragma: no cov
         sequence=sequence,
         n_term=n_term,
         c_term=c_term,
-        **kwargs
+        **kwargs,
     )
 
     return hdxm
-
-

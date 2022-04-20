@@ -7,17 +7,17 @@ import yaml
 
 cwd = Path(__file__).parent
 
-data_dir = cwd / 'test_data' / 'input'
-output_dir = cwd / 'test_data' / 'output'
+data_dir = cwd / "test_data" / "input"
+output_dir = cwd / "test_data" / "output"
 
-yaml_dict = yaml.safe_load(Path(data_dir / 'data_states.yaml').read_text())
+yaml_dict = yaml.safe_load(Path(data_dir / "data_states.yaml").read_text())
 
 hdx_set = yaml_to_hdxmset(yaml_dict, data_dir=data_dir)
 
-initial_guess_rates = csv_to_dataframe(output_dir / 'ecSecB_guess.csv')
+initial_guess_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
-guesses = hdx_set[0].guess_deltaG(initial_guess_rates['rate'])
-fit_kwargs = yaml.safe_load(Path(data_dir / 'fit_settings.yaml').read_text())
+guesses = hdx_set[0].guess_deltaG(initial_guess_rates["rate"])
+fit_kwargs = yaml.safe_load(Path(data_dir / "fit_settings.yaml").read_text())
 
-fr = fit_gibbs_global_batch(hdx_set, guesses,  **fit_kwargs)
-save_fitresult(output_dir / 'ecsecb_tetramer_dimer', fr)
+fr = fit_gibbs_global_batch(hdx_set, guesses, **fit_kwargs)
+save_fitresult(output_dir / "ecsecb_tetramer_dimer", fr)

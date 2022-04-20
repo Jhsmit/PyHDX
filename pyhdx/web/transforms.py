@@ -351,9 +351,7 @@ class ApplyCmapOptTransform(AppTransform):
     _type = "apply_cmap_opt"
 
     opts = param.Selector(
-        doc="cmap opts list to choose from",
-        label="Color transform",
-        objects=[],
+        doc="cmap opts list to choose from", label="Color transform", objects=[],
     )  # todo refactor to cmap_opt? color transform?
 
     # @clasmethod

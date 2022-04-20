@@ -930,6 +930,7 @@ class GenericFitResult:
 @dataclass
 class RatesFitResult:
     """Accumulates multiple Generic/KineticsFit Results"""
+
     results: list
 
     @property

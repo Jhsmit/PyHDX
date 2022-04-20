@@ -96,7 +96,7 @@ EXTENSIONS = [
     "xml",
 ]
 
-#todo remove
+# todo remove
 class NGL(ReactiveHTML):
     """
     The [NGL Viewer](https://github.com/nglviewer/ngl) can be used
@@ -111,10 +111,7 @@ class NGL(ReactiveHTML):
 
     object = param.String()
 
-    extension = param.Selector(
-        default="pdb",
-        objects=EXTENSIONS,
-    )
+    extension = param.Selector(default="pdb", objects=EXTENSIONS,)
 
     background_color = param.Color(
         default="#F7F7F7", doc="Color to use for the background"
@@ -249,9 +246,7 @@ class ASyncProgressBar(param.Parameterized):
     def value(self):
         value = int(100 * (self.completed / self.num_tasks))
         # todo check why this is sometimes out of bounds
-        value = max(
-            0, min(value, 100)
-        )
+        value = max(0, min(value, 100))
 
         if value == 0 and self.active:
             return None

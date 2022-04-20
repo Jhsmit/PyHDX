@@ -371,7 +371,9 @@ def save_fitresult(output_dir, fit_result, log_lines=None):
     dataframe_to_file(output_dir / "losses.csv", fit_result.losses)
     dataframe_to_file(output_dir / "losses.txt", fit_result.losses, fmt="pprint")
 
-    if isinstance(fit_result.hdxm_set, pyhdx.HDXMeasurement): # check, but this should always be hdxm_set
+    if isinstance(
+        fit_result.hdxm_set, pyhdx.HDXMeasurement
+    ):  # check, but this should always be hdxm_set
         fit_result.hdxm_set.to_file(output_dir / "HDXMeasurement.csv")
     if isinstance(fit_result.hdxm_set, pyhdx.HDXMeasurementSet):
         fit_result.hdxm_set.to_file(output_dir / "HDXMeasurements.csv")

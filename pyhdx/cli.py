@@ -9,8 +9,13 @@ import yaml
 
 app = typer.Typer()
 
+
 @app.command()
-def serve(scheduler_address: Optional[str] = typer.Option(None, help="Address for dask scheduler to use")):
+def serve(
+    scheduler_address: Optional[str] = typer.Option(
+        None, help="Address for dask scheduler to use"
+    )
+):
     """Launch the PyHDX web application"""
 
     from pyhdx.config import cfg
@@ -37,6 +42,7 @@ def serve(scheduler_address: Optional[str] = typer.Option(None, help="Address fo
 
     # Start the PyHDX web application
     from pyhdx.web import serve as serve_pyhdx
+
     serve_pyhdx.run_apps()
 
     loop = True
@@ -50,8 +56,8 @@ def serve(scheduler_address: Optional[str] = typer.Option(None, help="Address fo
 
 @app.command()
 def process(
-        jobfile: Path = typer.Argument(..., help="Path to .yaml jobfile"),
-        cwd: Optional[Path] = typer.Option(None, help="Optional path to working directory")
+    jobfile: Path = typer.Argument(..., help="Path to .yaml jobfile"),
+    cwd: Optional[Path] = typer.Option(None, help="Optional path to working directory"),
 ):
     """
     Process a HDX dataset according to a jobfile
