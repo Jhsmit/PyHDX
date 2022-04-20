@@ -249,7 +249,7 @@ class ASyncProgressBar(param.Parameterized):
         value = max(0, min(value, 100))
 
         if value == 0 and self.active:
-            return None
+            return -1
         else:
             return value
 
