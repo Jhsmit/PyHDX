@@ -14,6 +14,7 @@ Welcome to PyHDX's documentation!
    installation
    web_app
    examples
+   citing
    modules
    web_app_autodoc
 

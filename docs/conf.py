@@ -15,6 +15,8 @@ import sys
 
 sys.path.insert(0, os.path.abspath("."))
 
+# rebuilding with sphinx-autobuild:
+# sphinx-autobuild docs docs/_build/html --watch pyhdx
 
 # -- Project information -----------------------------------------------------
 
@@ -37,6 +39,7 @@ def setup(app):
 # ones.
 extensions = [
     "sphinx.ext.autodoc",  # autodoc docstrings
+    "sphinxcontrib.bibtex",  # allow bibtex references
     "sphinx.ext.intersphinx",
     "nbsphinx",  # jupyter notebooks in docs
     "sphinx.ext.mathjax",  # render latex style math
@@ -44,6 +47,10 @@ extensions = [
     "sphinx_autodoc_typehints",  # autodoc type hints
     "sphinx.ext.napoleon",  # google style docstrings
 ]
+
+# bibtex configuration
+bibtex_bibfiles = ['refs.bib']
+bibtex_reference_style = 'label'
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
