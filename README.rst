@@ -91,3 +91,8 @@ The latest version (v2) of our biorxiv paper: https://doi.org/10.1101/2020.09.30
 
 Python code for analysis and generation the figures in the paper are here: https://github.com/Jhsmit/PyHDX-paper
 
+Other
+=====
+
+HDX datasets and format (early alpha):
+https://github.com/Jhsmit/HDX-MS-datasets
