@@ -13,7 +13,7 @@ When using PyHDX in your research, please cite our publication:
 Citing dependencies
 -------------------
 
-When using the different modules offered by PyHDX, please consider citing the following papers/DOIs:
+When using the different modules offered by PyHDX, please consider citing the following papers:
 
 **Intrinsic H/D exchange rates:**
 
