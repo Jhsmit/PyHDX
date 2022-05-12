@@ -1,4 +1,5 @@
 import panel as pn
+import numpy as np
 import param
 from asyncio import as_completed
 from panel.pane import HTML, Markdown
@@ -282,3 +283,78 @@ class CallbackProgress(pn.widgets.Progress):
 
     def callback(self, epoch, model, optimizer_obj):
         self.value = epoch
+
+
+class CompositeFloatSliders(pn.widgets.base.CompositeWidget):
+    value = param.Array(
+        default=np.array([0., 0., 0.]),
+        doc="A list of values from a set of sliders"
+    )
+
+    start = param.Number(default=0.0, doc="""
+        The lower bound.""")
+
+    end = param.Number(default=1.0, doc="""
+        The upper bound.""")
+
+    step = param.Number(default=0.1, doc="""
+        The step size.""")
+
+    # todo remove this
+    slider_class = param.ClassSelector(
+        default=pn.widgets.FloatSlider,
+        class_=pn.widgets.slider._SliderBase,
+        is_instance=False)
+
+    _composite_type = pn.Column
+
+    def __init__(self, **params) -> None:
+        # okay this needs to be reworked: (too complicated, doesnt do what i want)
+        # slider_params = {'value', 'disabled'} # these should be popped from params
+        # add_slider_params = set(pn.widgets.FloatSlider.param) - set(pn.widgets.base.CompositeWidget.param)
+        #
+        # {param.pop}
+
+        slider_param_names = self.slider_class.param.objects().keys() - pn.widgets.base.CompositeWidget.param.objects().keys() - {'value', 'disabled'}
+        slider_keys = params.keys() & slider_param_names
+        slider_params = {key: params[key] for key in slider_keys}
+
+        super().__init__(**{k: params[k] for k in params if k in self.param})
+
+        self.sliders = [self.slider_class(value=val, **slider_params) for i, val in enumerate(self.value)]
+        for slider in self.sliders:
+            slider.param.watch(self._slider_updated, ["value"])
+
+        self._composite[:] = self.sliders
+        self._disable_updated()
+
+    def _slider_updated(self, event: param.parameterized.Event):
+        index = self.sliders.index(event.obj)
+        self.value[index] = event.new
+        self.param.trigger('value')
+
+    @param.depends('start', watch=True)
+    def _start_updated(self):
+        for slider in self.sliders:
+            slider.start = self.start
+
+    @param.depends('end', watch=True)
+    def _end_updated(self):
+        for slider in self.sliders:
+            slider.end = self.end
+
+    @param.depends('step', watch=True)
+    def _step_updated(self):
+        for slider in self.sliders:
+            slider.step = self.step
+
+    @param.depends('disabled', watch=True)
+    def _disable_updated(self):
+        for widget in self.sliders:
+            widget.disabled = self.disabled
+
+    @param.depends('value', watch=True)
+    def _value_updated(self):
+        for val, slider in zip(self.value, self.sliders):
+            slider.value = val
+
