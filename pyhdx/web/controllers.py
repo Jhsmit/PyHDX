@@ -2643,6 +2643,8 @@ class PeptidePropertiesControl(ControlPanel):
     Control panel for properties of the peptide for simulating D-uptake
     """
 
+    header = "Peptide controls"
+
     _type = 'peptide'
 
     fasta_sequence = param.String(
@@ -2688,8 +2690,8 @@ class PeptidePropertiesControl(ControlPanel):
     )
 
     def __init__(self, parent, **params) -> None:
-
         super().__init__(parent, **params)
+        self._excluded = ['dG', 'k_open', 'k_close']
         with param.edit_constant(self):
             self.k_close = self._get_k_close(self.dG, self.k_open)
         self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
@@ -2697,6 +2699,13 @@ class PeptidePropertiesControl(ControlPanel):
         self.widgets = self.make_dict()  # this is the second trigger of make_dict
         self.update_box()
         self.update_d_uptake()
+
+    @property
+    def _layout(self):
+        return [
+            ('self', self.own_widget_names),
+            ('views.aa_uptake', 'y')
+        ]
 
     def _action_reload(self):
         self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
@@ -2725,8 +2734,6 @@ class PeptidePropertiesControl(ControlPanel):
             k_close={'widget_type': CompositeFloatSliders, 'disabled': True, **k_close_limits}
 
         )
-
-        print('make dict')
 
         return widgets
 
