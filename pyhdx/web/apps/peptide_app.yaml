@@ -17,6 +17,13 @@ transforms:
     type: table_source
     source: main
     table: k_int
+  k_int_replace:
+    type: generic
+    source: k_int_src
+    pd_function: replace
+    kwargs:
+      to_replace: 0
+      value: .NAN
 
 opts:
   base:
@@ -75,7 +82,7 @@ views:
 
   k_int:
     type: bars
-    source: k_int_src
+    source: k_int_replace
     opts:
       - k_int
     x: index
