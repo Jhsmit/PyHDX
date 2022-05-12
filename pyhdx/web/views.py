@@ -1,8 +1,12 @@
+from __future__ import annotations
+
 import itertools
 import logging
 import time
 from functools import partial
 from itertools import groupby, count
+import re
+from typing import Optional, Union
 
 import holoviews as hv
 import numpy as np
@@ -241,7 +245,8 @@ class hvXYView(hvView):
         doc="The column to render on the x-axis."
     )
 
-    x_objects = param.List(
+    x_objects = param.ClassSelector(
+        class_= (list, re.Pattern),
         default=None,
         precedence=-1
     )
@@ -251,35 +256,52 @@ class hvXYView(hvView):
         objects=[],
         doc="The column to render on the y-axis.")
 
-    y_objects = param.List(
+    y_objects = param.ClassSelector(
+        class_= (list, re.Pattern),
         default=None,
         precedence=-1
-
     )
 
     @param.depends("source.updated", watch=True)
     def update(self, *events) -> None:
         """Triggers an update of the view.
 
-        The source is queried for new data and this is sent to the `_stream` object.
+        The source is queried for new data and this is sent to the `_stream` object. The
+        selector options for x and y are updated.
 
         """
         data = self.get_data()
         if data is not None:
-            x_objects = set(data.columns) | {data.index.name}
-            if self.x_objects is not None:
-                x_objects &= set(self.x_objects)
-            self.param['x'].objects = list(x_objects)
-
-            y_objects = set(data.columns) | {data.index.name}
-            if self.y_objects is not None:
-                y_objects &= set(self.y_objects)
-            self.param['y'].objects = list(y_objects)
+            self.param['x'].objects = self.resolve_columns(data, self.x_objects)
+            self.param['y'].objects = self.resolve_columns(data, self.y_objects)
             # todo check for case whe updated dataframe longer has current value of x in columns
 
             self._stream.send(data)
 
+    @staticmethod
+    def resolve_columns(data: pd.DataFrame, spec: Union[list, re.Pattern, None]) -> list[str]:
+        """Resolve the columns of a dataframe to find the ones that match specification.
 
+        Args:
+            data: Dataframe to resolve
+            spec: Column specification, either explicit list of allowed columns or a regex
+                pattern.
+
+        Returns:
+            List of names of the columns (or index) which match specification.
+        """
+        all_objects = list(data.columns)
+        if data.index.name is not None:
+            all_objects += [data.index.name]
+
+        if isinstance(spec, list):
+            resolved_objects = [obj for obj in all_objects if obj in spec]
+        elif isinstance(spec, re.Pattern):
+            resolved_objects = [obj for obj in all_objects if spec.match(obj)]
+        else:
+            resolved_objects = all_objects
+
+        return resolved_objects
 
 class hvCurveView(hvXYView):
     _type = "curve"

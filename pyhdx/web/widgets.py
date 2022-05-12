@@ -291,6 +291,16 @@ class CompositeFloatSliders(pn.widgets.base.CompositeWidget):
         doc="A list of values from a set of sliders"
     )
 
+    slider_height = param.Number(
+        default=250,
+        doc="Height of the sliders"
+    )
+
+    names = param.List(
+        default=[],
+        doc="Optional names for the sliders"
+    )
+
     start = param.Number(default=0.0, doc="""
         The lower bound.""")
 
@@ -306,22 +316,33 @@ class CompositeFloatSliders(pn.widgets.base.CompositeWidget):
         class_=pn.widgets.slider._SliderBase,
         is_instance=False)
 
-    _composite_type = pn.Column
+    slider_params = param.Dict(
+        default={},
+        doc="Additional params to pass to the sliders"
+    )
+
+    _composite_type = pn.Row
 
     def __init__(self, **params) -> None:
-        # okay this needs to be reworked: (too complicated, doesnt do what i want)
-        # slider_params = {'value', 'disabled'} # these should be popped from params
-        # add_slider_params = set(pn.widgets.FloatSlider.param) - set(pn.widgets.base.CompositeWidget.param)
-        #
-        # {param.pop}
+        super().__init__(**params)
+        add_slider_params = {'start', 'end', 'step'} & params.keys()
 
-        slider_param_names = self.slider_class.param.objects().keys() - pn.widgets.base.CompositeWidget.param.objects().keys() - {'value', 'disabled'}
-        slider_keys = params.keys() & slider_param_names
-        slider_params = {key: params[key] for key in slider_keys}
+        slider_params = {**self.slider_params, **{k: params[k] for k in add_slider_params}}
+        slider_params['orientation'] = 'vertical'
+        slider_params['css_classes'] = ['custom-slider']
 
-        super().__init__(**{k: params[k] for k in params if k in self.param})
+        css = f'''
+        .custom-slider .bk-input-group {{height:{self.slider_height}px;}}
+        '''
 
-        self.sliders = [self.slider_class(value=val, **slider_params) for i, val in enumerate(self.value)]
+        pn.extension(raw_css=[css])
+
+        with param.discard_events(self):
+            if self.start is not None or self.end is not None:
+                self.value = np.clip(self.value, self.start, self.end)
+
+        names = self.names or [None]*len(self.value)
+        self.sliders = [self.slider_class(name=name, value=val, **slider_params) for name, val in zip(names, self.value)]
         for slider in self.sliders:
             slider.param.watch(self._slider_updated, ["value"])
 

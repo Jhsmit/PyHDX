@@ -19,13 +19,15 @@ opts:
     logx: True
     xlabel: Time (s)
     ylabel: D uptake
+    tools:
+      - hover
 
 tools:
   hover:
     type: hover
     tooltips:
-      - ["Time (s)", '@x']
-      - ['D-uptake', '@y']
+      - ["Time (s)", '$x']
+      - ['D-uptake', '$y']
 
 views:
   peptide_uptake:
@@ -34,8 +36,10 @@ views:
     opts:
       - base
       - d_uptake
+
     x: time
     y: sum
+
   aa_uptake:
     type: curve
     source: main
@@ -44,6 +48,7 @@ views:
       - d_uptake
     x: time
     y: aa_0
+    y_objects: !regexp aa_\d
 
 
 controllers:

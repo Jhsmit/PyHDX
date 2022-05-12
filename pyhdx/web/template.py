@@ -122,7 +122,7 @@ class GoldenElvis(object):
         # Therefore, currently tmpl.main.append cannot be used as this generates ?
         if isinstance(view, str):
             fig_panel = self.main_controller.views[view]
-            fig_panel.update()  # intialize
+            fig_panel.update()  # initialize (needed? probably not)
 
         else:
             fig_panel = view

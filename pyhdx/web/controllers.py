@@ -2727,11 +2727,20 @@ class PeptidePropertiesControl(ControlPanel):
         k_open_limits = {'start': -2, 'end': 4}  # Log10
         k_close_limits = {k: self._get_k_close(dG_limits[k], k_open_limits[k]) for k in dG_limits.keys()}
 
+        model = getattr(self, 'model', None)
+        names = model.peptide if model is not None else []
+
+        widget_spec = dict(
+            widget_type = CompositeFloatSliders,
+            orientation = 'vertical',
+            names = names,
+        )
+
         widgets = self.generate_widgets(
             temperature=pn.widgets.FloatInput,
-            dG={'widget_type': CompositeFloatSliders, **dG_limits},
-            k_open={'widget_type': CompositeFloatSliders, **k_open_limits},
-            k_close={'widget_type': CompositeFloatSliders, 'disabled': True, **k_close_limits}
+            dG={**widget_spec, **dG_limits},
+            k_open={**widget_spec, **k_open_limits},
+            k_close={**widget_spec, 'disabled': True, **k_close_limits}
 
         )
 
