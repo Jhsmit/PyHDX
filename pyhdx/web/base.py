@@ -131,7 +131,7 @@ class ControlPanel(param.Parameterized):
         parameters -= {p_name for p_name, par in self.param.objects().items() if not has_precedence(par)}
 
         widgets_layout = Param(
-            self.param, show_labels=True, widgets=kwargs, parameters=list(parameters)
+            self.param, show_labels=True, show_name=False, widgets=kwargs, parameters=list(parameters)
         )
 
         return widgets_layout.get_widgets()
