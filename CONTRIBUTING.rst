@@ -48,7 +48,7 @@ classes should have docstrings and ideally code examples and documentation shoul
 Documentation
 ~~~~~~~~~~~~~
 
-Docstrings use `numpydoc <https://numpydoc.readthedocs.io/en/latest/>`__ style headers.
+Docstrings use `google <https://sphinxcontrib-napoleon.readthedocs.io/en/latest/example_google.html>`__ style headers.
 Parameters for `__init__` are documented at the `class` level. `intersphinx <http://www.sphinx-doc.org/en/stable/ext/intersphinx.html>`__
 is used to link to classes of external packages.
 Some guidelines for how to refer to objects or entities:
