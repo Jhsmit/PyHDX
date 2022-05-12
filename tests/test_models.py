@@ -234,3 +234,19 @@ class TestProtein(object):
             protein_read = csv_to_protein(fpath)
             pd.testing.assert_frame_equal(self.protein.df, protein_read.df)
             assert self.protein.metadata == protein_read.metadata
+
+
+# peptide model tests
+
+# k_open = 1e3
+# k_close = 3713812.5642894437
+# dG = 20e3
+#
+# k_op = sub_ctr._get_k_open(dG*1e-3, np.log10(k_close))
+# print(k_op)
+#
+# k_cl = sub_ctr._get_k_close(dG*1e-3, np.log10(k_open))
+# print(k_cl)
+#
+# dG = sub_ctr._get_dG(np.log10(k_open), np.log10(k_close))
+# print(dG)
