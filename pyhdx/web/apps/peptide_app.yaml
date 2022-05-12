@@ -8,6 +8,16 @@ sources:
   main:
     type: table
 
+transforms:
+  d_uptake_src:
+    type: table_source
+    source: main
+    table: d_uptake
+  k_int_src:
+    type: table_source
+    source: main
+    table: k_int
+
 opts:
   base:
     type: generic
@@ -21,6 +31,14 @@ opts:
     ylabel: D uptake
     tools:
       - hover
+  k_int:
+    type: generic
+    logy: True
+    xlabel: Amino acid
+    ylabel: Intrinsic rate (s⁻¹)
+    tools:
+      - count
+
 
 tools:
   hover:
@@ -28,11 +46,16 @@ tools:
     tooltips:
       - ["Time (s)", '$x']
       - ['D-uptake', '$y']
+  count:
+    type: hover
+    tooltips:
+      - [ "Amino acid", '@aa' ]
+      - [ "Intrinsic rate", '@k_int' ]
 
 views:
   peptide_uptake:
     type: curve
-    source: main
+    source: d_uptake_src
     opts:
       - base
       - d_uptake
@@ -42,7 +65,7 @@ views:
 
   aa_uptake:
     type: curve
-    source: main
+    source: d_uptake_src
     opts:
       - base
       - d_uptake
@@ -50,6 +73,15 @@ views:
     y: aa_0
     y_objects: !regexp aa_\d
 
+  k_int:
+    type: bars
+    source: k_int_src
+    opts:
+      - k_int
+    x: index
+    y: k_int
+#    vdims:
+#      - aa
 
 controllers:
   - peptide

@@ -303,6 +303,7 @@ class hvXYView(hvView):
 
         return resolved_objects
 
+
 class hvCurveView(hvXYView):
     _type = "curve"
 
@@ -341,6 +342,34 @@ class hvScatterAppView(hvXYView):
         """
 
         func = partial(hv.Scatter, kdims=self.x, vdims=self.y)
+        param_stream = Params(
+            parameterized=self,
+            parameters=['x', 'y'],
+            rename={'x': 'kdims', 'y': 'vdims'})
+        plot = hv.DynamicMap(func, streams=[self._stream, param_stream])
+        plot = plot.apply.opts(**self.opts_dict)
+
+        return plot
+
+    @property
+    def empty_df(self):
+        dic = {self.x or "x": [], self.y or "y": []}
+        if "color" in self.opts_dict:
+            dic[self.opts_dict["color"]] = []
+        return pd.DataFrame(dic)
+
+
+class hvBarsAppView(hvXYView):
+    _type = "bars"
+
+    def get_plot(self) -> hv.DynamicMap:
+        """Creates the scatter plot as DynamicMap
+
+        Returns:
+            Holoviews DynamicMap
+        """
+
+        func = partial(hv.Bars, kdims=self.x, vdims=self.y)
         param_stream = Params(
             parameterized=self,
             parameters=['x', 'y'],

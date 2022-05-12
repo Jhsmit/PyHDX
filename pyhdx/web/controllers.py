@@ -2666,6 +2666,7 @@ class PeptidePropertiesControl(ControlPanel):
 
     reload_btn = param.Action(
         lambda self: self._action_reload(),
+        label="Reload peptide",
         doc="Reload with new peptide sequence")
 
     dG = param.Array(
@@ -2695,6 +2696,7 @@ class PeptidePropertiesControl(ControlPanel):
         with param.edit_constant(self):
             self.k_close = self._get_k_close(self.dG, self.k_open)
         self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
+        self.update_k_int_data()
 
         self.widgets = self.make_dict()  # this is the second trigger of make_dict
         self.update_box()
@@ -2707,8 +2709,14 @@ class PeptidePropertiesControl(ControlPanel):
             ('views.aa_uptake', 'y')
         ]
 
+    def update_k_int_data(self):
+        data_dict = {'aa': list(self.model.peptide), 'k_int': self.model.k_int}
+        df = pd.DataFrame(data_dict)
+        self.src.add_table('k_int', df)
+
     def _action_reload(self):
         self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
+        self.update_k_int_data()
 
         self.fixed_quantity = 'k_close'
         with param.parameterized.batch_call_watchers(self):
@@ -2798,7 +2806,7 @@ class PeptidePropertiesControl(ControlPanel):
         df = pd.DataFrame(d_uptake, index=idx, columns=cols)
         df['sum'] = df.sum(axis=1)
 
-        self.src.set(df)
+        self.src.add_table('d_uptake', df)
         self.src.updated = True
 
     # TODO input can also be numpy arrays
