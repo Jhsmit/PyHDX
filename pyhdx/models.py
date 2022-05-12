@@ -7,11 +7,14 @@ from functools import reduce, partial
 from typing import Optional, Any, Union, Iterable
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import torch
 from hdxrate import k_int_from_sequence
 from numpy.lib.recfunctions import append_fields
 from scipy import constants
+from scipy.constants import R
+from scipy.integrate import solve_ivp
 
 import pyhdx
 from pyhdx.alignment import align_dataframes
@@ -1540,3 +1543,94 @@ def array_intersection(
     ]
 
     return selected
+
+
+class PeptideUptakeModel(object):
+
+    def __init__(self, sequence: list[str], temperature: float, pH: float) -> None:
+        self.peptide = sequence[1:]  #
+        self.temperature = temperature
+        self.pH = pH
+        padded_sequence = ['X'] + sequence + ['X']
+        k_int = k_int_from_sequence(padded_sequence, temperature, pH)
+        self.k_int = k_int[2:-1]
+
+    def eval_analytical(self, timepoints: np.ndarray, k_open: np.ndarray, k_close: np.ndarray) -> np.ndarray:
+        """Evaluate D-uptake for the given peptide at specified timepoints.
+
+
+        Args:
+            timepoints: Shape `(t,)` array with timepoints to sample.
+            k_open: Shape `(k,)` array with opening rates (length equal to peptide length).
+            k_close: Shape `(k,)` array with closing rates (length equal to peptide length).
+
+        Returns:
+            Shape (`t, k`) array with D-uptake values per amino acid per timepoint.
+        """
+
+        k_tot = k_open + k_close + self.k_int
+        k_obs = 0.5*(k_tot - np.sqrt((k_tot**2) - 4*k_open*self.k_int))
+
+        D_obs = 1 - np.exp(-k_obs[np.newaxis, :]*timepoints[:, np.newaxis])
+
+        return D_obs
+
+
+    def eval_single_numerical(self, aa_index: int, timepoints: np.ndarray, k_open: float, k_close: float, **solver_options: Any):
+
+        k_tot = k_open + k_close
+        y0 = np.array([k_close / k_tot, k_open / k_tot, 0])
+
+        k_int = self.k_int[aa_index]
+        if k_int == 0.:
+            return np.ones((len(timepoints), 3)) * y0
+
+        method = solver_options.get('method', 'LSODA')
+
+        trs_rate_matrix = np.array([
+            [-k_open, k_close, 0],
+            [k_open, -k_close - k_int, 0],
+            [0, k_int, 0]
+        ])
+
+        jac = trs_rate_matrix if method != 'LSODA' else None
+
+        sol = solve_ivp(
+            self.gradient_func,
+            vectorized=True,
+            t_span=(0, timepoints.max() * 1.001),
+            y0=y0,
+            jac=jac,
+            t_eval=timepoints,
+            args=[trs_rate_matrix],
+            **solver_options
+        )
+
+        return sol.y.T
+
+    @staticmethod
+    def gradient_func(t: Any, p: np.array, trs_matrix: np.array) -> np.ndarray:
+        """
+        calculates dp/dt given a transition state matrix and current populations p(at time t)
+
+        :param p:
+        :param t:
+        :param trs_matrix: transition state matrix
+        :return:
+        """
+
+        dpdt = trs_matrix @ p
+
+        return dpdt
+
+    def get_k_open(self, dG: npt.ArrayLike, k_close: npt.ArrayLike) -> npt.ArrayLike:
+        return k_close / np.exp(dG / (R*self.temperature))
+
+    def get_k_close(self, dG: npt.ArrayLike, k_open: npt.ArrayLike) -> npt.ArrayLike:
+        return k_open * np.exp(dG / (R*self.temperature))
+
+    def get_dG(self, k_open: npt.ArrayLike, k_close: npt.ArrayLike) -> npt.ArrayLike:
+        return np.log(k_close / k_open)*(R*self.temperature)
+
+    def __len__(self) -> int:
+        return len(self.peptide)

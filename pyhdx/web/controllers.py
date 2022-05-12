@@ -7,10 +7,13 @@ from datetime import datetime
 from functools import partial
 from io import StringIO, BytesIO
 
+from holoviews.streams import Pipe
+import holoviews as hv
 import colorcet
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import panel as pn
 import param
@@ -18,6 +21,7 @@ import yaml
 from distributed import Client
 from panel.io.server import async_execute
 from proplot import to_hex
+from scipy.constants import R
 from skimage.filters import threshold_multiotsu
 
 from pyhdx.batch_processing import StateParser
@@ -37,7 +41,8 @@ from pyhdx.fitting import (
     optimizer_defaults,
     RatesFitResult,
 )
-from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection
+from pyhdx.models import PeptideMasterTable, HDXMeasurement, array_intersection, \
+    PeptideUptakeModel
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.plot import (
     dG_scatter_figure,
@@ -56,7 +61,7 @@ from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
-from pyhdx.web.widgets import ASyncProgressBar
+from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
 
 
 def blocking_function(duration):
@@ -290,7 +295,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     temperature = param.Number(
         293.15,
-        bounds=(0, 373.15),
+        bounds=(273.15, 373.15),
         doc="Temperature of the D-labelling reaction",
         label="Temperature (K)",
     )
@@ -2627,3 +2632,183 @@ class GraphControl(PyHDXControlPanel):
                     widget_name
                 ]
         return output_widgets
+
+
+DG_DEFAULT = [20., 20., 25., 25., 20., 20., 30., 35., 45.]
+K_OPEN_DEFAULT = [2]*9
+
+
+class PeptidePropertiesControl(ControlPanel):
+    """
+    Control panel for properties of the peptide for simulating D-uptake
+    """
+
+    _type = 'peptide'
+
+    fasta_sequence = param.String(
+        default="KLGPLTAGHH",
+        doc="FASTA input for peptide sequence. First amino acid is truncated.")
+
+    temperature = param.Number(
+        293.15,
+        bounds=(0, 373.15),
+        doc="Temperature of the D-labelling reaction",
+        label="Temperature (K)",
+    )
+
+    pH = param.Number(
+        7.5,
+        doc="pH of the D-labelling reaction, as read from pH meter",
+        label="pH read",
+    )
+
+    reload_btn = param.Action(
+        lambda self: self._action_reload(),
+        doc="Reload with new peptide sequence")
+
+    dG = param.Array(
+        default=np.array(DG_DEFAULT),
+        doc="ΔG values of exchange (kJ/mol). List should be one shorter than input sequence"
+    )
+
+    k_open = param.Array(
+        default=np.array(K_OPEN_DEFAULT),
+        doc="Linderstrøm-Lang opening rates. Values are Log10, units s⁻¹"
+    )
+
+    k_close = param.Array(
+        default=np.array([]),
+        doc="Linderstrøm-Lang closing rates. Values are Log10, units s⁻¹",
+    )
+
+    fixed_quantity = param.Selector(
+        default='k_close',
+        objects=['k_open', 'k_close', 'dG'],
+        doc="Select which kinetic parameter should be fixed and derived from the other two"
+    )
+
+    def __init__(self, parent, **params) -> None:
+
+        super().__init__(parent, **params)
+        with param.edit_constant(self):
+            self.k_close = self._get_k_close(self.dG, self.k_open)
+        self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
+
+        self.widgets = self.make_dict()  # this is the second trigger of make_dict
+        self.update_box()
+        self.update_d_uptake()
+
+    def _action_reload(self):
+        self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
+
+        self.fixed_quantity = 'k_close'
+        with param.parameterized.batch_call_watchers(self):
+            self.dG = np.array(DG_DEFAULT[:len(self.model)] + [35.] * (len(self.model) - len(DG_DEFAULT)))
+            self.k_open = np.array(K_OPEN_DEFAULT[:len(self.model)] + [2.] * (len(self.model) - len(K_OPEN_DEFAULT)))
+
+        with param.edit_constant(self):
+            self.k_close = self._get_k_close(self.dG, self.k_open)
+        self.widgets = self.make_dict()
+        self.update_box()
+        self.update_d_uptake()
+
+    def make_dict(self):
+
+        dG_limits = {'start': 10, 'end': 50}  # kJ/mol
+        k_open_limits = {'start': -2, 'end': 4}  # Log10
+        k_close_limits = {k: self._get_k_close(dG_limits[k], k_open_limits[k]) for k in dG_limits.keys()}
+
+        widgets = self.generate_widgets(
+            temperature=pn.widgets.FloatInput,
+            dG={'widget_type': CompositeFloatSliders, **dG_limits},
+            k_open={'widget_type': CompositeFloatSliders, **k_open_limits},
+            k_close={'widget_type': CompositeFloatSliders, 'disabled': True, **k_close_limits}
+
+        )
+
+        print('make dict')
+
+        return widgets
+
+    @param.depends('dG', watch=True)
+    def value_updated(self):
+        if self.fixed_quantity == 'dG':
+            return
+        elif self.fixed_quantity == 'k_open':
+            self.k_open = self._get_k_open(self.dG, self.k_close)
+            self.update_d_uptake()
+        elif self.fixed_quantity == 'k_close':
+            self.k_close = self._get_k_close(self.dG, self.k_open)
+            self.update_d_uptake()
+
+    @param.depends('k_open', watch=True)
+    def k_open_updated(self):
+        if self.fixed_quantity == 'k_open':
+            return
+        elif self.fixed_quantity == 'dG':
+            self.dG = self._get_dG(self.k_open, self.k_close)
+            self.update_d_uptake()
+        elif self.fixed_quantity == 'k_close':
+            self.k_close = self._get_k_close(self.dG, self.k_open)
+            self.update_d_uptake()
+
+    @param.depends('k_close', watch=True)
+    def k_close_updated(self):
+        if self.fixed_quantity == 'k_close':
+            return
+        elif self.fixed_quantity == 'dG':
+            self.dG = self._get_dG(self.k_open, self.k_close)
+            self.update_d_uptake()
+        elif self.fixed_quantity == 'k_open':
+            self.k_open = self._get_k_open(self.dG, self.k_close)
+            self.update_d_uptake()
+
+    @param.depends('fixed_quantity', watch=True)
+    def _fixed_quantity_updated(self):
+        widget_keys = ['dG', 'k_open', 'k_close']
+
+        widget_keys.remove(self.fixed_quantity)
+        self.widgets[self.fixed_quantity].disabled = True
+        for widget_key in widget_keys:
+            self.widgets[widget_key].disabled = False
+
+    def update_d_uptake(self):
+        time = np.logspace(-2, 6, num=250)
+
+        d_uptake = self.model.eval_analytical(time, 10.**self.k_open, 10.**self.k_close)
+
+        cols = [f'aa_{i}' for i in range(len(self.model))]
+        idx = pd.Index(time, name='time')
+        df = pd.DataFrame(d_uptake, index=idx, columns=cols)
+        df['sum'] = df.sum(axis=1)
+
+        self.src.set(df)
+        self.src.updated = True
+
+    # TODO input can also be numpy arrays
+    def _get_k_open(self, dG: npt.ArrayLike, k_close: npt.ArrayLike) -> npt.ArrayLike:
+        return k_close - dG * 1e3 / (np.log(10) * R * self.temperature)
+
+    def _get_k_close(self, dG: npt.ArrayLike, k_open: npt.ArrayLike) -> npt.ArrayLike:
+        return k_open + dG*1e3 / (np.log(10)*R*self.temperature)
+
+    def _get_dG(self, k_open: npt.ArrayLike, k_close: npt.ArrayLike) -> npt.ArrayLike:
+        return np.log(10)*(k_close - k_open)*1e-3*R*self.temperature
+
+    # move to base class?
+    @property
+    def src(self):
+        return self.sources['main']
+
+
+    def update_limits(self):
+        ...
+        #k_close = k_open * np.exp(dG / (R * temp))
+
+        #dG = np.log(k_close / k_open) * (8.3 * temp)
+
+# k_open. dG, log10 kclose, kclose
+# 0.01 10000.0 -0.21819477668335818 0.6050694463640514
+# 0.01 50000.0 6.90902611658321 8110098.269947465
+# 10000.0 10000.0 5.781805223316642 605069.4463640513
+# 10000.0 50000.0 12.90902611658321 8110098269947.465
