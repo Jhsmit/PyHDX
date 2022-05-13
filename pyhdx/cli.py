@@ -26,7 +26,7 @@ def serve(
         if not ip_address(ip):
             print("Invalid IP Address")
             return
-        elif not 0 <= int(port) < 2 ** 16:
+        elif not 0 <= int(port) < 2**16:
             print("Invalid port, must be 0-65535")
             return
         cfg.set("cluster", "scheduler_address", scheduler_address)

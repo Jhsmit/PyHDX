@@ -49,8 +49,8 @@ extensions = [
 ]
 
 # bibtex configuration
-bibtex_bibfiles = ['refs.bib']
-bibtex_reference_style = 'label'
+bibtex_bibfiles = ["refs.bib"]
+bibtex_reference_style = "label"
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]

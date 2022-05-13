@@ -898,7 +898,7 @@ class HDXMeasurement(object):
     def get_tensors(
         self, exchanges: bool = False, dtype: Optional[torch.dtype] = None
     ) -> dict[str, torch.Tensor]:
-        """ Returns a dictionary of tensor variables for fitting HD kinetics.
+        """Returns a dictionary of tensor variables for fitting HD kinetics.
 
         Tensor variables are (shape):
         Temperature (1 x 1)
@@ -1358,7 +1358,7 @@ class HDXMeasurementSet(object):
     def get_tensors(
         self, dtype: Optional[torch.dtype] = None
     ) -> dict[str, torch.Tensor]:
-        """ Returns a dictionary of tensor variables for fitting HD kinetics.
+        """Returns a dictionary of tensor variables for fitting HD kinetics.
 
         Tensor variables are (shape):
         Temperature (Ns x 1 x 1)
@@ -1546,16 +1546,17 @@ def array_intersection(
 
 
 class PeptideUptakeModel(object):
-
     def __init__(self, sequence: list[str], temperature: float, pH: float) -> None:
         self.peptide = sequence[1:]  #
         self.temperature = temperature
         self.pH = pH
-        padded_sequence = ['X'] + sequence + ['X']
+        padded_sequence = ["X"] + sequence + ["X"]
         k_int = k_int_from_sequence(padded_sequence, temperature, pH)
         self.k_int = k_int[2:-1]
 
-    def eval_analytical(self, timepoints: np.ndarray, k_open: np.ndarray, k_close: np.ndarray) -> np.ndarray:
+    def eval_analytical(
+        self, timepoints: np.ndarray, k_open: np.ndarray, k_close: np.ndarray
+    ) -> np.ndarray:
         """Evaluate D-uptake for the given peptide at specified timepoints.
 
 
@@ -1569,31 +1570,35 @@ class PeptideUptakeModel(object):
         """
 
         k_tot = k_open + k_close + self.k_int
-        k_obs = 0.5*(k_tot - np.sqrt((k_tot**2) - 4*k_open*self.k_int))
+        k_obs = 0.5 * (k_tot - np.sqrt((k_tot**2) - 4 * k_open * self.k_int))
 
-        D_obs = 1 - np.exp(-k_obs[np.newaxis, :]*timepoints[:, np.newaxis])
+        D_obs = 1 - np.exp(-k_obs[np.newaxis, :] * timepoints[:, np.newaxis])
 
         return D_obs
 
-
-    def eval_single_numerical(self, aa_index: int, timepoints: np.ndarray, k_open: float, k_close: float, **solver_options: Any):
+    def eval_single_numerical(
+        self,
+        aa_index: int,
+        timepoints: np.ndarray,
+        k_open: float,
+        k_close: float,
+        **solver_options: Any,
+    ):
 
         k_tot = k_open + k_close
         y0 = np.array([k_close / k_tot, k_open / k_tot, 0])
 
         k_int = self.k_int[aa_index]
-        if k_int == 0.:
+        if k_int == 0.0:
             return np.ones((len(timepoints), 3)) * y0
 
-        method = solver_options.get('method', 'LSODA')
+        method = solver_options.get("method", "LSODA")
 
-        trs_rate_matrix = np.array([
-            [-k_open, k_close, 0],
-            [k_open, -k_close - k_int, 0],
-            [0, k_int, 0]
-        ])
+        trs_rate_matrix = np.array(
+            [[-k_open, k_close, 0], [k_open, -k_close - k_int, 0], [0, k_int, 0]]
+        )
 
-        jac = trs_rate_matrix if method != 'LSODA' else None
+        jac = trs_rate_matrix if method != "LSODA" else None
 
         sol = solve_ivp(
             self.gradient_func,
@@ -1603,7 +1608,7 @@ class PeptideUptakeModel(object):
             jac=jac,
             t_eval=timepoints,
             args=[trs_rate_matrix],
-            **solver_options
+            **solver_options,
         )
 
         return sol.y.T
@@ -1624,13 +1629,13 @@ class PeptideUptakeModel(object):
         return dpdt
 
     def get_k_open(self, dG: npt.ArrayLike, k_close: npt.ArrayLike) -> npt.ArrayLike:
-        return k_close / np.exp(dG / (R*self.temperature))
+        return k_close / np.exp(dG / (R * self.temperature))
 
     def get_k_close(self, dG: npt.ArrayLike, k_open: npt.ArrayLike) -> npt.ArrayLike:
-        return k_open * np.exp(dG / (R*self.temperature))
+        return k_open * np.exp(dG / (R * self.temperature))
 
     def get_dG(self, k_open: npt.ArrayLike, k_close: npt.ArrayLike) -> npt.ArrayLike:
-        return np.log(k_close / k_open)*(R*self.temperature)
+        return np.log(k_close / k_open) * (R * self.temperature)
 
     def __len__(self) -> int:
         return len(self.peptide)

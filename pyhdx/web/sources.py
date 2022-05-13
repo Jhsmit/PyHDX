@@ -47,7 +47,7 @@ class TableSource(Source):
                 "Use `add_table`"
             )
 
-        table = next(iter(self.tables.keys())) if self.tables else 'main'
+        table = next(iter(self.tables.keys())) if self.tables else "main"
         self.add_table(table, df)
 
     def add_table(self, table: str, df: pd.DataFrame) -> None:
@@ -160,7 +160,8 @@ class PyHDXSource(TableSource):
 
         tuples = [(name, *tup) for tup in df.columns]
         columns = pd.MultiIndex.from_tuples(
-            tuples, names=["fit_ID", "state", "peptide_id", "quantity"],
+            tuples,
+            names=["fit_ID", "state", "peptide_id", "quantity"],
         )
         df.columns = columns
 

@@ -34,7 +34,6 @@ STATIC_DIR = Path(__file__).parent / "static"
 
 
 class Param(pn.Param):
-
     def get_widgets(self) -> OrderedDict:
         return self._widgets
 
@@ -126,12 +125,20 @@ class ControlPanel(param.Parameterized):
         """Creates a dict with keys parameter names and values default mapped widgets"""
 
         # Get all parameters with precedence >= 1 and not starting with '_', excluding 'name'
-        parameters = {p_name for p_name in self.param if not p_name.startswith('_')}
-        parameters -= {'name'}
-        parameters -= {p_name for p_name, par in self.param.objects().items() if not has_precedence(par)}
+        parameters = {p_name for p_name in self.param if not p_name.startswith("_")}
+        parameters -= {"name"}
+        parameters -= {
+            p_name
+            for p_name, par in self.param.objects().items()
+            if not has_precedence(par)
+        }
 
         widgets_layout = Param(
-            self.param, show_labels=True, show_name=False, widgets=kwargs, parameters=list(parameters)
+            self.param,
+            show_labels=True,
+            show_name=False,
+            widgets=kwargs,
+            parameters=list(parameters),
         )
 
         return widgets_layout.get_widgets()

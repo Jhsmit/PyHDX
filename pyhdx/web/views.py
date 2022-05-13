@@ -240,26 +240,18 @@ class hvPlotView(hvView):
 class hvXYView(hvView):
     """Base class for hv views with a single XY view"""
 
-    x = param.Selector(
-        default=None,
-        doc="The column to render on the x-axis."
-    )
+    x = param.Selector(default=None, doc="The column to render on the x-axis.")
 
     x_objects = param.ClassSelector(
-        class_= (list, re.Pattern),
-        default=None,
-        precedence=-1
+        class_=(list, re.Pattern), default=None, precedence=-1
     )
 
     y = param.Selector(
-        default=None,
-        objects=[],
-        doc="The column to render on the y-axis.")
+        default=None, objects=[], doc="The column to render on the y-axis."
+    )
 
     y_objects = param.ClassSelector(
-        class_= (list, re.Pattern),
-        default=None,
-        precedence=-1
+        class_=(list, re.Pattern), default=None, precedence=-1
     )
 
     @param.depends("source.updated", watch=True)
@@ -272,14 +264,16 @@ class hvXYView(hvView):
         """
         data = self.get_data()
         if data is not None:
-            self.param['x'].objects = self.resolve_columns(data, self.x_objects)
-            self.param['y'].objects = self.resolve_columns(data, self.y_objects)
+            self.param["x"].objects = self.resolve_columns(data, self.x_objects)
+            self.param["y"].objects = self.resolve_columns(data, self.y_objects)
             # todo check for case whe updated dataframe longer has current value of x in columns
 
             self._stream.send(data)
 
     @staticmethod
-    def resolve_columns(data: pd.DataFrame, spec: Union[list, re.Pattern, None]) -> list[str]:
+    def resolve_columns(
+        data: pd.DataFrame, spec: Union[list, re.Pattern, None]
+    ) -> list[str]:
         """Resolve the columns of a dataframe to find the ones that match specification.
 
         Args:
@@ -307,7 +301,6 @@ class hvXYView(hvView):
 class hvCurveView(hvXYView):
     _type = "curve"
 
-
     def get_plot(self) -> hv.DynamicMap:
         """Creates the curve plot as DynamicMap.
 
@@ -318,8 +311,9 @@ class hvCurveView(hvXYView):
         func = partial(hv.Curve, kdims=self.y, vdims=self.x)
         param_stream = Params(
             parameterized=self,
-            parameters=['x', 'y'],
-            rename={'x': 'kdims', 'y': 'vdims'})
+            parameters=["x", "y"],
+            rename={"x": "kdims", "y": "vdims"},
+        )
         plot = hv.DynamicMap(func, streams=[self._stream, param_stream])
         plot = plot.apply.opts(**self.opts_dict)
 
@@ -344,8 +338,9 @@ class hvScatterAppView(hvXYView):
         func = partial(hv.Scatter, kdims=self.x, vdims=self.y)
         param_stream = Params(
             parameterized=self,
-            parameters=['x', 'y'],
-            rename={'x': 'kdims', 'y': 'vdims'})
+            parameters=["x", "y"],
+            rename={"x": "kdims", "y": "vdims"},
+        )
         plot = hv.DynamicMap(func, streams=[self._stream, param_stream])
         plot = plot.apply.opts(**self.opts_dict)
 
@@ -372,8 +367,9 @@ class hvBarsAppView(hvXYView):
         func = partial(hv.Bars, kdims=self.x, vdims=self.y)
         param_stream = Params(
             parameterized=self,
-            parameters=['x', 'y'],
-            rename={'x': 'kdims', 'y': 'vdims'})
+            parameters=["x", "y"],
+            rename={"x": "kdims", "y": "vdims"},
+        )
         plot = hv.DynamicMap(func, streams=[self._stream, param_stream])
         plot = plot.apply.opts(**self.opts_dict)
 
