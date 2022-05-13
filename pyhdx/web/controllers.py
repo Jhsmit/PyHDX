@@ -2647,6 +2647,10 @@ class PeptidePropertiesControl(ControlPanel):
 
     _type = 'peptide'
 
+    updated = param.Event(
+         doc='Trigger for layout to listen to when widgets are updated'
+    )
+
     fasta_sequence = param.String(
         default="KLGPLTAGHH",
         doc="FASTA input for peptide sequence. First amino acid is truncated.")
@@ -2684,7 +2688,7 @@ class PeptidePropertiesControl(ControlPanel):
         doc="Linderstrøm-Lang closing rates. Values are Log10, units s⁻¹",
     )
 
-    fixed_quantity = param.Selector(
+    dependent_variable = param.Selector(
         default='k_close',
         objects=['k_open', 'k_close', 'dG'],
         doc="Select which kinetic parameter should be fixed and derived from the other two"
@@ -2718,7 +2722,7 @@ class PeptidePropertiesControl(ControlPanel):
         self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
         self.update_k_int_data()
 
-        self.fixed_quantity = 'k_close'
+        self.dependent_variable = 'k_close'
         with param.parameterized.batch_call_watchers(self):
             self.dG = np.array(DG_DEFAULT[:len(self.model)] + [35.] * (len(self.model) - len(DG_DEFAULT)))
             self.k_open = np.array(K_OPEN_DEFAULT[:len(self.model)] + [2.] * (len(self.model) - len(K_OPEN_DEFAULT)))
@@ -2726,11 +2730,11 @@ class PeptidePropertiesControl(ControlPanel):
         with param.edit_constant(self):
             self.k_close = self._get_k_close(self.dG, self.k_open)
         self.widgets = self.make_dict()
+        self.updated = True
         self.update_box()
         self.update_d_uptake()
 
     def make_dict(self):
-
         dG_limits = {'start': 10, 'end': 50}  # kJ/mol
         k_open_limits = {'start': -2, 'end': 4}  # Log10
         k_close_limits = {k: self._get_k_close(dG_limits[k], k_open_limits[k]) for k in dG_limits.keys()}
@@ -2756,43 +2760,43 @@ class PeptidePropertiesControl(ControlPanel):
 
     @param.depends('dG', watch=True)
     def value_updated(self):
-        if self.fixed_quantity == 'dG':
+        if self.dependent_variable == 'dG':
             return
-        elif self.fixed_quantity == 'k_open':
+        elif self.dependent_variable == 'k_open':
             self.k_open = self._get_k_open(self.dG, self.k_close)
             self.update_d_uptake()
-        elif self.fixed_quantity == 'k_close':
+        elif self.dependent_variable == 'k_close':
             self.k_close = self._get_k_close(self.dG, self.k_open)
             self.update_d_uptake()
 
     @param.depends('k_open', watch=True)
     def k_open_updated(self):
-        if self.fixed_quantity == 'k_open':
+        if self.dependent_variable == 'k_open':
             return
-        elif self.fixed_quantity == 'dG':
+        elif self.dependent_variable == 'dG':
             self.dG = self._get_dG(self.k_open, self.k_close)
             self.update_d_uptake()
-        elif self.fixed_quantity == 'k_close':
+        elif self.dependent_variable == 'k_close':
             self.k_close = self._get_k_close(self.dG, self.k_open)
             self.update_d_uptake()
 
     @param.depends('k_close', watch=True)
     def k_close_updated(self):
-        if self.fixed_quantity == 'k_close':
+        if self.dependent_variable == 'k_close':
             return
-        elif self.fixed_quantity == 'dG':
+        elif self.dependent_variable == 'dG':
             self.dG = self._get_dG(self.k_open, self.k_close)
             self.update_d_uptake()
-        elif self.fixed_quantity == 'k_open':
+        elif self.dependent_variable == 'k_open':
             self.k_open = self._get_k_open(self.dG, self.k_close)
             self.update_d_uptake()
 
-    @param.depends('fixed_quantity', watch=True)
+    @param.depends('dependent_variable', watch=True)
     def _fixed_quantity_updated(self):
         widget_keys = ['dG', 'k_open', 'k_close']
 
-        widget_keys.remove(self.fixed_quantity)
-        self.widgets[self.fixed_quantity].disabled = True
+        widget_keys.remove(self.dependent_variable)
+        self.widgets[self.dependent_variable].disabled = True
         for widget_key in widget_keys:
             self.widgets[widget_key].disabled = False
 

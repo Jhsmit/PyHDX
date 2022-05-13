@@ -84,6 +84,7 @@ views:
     type: bars
     source: k_int_replace
     opts:
+      - base
       - k_int
     x: index
     y: k_int
