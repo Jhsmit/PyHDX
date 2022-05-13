@@ -105,7 +105,9 @@ def multiindex_set_categories(
 
 
 def multiindex_add_categories(
-    index: pd.MultiIndex, level: int, categories: Any,  # index-like
+    index: pd.MultiIndex,
+    level: int,
+    categories: Any,  # index-like
 ) -> pd.MultiIndex:
     new_index = multiindex_apply_function(
         index, level, "add_categories", args=[categories]
@@ -113,7 +115,11 @@ def multiindex_add_categories(
     return new_index
 
 
-def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str,) -> pd.MultiIndex:
+def multiindex_astype(
+    index: pd.MultiIndex,
+    level: int,
+    dtype: str,
+) -> pd.MultiIndex:
     new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
     return new_index
 
@@ -502,7 +508,7 @@ def rgb_to_hex(rgb_a):
         raise TypeError(f"Invalid type for 'rgb_a': {rgb_a}")
 
     ints = rgba_array.astype(np.uint8).view(dtype=np.uint32).byteswap()
-    padded = np.char.rjust(base_v(ints // 2 ** 8, 16), 6, "0")
+    padded = np.char.rjust(base_v(ints // 2**8, 16), 6, "0")
     result = np.char.add("#", padded).squeeze()
 
     return result
@@ -684,7 +690,7 @@ def multi_otsu(*rates, classes=3):
     all_rates = np.concatenate([data["rate"] for data in rates])
     thd_rates = np.log(all_rates[~np.isnan(all_rates)])
     thds = threshold_multiotsu(thd_rates, classes=classes)
-    return tuple(np.e ** thd for thd in thds)
+    return tuple(np.e**thd for thd in thds)
 
 
 def scale(x, out_range=(-1, 1)):

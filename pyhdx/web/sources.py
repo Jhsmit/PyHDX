@@ -32,17 +32,30 @@ class TableSource(Source):
     _type = "table"
 
     def get(self):
-        if len(self.tables) == 1:
-            return next(iter(self.tables.values))
+        if len(self.tables) == 0:
+            return None
+        elif len(self.tables) == 1:
+            return next(iter(self.tables.values()))
+
         else:
             raise ValueError("TableSource has multiple tables, use `get_table`")
 
-    def add_table(self, table: str, df: pd.DataFrame):
+    def set(self, df: pd.DataFrame) -> None:
+        if len(self.tables) > 1:
+            raise ValueError(
+                "Can only use the `set` method when the number of tables is below 1. "
+                "Use `add_table`"
+            )
+
+        table = next(iter(self.tables.keys())) if self.tables else "main"
+        self.add_table(table, df)
+
+    def add_table(self, table: str, df: pd.DataFrame) -> None:
         table_hash = hash_dataframe(df)
         self.hashes[table] = table_hash
         self.tables[table] = df
 
-        # todo self.updated = True?
+        # todo self.updated = True? (yes because right now this is done manually (?))
 
     def get_table(self, table):
         df = self.tables.get(table, None)
@@ -147,7 +160,8 @@ class PyHDXSource(TableSource):
 
         tuples = [(name, *tup) for tup in df.columns]
         columns = pd.MultiIndex.from_tuples(
-            tuples, names=["fit_ID", "state", "peptide_id", "quantity"],
+            tuples,
+            names=["fit_ID", "state", "peptide_id", "quantity"],
         )
         df.columns = columns
 

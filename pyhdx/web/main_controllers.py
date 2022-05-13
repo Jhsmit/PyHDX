@@ -4,6 +4,9 @@ import warnings
 import panel as pn
 import param
 
+from pyhdx.web.sources import TableSource
+from pyhdx.web.views import hvCurveView
+
 
 class MainController(param.Parameterized):
     """
@@ -93,3 +96,28 @@ class PyHDXController(MainController):
     @property
     def logger(self):
         return self.loggers["pyhdx"]
+
+
+# single amide slider only first?
+class PeptideController(MainController):
+
+    """Object which models D-uptake of the peptide in time"""
+
+    _type = "peptide"
+
+    def __init__(self, *args, **params) -> None:
+        super().__init__(*args, **params)
+
+        # source = TableSource()
+        # self.sources['main'] = source
+        # view = hvCurveView(source=source)
+        # self.views['peptide'] = view
+
+    # def _action_reload(self):
+    #     self.model = PeptideUptakeModel(self.fasta_sequence, self.temperature, self.pH)
+    #
+    # def get_plot(self):
+    #     func = partial(hv.Curve, kdims='index', vdims='p_ND')
+    #
+    #     dm = hv.DynamicMap(func, streams=[stream])
+    #     dm = dm.apply.opts(logx=True)

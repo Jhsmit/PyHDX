@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from pathlib import Path
 
 import panel as pn
@@ -31,6 +33,26 @@ MIN_BORDER_LEFT = 65
 STATIC_DIR = Path(__file__).parent / "static"
 
 
+class Param(pn.Param):
+    def get_widgets(self) -> OrderedDict:
+        return self._widgets
+
+
+def has_precedence(p: param.Parameter) -> bool:
+    """Checks the precedence of a parameter.
+
+    Returns:
+        `True` if the `precedence` is None or larger or equal then zero, else `False`.
+
+    """
+    if p.precedence is None:
+        return True
+    elif p.precedence >= 0:
+        return True
+    else:
+        return False
+
+
 class ControlPanel(param.Parameterized):
     """base class for left control pannels"""
 
@@ -52,18 +74,17 @@ class ControlPanel(param.Parameterized):
         # self.ex
         super(ControlPanel, self).__init__(parent=parent, **params)
 
-        self.widgets = (
-            self.make_dict()
-        )  # atm on some objects this is a list, others dict
+        self.widgets = self.make_dict()
         self._box = self.make_box()  # _panel equivalent
 
+        # bind update function when any transform triggers a redraw of widgets
         if self._layout:
             for widget_source, contents in self._layout:
                 if widget_source != "self":
                     _type, name = widget_source.split(".")
                     if _type == "transforms":
-                        object = getattr(self, _type)[name]
-                        object.param.watch(self.update_box, ["redrawn"])
+                        obj = getattr(self, _type)[name]
+                        obj.param.watch(self.update_box, ["redrawn"])
 
     @property  # todo base class
     def own_widget_names(self):
@@ -100,20 +121,27 @@ class ControlPanel(param.Parameterized):
     def update_box(self, *events):
         self._box[:] = self.widget_list
 
-    def generate_widgets(self, **kwargs):
-        """returns a dict with keys parameter names and values default mapped widgets"""
+    def generate_widgets(self, **kwargs) -> dict[str, pn.widgets.Widget]:
+        """Creates a dict with keys parameter names and values default mapped widgets"""
 
-        # todo respect precedence
-        names = [
-            p
-            for p in self.param
-            if self.param[p].precedence is None or self.param[p].precedence > 1
-        ]
-        widgets = pn.Param(
-            self.param, show_name=False, show_labels=True, widgets=kwargs
+        # Get all parameters with precedence >= 1 and not starting with '_', excluding 'name'
+        parameters = {p_name for p_name in self.param if not p_name.startswith("_")}
+        parameters -= {"name"}
+        parameters -= {
+            p_name
+            for p_name, par in self.param.objects().items()
+            if not has_precedence(par)
+        }
+
+        widgets_layout = Param(
+            self.param,
+            show_labels=True,
+            show_name=False,
+            widgets=kwargs,
+            parameters=list(parameters),
         )
 
-        return {k: v for k, v in zip(names[1:], widgets)}
+        return widgets_layout.get_widgets()
 
     @property
     def widget_list(self):

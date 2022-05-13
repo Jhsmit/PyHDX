@@ -5,6 +5,8 @@ invoke --list=test
 from the command line for a list of all available commands.
 """
 
+# TODO: refactor to tests
+
 from invoke import task
 
 
@@ -87,7 +89,6 @@ Running pytest the test framework
 
     # Run the command_string
     command.run(command_string, echo=True)
-
 
 
 @task()

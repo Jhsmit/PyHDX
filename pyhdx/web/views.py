@@ -1,15 +1,19 @@
+from __future__ import annotations
+
 import itertools
 import logging
 import time
 from functools import partial
 from itertools import groupby, count
+import re
+from typing import Optional, Union
 
 import holoviews as hv
 import numpy as np
 import pandas as pd
 import panel as pn
 import param
-from holoviews.streams import Pipe
+from holoviews.streams import Pipe, Params
 from hvplot import hvPlotTabular
 from panel.pane.base import PaneBase
 
@@ -141,9 +145,11 @@ class hvView(View):
 
     _type = None
 
+    _stream = param.ClassSelector(class_=Pipe)
+
     def __init__(self, **params):
         super().__init__(**params)
-        self._stream = None
+        self._get_params()
 
     @param.depends("source.updated", watch=True)
     def update(self):
@@ -191,12 +197,7 @@ class hvView(View):
 
     @property
     def panel(self):
-        if isinstance(self._panel, PaneBase):
-            pane = self._panel
-            if len(pane.layout) == 1 and pane._unpack:
-                return pane.layout[0]
-            return pane._layout
-        return self._panel
+        return self.get_panel()
 
 
 class hvPlotView(hvView):
@@ -207,7 +208,6 @@ class hvPlotView(hvView):
     def __init__(self, **params):
         self.kwargs = {k: v for k, v in params.items() if k not in self.param}
         super().__init__(**{k: v for k, v in params.items() if k in self.param})
-        self._stream = None
 
     def get_plot(self):
         """
@@ -237,90 +237,143 @@ class hvPlotView(hvView):
         return df
 
 
-class hvCurveView(hvView):
+class hvXYView(hvView):
+    """Base class for hv views with a single XY view"""
+
+    x = param.Selector(default=None, doc="The column to render on the x-axis.")
+
+    x_objects = param.ClassSelector(
+        class_=(list, re.Pattern), default=None, precedence=-1
+    )
+
+    y = param.Selector(
+        default=None, objects=[], doc="The column to render on the y-axis."
+    )
+
+    y_objects = param.ClassSelector(
+        class_=(list, re.Pattern), default=None, precedence=-1
+    )
+
+    @param.depends("source.updated", watch=True)
+    def update(self, *events) -> None:
+        """Triggers an update of the view.
+
+        The source is queried for new data and this is sent to the `_stream` object. The
+        selector options for x and y are updated.
+
+        """
+        data = self.get_data()
+        if data is not None:
+            self.param["x"].objects = self.resolve_columns(data, self.x_objects)
+            self.param["y"].objects = self.resolve_columns(data, self.y_objects)
+            # todo check for case whe updated dataframe longer has current value of x in columns
+
+            self._stream.send(data)
+
+    @staticmethod
+    def resolve_columns(
+        data: pd.DataFrame, spec: Union[list, re.Pattern, None]
+    ) -> list[str]:
+        """Resolve the columns of a dataframe to find the ones that match specification.
+
+        Args:
+            data: Dataframe to resolve
+            spec: Column specification, either explicit list of allowed columns or a regex
+                pattern.
+
+        Returns:
+            List of names of the columns (or index) which match specification.
+        """
+        all_objects = list(data.columns)
+        if data.index.name is not None:
+            all_objects += [data.index.name]
+
+        if isinstance(spec, list):
+            resolved_objects = [obj for obj in all_objects if obj in spec]
+        elif isinstance(spec, re.Pattern):
+            resolved_objects = [obj for obj in all_objects if spec.match(obj)]
+        else:
+            resolved_objects = all_objects
+
+        return resolved_objects
+
+
+class hvCurveView(hvXYView):
     _type = "curve"
 
-    x = param.String(
-        None, doc="The column to render on the x-axis."
-    )  # todo these should be selectors
+    def get_plot(self) -> hv.DynamicMap:
+        """Creates the curve plot as DynamicMap.
 
-    y = param.String(None, doc="The column to render on the y-axis.")
-
-    def __init__(self, **params):
-        # baseclass??
-        self._stream = None
-        super().__init__(**params)
-
-    def get_plot(self):
+        Returns:
+            Holoviews DynamicMap
         """
 
-        Parameters
-        ----------
-        df
-
-        Returns
-        -------
-
-        """
-
-        func = partial(hv.Curve, kdims=self.kdims, vdims=self.vdims)
-        plot = hv.DynamicMap(func, streams=[self._stream])
+        func = partial(hv.Curve, kdims=self.y, vdims=self.x)
+        param_stream = Params(
+            parameterized=self,
+            parameters=["x", "y"],
+            rename={"x": "kdims", "y": "vdims"},
+        )
+        plot = hv.DynamicMap(func, streams=[self._stream, param_stream])
         plot = plot.apply.opts(**self.opts_dict)
 
         return plot
-
-    @property
-    def kdims(self):
-        return [self.x] if self.x is not None else None
-
-    @property
-    def vdims(self):
-        return [self.y] if self.y is not None else None
 
     @property
     def empty_df(self):
-        columns = (self.kdims or ["x"]) + (self.vdims or ["y"])
-        return pd.DataFrame([[np.nan] * len(columns)], columns=columns)
+        dic = {self.x or "x": [], self.y or "y": []}
+        return pd.DataFrame(dic)
 
 
-class hvScatterAppView(hvView):
+class hvScatterAppView(hvXYView):
     _type = "scatter"
 
-    x = param.String(
-        None, doc="The column to render on the x-axis."
-    )  # todo these should be selectors
+    def get_plot(self) -> hv.DynamicMap:
+        """Creates the scatter plot as DynamicMap
 
-    y = param.String(None, doc="The column to render on the y-axis.")
-
-    def __init__(self, **params):
-        self._stream = None
-        super().__init__(**params)
-
-    def get_plot(self):
+        Returns:
+            Holoviews DynamicMap
         """
 
-        Parameters
-        ----------
-        df
-
-        Returns
-        -------
-
-        """
-
-        func = partial(hv.Scatter, kdims=self.kdims, vdims=self.vdims)
-        plot = hv.DynamicMap(func, streams=[self._stream])
+        func = partial(hv.Scatter, kdims=self.x, vdims=self.y)
+        param_stream = Params(
+            parameterized=self,
+            parameters=["x", "y"],
+            rename={"x": "kdims", "y": "vdims"},
+        )
+        plot = hv.DynamicMap(func, streams=[self._stream, param_stream])
         plot = plot.apply.opts(**self.opts_dict)
 
         return plot
 
     @property
-    def kdims(self):
-        return [self.x] if self.x is not None else None
+    def empty_df(self):
+        dic = {self.x or "x": [], self.y or "y": []}
+        if "color" in self.opts_dict:
+            dic[self.opts_dict["color"]] = []
+        return pd.DataFrame(dic)
 
-    @property
-    def vdims(self):
-        return [self.y] if self.y is not None else None
+
+class hvBarsAppView(hvXYView):
+    _type = "bars"
+
+    def get_plot(self) -> hv.DynamicMap:
+        """Creates the scatter plot as DynamicMap
+
+        Returns:
+            Holoviews DynamicMap
+        """
+
+        func = partial(hv.Bars, kdims=self.x, vdims=self.y)
+        param_stream = Params(
+            parameterized=self,
+            parameters=["x", "y"],
+            rename={"x": "kdims", "y": "vdims"},
+        )
+        plot = hv.DynamicMap(func, streams=[self._stream, param_stream])
+        plot = plot.apply.opts(**self.opts_dict)
+
+        return plot
 
     @property
     def empty_df(self):

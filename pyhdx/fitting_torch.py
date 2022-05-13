@@ -93,7 +93,7 @@ def estimate_errors(hdxm, dG):
     cov = (Vh[w].T / s[w] ** 2) @ Vh[w]  # robust covariance matrix
     res = jac_loss(dG_tensor).numpy()
 
-    chi2dof = np.sum(res ** 2) / (res.size - dG_tensor.numpy().size)
+    chi2dof = np.sum(res**2) / (res.size - dG_tensor.numpy().size)
     cov *= chi2dof
     perr = np.sqrt(np.diag(cov))
     perr_series = pd.Series(perr, index=dG.index, name="perr")

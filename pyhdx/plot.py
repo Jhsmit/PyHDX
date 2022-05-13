@@ -1012,7 +1012,12 @@ def redundancy(ax, hdxm, cmap=None, norm=None):
     img = np.expand_dims(redundancy, 0)
 
     collection = ax.pcolormesh(
-        pplt.edges(x), np.array([0, 1]), img, extend="max", cmap=cmap, norm=norm,
+        pplt.edges(x),
+        np.array([0, 1]),
+        img,
+        extend="max",
+        cmap=cmap,
+        norm=norm,
     )
     ax.format(yticks=[], title="Redundancy")
     return collection
@@ -1030,7 +1035,12 @@ def resolution(ax, hdxm, cmap=None, norm=None):
     img = np.expand_dims(resolution, 0)
 
     collection = ax.pcolormesh(
-        pplt.edges(x), np.array([0, 1]), img, extend="max", cmap=cmap, norm=norm,
+        pplt.edges(x),
+        np.array([0, 1]),
+        img,
+        extend="max",
+        cmap=cmap,
+        norm=norm,
     )
     ax.format(yticks=[], title="Resolution")
     return collection

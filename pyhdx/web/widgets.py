@@ -1,4 +1,5 @@
 import panel as pn
+import numpy as np
 import param
 from asyncio import as_completed
 from panel.pane import HTML, Markdown
@@ -111,7 +112,10 @@ class NGL(ReactiveHTML):
 
     object = param.String()
 
-    extension = param.Selector(default="pdb", objects=EXTENSIONS,)
+    extension = param.Selector(
+        default="pdb",
+        objects=EXTENSIONS,
+    )
 
     background_color = param.Color(
         default="#F7F7F7", doc="Color to use for the background"
@@ -282,3 +286,106 @@ class CallbackProgress(pn.widgets.Progress):
 
     def callback(self, epoch, model, optimizer_obj):
         self.value = epoch
+
+
+class CompositeFloatSliders(pn.widgets.base.CompositeWidget):
+    value = param.Array(
+        default=np.array([0.0, 0.0, 0.0]), doc="A list of values from a set of sliders"
+    )
+
+    slider_height = param.Number(default=250, doc="Height of the sliders")
+
+    names = param.List(default=[], doc="Optional names for the sliders")
+
+    start = param.Number(
+        default=0.0,
+        doc="""
+        The lower bound.""",
+    )
+
+    end = param.Number(
+        default=1.0,
+        doc="""
+        The upper bound.""",
+    )
+
+    step = param.Number(
+        default=0.1,
+        doc="""
+        The step size.""",
+    )
+
+    # todo remove this
+    slider_class = param.ClassSelector(
+        default=pn.widgets.FloatSlider,
+        class_=pn.widgets.slider._SliderBase,
+        is_instance=False,
+    )
+
+    slider_params = param.Dict(
+        default={}, doc="Additional params to pass to the sliders"
+    )
+
+    _composite_type = pn.Row
+
+    def __init__(self, **params) -> None:
+        super().__init__(**params)
+        add_slider_params = {"start", "end", "step"} & params.keys()
+
+        slider_params = {
+            **self.slider_params,
+            **{k: params[k] for k in add_slider_params},
+        }
+        slider_params["orientation"] = "vertical"
+        slider_params["css_classes"] = ["custom-slider"]
+
+        css = f"""
+        .custom-slider .bk-input-group {{height:{self.slider_height}px;}}
+        """
+
+        pn.extension(raw_css=[css])
+
+        with param.discard_events(self):
+            if self.start is not None or self.end is not None:
+                self.value = np.clip(self.value, self.start, self.end)
+
+        names = self.names or [None] * len(self.value)
+        self.sliders = [
+            self.slider_class(name=name, value=val, **slider_params)
+            for name, val in zip(names, self.value)
+        ]
+        for slider in self.sliders:
+            slider.param.watch(self._slider_updated, ["value"])
+
+        self._composite[:] = self.sliders
+        self._disable_updated()
+
+    def _slider_updated(self, event: param.parameterized.Event):
+        index = self.sliders.index(event.obj)
+        self.value[index] = event.new
+        self.param.trigger("value")
+
+    @param.depends("start", watch=True)
+    def _start_updated(self):
+        for slider in self.sliders:
+            slider.start = self.start
+
+    @param.depends("end", watch=True)
+    def _end_updated(self):
+        for slider in self.sliders:
+            slider.end = self.end
+
+    @param.depends("step", watch=True)
+    def _step_updated(self):
+        for slider in self.sliders:
+            slider.step = self.step
+
+    @param.depends("disabled", watch=True)
+    def _disable_updated(self):
+        for widget in self.sliders:
+            widget.disabled = self.disabled
+
+    @param.depends("value", watch=True)
+    def _value_updated(self):
+        for val, slider in zip(self.value, self.sliders):
+            slider.value = val
