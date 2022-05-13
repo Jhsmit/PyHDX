@@ -8,10 +8,14 @@ import torch
 
 from pyhdx.config import cfg
 from pyhdx.local_cluster import verify_cluster
-from pyhdx.web.apps import main_app, rfu_app
+from pyhdx.web.apps import main_app, rfu_app, peptide_app
 from pyhdx.web.base import STATIC_DIR
 
-APP_DICT = {"main": lambda: main_app()[1], "rfu": lambda: rfu_app()[1]}
+APP_DICT = {
+    "main": lambda: main_app()[1],
+    "rfu": lambda: rfu_app()[1],
+    "peptide": lambda: peptide_app()[1],
+}
 
 
 def run_apps():
