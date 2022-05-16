@@ -170,8 +170,8 @@ class PyHDXSource(TableSource):
         # Add losses df
         df = fit_result.losses.copy()
         if df.columns.nlevels == 1:
-            tuples = [(name, column) for column in df.columns]
-            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "loss_type"])
+            tuples = [(name, "*", column) for column in df.columns]
+            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "loss_type"])
         else:
             tuples = [(name, *tup) for tup in df.columns]
             columns = pd.MultiIndex.from_tuples(
