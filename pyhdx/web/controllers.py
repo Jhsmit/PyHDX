@@ -2661,7 +2661,8 @@ class PeptidePropertiesControl(ControlPanel):
     _type = "peptide"
 
     updated = param.Event(
-        doc="Trigger for layout to listen to when widgets are updated"
+        doc="Trigger for layout to listen to when widgets are updated",
+        precedence=-1,
     )
 
     fasta_sequence = param.String(
