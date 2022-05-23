@@ -2553,7 +2553,8 @@ class SessionManagerControl(PyHDXControlPanel):
             df = csv_to_dataframe(bio)
             df.columns = fix_multiindex_dtypes(df.columns)
 
-            src.tables[name.split(".")[0]] = df
+            table_name = name.split(".")[0]
+            src.add_table(table_name, df)
 
         src.param.trigger("tables")  # todo do not trigger tables?
         src.updated = True

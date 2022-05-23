@@ -56,6 +56,8 @@ class TableSource(Source):
         self.tables[table] = df
 
         # todo self.updated = True? (yes because right now this is done manually (?))
+        # although would be good to have an option to not trigger (or context manager)
+        # when adding multiple tables in batch and not wanted to update
 
     def get_table(self, table):
         df = self.tables.get(table, None)
