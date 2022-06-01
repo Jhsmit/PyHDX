@@ -384,7 +384,7 @@ class PeptideMasterTable(object):
         """
 
         try:
-            fd_df = self.get_data(*control_1)[["_start", "_end", "uptake"]].set_index(
+            fd_df = self.get_data(*control_1)[["_start", "_end", "uptake", "uptake sd"]].set_index(
                 ["_start", "_end"], verify_integrity=True
             )
         except ValueError as e:
@@ -399,10 +399,11 @@ class PeptideMasterTable(object):
             if control_0 is None:
                 nd_df = (
                     self.get_data(*control_1)
-                    .copy()[["_start", "_end", "uptake"]]
+                    .copy()[["_start", "_end", "uptake", "uptake sd"]]
                     .set_index(["_start", "_end"], verify_integrity=True)
                 )
                 nd_df["uptake"] = 0
+                nd_df["uptake sd"] = 0
 
             else:
                 nd_df = self.get_data(*control_0)[
@@ -418,12 +419,24 @@ class PeptideMasterTable(object):
         self.data.set_index(["_start", "_end"], append=True, inplace=True)
         self.data.reset_index(level=0, inplace=True)
 
-        self.data["rfu"] = (self.data["uptake"] - nd_df["uptake"]) / (
-            fd_df["uptake"] - nd_df["uptake"]
+        u = self.data["uptake"]
+        f = fd_df["uptake"]
+        n = nd_df["uptake"]
+
+        u_sd = self.data["uptake sd"]
+        f_sd = fd_df["uptake sd"]
+        n_sd = nd_df["uptake sd"]
+
+        self.data["rfu"] = (u - n) / (f - n)
+        self.data["rfu sd"] = np.sqrt(
+            (1 / (f - n))**2 * u_sd**2 +
+            ( (u - f) / (f - n)**2)**2 * n_sd**2 +
+            ( (n - u) / (f - n)**2)**2 * f_sd**2
+
         )
         self.data["uptake_corrected"] = self.data["rfu"] * self.data["ex_residues"]
-        self.data["fd_uptake"] = fd_df["uptake"]
-        self.data["nd_uptake"] = nd_df["uptake"]
+        self.data["fd_uptake"] = f
+        self.data["nd_uptake"] = n
 
         self.data = self.data.set_index("peptide_index", append=True).reset_index(
             level=[0, 1]
@@ -875,6 +888,18 @@ class HDXMeasurement(object):
         return df
 
     @property
+    def rfu_residues_sd(self) -> pd.DataFrame:
+        """Standard deviations of relative fractional uptake per residue.
+
+        Shape of the returned DataFrame is Nr (rows) x Nt (columns)
+        """
+
+        df = pd.concat([v.propagate_errors("rfu sd") for v in self], keys=self.timepoints, axis=1)
+        df.columns.name = "exposure"
+
+        return df
+
+    @property
     def rfu_peptides(self) -> pd.DataFrame:
         """Relative fractional uptake per peptide.
 
@@ -883,6 +908,8 @@ class HDXMeasurement(object):
         df = pd.concat([v.rfu_peptides for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
         return df
+
+
 
     @property
     def d_exp(self) -> pd.DataFrame:
@@ -1114,6 +1141,24 @@ class HDXTimepoint(Coverage):
         series = pd.Series(array, index=self.index)
 
         return series
+
+    def propagate_errors(self, field: str) -> pd.Series:
+        """Propagate errors on `field` when calculating per-residue weighted average values.
+
+        Args:
+            field: Data field (column) of errors to propagate.
+
+        Returns:
+            Propagated errors per residue.
+
+        """
+
+        array = np.sqrt((self.Z_norm**2).T.dot(self.data[field]**2))
+        series = pd.Series(array, index=self.index)
+
+        return series
+
+
 
 
 class CoverageSet(object):
