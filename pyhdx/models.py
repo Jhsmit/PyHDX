@@ -407,7 +407,7 @@ class PeptideMasterTable(object):
 
             else:
                 nd_df = self.get_data(*control_0)[
-                    ["_start", "_end", "uptake"]
+                    ["_start", "_end", "uptake", "uptake sd"]
                 ].set_index(["_start", "_end"], verify_integrity=True)
                 if nd_df.size == 0:
                     raise ValueError(
