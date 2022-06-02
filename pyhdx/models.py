@@ -815,6 +815,7 @@ class HDXMeasurement(object):
         Coverage Percentage:    {self.coverage.percent_coverage:.2f}
         Average redundancy:     {self.coverage.redundancy:.2f}      
         Average peptide length: {self.coverage.avg_peptide_length:.2f}
+        Repeatability:          {self.data['uptake sd'].mean():.2f}
         Temperature:            {self.temperature} K
         pH:                     {self.pH}             
         """
