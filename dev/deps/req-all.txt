@@ -27,9 +27,11 @@ pytorch
 pyyaml
 scikit-image
 scipy
+sphinx-autobuild
 sphinx-autodoc-typehints
 sphinx-copybutton
 sphinx>=4.4.0
+sphinxcontrib-bibtex
 symfit>=0.5.5
 tqdm
 typer

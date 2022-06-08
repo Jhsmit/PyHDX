@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import warnings
+from io import StringIO
 from functools import reduce
 from pathlib import Path
 import os
@@ -30,14 +31,27 @@ temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}
 # todo add data filters in state spec?
 # todo add proline, n_term options
 class StateParser(object):
-    "" "object used to parse yaml state input files into PyHDX HDX Measurement object"
+    """
+
+    Args:
+        state_spec: Dictionary with HDX-MS state specification.
+        data_src: Optional data source with input data files. If not specified, current
+            directory is used. Otherwise, either a data source path can be specified or
+            data can be given as a dictionary, where keys are filenames and values are
+            :class:`~io.StringIO` with file contents.
+        data_filters: Optional list of data filters to apply to the data. The filters are
+            applied after the FD controls are applied and should be implemented as functions
+            which take input data as a `:class:`~pandas.DataFrame` and returns the filtered
+            `:class:`~pandas.DataFrame`
+
+    """
 
     def __init__(
         self,
         state_spec: dict,
-        data_src: Union[os.PathLike, dict, None],
+        data_src: Union[os.PathLike[str], str, dict[str, StringIO], None],
         data_filters: list = None,
-    ):
+    ) -> None:
 
         self.state_spec = state_spec
         data_src = data_src or "."
@@ -268,10 +282,13 @@ class SaveFitResult(Task):
 
 
 class JobParser(object):
+    """
+
+    """
 
     cwd = param.ClassSelector(Path, doc="Path of the current working directory")
 
-    def __init__(self, job_spec: dict, cwd: Optional[os.PathLike] = None):
+    def __init__(self, job_spec: dict, cwd: Optional[Path] = None):
         self.job_spec = job_spec
         self.cwd = cwd or Path().cwd()
 

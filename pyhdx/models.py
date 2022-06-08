@@ -644,6 +644,11 @@ class Coverage(object):
         return np.mean(np.sum(x_coverage, axis=0))
 
     @property
+    def avg_peptide_length(self) -> float:
+        """Average length of the peptides"""
+        return (self.data['end'] - self.data['start']).mean()
+
+    @property
     def Np(self) -> int:
         """Number of peptides."""
         return self.X.shape[0]
@@ -809,6 +814,8 @@ class HDXMeasurement(object):
         Timepoints:             {timepoints} seconds
         Coverage Percentage:    {self.coverage.percent_coverage:.2f}
         Average redundancy:     {self.coverage.redundancy:.2f}      
+        Average peptide length: {self.coverage.avg_peptide_length:.2f}
+        Repeatability:          {self.data['uptake sd'].mean():.2f}
         Temperature:            {self.temperature} K
         pH:                     {self.pH}             
         """

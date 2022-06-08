@@ -1,4 +1,5 @@
 """
+#TODO this file doesnt work from console, check paths
 takes requirements from setup.cfg and makes req-<selection>.txt file
 which can be used with `conda install --file req-<selection>.txt
 
@@ -21,7 +22,6 @@ from operator import add
 from pathlib import Path
 from typing import Optional
 
-import yaml
 
 
 #%%
@@ -100,6 +100,8 @@ def conda_to_pip(conda_yml: Path, pip_txt: Path, extras: Optional[list[str]] = N
     deps = remove_version_spec(selected)
     deps_flat = [p for d in deps.values() for p in d]
 
+    import yaml
+
     linux_dict = yaml.safe_load((cwd / conda_yml).read_text())
     linux_split = [p.split("=") for p in linux_dict["dependencies"]]
     linux_deps, linux_versions, linux_id = zip(*linux_split)
@@ -141,5 +143,6 @@ if __name__ == "__main__":
     for os in platforms:
         conda_file = Path(f"pinned/py38_{os}_conda.yml")
         pip_file = Path(f"pinned/py38_{os}_pip.txt")
+
 
         conda_to_pip(conda_file, pip_file)

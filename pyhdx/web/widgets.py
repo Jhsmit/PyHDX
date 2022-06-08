@@ -332,12 +332,8 @@ class CompositeFloatSliders(pn.widgets.base.CompositeWidget):
         super().__init__(**params)
         add_slider_params = {"start", "end", "step"} & params.keys()
 
-        slider_params = {
-            **self.slider_params,
-            **{k: params[k] for k in add_slider_params},
-        }
-        slider_params["orientation"] = "vertical"
-        slider_params["css_classes"] = ["custom-slider"]
+        slider_params = {**self.slider_params, **{k: params[k] for k in add_slider_params},
+                         "orientation": "vertical", "css_classes": ["custom-slider"]}
 
         css = f"""
         .custom-slider .bk-input-group {{height:{self.slider_height}px;}}

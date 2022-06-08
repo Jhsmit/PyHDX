@@ -76,7 +76,7 @@ Some guidelines for how to refer to objects or entities:
 
     """
 
-
+pahtlike should be: Pathlike[str] or Union[str, Pathlike[str]]
 
 Properties:
 

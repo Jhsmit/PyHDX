@@ -530,14 +530,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
         for state in yaml_dict.keys():
             hdxm = parser.load_hdxm(state, name=state)
             self.src.add(hdxm, state)
-            self.parent.logger.info(
-                f"Loaded dataset {state} with experiment state {hdxm.state} "
-                f"({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)"
-            )
-            self.parent.logger.info(
-                f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "
-                f"Redundancy: {hdxm.coverage.redundancy:.2}"
-            )
+            self.log_onload(hdxm)
 
     def _add_dataset_manual(self):
 
@@ -576,13 +569,17 @@ class PeptideFileInputControl(PyHDXControlPanel):
         )
 
         self.src.add(hdxm, self.dataset_name)
+        self.log_onload(hdxm)
+
+    def log_onload(self, hdxm):
         self.parent.logger.info(
             f"Loaded dataset {self.dataset_name} with experiment state {self.exp_state} "
             f"({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)"
         )
         self.parent.logger.info(
             f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "
-            f"Redundancy: {hdxm.coverage.redundancy:.2}"
+            f"Redundancy: {hdxm.coverage.redundancy:.1f}, "
+            f"Average peptide length: {hdxm.coverage.avg_peptide_length:.1f}"
         )
 
     def _action_remove_datasets(self):
