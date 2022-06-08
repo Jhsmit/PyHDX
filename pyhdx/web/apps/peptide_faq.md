@@ -5,11 +5,11 @@ FAQ
 
 This app calculates the D-uptake of a peptide, given the parameters of the Linderstrøm-lang
 model, $$k_{open}$$ and $$k_{close}$$, as well as the experimental parameters pH and temperature.
-This allows HDX-MS users to find which $$\Delta G_{EX}$$ values can be probed, given time range, pH 
-and temperature.
+This allows HDX-MS users to find which $$\Delta G_{EX}$$ (Hereafter $$\Delta G$$) values can be probed, 
+given time range, pH and temperature.
 
-For example, with pH 6.5 and a temperature of 5&deg;C, if $$\Delta G_{EX}$$ for an amino 
-acid is $$> 35$$ kJ/mol, no exchange is expected before $$10^5$$ seconds (~ 1 day) of exchange.
+For example, with pH 6.5 and a temperature of 5&deg;C, if $$\Delta G$$ for an amino 
+acid is $$\gt 35$$ kJ/mol, no exchange is expected before $$10^5$$ seconds (~ 1 day) of exchange.
 
 ### What is this 'dependent variable' in peptide controls?
 
@@ -29,7 +29,7 @@ The former finds $$k_{open}}$$ rates ranging from ~$$10^{-3}$$ to $$10^{-8} s^{-
 with such a slow opening rate reaction, to satisfy typical $$\Delta G$$ values of 10-50 kJ/mol,
 the corresponding $$k_{close}$$ rates would be 0.1-100 $$s^{-1}$$, and given that typical
 values of $$k_{int}$$ (Intrinsic/chemical rate of exchange) are similar or even lower, this
-would place most of these HD kinetics outside the EX2 regime (where $$k_{close} \gg k{int}$$), 
+would place most of these HD kinetics outside the EX2 regime (where $$k_{close} \gg k_{int}$$), 
 contrary to observation.
 
 The latter work by Peacock at al finds $$k_{open} \approx 10^2 s^{-1}$$, and for reasonably
@@ -42,23 +42,23 @@ are will be slower than $$10^{5} s^{-1}$$.
 ### What are the timescales involved?
 
 If we do an experiment at 20 &deg;C, pH 7.5 with a middle-of-the road protein flexibility of
-$$\Delta G = 20 kJ/mol$$, D-uptake is expected to start at about 100s of D-exposure, where 
-~95% D is reached at roughly 1000s. If we assume $k_{open}$ is $$10^{2} s^{-1}$$, $k_{close}$ 
-is about $10^6 s^{-1}$. This means that the lifetime of the open state is on the order of 
+$$\Delta G$$ = 20 kJ/mol D-uptake is expected to start at about 100s of D-exposure, where 
+~95% D is reached at roughly 1000s. If we assume $$k_{open}$$ is $$10^{2} s^{-1}$$, $$k_{close}$$ 
+is about $$10^6 s^{-1}$$. This means that the lifetime of the open state is on the order of 
 microseconds, and the opening event will occur about 10000 times before we start to see a
 measurable amount of D-uptake, after 100 seconds of D-exposure. 
 
 
 ### What about EX1 vs EX2?
 
-In this simulation we know both $$k_{open}$$ and $$k_{close}}$, so there is no need to make
+In this simulation we know both $$k_{open}$$ and $$k_{close}}$$, so there is no need to make
 mathematical approximations depending on the kinetics regime. D-uptake is calculated from:
 
 $$
 k_{ex} = \frac{1}{2} (k_{open} + k_{close} + k_{int} - \sqrt{((k_{open} + k_{close} + k_{int})^2 - 4 k_{open} k_{int}})
 $$
 
-As described in the Pederson paper, and is accurate for at least the $$ \Delta G > 10 $$ kJ/mol regime.
+As described in the Pederson paper, and is accurate for at least the $$ \Delta G \gt 10 $$ kJ/mol regime.
 
 Since in EX2 the exchange only depends on the ratio of the  closing and opening rates, and 
 not their absolute values, we can probe in which regime we are by playing with the sliders. 
