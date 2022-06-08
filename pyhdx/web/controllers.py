@@ -2648,7 +2648,7 @@ class GraphControl(PyHDXControlPanel):
         return output_widgets
 
 
-DG_DEFAULT = [20.0, 20.0, 25.0, 25.0, 20.0, 20.0, 30.0, 35.0, 45.0]
+DG_DEFAULT = [25.0] * 9
 K_OPEN_DEFAULT = [2] * 9
 
 
