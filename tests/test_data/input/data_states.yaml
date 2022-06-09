@@ -3,12 +3,13 @@
 SecB_tetramer:
   filenames:
     - ecSecB_apo.csv
-  control:
+  control:  # should be named FD control
     state: Full deuteration control
     exposure:
       value: 0.167
       unit: min
   state: 'SecB WT apo'
+  # timepoints: ... exposure?
   pH: 8.
   d_percentage: 90.
   temperature:
