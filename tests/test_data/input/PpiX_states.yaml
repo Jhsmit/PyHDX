@@ -1,0 +1,77 @@
+
+
+PpiA_Folding:
+  filenames:
+    - PpiA_folding.csv
+  control:
+    state: Native
+    exposure:
+      value: 86400
+      unit: s
+  ND_control:
+    state: FD
+    exposure:
+      value: 0.6
+      unit: s
+  experiment:
+    state: Folding
+    exposure:
+      unit: min
+      values:
+
+  pH: 8.
+  d_percentage: 90.
+  temperature:
+    value: 25.
+    unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
+
+
+  File "C:\Users\jhsmi\pp\PyHDX\pyhdx\web\controllers.py", line 664, in <lambda>
+    lambda self: self._action_add_dataset(),
+  File "C:\Users\jhsmi\pp\PyHDX\pyhdx\web\controllers.py", line 862, in _action_add_dataset
+    hdxm = HDXMeasurement(
+  File "C:\Users\jhsmi\pp\PyHDX\pyhdx\models.py", line 784, in __init__
+    self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
+  File "C:\Users\jhsmi\pp\PyHDX\pyhdx\models.py", line 784, in <listcomp>
+    self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
+  File "C:\Users\jhsmi\pp\PyHDX\pyhdx\models.py", line 1075, in __init__
+    super(HDXTimepoint, self).__init__(data, **kwargs)
+  File "C:\Users\jhsmi\pp\PyHDX\pyhdx\models.py", line 546, in __init__
+    raise ValueError(
+ValueError: HDX data extends beyond c_term number, check 'sequence' or 'c_term'
+
+
+and todo figure something out for missing exposure times in some conditions
+
+PpiB_Folding:
+  filenames:
+    - PpiB_folding.csv
+  control:
+    state: Native
+    exposure:
+      value: 1800
+      unit: s
+  ND_control:
+    state: FD
+    exposure:
+      value: 0.6
+      unit: s
+  experiment:
+    state: Folding
+    exposure:
+      unit: min
+      values:
+
+  pH: 8.
+  d_percentage: 90.
+  temperature:
+    value: 25.
+    unit: Celsius
+  sequence: MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA
+  n_term: 1
+  c_term: 155
+  author: Foo Bar
