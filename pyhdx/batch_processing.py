@@ -85,14 +85,17 @@ class StateParser(object):
 
         return df
 
-    def load_hdxmset(self) -> HDXMeasurementSet:
-        """batch read the full yaml spec into a hdxmeasurementset"""
+    @property
+    def hdxm_list(self) -> list[HDXMeasurement]:
         hdxm_list = []
         for state in self.state_spec.keys():
             hdxm = self.load_hdxm(state, name=state)
             hdxm_list.append(hdxm)
 
-        return HDXMeasurementSet(hdxm_list)
+        return hdxm_list
+
+    def load_hdxmset(self) -> HDXMeasurementSet:
+        return HDXMeasurementSet(self.hdxm_list)
 
     def load_hdxm(self, state: str, **kwargs: Any) -> HDXMeasurement:
         """Read a single protein state to :class:`~pyhdx.models.HDXMeasurement`.
@@ -152,6 +155,9 @@ class StateParser(object):
         state_data = pmt.get_state(state_dict["state"])
         for flt in self.data_filters:
             state_data = flt(state_data)
+
+        if 'name' not in kwargs:
+            kwargs['name'] = state
 
         hdxm = HDXMeasurement(
             state_data,
