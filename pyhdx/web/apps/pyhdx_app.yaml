@@ -227,8 +227,20 @@ modules:
           - scatter
           - rfu_scatter
           - rfu  # rename rfu_cmap
-        #x: r_number
-
+      rfu_errorbars:
+        type: errorbars
+        source: rfu_select
+        opts:
+          - base
+          - errorbars
+        pos: r_number
+        value: rfu
+        err: rfu_sd
+      rfu_overlay:
+        type: overlay
+        views:
+          - rfu_scatter
+          - rfu_errorbars
   rates:
     transforms:
       rates_select:

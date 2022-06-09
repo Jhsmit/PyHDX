@@ -53,7 +53,7 @@ def main_app():
                     width=61.803,
                 ),
                 elvis.stack(
-                    elvis.view("rfu_scatter", title="RFU", **view_kwargs),
+                    elvis.view("rfu_overlay", title="RFU", **view_kwargs),
                     elvis.view("drfu", title="ΔRFU", **view_kwargs),
                     elvis.view("rates", **view_kwargs),
                     elvis.view("gibbs_overlay", title="ΔG", **view_kwargs),
