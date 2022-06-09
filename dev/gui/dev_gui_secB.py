@@ -13,7 +13,7 @@ import pandas as pd
 import panel as pn
 import yaml
 
-from pyhdx.batch_processing import yaml_to_hdxm, StateParser
+from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import main_app
@@ -83,14 +83,9 @@ def reload_tables():
     ctrl.views['protein'].object = pdb_string
 
 def reload_dashboard():
-    parser = StateParser(yaml_dict)
-    data_objs = {k: yaml_to_hdxm(v, data_dir=data_dir) for k, v in yaml_dict.items()}
-    for k, v in data_objs.items():
-        v.metadata['name'] = k
-
     source = ctrl.sources['dataframe']
     for ds in ['peptides', 'peptides_mse', 'd_calc', 'rfu', 'rates', 'global_fit', 'losses']:
-        df = csv_to_protein(test_dir / f'{ds}.csv')
+        df = csv_to_dataframe(test_dir / f'{ds}.csv')
         source.add_df(df, ds)
 
     #Temporary workaround for comment characters in csv files
@@ -120,7 +115,9 @@ def init_batch():
 
 
 def init_dashboard():
-    n = 2
+    n = 2  # change this to control the number of HDX measurements added
+
+
     if n == 2:
         for k, v in yaml_dict.items():
             load_state(ctrl, v, data_dir=data_dir, name=k)
@@ -128,8 +125,6 @@ def init_dashboard():
         k = next(iter(yaml_dict.keys()))
         v = yaml_dict[k]
         load_state(ctrl, v, data_dir=data_dir, name=k)
-
-    src = ctrl.sources['main']
 
 
     guess_control = ctrl.control_panels['InitialGuessControl']
@@ -147,16 +142,17 @@ def init_dashboard():
     pdbe = ctrl.views['protein']
     #ctrl.views['protein'].object = pdb_string
     #
-    # fit_result = load_fitresult(fitresult_dir)
-    # src.add(fit_result, 'fit_1')
+    fit_result = load_fitresult(fitresult_dir)
+    src = ctrl.sources['main']
+    src.add(fit_result, 'fit_1')
 
-    # if n > 1:
-    #     diff = ctrl.control_panels['DifferentialControl']
-    #     diff._action_add_comparison()
+    if n > 1:
+        diff = ctrl.control_panels['DifferentialControl']
+        diff._action_add_comparison()
 
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
-#pn.state.onload(init_dashboard)
+pn.state.onload(init_dashboard)
 #pn.state.onload(init_batch)
 
 
