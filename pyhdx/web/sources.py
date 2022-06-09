@@ -135,6 +135,7 @@ class PyHDXSource(TableSource):
         self._add_table(df, "peptides")
 
         # Add rfu per residue data
+        # todo perhaps this combined df should be directly supplied by `hdxm`
         rfu = hdxm.rfu_residues
         columns = pd.MultiIndex.from_tuples([(name, col, 'rfu') for col in rfu.columns],
                                             names=["state", "exposure", "quantity"])
