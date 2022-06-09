@@ -516,7 +516,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             )
             return
 
-        yaml_dict = yaml.safe_load(self.batch_file.decode("UTF-8"))
+        state_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
         ios = {
             name: StringIO(byte_content.decode("UTF-8"))
             for name, byte_content in zip(
@@ -525,9 +525,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
         }
         filters = [lambda df: df.query("exposure > 0")]
 
-        parser = StateParser(yaml_dict, data_src=ios, data_filters=filters)
+        parser = StateParser(state_spec, data_src=ios, data_filters=filters)
 
-        for state in yaml_dict.keys():
+        for state in state_spec.keys():
             hdxm = parser.load_hdxm(state, name=state)
             self.src.add(hdxm, state)
             self.parent.logger.info(
