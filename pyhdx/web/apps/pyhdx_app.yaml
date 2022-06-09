@@ -240,6 +240,7 @@ modules:
         views:
           - rfu_scatter
           - rfu_errorbars
+
   rates:
     transforms:
       rates_select:

@@ -1470,7 +1470,7 @@ class DifferentialControl(PyHDXControlPanel):
         reference_rfu_sd = rfu_df.xs(key=(self.reference_state, 'rfu_sd'), level=[0, 2], axis=1)
         test_rfu_sd = rfu_df.drop(self.reference_state, axis=1, level=0).xs('rfu_sd', level=2, axis=1)
 
-        drfu_sd = ((test_rfu_sd ** 2).add((reference_rfu_sd ** 2))).pow(0.5)
+        drfu_sd = ((test_rfu_sd ** 2).add((reference_rfu_sd ** 2))).pow(0.5).dropna(how='all', axis=1)
 
         # Expand multiindex level and set 'comparison_state' level as category
         columns = pd.MultiIndex.from_tuples(
