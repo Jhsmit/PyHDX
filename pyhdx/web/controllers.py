@@ -1448,40 +1448,54 @@ class DifferentialControl(PyHDXControlPanel):
 
     def add_drfu_comparison(self):
         rfu_df = self.src.get_table("rfu_residues")
-        names = ['comparison_name', 'comparison_state', 'exposure', 'quantity']
+        names = ["comparison_name", "comparison_state", "exposure", "quantity"]
 
         # Take rfu entries from df, to calculate drfu
-        reference_rfu = rfu_df.xs(key=[self.reference_state, 'rfu'], level=[0, 2], axis=1)
-        test_rfu = rfu_df.drop(self.reference_state, axis=1, level=0).xs('rfu', level=2, axis=1)
+        reference_rfu = rfu_df.xs(
+            key=[self.reference_state, "rfu"], level=[0, 2], axis=1
+        )
+        test_rfu = rfu_df.drop(self.reference_state, axis=1, level=0).xs(
+            "rfu", level=2, axis=1
+        )
 
-        drfu = test_rfu.sub(reference_rfu, level='exposure').dropna(how='all', axis=1)
+        drfu = test_rfu.sub(reference_rfu, level="exposure").dropna(how="all", axis=1)
 
         # Expand multiindex level and set 'comparison_state' level as category
         columns = pd.MultiIndex.from_tuples(
-            [(self.comparison_name, *cols, 'drfu') for cols in drfu.columns],
-            names=names
+            [(self.comparison_name, *cols, "drfu") for cols in drfu.columns],
+            names=names,
         )
         drfu.columns = columns
         categories = list(drfu.columns.unique(level=1))
         drfu.columns = multiindex_astype(drfu.columns, 1, "category")
-        drfu.columns = multiindex_set_categories(drfu.columns, 1, categories, ordered=True)
+        drfu.columns = multiindex_set_categories(
+            drfu.columns, 1, categories, ordered=True
+        )
 
+        reference_rfu_sd = rfu_df.xs(
+            key=(self.reference_state, "rfu_sd"), level=[0, 2], axis=1
+        )
+        test_rfu_sd = rfu_df.drop(self.reference_state, axis=1, level=0).xs(
+            "rfu_sd", level=2, axis=1
+        )
 
-        reference_rfu_sd = rfu_df.xs(key=(self.reference_state, 'rfu_sd'), level=[0, 2], axis=1)
-        test_rfu_sd = rfu_df.drop(self.reference_state, axis=1, level=0).xs('rfu_sd', level=2, axis=1)
-
-        drfu_sd = ((test_rfu_sd ** 2).add((reference_rfu_sd ** 2))).pow(0.5).dropna(how='all', axis=1)
+        drfu_sd = (
+            ((test_rfu_sd**2).add((reference_rfu_sd**2)))
+            .pow(0.5)
+            .dropna(how="all", axis=1)
+        )
 
         # Expand multiindex level and set 'comparison_state' level as category
         columns = pd.MultiIndex.from_tuples(
-            [(self.comparison_name, *cols, 'drfu_sd') for cols in drfu_sd.columns],
-            names=names
+            [(self.comparison_name, *cols, "drfu_sd") for cols in drfu_sd.columns],
+            names=names,
         )
         drfu_sd.columns = columns
         categories = list(drfu_sd.columns.unique(level=1))
         drfu_sd.columns = multiindex_astype(drfu_sd.columns, 1, "category")
-        drfu_sd.columns = multiindex_set_categories(drfu_sd.columns, 1, categories,
-                                                    ordered=True)
+        drfu_sd.columns = multiindex_set_categories(
+            drfu_sd.columns, 1, categories, ordered=True
+        )
 
         combined = pd.concat([drfu, drfu_sd], axis=1).sort_index(axis=1)
 

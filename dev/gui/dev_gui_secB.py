@@ -52,10 +52,10 @@ sys.excepthook = my_exception_hook
 
 ctrl, tmpl = main_app()
 
-
-pyhdx_dir = Path(r'C:\Users\jhsmi\pp\PyHDX')
-data_dir = pyhdx_dir / 'tests' / 'test_data' / 'input'
-fitresult_dir = pyhdx_dir / 'tests' / 'test_data' / 'output' / 'ecsecb_tetramer_dimer'
+cwd = Path(__file__).parent
+root_dir = cwd.parent.parent
+data_dir = root_dir / 'tests' / 'test_data' / 'input'
+fitresult_dir = root_dir / 'tests' / 'test_data' / 'output' / 'ecsecb_tetramer_dimer'
 
 cwd = Path(__file__).parent
 test_dir = cwd / 'test_data' / 'secb'
@@ -64,10 +64,9 @@ test_dir = cwd / 'test_data' / 'secb'
 filenames = ['ecSecB_apo.csv', 'ecSecB_dimer.csv']
 file_dict = {fname: (data_dir / fname).read_bytes() for fname in filenames}
 
-batch_fname = 'data_states_red.yaml'
-batch_fname = 'data_states.yaml'
+batch_fname = 'data_states_deltas.yaml' # secb apo / dimer but artificial delta C/N tail
 
-yaml_dict = yaml.safe_load(Path(data_dir / batch_fname).read_text())
+state_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 pdb_string = (test_dir / '1qyn.pdb').read_text()
 
 
@@ -81,6 +80,7 @@ def reload_tables():
     src.param.trigger('updated')
 
     ctrl.views['protein'].object = pdb_string
+
 
 def reload_dashboard():
     source = ctrl.sources['dataframe']
@@ -112,20 +112,13 @@ def init_batch():
     fit_control.patience = 10000
     fit_control.learning_rate = 100
 
-
-
 def init_dashboard():
-    n = 2  # change this to control the number of HDX measurements added
+    n = 4  # change this to control the number of HDX measurements added
 
-
-    if n == 2:
-        for k, v in yaml_dict.items():
-            load_state(ctrl, v, data_dir=data_dir, name=k)
-    elif n == 1:
-        k = next(iter(yaml_dict.keys()))
-        v = yaml_dict[k]
+    for i, (k, v) in enumerate(state_spec.items()):
+        if i - 1 == n:
+            break
         load_state(ctrl, v, data_dir=data_dir, name=k)
-
 
     guess_control = ctrl.control_panels['InitialGuessControl']
     guess_control._action_fit()

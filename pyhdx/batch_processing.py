@@ -156,8 +156,8 @@ class StateParser(object):
         for flt in self.data_filters:
             state_data = flt(state_data)
 
-        if 'name' not in kwargs:
-            kwargs['name'] = state
+        if "name" not in kwargs:
+            kwargs["name"] = state
 
         hdxm = HDXMeasurement(
             state_data,
@@ -288,9 +288,7 @@ class SaveFitResult(Task):
 
 
 class JobParser(object):
-    """
-
-    """
+    """ """
 
     cwd = param.ClassSelector(Path, doc="Path of the current working directory")
 

@@ -137,13 +137,17 @@ class PyHDXSource(TableSource):
         # Add rfu per residue data
         # todo perhaps this combined df should be directly supplied by `hdxm`
         rfu = hdxm.rfu_residues
-        columns = pd.MultiIndex.from_tuples([(name, col, 'rfu') for col in rfu.columns],
-                                            names=["state", "exposure", "quantity"])
+        columns = pd.MultiIndex.from_tuples(
+            [(name, col, "rfu") for col in rfu.columns],
+            names=["state", "exposure", "quantity"],
+        )
         rfu.columns = columns
 
         rfu_sd = hdxm.rfu_residues_sd
-        columns = pd.MultiIndex.from_tuples([(name, col, 'rfu_sd') for col in rfu_sd.columns],
-                                            names=["state", "exposure", "quantity"])
+        columns = pd.MultiIndex.from_tuples(
+            [(name, col, "rfu_sd") for col in rfu_sd.columns],
+            names=["state", "exposure", "quantity"],
+        )
         rfu_sd.columns = columns
 
         combined = pd.concat([rfu, rfu_sd], axis=1).sort_index(axis=1)
@@ -180,7 +184,9 @@ class PyHDXSource(TableSource):
         df = fit_result.losses.copy()
         if df.columns.nlevels == 1:
             tuples = [(name, "*", column) for column in df.columns]
-            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "loss_type"])
+            columns = pd.MultiIndex.from_tuples(
+                tuples, names=["fit_ID", "state", "loss_type"]
+            )
         else:
             tuples = [(name, *tup) for tup in df.columns]
             columns = pd.MultiIndex.from_tuples(

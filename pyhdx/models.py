@@ -384,9 +384,9 @@ class PeptideMasterTable(object):
         """
 
         try:
-            fd_df = self.get_data(*control_1)[["_start", "_end", "uptake", "uptake sd"]].set_index(
-                ["_start", "_end"], verify_integrity=True
-            )
+            fd_df = self.get_data(*control_1)[
+                ["_start", "_end", "uptake", "uptake sd"]
+            ].set_index(["_start", "_end"], verify_integrity=True)
         except ValueError as e:
             raise ValueError("FD control has duplicate entries") from e
 
@@ -429,10 +429,9 @@ class PeptideMasterTable(object):
 
         self.data["rfu"] = (u - n) / (f - n)
         self.data["rfu sd"] = np.sqrt(
-            (1 / (f - n))**2 * u_sd**2 +
-            ( (u - f) / (f - n)**2)**2 * n_sd**2 +
-            ( (n - u) / (f - n)**2)**2 * f_sd**2
-
+            (1 / (f - n)) ** 2 * u_sd**2
+            + ((u - f) / (f - n) ** 2) ** 2 * n_sd**2
+            + ((n - u) / (f - n) ** 2) ** 2 * f_sd**2
         )
         self.data["uptake_corrected"] = self.data["rfu"] * self.data["ex_residues"]
         self.data["fd_uptake"] = f
@@ -894,7 +893,9 @@ class HDXMeasurement(object):
         Shape of the returned DataFrame is Nr (rows) x Nt (columns)
         """
 
-        df = pd.concat([v.propagate_errors("rfu sd") for v in self], keys=self.timepoints, axis=1)
+        df = pd.concat(
+            [v.propagate_errors("rfu sd") for v in self], keys=self.timepoints, axis=1
+        )
         df.columns.name = "exposure"
 
         return df
@@ -908,8 +909,6 @@ class HDXMeasurement(object):
         df = pd.concat([v.rfu_peptides for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
         return df
-
-
 
     @property
     def d_exp(self) -> pd.DataFrame:
@@ -1153,12 +1152,10 @@ class HDXTimepoint(Coverage):
 
         """
 
-        array = np.sqrt((self.Z_norm**2).T.dot(self.data[field]**2))
+        array = np.sqrt((self.Z_norm**2).T.dot(self.data[field] ** 2))
         series = pd.Series(array, index=self.index)
 
         return series
-
-
 
 
 class CoverageSet(object):
