@@ -70,6 +70,37 @@ def load_state(ctrl, yaml_dict, data_dir, name=None):
     file_input._action_add_dataset()
 
 
+def load_state_rfu(ctrl, state_spec, data_dir, name=None):
+    """Loader counterpart for RFU app. Even more experimental than `load_state`"""
+
+    if data_dir is not None:
+        input_files = [Path(data_dir) / fname for fname in state_spec["filenames"]]
+    else:
+        input_files = [Path(p) for p in state_spec["filenames"]]
+
+    files = [f.read_bytes() for f in input_files]
+
+    file_input = ctrl.control_panels["PeptideRFUFileInputControl"]
+    file_input.input_files = files
+
+    file_input.fd_state = state_spec["FD_control"]["state"]
+    file_input.fd_exposure = (
+        state_spec["FD_control"]["exposure"]["value"]
+        * time_factors[state_spec["FD_control"]["exposure"]["unit"]]
+    )
+
+    file_input.nd_state = state_spec["ND_control"]["state"]
+    file_input.nd_exposure = (
+            state_spec["ND_control"]["exposure"]["value"]
+            * time_factors[state_spec["ND_control"]["exposure"]["unit"]]
+    )
+
+    file_input.d_percentage = state_spec["d_percentage"]
+    file_input.exp_state = state_spec["experiment"]["state"]
+    file_input.dataset_name = name or state_spec["experiment"]["state"]
+    file_input._action_add_dataset()
+
+
 def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:
     """Assigns correct dtypes to (column) multiindex"""
     if index.names[0] in ["state", "guess_ID", "fit_ID"]:

@@ -15,7 +15,7 @@ from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import rfu_app
 from pyhdx.web.base import STATIC_DIR
-from pyhdx.web.utils import load_state, fix_multiindex_dtypes
+from pyhdx.web.utils import load_state_rfu, fix_multiindex_dtypes
 from pyhdx.config import cfg, reset_config
 
 reset_config()
@@ -50,33 +50,17 @@ data_dir = root_dir / 'tests' / 'test_data' / 'input'
 
 # batch_fname = 'data_states.yaml' # standard secb apo / dimer dataset
 # batch_fname = 'data_states_red.yaml'  # reduced number of pepties
-batch_fname = 'data_states_deltas.yaml' # secb apo / dimer but artificial delta C/N tail
+batch_fname = 'PpiX_states.yaml' # secb apo / dimer but artificial delta C/N tail
 
 state_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 
 
-
 def init_dashboard():
-    n = 4  # change this to control the number of HDX measurements added
+    n = 2  # change this to control the number of HDX measurements added
     for i, (k, v) in enumerate(state_spec.items()):
         if i - 1 == n:
             break
-        load_state(ctrl, v, data_dir=data_dir, name=k)
-
-    guess_control = ctrl.control_panels['InitialGuessControl']
-    guess_control._action_fit()
-
-    fit_control = ctrl.control_panels['FitControl']
-
-    fit_control.r1 = 0.05
-    fit_control.r2 = 0.1
-    fit_control.epochs = 200
-    fit_control.stop_loss = 0.001
-    fit_control.patience = 10000
-    fit_control.learning_rate = 100
-
-    pdbe = ctrl.views['protein']
-    #ctrl.views['protein'].object = pdb_string
+        load_state_rfu(ctrl, v, data_dir=data_dir, name=k)
 
 
     # if n > 1:
@@ -85,7 +69,7 @@ def init_dashboard():
 
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
-# pn.state.onload(init_dashboard)
+pn.state.onload(init_dashboard)
 #pn.state.onload(init_batch)
 
 
