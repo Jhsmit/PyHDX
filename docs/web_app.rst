@@ -80,6 +80,14 @@ By hovering the mouse over the peptides in the graph, more information is shown 
 * D(corrected): Absolute D-uptake, corrected by FD control
 * sequence: FASTA sequence of the peptide. Non-exchanging N-terminal reisues marked as 'x' and prolines in lower case.
 
+RFU
+```
+
+The 'RFU' scatterplot shows Relative Fractional Uptake per residue. These values are obtained by
+weighted averaging of peptides (weights are 1/length) and error bars shown are calculated by
+error propagation of the standard deviations on the input data values (`uptake sd` field of
+both the experiment state as well as the control(s)). Users can choose which exposure time
+and protein state to show in this graph using the selectors under `Graph Control`
 
 Initial Guesses
 ```````````````
