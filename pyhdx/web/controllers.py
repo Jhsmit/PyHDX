@@ -426,6 +426,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
         else:
             self._df = None
 
+        self.c_term = 0
         self._update_fd_state()
         self._update_fd_exposure()
         self._update_exp_state()
@@ -715,6 +716,7 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
         else:
             self._df = None
 
+        self.c_term = 0
         self._update_fd_state()
         self._update_fd_exposure()
         self._update_nd_state()
