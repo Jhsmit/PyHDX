@@ -806,18 +806,18 @@ class HDXMeasurement(object):
         timepoints = ", ".join([f"{t:.2f}" for t in self.timepoints])
 
         s = f"""
-        HDX Measurement: {self.name}
+        HDX Measurement:     {self.name}
         
-        Number of peptides:     {self.Np}
-        Number of residues:     {self.Nr} ({self.coverage.interval[0]} - {self.coverage.interval[1]})
-        Number of timepoints:   {self.Nt}
-        Timepoints:             {timepoints} seconds
-        Coverage Percentage:    {self.coverage.percent_coverage:.2f}
-        Average redundancy:     {self.coverage.redundancy:.2f}      
-        Average peptide length: {self.coverage.avg_peptide_length:.2f}
-        Repeatability:          {self.data['uptake sd'].mean():.2f}
-        Temperature:            {self.temperature} K
-        pH:                     {self.pH}             
+        Number of peptides:         {self.Np}
+        Number of residues:         {self.Nr} ({self.coverage.interval[0]} - {self.coverage.interval[1]})
+        Number of timepoints:       {self.Nt}
+        Timepoints:                 {timepoints} seconds
+        Coverage Percentage:        {self.coverage.percent_coverage:.2f}
+        Average redundancy:         {self.coverage.redundancy:.2f}   
+        Average peptide length:     {self.coverage.avg_peptide_length:.2f}
+        Repeatability (mean std):   {self.data['uptake sd'].mean():.2f} Da
+        Temperature:                {self.temperature} K
+        pH:                         {self.pH}             
         """
 
         return textwrap.dedent(s.lstrip("\n"))
