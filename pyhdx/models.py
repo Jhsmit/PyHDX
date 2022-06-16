@@ -894,7 +894,7 @@ class HDXMeasurement(object):
         """
 
         df = pd.concat(
-            [v.propagate_errors("rfu sd") for v in self], keys=self.timepoints, axis=1
+            [v.rfu_residues_sd for v in self], keys=self.timepoints, axis=1
         )
         df.columns.name = "exposure"
 
@@ -1103,6 +1103,13 @@ class HDXTimepoint(Coverage):
 
         """
         return self.weighted_average("rfu")
+
+    @property
+    def rfu_residues_sd(self) -> pd.Series:
+        """Error propagated standard deviations of RFU per residue.
+        """
+
+        return self.propagate_errors("rfu sd")
 
     # todo allow pd.Series?
     def calc_rfu(self, residue_rfu: np.ndarray) -> np.ndarray:
