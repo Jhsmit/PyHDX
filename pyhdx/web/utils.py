@@ -38,7 +38,8 @@ def load_state(ctrl, yaml_dict, data_dir, name=None):
     -------
         None
     """
-    # raise DeprecationWarning("Currently not up-to-date")
+    #raise DeprecationWarning("This should just call the load_from_spec function on controller")
+
 
     if data_dir is not None:
         input_files = [Path(data_dir) / fname for fname in yaml_dict["filenames"]]
@@ -49,11 +50,12 @@ def load_state(ctrl, yaml_dict, data_dir, name=None):
 
     file_input = ctrl.control_panels["PeptideFileInputControl"]
     file_input.input_files = files
+    file_input.widgets["input_files"].filename = yaml_dict["filenames"]
 
-    control_state = yaml_dict["control"]["state"]
+    control_state = yaml_dict["FD_control"]["state"]
     control_exp = (
-        yaml_dict["control"]["exposure"]["value"]
-        * time_factors[yaml_dict["control"]["exposure"]["unit"]]
+        yaml_dict["FD_control"]["exposure"]["value"]
+        * time_factors[yaml_dict["FD_control"]["exposure"]["unit"]]
     )
 
     file_input.fd_state = control_state
@@ -65,9 +67,11 @@ def load_state(ctrl, yaml_dict, data_dir, name=None):
     )
     file_input.d_percentage = yaml_dict["d_percentage"]
 
-    file_input.exp_state = yaml_dict["state"]
+    file_input.exp_state = yaml_dict["experiment"]["state"]
+
     file_input.dataset_name = name or yaml_dict["state"]
-    file_input._action_add_dataset()
+
+    #file_input._action_load_datasets()
 
 
 def load_state_rfu(ctrl, state_spec, data_dir, name=None):
@@ -98,7 +102,7 @@ def load_state_rfu(ctrl, state_spec, data_dir, name=None):
     file_input.d_percentage = state_spec["d_percentage"]
     file_input.exp_state = state_spec["experiment"]["state"]
     file_input.dataset_name = name or state_spec["experiment"]["state"]
-    file_input._action_add_dataset()
+    file_input._action_load_datasets()
 
 
 def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:

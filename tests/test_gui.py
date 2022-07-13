@@ -51,6 +51,7 @@ class TestMainGUISecB(object):
         file_input_control = ctrl.control_panels["PeptideFileInputControl"]
 
         file_input_control.input_files = [binary]
+        file_input_control.widgets['input_files'].filename = ["ecSecB_apo.csv"]
         assert file_input_control.fd_state == "Full deuteration control"
         assert file_input_control.fd_exposure == 0.0
 
@@ -60,7 +61,8 @@ class TestMainGUISecB(object):
         file_input_control.exp_state = self.state
         timepoints = list(np.array([0.167, 0.5, 1.0, 5.0, 10.0, 100.000008]) * 60)
         assert file_input_control.exp_exposures == timepoints
-        file_input_control._action_add_dataset()
+        file_input_control._add_single_dataset_spec()
+        file_input_control._action_load_datasets()
 
         assert self.state in src.hdxm_objects
         hdxm = src.hdxm_objects[self.state]
@@ -85,7 +87,7 @@ class TestMainGUISecB(object):
 
         input_control.batch_file = Path(input_dir / "data_states.yaml").read_bytes()
 
-        input_control._action_add_dataset()
+        input_control._action_load_datasets()
 
         src = ctrl.sources["main"]
         assert len(src.hdxm_objects) == 2
@@ -103,25 +105,30 @@ class TestMainGUISecB(object):
         file_input = ctrl.control_panels["PeptideFileInputControl"]
 
         file_input.input_files = files
+        filenames = ["ecSecB_apo.csv", "ecSecB_dimer.csv"]
+        file_input.widgets["input_files"].filename = filenames
         file_input.fd_state = "Full deuteration control"
         file_input.fd_exposure = 0.167 * 60
 
         file_input.exp_state = "SecB WT apo"
         file_input.dataset_name = "testname_123"
-        file_input._action_add_dataset()
-
-        assert "testname_123" in ctrl.sources["main"].hdxm_objects.keys()
-        rfu_df = ctrl.sources["main"].get_table("rfu_residues")
-        assert rfu_df.shape == (146, 12)
-        assert rfu_df.columns.nlevels == 3
+        file_input._add_single_dataset_spec()
 
         file_input.exp_state = "SecB his dimer apo"
         file_input.dataset_name = (
             "SecB his dimer apo"  # todo catch error duplicate name
         )
-        file_input._action_add_dataset()
+        file_input._add_single_dataset_spec()
 
+        file_input._action_load_datasets()
+
+        assert "testname_123" in ctrl.sources["main"].hdxm_objects.keys()
         assert "SecB his dimer apo" in ctrl.sources["main"].hdxm_objects.keys()
+
+        rfu_df = ctrl.sources["main"].get_table("rfu_residues")
+        assert rfu_df.shape == (146, 24)
+        assert rfu_df.columns.nlevels == 3
+
 
         initial_guess = ctrl.control_panels["InitialGuessControl"]
         initial_guess._action_fit()
