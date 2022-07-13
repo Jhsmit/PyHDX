@@ -6,6 +6,23 @@ parameter can be found in the web application reference docs :ref:`web-applicati
 a sidebar with controls and input, divided into sections, and a main view area with graphs and visualization. We will
 go through the functionality of the web interface per section.
 
+Settings
+````````
+
+In this section general settings for handling HDX data in the web application can be changed.
+
+In the :guilabel:`Drop first`'` entry the number of N-terminal residues for each peptides can be chosen which should be ignored when
+calculating the maximum uptake for each peptide as they are considered to fully exchange back. Prolines are ignored by
+default as they do not have exchangeable amide hydrogens.
+
+The field :guilabel:`Weight Exponent` controls how individual peptides are weighted when
+calculating residue-level weighted averaged RFU values. The weight for each peptide is equal to
+:math:`{1}{n^k}` where the `n` is equal to the number of exchanging residues, and here is `k` the
+user-configureable weight exponent. Therefore, shorter peptides contribute more to the
+averaging result, as they contain higher resolution information. The default value for the exponent is 1,
+and increasing the value increases the relative weight of shorter peptides.
+
+
 Peptide Input
 `````````````
 
@@ -44,10 +61,6 @@ experiment and peptides without control will not be included.
 Use the fields :guilabel:`Experiment State` to choose the 'state' of your experiment. In 'Experiment Exposures' you can select
 which exposure times to add include the dataset.
 
-In the :guilabel:`Drop first`'` entry the number of N-terminal residues for each peptides can be chosen which should be ignored when
-calculating the maximum uptake for each peptide as they are considered to fully exchange back. Prolines are ignored by
-default as they do not have exchangeable amide hydrogens.
-
 Next, specify the percentage of deuterium in the labelling solution in the field :guilabel:`Deuterium percentage`. This
 percentage should be as high as possible, typically >90%.
 
@@ -62,7 +75,13 @@ last residue included in any peptide and as the C-term exhibits different intrin
 taken into account. A sequence for the full protein (in the N-term to C-term range as specified) can be added to provide
 additional sequence information, but this is optional.
 
-Finally, specify a name of the dataset, by default equal to the 'state' value and press 'Add dataset' to add the dataset.
+Finally, specify a name of the dataset, by default equal to the :guilabel:`Experiment State` value and press :guilabel:`Add Measurement`
+to add the measurement with the current specifications. Repeat the process to add additional measurements. The :guilabel:`Download HDX spec`
+can be use to download a `.yaml` file with the full state specification, and this file can then in future sessions be used when using `Batch`
+input mode, by setting :guilabel:`Input mode` to `Batch`.
+
+Finally, press the button :guillabel:`Load dataset` to parse and load the full dataset.
+
 Datasets currently cannot be removed, if you want to remove datasets, press the browser 'refresh' button to start over.
 
 Coverage
