@@ -19,7 +19,7 @@ def get_view(
         return widget
 
 
-def load_state(ctrl, yaml_dict, data_dir, name=None):
+def load_state(ctrl, state_spec, data_dir, name=None):
     """
     Load a HDXMeasurement into the web interface
     Experimental use only
@@ -28,7 +28,7 @@ def load_state(ctrl, yaml_dict, data_dir, name=None):
     ----------
     ctrl: :class:`~pyhdx.web.main_controllers.PyHDXController`
         Main controller to load the data into
-    yaml_dict: :obj:`dict`
+    state_spec: :obj:`dict`
         Dictionary with measurement info according to batch processing format
     data_dir: path_like
     name: :obj:`str`, optional
@@ -42,34 +42,34 @@ def load_state(ctrl, yaml_dict, data_dir, name=None):
 
 
     if data_dir is not None:
-        input_files = [Path(data_dir) / fname for fname in yaml_dict["filenames"]]
+        input_files = [Path(data_dir) / fname for fname in state_spec["filenames"]]
     else:
-        input_files = [Path(p) for p in yaml_dict["filenames"]]
+        input_files = [Path(p) for p in state_spec["filenames"]]
 
     files = [f.read_bytes() for f in input_files]
 
     file_input = ctrl.control_panels["PeptideFileInputControl"]
     file_input.input_files = files
-    file_input.widgets["input_files"].filename = yaml_dict["filenames"]
+    file_input.widgets["input_files"].filename = state_spec["filenames"]
 
-    control_state = yaml_dict["FD_control"]["state"]
+    control_state = state_spec["FD_control"]["state"]
     control_exp = (
-        yaml_dict["FD_control"]["exposure"]["value"]
-        * time_factors[yaml_dict["FD_control"]["exposure"]["unit"]]
+            state_spec["FD_control"]["exposure"]["value"]
+            * time_factors[state_spec["FD_control"]["exposure"]["unit"]]
     )
 
     file_input.fd_state = control_state
     file_input.fd_exposure = control_exp
-    file_input.pH = yaml_dict["pH"]
+    file_input.pH = state_spec["pH"]
     file_input.temperature = (
-        yaml_dict["temperature"]["value"]
-        + temperature_offsets[yaml_dict["temperature"]["unit"].lower()]
+            state_spec["temperature"]["value"]
+            + temperature_offsets[state_spec["temperature"]["unit"].lower()]
     )
-    file_input.d_percentage = yaml_dict["d_percentage"]
+    file_input.d_percentage = state_spec["d_percentage"]
 
-    file_input.exp_state = yaml_dict["experiment"]["state"]
+    file_input.exp_state = state_spec["experiment"]["state"]
 
-    file_input.dataset_name = name or yaml_dict["state"]
+    file_input.dataset_name = name or state_spec["state"]
 
     #file_input._action_load_datasets()
 
@@ -86,6 +86,7 @@ def load_state_rfu(ctrl, state_spec, data_dir, name=None):
 
     file_input = ctrl.control_panels["PeptideRFUFileInputControl"]
     file_input.input_files = files
+    file_input.widgets["input_files"].filename = state_spec["filenames"]
 
     file_input.fd_state = state_spec["FD_control"]["state"]
     file_input.fd_exposure = (
@@ -102,7 +103,6 @@ def load_state_rfu(ctrl, state_spec, data_dir, name=None):
     file_input.d_percentage = state_spec["d_percentage"]
     file_input.exp_state = state_spec["experiment"]["state"]
     file_input.dataset_name = name or state_spec["experiment"]["state"]
-    file_input._action_load_datasets()
 
 
 def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:

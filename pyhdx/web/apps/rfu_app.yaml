@@ -311,6 +311,7 @@ modules:
           - peptide_scatter
 
 controllers:
+  - global_settings
   - peptide_rfu_file_input
   - diff
   - color_transform

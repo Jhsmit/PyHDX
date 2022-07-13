@@ -586,6 +586,7 @@ modules:
         n_levels: 1
 
 controllers:
+  - global_settings
   - peptide_file_input
   - initial_guess
   - fit
