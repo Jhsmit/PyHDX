@@ -57,10 +57,12 @@ state_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 
 def init_dashboard():
     n = 2  # change this to control the number of HDX measurements added
+    input_control = ctrl.control_panels['PeptideRFUFileInputControl']
     for i, (k, v) in enumerate(state_spec.items()):
-        if i - 1 == n:
+        if i == n:
             break
         load_state_rfu(ctrl, v, data_dir=data_dir, name=k)
+        input_control._add_single_dataset_spec()
 
 
     # if n > 1:
