@@ -3,7 +3,7 @@
 SecB_tetramer:
   filenames:
     - ecSecB_apo.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
@@ -24,7 +24,7 @@ SecB_dimer:
   filenames:
     - ecSecB_apo.csv
     - ecSecB_dimer.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
@@ -45,7 +45,7 @@ SecB_dimer_deltaC:
   filenames:
     - ecSecB_apo.csv
     - ecSecB_dimer_deltaC.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
@@ -66,7 +66,7 @@ SecB_dimer_deltaN:
   filenames:
     - ecSecB_apo.csv
     - ecSecB_dimer_deltaN.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
