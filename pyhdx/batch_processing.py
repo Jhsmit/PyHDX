@@ -152,7 +152,27 @@ class StateParser(object):
         if not (c_term or sequence):
             raise ValueError("Must specify either 'c_term' or 'sequence'")
 
-        state_data = pmt.get_state(state_dict["state"])
+        state_data = pmt.get_state(state_dict["experiment"]["state"])
+        if "exposure" in state_dict["experiment"]:
+            t_unit = state_dict["experiment"]["exposure"]["unit"]
+            times = np.array(state_dict["experiment"]["exposure"]["values"]) * time_factors[t_unit]
+        else:
+            all_times = state_data["exposure"].unique()
+            times = all_times[np.nonzero(all_times)]
+
+        t_set = set(times)  # set of requested exposure times
+        d_set = set(state_data['exposure'].unique())  # set of exposure times in the data
+
+        # Check if all requested exposure times are present
+        if not t_set.issubset(d_set):
+            diff = t_set - d_set
+            raise ValueError(
+                f"The following requested exposure times were not found in the "
+                f"supplied data: {', '.join([str(e) for e in diff])}")
+
+            # Select only requested exposure times
+        state_data = state_data[state_data['exposure'].isin(times)]
+
         for flt in self.data_filters:
             state_data = flt(state_data)
 

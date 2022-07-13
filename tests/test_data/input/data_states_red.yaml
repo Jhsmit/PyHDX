@@ -8,7 +8,8 @@ SecB_tetramer:
     exposure:
       value: 0.167
       unit: min
-  state: 'SecB WT apo'
+  experiment:
+    state: 'SecB WT apo'
   pH: 8.
   d_percentage: 90.
   temperature:
@@ -28,7 +29,8 @@ SecB_dimer:
     exposure:
       value: 0.167
       unit: min
-  state: 'SecB his dimer apo'
+  experiment:
+    state: 'SecB his dimer apo'
   pH: 8.
   d_percentage: 90.
   temperature:
