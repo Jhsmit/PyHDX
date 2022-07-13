@@ -433,13 +433,12 @@ class PeptideMasterTable(object):
             + ((u - f) / (f - n) ** 2) ** 2 * n_sd**2
             + ((n - u) / (f - n) ** 2) ** 2 * f_sd**2
         )
-        #TODO replace space with underscores
+        # TODO replace space with underscores
         self.data["uptake_corrected"] = self.data["rfu"] * self.data["ex_residues"]
         self.data["fd_uptake"] = f
         self.data["nd_uptake"] = n
         self.data["fd_uptake sd"] = f_sd
         self.data["nd_uptake sd"] = n_sd
-
 
         self.data = self.data.set_index("peptide_index", append=True).reset_index(
             level=[0, 1]
@@ -532,7 +531,7 @@ class Coverage(object):
     def __init__(
         self,
         data: pd.DataFrame,
-        weight_exponent: float = 1.,
+        weight_exponent: float = 1.0,
         n_term: int = 1,
         c_term: Optional[int] = None,
         sequence: Optional[str] = None,
@@ -542,7 +541,9 @@ class Coverage(object):
         self.data = data.sort_values(["start", "end"], axis=0)
         self.data.index.name = "peptide_id"  # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
 
-        assert weight_exponent > 0., "Weighted averaging exponent value must be larger than zero"
+        assert (
+            weight_exponent > 0.0
+        ), "Weighted averaging exponent value must be larger than zero"
         self.weight_exponent = weight_exponent
 
         start = self.data["_start"].min()
@@ -791,7 +792,9 @@ class HDXMeasurement(object):
 
         cov_kwargs = {
             kwarg: metadata.get(kwarg, default)
-            for kwarg, default in zip(["c_term", "n_term", "sequence"], [None, 1, ""])
+            for kwarg, default in zip(
+                ["weight_exponent", "c_term", "n_term", "sequence"], [1.0, None, 1, ""]
+            )
         }
 
         self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
@@ -907,9 +910,7 @@ class HDXMeasurement(object):
         Shape of the returned DataFrame is Nr (rows) x Nt (columns)
         """
 
-        df = pd.concat(
-            [v.rfu_residues_sd for v in self], keys=self.timepoints, axis=1
-        )
+        df = pd.concat([v.rfu_residues_sd for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
 
         return df
@@ -1120,8 +1121,7 @@ class HDXTimepoint(Coverage):
 
     @property
     def rfu_residues_sd(self) -> pd.Series:
-        """Error propagated standard deviations of RFU per residue.
-        """
+        """Error propagated standard deviations of RFU per residue."""
 
         return self.propagate_errors("rfu sd")
 

@@ -91,8 +91,8 @@ def load_state_rfu(ctrl, state_spec, data_dir, name=None):
 
     file_input.nd_state = state_spec["ND_control"]["state"]
     file_input.nd_exposure = (
-            state_spec["ND_control"]["exposure"]["value"]
-            * time_factors[state_spec["ND_control"]["exposure"]["unit"]]
+        state_spec["ND_control"]["exposure"]["value"]
+        * time_factors[state_spec["ND_control"]["exposure"]["unit"]]
     )
 
     file_input.d_percentage = state_spec["d_percentage"]
