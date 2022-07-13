@@ -433,9 +433,13 @@ class PeptideMasterTable(object):
             + ((u - f) / (f - n) ** 2) ** 2 * n_sd**2
             + ((n - u) / (f - n) ** 2) ** 2 * f_sd**2
         )
+        #TODO replace space with underscores
         self.data["uptake_corrected"] = self.data["rfu"] * self.data["ex_residues"]
         self.data["fd_uptake"] = f
         self.data["nd_uptake"] = n
+        self.data["fd_uptake sd"] = f_sd
+        self.data["nd_uptake sd"] = n_sd
+
 
         self.data = self.data.set_index("peptide_index", append=True).reset_index(
             level=[0, 1]
@@ -493,13 +497,17 @@ class PeptideMasterTable(object):
 
 class Coverage(object):
     """
-    Object describing layout and coverage of peptides and generating the corresponding matrices. Peptides should all
-    belong to the same state and have the same exposure time.
+    Object describing layout and coverage of peptides and generating the corresponding matrices.
+    Peptides should all belong to the same state and have the same exposure time.
 
     Args:
         data: DataFrame with input peptides
+        weight_exponent: Value of the exponent for weighted averaging used in converting
+            peptide RFU values to residue-level RFU values. Default value is 1., corresponding
+            to weighted averaging where weights are the inverse of peptide length. Generally,
+            weights are 1/(peptide_length)**exponent.
         n_term: Residue index of the N-terminal residue. Default value is 1, can be
-            negative to accomodate for N-terminal purification tags
+            negative to accommodate for N-terminal purification tags
         c_term: Residue index number of the C-terminal residue (where first residue has
             index number 1)
         sequence: Amino acid sequence of the protein in one-letter FASTA encoding.
@@ -524,6 +532,7 @@ class Coverage(object):
     def __init__(
         self,
         data: pd.DataFrame,
+        weight_exponent: float = 1.,
         n_term: int = 1,
         c_term: Optional[int] = None,
         sequence: Optional[str] = None,
@@ -532,6 +541,9 @@ class Coverage(object):
         assert len(np.unique(data["state"])) == 1, "State entries are not unique"
         self.data = data.sort_values(["start", "end"], axis=0)
         self.data.index.name = "peptide_id"  # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
+
+        assert weight_exponent > 0., "Weighted averaging exponent value must be larger than zero"
+        self.weight_exponent = weight_exponent
 
         start = self.data["_start"].min()
         end = self.data["_end"].max()
@@ -697,9 +709,11 @@ class Coverage(object):
     @property
     def Z_norm(self):
         """:class:`~numpy.ndarray`: `Z` coefficient matrix normalized column wise."""
+        wts = self.Z**self.weight_exponent
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
-            z_norm = self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
+            z_norm = wts / np.sum(wts, axis=0)[np.newaxis, :]
+
         return z_norm
 
     def get_sections(self, gap_size: int = -1) -> list[tuple[int, int]]:
