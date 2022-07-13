@@ -147,7 +147,7 @@ class StateParser(object):
 
         sequence = state_dict.get("sequence", "")
         c_term = state_dict.get("c_term")
-        n_term = state_dict.get("n_term") or 1
+        n_term = state_dict.get("n_term", 1)
 
         if not (c_term or sequence):
             raise ValueError("Must specify either 'c_term' or 'sequence'")
