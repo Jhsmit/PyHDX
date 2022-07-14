@@ -336,6 +336,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
                 )
             }
 
+        self.widgets["load_dataset_button"].disabled = True
         parser = StateParser(state_spec, data_src=data_src)
 
         for state in state_spec.keys():
@@ -350,7 +351,6 @@ class HDXSpecInputBase(PyHDXControlPanel):
                 f"Redundancy: {hdxm.coverage.redundancy:.2}"
             )
 
-        self.widgets["load_dataset_button"].disabled = True
 
     def spec_download_callback(self):
         timestamp = datetime.now().strftime("%Y%m%d%H%M")
@@ -488,6 +488,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
             input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
             batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
             batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
+            pH=pn.widgets.FloatInput,
             temperature=pn.widgets.FloatInput,
             be_percent=pn.widgets.FloatInput,
             d_percentage=pn.widgets.FloatInput,
@@ -518,6 +519,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
             "n_term",
             "c_term",
             "sequence",
+            "dataset_name",
             "add_dataset_button",
             "download_spec_button",
             "hdxm_list",
@@ -804,6 +806,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             "n_term",
             "c_term",
             "sequence",
+            "dataset_name",
             "add_dataset_button",
             "download_spec_button",
             "hdxm_list",

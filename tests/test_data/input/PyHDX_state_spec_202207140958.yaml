@@ -1,0 +1,55 @@
+# PyHDX v0.4.1+59.gf3e3e9c.dirty
+SecB WT apo:
+  filenames:
+  - ecSecB_apo.csv
+  - ecSecB_dimer.csv
+  FD_control:
+    state: Full deuteration control
+    exposure:
+      value: 10.020000000000001
+      unit: s
+  experiment:
+    state: SecB WT apo
+    exposure:
+      values:
+      - 10.020000000000001
+      - 30.0
+      - 60.0
+      - 300.0
+      - 600.0
+      - 6000.00048
+      unit: s
+  pH: 7.5
+  temperature:
+    value: 293.15
+    unit: K
+  d_percentage: 90.0
+  n_term: 1
+  c_term: 156
+SecB his dimer apo:
+  filenames:
+  - ecSecB_apo.csv
+  - ecSecB_dimer.csv
+  FD_control:
+    state: Full deuteration control
+    exposure:
+      value: 10.020000000000001
+      unit: s
+  experiment:
+    state: SecB his dimer apo
+    exposure:
+      values:
+      - 10.020000000000001
+      - 30.0
+      - 60.0
+      - 300.0
+      - 600.0
+      - 6000.00048
+      unit: s
+  pH: 7.5
+  temperature:
+    value: 293.15
+    unit: K
+  d_percentage: 90.0
+  n_term: 1
+  c_term: 156
