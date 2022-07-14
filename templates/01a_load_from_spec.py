@@ -1,15 +1,12 @@
 """Load a HDX-MS dataset from a .yaml spec file"""
 # %%
 
-from pyhdx.batch_processing import StateParser
 from pathlib import Path
-from pyhdx.fitting import fit_rates_weighted_average
-import yaml
-from pyhdx.local_cluster import default_client
-from pyhdx.fileIO import dataframe_to_file
-from pathlib import Path
+
 import numpy as np
-from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
+import yaml
+
+from pyhdx.batch_processing import StateParser
 
 # %%
 
