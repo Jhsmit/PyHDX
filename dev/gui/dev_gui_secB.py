@@ -101,7 +101,7 @@ def init_batch():
     input_control.widgets['input_files'].filename = list(file_dict.keys())
 
     input_control.batch_file = Path(data_dir / batch_fname).read_bytes()
-    input_control._action_add_dataset()
+    input_control._action_load_datasets()
 
     fit_control = ctrl.control_panels['FitControl']
 
@@ -113,35 +113,37 @@ def init_batch():
     fit_control.learning_rate = 100
 
 def init_dashboard():
-    n = 4  # change this to control the number of HDX measurements added
+    n = 2  # change this to control the number of HDX measurements added
+    input_control = ctrl.control_panels['PeptideFileInputControl']
 
     for i, (k, v) in enumerate(state_spec.items()):
-        if i - 1 == n:
+        if i == n:
             break
         load_state(ctrl, v, data_dir=data_dir, name=k)
+        input_control._add_single_dataset_spec()
 
-    guess_control = ctrl.control_panels['InitialGuessControl']
-    guess_control._action_fit()
-
-    fit_control = ctrl.control_panels['FitControl']
-
-    fit_control.r1 = 0.05
-    fit_control.r2 = 0.1
-    fit_control.epochs = 200
-    fit_control.stop_loss = 0.001
-    fit_control.patience = 10000
-    fit_control.learning_rate = 100
-
-    pdbe = ctrl.views['protein']
-    #ctrl.views['protein'].object = pdb_string
+    # guess_control = ctrl.control_panels['InitialGuessControl']
+    # guess_control._action_fit()
     #
-    fit_result = load_fitresult(fitresult_dir)
-    src = ctrl.sources['main']
-    src.add(fit_result, 'fit_1')
-
-    if n > 1:
-        diff = ctrl.control_panels['DifferentialControl']
-        diff._action_add_comparison()
+    # fit_control = ctrl.control_panels['FitControl']
+    #
+    # fit_control.r1 = 0.05
+    # fit_control.r2 = 0.1
+    # fit_control.epochs = 200
+    # fit_control.stop_loss = 0.001
+    # fit_control.patience = 10000
+    # fit_control.learning_rate = 100
+    #
+    # pdbe = ctrl.views['protein']
+    # #ctrl.views['protein'].object = pdb_string
+    # #
+    # fit_result = load_fitresult(fitresult_dir)
+    # src = ctrl.sources['main']
+    # src.add(fit_result, 'fit_1')
+    #
+    # if n > 1:
+    #     diff = ctrl.control_panels['DifferentialControl']
+    #     diff._action_add_comparison()
 
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
