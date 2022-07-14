@@ -384,9 +384,9 @@ class PeptideMasterTable(object):
         """
 
         try:
-            fd_df = self.get_data(*control_1)[["_start", "_end", "uptake"]].set_index(
-                ["_start", "_end"], verify_integrity=True
-            )
+            fd_df = self.get_data(*control_1)[
+                ["_start", "_end", "uptake", "uptake sd"]
+            ].set_index(["_start", "_end"], verify_integrity=True)
         except ValueError as e:
             raise ValueError("FD control has duplicate entries") from e
 
@@ -399,14 +399,15 @@ class PeptideMasterTable(object):
             if control_0 is None:
                 nd_df = (
                     self.get_data(*control_1)
-                    .copy()[["_start", "_end", "uptake"]]
+                    .copy()[["_start", "_end", "uptake", "uptake sd"]]
                     .set_index(["_start", "_end"], verify_integrity=True)
                 )
                 nd_df["uptake"] = 0
+                nd_df["uptake sd"] = 0
 
             else:
                 nd_df = self.get_data(*control_0)[
-                    ["_start", "_end", "uptake"]
+                    ["_start", "_end", "uptake", "uptake sd"]
                 ].set_index(["_start", "_end"], verify_integrity=True)
                 if nd_df.size == 0:
                     raise ValueError(
@@ -418,12 +419,26 @@ class PeptideMasterTable(object):
         self.data.set_index(["_start", "_end"], append=True, inplace=True)
         self.data.reset_index(level=0, inplace=True)
 
-        self.data["rfu"] = (self.data["uptake"] - nd_df["uptake"]) / (
-            fd_df["uptake"] - nd_df["uptake"]
+        u = self.data["uptake"]
+        f = fd_df["uptake"]
+        n = nd_df["uptake"]
+
+        u_sd = self.data["uptake sd"]
+        f_sd = fd_df["uptake sd"]
+        n_sd = nd_df["uptake sd"]
+
+        self.data["rfu"] = (u - n) / (f - n)
+        self.data["rfu sd"] = np.sqrt(
+            (1 / (f - n)) ** 2 * u_sd**2
+            + ((u - f) / (f - n) ** 2) ** 2 * n_sd**2
+            + ((n - u) / (f - n) ** 2) ** 2 * f_sd**2
         )
+        # TODO replace space with underscores
         self.data["uptake_corrected"] = self.data["rfu"] * self.data["ex_residues"]
-        self.data["fd_uptake"] = fd_df["uptake"]
-        self.data["nd_uptake"] = nd_df["uptake"]
+        self.data["fd_uptake"] = f
+        self.data["nd_uptake"] = n
+        self.data["fd_uptake sd"] = f_sd
+        self.data["nd_uptake sd"] = n_sd
 
         self.data = self.data.set_index("peptide_index", append=True).reset_index(
             level=[0, 1]
@@ -481,13 +496,17 @@ class PeptideMasterTable(object):
 
 class Coverage(object):
     """
-    Object describing layout and coverage of peptides and generating the corresponding matrices. Peptides should all
-    belong to the same state and have the same exposure time.
+    Object describing layout and coverage of peptides and generating the corresponding matrices.
+    Peptides should all belong to the same state and have the same exposure time.
 
     Args:
         data: DataFrame with input peptides
+        weight_exponent: Value of the exponent for weighted averaging used in converting
+            peptide RFU values to residue-level RFU values. Default value is 1., corresponding
+            to weighted averaging where weights are the inverse of peptide length. Generally,
+            weights are 1/(peptide_length)**exponent.
         n_term: Residue index of the N-terminal residue. Default value is 1, can be
-            negative to accomodate for N-terminal purification tags
+            negative to accommodate for N-terminal purification tags
         c_term: Residue index number of the C-terminal residue (where first residue has
             index number 1)
         sequence: Amino acid sequence of the protein in one-letter FASTA encoding.
@@ -512,6 +531,7 @@ class Coverage(object):
     def __init__(
         self,
         data: pd.DataFrame,
+        weight_exponent: float = 1.0,
         n_term: int = 1,
         c_term: Optional[int] = None,
         sequence: Optional[str] = None,
@@ -520,6 +540,11 @@ class Coverage(object):
         assert len(np.unique(data["state"])) == 1, "State entries are not unique"
         self.data = data.sort_values(["start", "end"], axis=0)
         self.data.index.name = "peptide_id"  # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
+
+        assert (
+            weight_exponent > 0.0
+        ), "Weighted averaging exponent value must be larger than zero"
+        self.weight_exponent = weight_exponent
 
         start = self.data["_start"].min()
         end = self.data["_end"].max()
@@ -690,9 +715,11 @@ class Coverage(object):
     @property
     def Z_norm(self):
         """:class:`~numpy.ndarray`: `Z` coefficient matrix normalized column wise."""
+        wts = self.Z**self.weight_exponent
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
-            z_norm = self.Z / np.sum(self.Z, axis=0)[np.newaxis, :]
+            z_norm = wts / np.sum(wts, axis=0)[np.newaxis, :]
+
         return z_norm
 
     def get_sections(self, gap_size: int = -1) -> list[tuple[int, int]]:
@@ -770,7 +797,9 @@ class HDXMeasurement(object):
 
         cov_kwargs = {
             kwarg: metadata.get(kwarg, default)
-            for kwarg, default in zip(["c_term", "n_term", "sequence"], [None, 1, ""])
+            for kwarg, default in zip(
+                ["weight_exponent", "c_term", "n_term", "sequence"], [1.0, None, 1, ""]
+            )
         }
 
         self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
@@ -877,6 +906,18 @@ class HDXMeasurement(object):
         Shape of the returned DataFrame is Nr (rows) x Nt (columns)
         """
         df = pd.concat([v.rfu_residues for v in self], keys=self.timepoints, axis=1)
+        df.columns.name = "exposure"
+
+        return df
+
+    @property
+    def rfu_residues_sd(self) -> pd.DataFrame:
+        """Standard deviations of relative fractional uptake per residue.
+
+        Shape of the returned DataFrame is Nr (rows) x Nt (columns)
+        """
+
+        df = pd.concat([v.rfu_residues_sd for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
 
         return df
@@ -1085,6 +1126,12 @@ class HDXTimepoint(Coverage):
         """
         return self.weighted_average("rfu")
 
+    @property
+    def rfu_residues_sd(self) -> pd.Series:
+        """Error propagated standard deviations of RFU per residue."""
+
+        return self.propagate_errors("rfu sd")
+
     # todo allow pd.Series?
     def calc_rfu(self, residue_rfu: np.ndarray) -> np.ndarray:
         """
@@ -1118,6 +1165,22 @@ class HDXTimepoint(Coverage):
         """
 
         array = self.Z_norm.T.dot(self.data[field])
+        series = pd.Series(array, index=self.index)
+
+        return series
+
+    def propagate_errors(self, field: str) -> pd.Series:
+        """Propagate errors on `field` when calculating per-residue weighted average values.
+
+        Args:
+            field: Data field (column) of errors to propagate.
+
+        Returns:
+            Propagated errors per residue.
+
+        """
+
+        array = np.sqrt((self.Z_norm**2).T.dot(self.data[field] ** 2))
         series = pd.Series(array, index=self.index)
 
         return series

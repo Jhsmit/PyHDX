@@ -1,0 +1,46 @@
+
+PpiA_Folding:
+  filenames:
+    - PpiA_folding.csv
+  FD_control:
+    state: Native
+    exposure:
+      value: 86400
+      unit: s
+  ND_control:
+    state: FD
+    exposure:
+      value: 0.6
+      unit: s
+  experiment:
+    state: Folding
+  temperature:
+    value: 25.
+    unit: Celsius
+  d_percentage: 90.
+  n_term: 1
+  c_term: 163
+  author: Foo Bar
+
+PpiB_Folding:
+  filenames:
+    - PpiB_folding.csv
+  FD_control:
+    state: Native
+    exposure:
+      value: 1800
+      unit: s
+  ND_control:
+    state: FD
+    exposure:
+      value: 0.6
+      unit: s
+  experiment:
+    state: Folding
+  temperature:
+    value: 25.
+    unit: Celsius
+  d_percentage: 90.
+  n_term: 1
+  c_term: 173
+  author: Foo Bar

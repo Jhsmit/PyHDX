@@ -13,7 +13,7 @@ import pandas as pd
 import panel as pn
 import yaml
 
-from pyhdx.batch_processing import yaml_to_hdxm
+from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import main_app
@@ -30,6 +30,10 @@ reset_config()
 
 
 sys._excepthook = sys.excepthook
+
+
+sys._excepthook = sys.excepthook
+
 
 import traceback as tb
 def my_exception_hook(exctype, value, traceback):
@@ -52,22 +56,21 @@ sys.excepthook = my_exception_hook
 
 ctrl, tmpl = main_app()
 
-
-pyhdx_dir = Path(r'C:\Users\jhsmi\pp\PyHDX')
-data_dir = pyhdx_dir / 'tests' / 'test_data' / 'input'
-fitresult_dir = pyhdx_dir / 'tests' / 'test_data' / 'output' / 'ecsecb_tetramer_dimer'
+cwd = Path(__file__).parent
+root_dir = cwd.parent.parent
+data_dir = root_dir / 'tests' / 'test_data' / 'input'
+fitresult_dir = root_dir / 'tests' / 'test_data' / 'output' / 'ecsecb_tetramer_dimer'
 
 cwd = Path(__file__).parent
-test_dir = cwd.parent / 'test_data' / 'secb'
+test_dir = cwd / 'test_data' / 'secb'
 
 
 filenames = ['ecSecB_apo.csv', 'ecSecB_dimer.csv']
 file_dict = {fname: (data_dir / fname).read_bytes() for fname in filenames}
 
-batch_fname = 'data_states_red.yaml'
-batch_fname = 'data_states.yaml'
+batch_fname = 'data_states_deltas.yaml' # secb apo / dimer but artificial delta C/N tail
 
-yaml_dict = yaml.safe_load(Path(data_dir / batch_fname).read_text())
+state_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 pdb_string = (test_dir / '1qyn.pdb').read_text()
 
 
@@ -80,17 +83,13 @@ def reload_tables():
     src.tables['rates'] = csv_to_dataframe(test_dir / 'rates.csv')
     src.param.trigger('updated')
 
-
     ctrl.views['protein'].object = pdb_string
 
-def reload_dashboard():
-    data_objs = {k: yaml_to_hdxm(v, data_dir=data_dir) for k, v in yaml_dict.items()}
-    for k, v in data_objs.items():
-        v.metadata['name'] = k
 
+def reload_dashboard():
     source = ctrl.sources['dataframe']
     for ds in ['peptides', 'peptides_mse', 'd_calc', 'rfu', 'rates', 'global_fit', 'losses']:
-        df = csv_to_protein(test_dir / f'{ds}.csv')
+        df = csv_to_dataframe(test_dir / f'{ds}.csv')
         source.add_df(df, ds)
 
     #Temporary workaround for comment characters in csv files
@@ -106,6 +105,9 @@ def init_batch():
     input_control.widgets['input_files'].filename = list(file_dict.keys())
 
     input_control.batch_file = Path(data_dir / batch_fname).read_bytes()
+    input_control._action_load_datasets()
+
+    input_control.batch_file = Path(data_dir / batch_fname).read_bytes()
     input_control._action_add_dataset()
 
     fit_control = ctrl.control_panels['FitControl']
@@ -118,41 +120,44 @@ def init_batch():
     fit_control.learning_rate = 100
 
 
-
 def init_dashboard():
-    n = 2
-    if n == 2:
-        for k, v in yaml_dict.items():
-            load_state(ctrl, v, data_dir=data_dir, name=k)
-    elif n == 1:
-        k = next(iter(yaml_dict.keys()))
-        v = yaml_dict[k]
+    n = 2  # change this to control the number of HDX measurements added
+    input_control = ctrl.control_panels['PeptideFileInputControl']
+
+    for i, (k, v) in enumerate(state_spec.items()):
+        if i == n:
+            break
         load_state(ctrl, v, data_dir=data_dir, name=k)
+        input_control._add_single_dataset_spec()
 
-    src = ctrl.sources['main']
-
-
-    guess_control = ctrl.control_panels['InitialGuessControl']
-    guess_control._action_fit()
-
-    fit_control = ctrl.control_panels['FitControl']
-
-    fit_control.r1 = 0.05
-    fit_control.r2 = 0.1
-    fit_control.epochs = 200
-    fit_control.stop_loss = 0.001
-    fit_control.patience = 10000
-    fit_control.learning_rate = 100
-
-#     pdbe = ctrl.views['protein']
-    #ctrl.views['protein'].object = pdb_string
-
+    # guess_control = ctrl.control_panels['InitialGuessControl']
+    # guess_control._action_fit()
+    #
+    # fit_control = ctrl.control_panels['FitControl']
+    #
+    # fit_control.r1 = 0.05
+    # fit_control.r2 = 0.1
+    # fit_control.epochs = 200
+    # fit_control.stop_loss = 0.001
+    # fit_control.patience = 10000
+    # fit_control.learning_rate = 100
+    #
+    # pdbe = ctrl.views['protein']
+    # #ctrl.views['protein'].object = pdb_string
+    # #
     # fit_result = load_fitresult(fitresult_dir)
+    # src = ctrl.sources['main']
     # src.add(fit_result, 'fit_1')
+    #
+    # if n > 1:
+    #     diff = ctrl.control_panels['DifferentialControl']
+    #     diff._action_add_comparison()
+
 
     # if n > 1:
     #     diff = ctrl.control_panels['DifferentialControl']
     #     diff._action_add_comparison()
+
 
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
