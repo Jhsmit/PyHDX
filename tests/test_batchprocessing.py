@@ -26,7 +26,9 @@ class TestBatchProcessing(object):
             hdxm.metadata["temperature"]
             == data_dict["SecB_tetramer"]["temperature"]["value"] + 273.15
         )
-        assert hdxm.name == "SecB WT apo"
+
+        assert hdxm.name == "SecB_tetramer"
+        assert hdxm.state == "SecB WT apo"
 
         hdxm_set = parser.load_hdxmset()
         assert isinstance(hdxm_set, HDXMeasurementSet)

@@ -172,7 +172,20 @@ modules:
           - scatter
           - rfu_scatter
           - rfu  # rename rfu_cmap
-        #x: r_number
+      rfu_errorbars:
+        type: errorbars
+        source: rfu_select
+        opts:
+          - base
+          - errorbars
+        pos: r_number
+        value: rfu
+        err: rfu_sd
+      rfu_overlay:
+        type: overlay
+        views:
+          - rfu_scatter
+          - rfu_errorbars
 
   drfu_view:
     transforms:
@@ -191,14 +204,30 @@ modules:
         tools:
           - drfu_hover
     views:
-      drfu:
+      drfu_scatter:
         type: scatter
         source: drfu_comparison_select
+        x: r_number
+        y: drfu
         opts:
           - base
           - scatter
           - drfu_axes
           - drfu # = cmap opt, rename
+      drfu_errorbars:
+        type: errorbars
+        source: drfu_comparison_select
+        opts:
+          - base
+          - errorbars
+        pos: r_number
+        value: drfu
+        err: drfu_sd
+      drfu_overlay:
+        type: overlay
+        views:
+          - drfu_scatter
+          - drfu_errorbars
 
   protein_view:
     transforms:
@@ -282,6 +311,7 @@ modules:
           - peptide_scatter
 
 controllers:
+  - global_settings
   - peptide_rfu_file_input
   - diff
   - color_transform

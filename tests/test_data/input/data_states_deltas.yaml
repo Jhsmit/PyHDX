@@ -3,12 +3,13 @@
 SecB_tetramer:
   filenames:
     - ecSecB_apo.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
       unit: min
-  state: 'SecB WT apo'
+  experiment:
+    state: 'SecB WT apo'
   pH: 8.
   d_percentage: 90.
   temperature:
@@ -23,12 +24,13 @@ SecB_dimer:
   filenames:
     - ecSecB_apo.csv
     - ecSecB_dimer.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
       unit: min
-  state: 'SecB his dimer apo'
+  experiment:
+    state: 'SecB his dimer apo'
   pH: 8.
   d_percentage: 90.
   temperature:
@@ -43,12 +45,13 @@ SecB_dimer_deltaC:
   filenames:
     - ecSecB_apo.csv
     - ecSecB_dimer_deltaC.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
       unit: min
-  state: 'dimer_deltaC'
+  experiment:
+    state: 'dimer_deltaC'
   pH: 8.
   d_percentage: 90.
   temperature:
@@ -63,12 +66,13 @@ SecB_dimer_deltaN:
   filenames:
     - ecSecB_apo.csv
     - ecSecB_dimer_deltaN.csv
-  control:
+  FD_control:
     state: Full deuteration control
     exposure:
       value: 0.167
       unit: min
-  state: 'dimer_deltaN'
+  experiment:
+    state: 'dimer_deltaN'
   pH: 8.
   d_percentage: 90.
   temperature:
