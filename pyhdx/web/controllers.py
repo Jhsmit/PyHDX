@@ -686,9 +686,11 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
         self.data_stringIO.update(ios)
 
+
         self.state_spec[self.dataset_name] = state_spec
         obj = self.param["hdxm_list"].objects or []
         self.param["hdxm_list"].objects = obj + [self.dataset_name]
+
 
     def _action_remove_datasets(self):
         raise NotImplementedError("Removing datasets not implemented")
@@ -2803,7 +2805,7 @@ class GraphControl(PyHDXControlPanel):
         return output_widgets
 
 
-DG_DEFAULT = [20.0, 20.0, 25.0, 25.0, 20.0, 20.0, 30.0, 35.0, 45.0]
+DG_DEFAULT = [25.0] * 9
 K_OPEN_DEFAULT = [2] * 9
 
 

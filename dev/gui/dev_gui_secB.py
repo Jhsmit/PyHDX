@@ -31,6 +31,10 @@ reset_config()
 
 sys._excepthook = sys.excepthook
 
+
+sys._excepthook = sys.excepthook
+
+
 import traceback as tb
 def my_exception_hook(exctype, value, traceback):
     # Print the error and traceback
@@ -103,6 +107,9 @@ def init_batch():
     input_control.batch_file = Path(data_dir / batch_fname).read_bytes()
     input_control._action_load_datasets()
 
+    input_control.batch_file = Path(data_dir / batch_fname).read_bytes()
+    input_control._action_add_dataset()
+
     fit_control = ctrl.control_panels['FitControl']
 
     fit_control.r1 = 0.05
@@ -111,6 +118,7 @@ def init_batch():
     fit_control.stop_loss = 0.001
     fit_control.patience = 10000
     fit_control.learning_rate = 100
+
 
 def init_dashboard():
     n = 2  # change this to control the number of HDX measurements added
@@ -144,6 +152,12 @@ def init_dashboard():
     # if n > 1:
     #     diff = ctrl.control_panels['DifferentialControl']
     #     diff._action_add_comparison()
+
+
+    # if n > 1:
+    #     diff = ctrl.control_panels['DifferentialControl']
+    #     diff._action_add_comparison()
+
 
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
