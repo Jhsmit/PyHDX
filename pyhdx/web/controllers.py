@@ -66,7 +66,7 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
-
+import pyhdx
 
 def blocking_function(duration):
     import time
@@ -234,13 +234,15 @@ class PyHDXControlPanel(ControlPanel):
 
 class GlobalSettingsControl(ControlPanel):
 
+    _type = "global_settings"
+
     header = "Settings"
 
     drop_first = param.Integer(
         2, bounds=(0, None), doc="Select the number of N-terminal residues to ignore."
     )
 
-    exponent_weight = param.Number(
+    weight_exponent = param.Number(
         1.,
         bounds=(0, None),
         doc="Value of the exponent use for weighted averaging of RFU values"
@@ -278,7 +280,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
 
     load_dataset_button = param.Action(
         lambda self: self._action_load_datasets(),
-        label="Load measurement(s)",
+        label="Load dataset",
         doc="Parse specified HDX measurements apply back-exchange correction",
     )
 
@@ -339,7 +341,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
         parser = StateParser(state_spec, data_src=data_src)
 
         for state in state_spec.keys():
-            hdxm = parser.load_hdxm(state, name=state)
+            hdxm = parser.load_hdxm(state, name=state, **self.hdxm_kwargs)
             self.src.add(hdxm, state)
             self.parent.logger.info(
                 f"Loaded dataset {state} with experiment state {hdxm.state} "
@@ -357,9 +359,23 @@ class HDXSpecInputBase(PyHDXControlPanel):
         self.widgets['download_spec_button'].filename = f"PyHDX_state_spec_{timestamp}.yaml"
 
         s = yaml.dump(clean_types(self.state_spec), sort_keys=False)
-        sio = StringIO(s)
+        output = "# " + pyhdx.VERSION_STRING + '\n' + s
+        sio = StringIO(output)
 
         return sio
+
+    @property
+    def hdxm_kwargs(self):
+        try:
+            settings_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            kwargs = {
+                'drop_first': settings_ctrl.drop_first,
+                'weight_exponent': settings_ctrl.weight_exponent,
+            }
+        except KeyError:
+            kwargs = {}
+
+        return kwargs
 
 
 class PeptideFileInputControl(HDXSpecInputBase):
@@ -985,7 +1001,6 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             }
         }
         state_spec["ND_control"] = nd_spec
-        print("add pyhdx version in  yamlexport")
         exp_spec = {
             "state": self.exp_state,
             "exposure": {
