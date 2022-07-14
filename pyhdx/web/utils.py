@@ -38,8 +38,7 @@ def load_state(ctrl, state_spec, data_dir, name=None):
     -------
         None
     """
-    #raise DeprecationWarning("This should just call the load_from_spec function on controller")
-
+    # raise DeprecationWarning("This should just call the load_from_spec function on controller")
 
     if data_dir is not None:
         input_files = [Path(data_dir) / fname for fname in state_spec["filenames"]]
@@ -54,16 +53,16 @@ def load_state(ctrl, state_spec, data_dir, name=None):
 
     control_state = state_spec["FD_control"]["state"]
     control_exp = (
-            state_spec["FD_control"]["exposure"]["value"]
-            * time_factors[state_spec["FD_control"]["exposure"]["unit"]]
+        state_spec["FD_control"]["exposure"]["value"]
+        * time_factors[state_spec["FD_control"]["exposure"]["unit"]]
     )
 
     file_input.fd_state = control_state
     file_input.fd_exposure = control_exp
     file_input.pH = state_spec["pH"]
     file_input.temperature = (
-            state_spec["temperature"]["value"]
-            + temperature_offsets[state_spec["temperature"]["unit"].lower()]
+        state_spec["temperature"]["value"]
+        + temperature_offsets[state_spec["temperature"]["unit"].lower()]
     )
     file_input.d_percentage = state_spec["d_percentage"]
 
@@ -71,7 +70,7 @@ def load_state(ctrl, state_spec, data_dir, name=None):
 
     file_input.dataset_name = name or state_spec["state"]
 
-    #file_input._action_load_datasets()
+    # file_input._action_load_datasets()
 
 
 def load_state_rfu(ctrl, state_spec, data_dir, name=None):

@@ -59,7 +59,8 @@ from pyhdx.support import (
     series_to_pymol,
     apply_cmap,
     multiindex_astype,
-    multiindex_set_categories, clean_types,
+    multiindex_set_categories,
+    clean_types,
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.opts import CmapOpts
@@ -67,6 +68,7 @@ from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
 import pyhdx
+
 
 def blocking_function(duration):
     import time
@@ -243,9 +245,9 @@ class GlobalSettingsControl(ControlPanel):
     )
 
     weight_exponent = param.Number(
-        1.,
+        1.0,
         bounds=(0, None),
-        doc="Value of the exponent use for weighted averaging of RFU values"
+        doc="Value of the exponent use for weighted averaging of RFU values",
     )
 
 
@@ -263,12 +265,10 @@ class HDXSpecInputBase(PyHDXControlPanel):
 
     batch_file = param.Parameter(doc="Batch file input:")
 
-    #TODO REfactor measurement name
-    dataset_name = param.String(
-        doc="Label for the current HDX measurement"
-    )
+    # TODO REfactor measurement name
+    dataset_name = param.String(doc="Label for the current HDX measurement")
 
-    add_dataset_button = param.Action( # -> refactor measurement
+    add_dataset_button = param.Action(  # -> refactor measurement
         lambda self: self._add_single_dataset_spec(),
         label="Add measurement",
         doc="Add single HDX measurement specification for loading",
@@ -285,9 +285,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
     )
 
     def __init__(self, parent, **params):
-        super(HDXSpecInputBase, self).__init__(
-            parent, **params
-        )
+        super(HDXSpecInputBase, self).__init__(parent, **params)
         self.update_box()
 
         # Dataframe with raw input data of current uploaded files
@@ -352,14 +350,16 @@ class HDXSpecInputBase(PyHDXControlPanel):
                 f"Redundancy: {hdxm.coverage.redundancy:.2}"
             )
 
-        self.widgets['load_dataset_button'].disabled = True
+        self.widgets["load_dataset_button"].disabled = True
 
     def spec_download_callback(self):
-        timestamp = datetime.now().strftime('%Y%m%d%H%M')
-        self.widgets['download_spec_button'].filename = f"PyHDX_state_spec_{timestamp}.yaml"
+        timestamp = datetime.now().strftime("%Y%m%d%H%M")
+        self.widgets[
+            "download_spec_button"
+        ].filename = f"PyHDX_state_spec_{timestamp}.yaml"
 
         s = yaml.dump(clean_types(self.state_spec), sort_keys=False)
-        output = "# " + pyhdx.VERSION_STRING + '\n' + s
+        output = "# " + pyhdx.VERSION_STRING + "\n" + s
         sio = StringIO(output)
 
         return sio
@@ -369,8 +369,8 @@ class HDXSpecInputBase(PyHDXControlPanel):
         try:
             settings_ctrl = self.parent.control_panels["GlobalSettingsControl"]
             kwargs = {
-                'drop_first': settings_ctrl.drop_first,
-                'weight_exponent': settings_ctrl.weight_exponent,
+                "drop_first": settings_ctrl.drop_first,
+                "weight_exponent": settings_ctrl.weight_exponent,
             }
         except KeyError:
             kwargs = {}
@@ -436,7 +436,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
     pH = param.Number(
         7.5,
-        bounds=(2., 14.),
+        bounds=(2.0, 14.0),
         doc="pH of the D-labelling reaction, as read from pH meter",
         label="pH read",
     )
@@ -471,7 +471,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
         # # Dictionary of accumulated HDX state specifications:
         # self.state_spec = {}
 
-    #TODO this should be eaiser subclassable by accumulating kwargs and then calling
+    # TODO this should be eaiser subclassable by accumulating kwargs and then calling
     # generate widgets OR partially generate widgets
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(
@@ -498,7 +498,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
         download = pn.widgets.FileDownload(
             label="Download HDX spec", callback=self.spec_download_callback
         )
-        widgets['download_spec_button'] = download
+        widgets["download_spec_button"] = download
 
         widget_order = [
             "input_mode",
@@ -650,10 +650,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
         if self.be_mode == "FD Sample":
             fd_spec = {
                 "state": self.fd_state,
-                "exposure": {
-                    "value": self.fd_exposure,
-                    "unit": "s"
-                }
+                "exposure": {"value": self.fd_exposure, "unit": "s"},
             }
             state_spec["FD_control"] = fd_spec
         elif self.be_mode == "Flat percentage":
@@ -661,18 +658,12 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
         exp_spec = {
             "state": self.exp_state,
-            "exposure": {
-                "values": self.exp_exposures,
-                "unit": "s"
-            }
+            "exposure": {"values": self.exp_exposures, "unit": "s"},
         }
         state_spec["experiment"] = exp_spec
 
         state_spec["pH"] = self.pH
-        state_spec["temperature"] = {
-            "value": self.temperature,
-            "unit": "K"
-        }
+        state_spec["temperature"] = {"value": self.temperature, "unit": "K"}
         state_spec["d_percentage"] = self.d_percentage
         state_spec["n_term"] = self.n_term
         state_spec["c_term"] = self.c_term
@@ -765,9 +756,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
     sequence = param.String("", doc="Optional FASTA protein sequence")
 
     def __init__(self, parent, **params):
-        excluded = [
-            "batch_file",
-            "batch_file_label"]
+        excluded = ["batch_file", "batch_file_label"]
         super(PeptideRFUFileInputControl, self).__init__(
             parent, _excluded=excluded, **params
         )
@@ -796,9 +785,9 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         download = pn.widgets.FileDownload(
             label="Download HDX spec", callback=self.spec_download_callback
         )
-        widgets['download_spec_button'] = download
+        widgets["download_spec_button"] = download
 
-        #TODO: sort by precedence?
+        # TODO: sort by precedence?
         widget_order = [
             "input_mode",
             "input_files_label",
@@ -986,27 +975,18 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
         fd_spec = {
             "state": self.fd_state,
-            "exposure": {
-                "value": self.fd_exposure,
-                "unit": "s"
-            }
+            "exposure": {"value": self.fd_exposure, "unit": "s"},
         }
         state_spec["FD_control"] = fd_spec
 
         nd_spec = {
             "state": self.nd_state,
-            "exposure": {
-                "value": self.nd_exposure,
-                "unit": "s"
-            }
+            "exposure": {"value": self.nd_exposure, "unit": "s"},
         }
         state_spec["ND_control"] = nd_spec
         exp_spec = {
             "state": self.exp_state,
-            "exposure": {
-                "values": self.exp_exposures,
-                "unit": "s"
-            }
+            "exposure": {"values": self.exp_exposures, "unit": "s"},
         }
         state_spec["experiment"] = exp_spec
 

@@ -4,15 +4,11 @@ from pyhdx import HDXMeasurement, PeptideMasterTable
 from pyhdx.batch_processing import StateParser, time_factors, temperature_offsets
 
 
-
-
-
 def legacy_parsers(version):
     loader = LOADER_VERSIONS[version]
-    parser = type(f"StateParser_{version}", (StateParser, ), {'load_hdxm': loader})
+    parser = type(f"StateParser_{version}", (StateParser,), {"load_hdxm": loader})
 
     return parser
-
 
 
 def load_hdxm_v041(self, state: str, **kwargs: Any) -> HDXMeasurement:
@@ -38,9 +34,7 @@ def load_hdxm_v041(self, state: str, **kwargs: Any) -> HDXMeasurement:
         d_percentage=state_dict["d_percentage"],
     )
 
-    if (
-            "control" in state_dict.keys()
-    ):  # Use a FD control for back exchange correction
+    if "control" in state_dict.keys():  # Use a FD control for back exchange correction
         # todo control should be set from an external file
         control_state = state_dict["control"]["state"]
         exposure_value = state_dict["control"]["exposure"]["value"]
@@ -49,7 +43,7 @@ def load_hdxm_v041(self, state: str, **kwargs: Any) -> HDXMeasurement:
 
         pmt.set_control((control_state, control_exposure))
     elif (
-            "be_percent" in state_dict.keys()
+        "be_percent" in state_dict.keys()
     ):  # Flat back exchange percentage for all peptides\
         pmt.set_backexchange(state_dict["be_percent"])
     else:
@@ -90,6 +84,4 @@ def load_hdxm_v041(self, state: str, **kwargs: Any) -> HDXMeasurement:
     return hdxm
 
 
-LOADER_VERSIONS = {
-    '041': load_hdxm_v041
-}
+LOADER_VERSIONS = {"041": load_hdxm_v041}

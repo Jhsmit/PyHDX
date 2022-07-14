@@ -123,33 +123,29 @@ class StateParser(object):
         )
 
         # Use a FD control for back exchange correction
-        if (
-            "FD_control" in state_dict
-        ):
+        if "FD_control" in state_dict:
             control_state = state_dict["FD_control"]["state"]
             exposure_value = state_dict["FD_control"]["exposure"]["value"]
             exposure_units = state_dict["FD_control"]["exposure"]["unit"]
             control_exposure = exposure_value * time_factors[exposure_units]
 
             if "ND_control" in state_dict:
-                #TODO need a function for reading value /  unit blocks
+                # TODO need a function for reading value /  unit blocks
                 nd_control_state = state_dict["ND_control"]["state"]
                 nd_exposure_value = state_dict["ND_control"]["exposure"]["value"]
                 nd_exposure_units = state_dict["ND_control"]["exposure"]["unit"]
-                nd_control_exposure = nd_exposure_value * time_factors[nd_exposure_units]
+                nd_control_exposure = (
+                    nd_exposure_value * time_factors[nd_exposure_units]
+                )
                 control_0 = (nd_control_state, nd_control_exposure)
             else:
                 control_0 = None
 
             pmt.set_control(
-                control_1=(control_state, control_exposure),
-                control_0=control_0
-
+                control_1=(control_state, control_exposure), control_0=control_0
             )
         # Flat back exchange percentage for all peptides
-        elif (
-            "be_percent" in state_dict.keys()
-        ):
+        elif "be_percent" in state_dict.keys():
             pmt.set_backexchange(state_dict["be_percent"])
         else:
             raise ValueError("No valid back exchange control method specified")
@@ -159,13 +155,15 @@ class StateParser(object):
             try:
                 t_offset = temperature_offsets[state_dict["temperature"]["unit"]]
             except KeyError:
-                t_offset = temperature_offsets[state_dict["temperature"]["unit"].lower()]
+                t_offset = temperature_offsets[
+                    state_dict["temperature"]["unit"].lower()
+                ]
 
             temperature += t_offset
         else:
             temperature = None
 
-        pH = state_dict.get('pH', None)
+        pH = state_dict.get("pH", None)
         sequence = state_dict.get("sequence", "")
         c_term = state_dict.get("c_term")
         n_term = state_dict.get("n_term", 1)
@@ -176,23 +174,29 @@ class StateParser(object):
         state_data = pmt.get_state(state_dict["experiment"]["state"])
         if "exposure" in state_dict["experiment"]:
             t_unit = state_dict["experiment"]["exposure"]["unit"]
-            times = np.array(state_dict["experiment"]["exposure"]["values"]) * time_factors[t_unit]
+            times = (
+                np.array(state_dict["experiment"]["exposure"]["values"])
+                * time_factors[t_unit]
+            )
         else:
             all_times = state_data["exposure"].unique()
             times = all_times[np.nonzero(all_times)]
 
         t_set = set(times)  # set of requested exposure times
-        d_set = set(state_data['exposure'].unique())  # set of exposure times in the data
+        d_set = set(
+            state_data["exposure"].unique()
+        )  # set of exposure times in the data
 
         # Check if all requested exposure times are present
         if not t_set.issubset(d_set):
             diff = t_set - d_set
             raise ValueError(
                 f"The following requested exposure times were not found in the "
-                f"supplied data: {', '.join([str(e) for e in diff])}")
+                f"supplied data: {', '.join([str(e) for e in diff])}"
+            )
 
             # Select only requested exposure times
-        state_data = state_data[state_data['exposure'].isin(times)]
+        state_data = state_data[state_data["exposure"].isin(times)]
 
         for flt in self.data_filters:
             state_data = flt(state_data)
@@ -372,5 +376,3 @@ class JobParser(object):
 
 # todo configurable
 default_filters = [lambda df: df.query("exposure > 0")]
-
-
