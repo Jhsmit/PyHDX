@@ -4,6 +4,7 @@ import time
 from dask.distributed import LocalCluster, Client
 
 from pyhdx.config import cfg
+from pyhdx.support import select_config
 
 
 def default_client(timeout="2s", **kwargs):
@@ -82,7 +83,5 @@ def blocking_cluster():
 
 
 if __name__ == "__main__":
-    # import sys
-    # sys.argv.append('-p')
-    # sys.argv.append('52348')
+    select_config()
     blocking_cluster()

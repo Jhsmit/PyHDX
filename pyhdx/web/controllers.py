@@ -273,11 +273,11 @@ class GlobalSettingsControl(ControlPanel):
         version_string = "# pyhdx configuration file " + __version__ + "\n\n"
         sio.write(version_string)
 
-        OmegaConf.save(config=cfg.conf, f=sio)
+        masked_conf = OmegaConf.masked_copy(cfg.conf, cfg.conf.keys() - {'server'})
+        OmegaConf.save(config=masked_conf, f=sio)
         sio.seek(0)
 
         return sio
-
 
     @param.depends('drop_first', watch=True)
     def _update_drop_first(self):
@@ -2699,9 +2699,10 @@ class SessionManagerControl(PyHDXControlPanel):
                 session_zip.writestr(name + ".csv", sio.getvalue())
 
             # Write config file
-            version_string = "# pyhdx configuration file " + __version__ + "\n\n"
-            s = OmegaConf.to_yaml(cfg.conf)
+            masked_conf = OmegaConf.masked_copy(cfg.conf, cfg.conf.keys() - {'server'})
+            s = OmegaConf.to_yaml(masked_conf)
 
+            version_string = "# pyhdx configuration file " + __version__ + "\n\n"
             session_zip.writestr("PyHDX_config.yaml", version_string + s)
 
 
