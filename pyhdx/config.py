@@ -1,18 +1,16 @@
 from __future__ import annotations
-import configparser
-from os import PathLike
-from typing import Optional, Union, Dict, Any
 
-from omegaconf import OmegaConf, DictConfig, DictKeyType
 from pathlib import Path
-#rom pyhdx._version import get_versions
-from packaging import version
+from typing import Union, Dict, Any
+
 import torch
-import warnings
+from omegaconf import OmegaConf, DictConfig, DictKeyType
+from packaging import version
 
+from pyhdx._version import get_versions
 
-__version__ = "testversion"  # get_versions()["version"]
-#del get_versions
+__version__ = get_versions()["version"]
+del get_versions
 
 
 
