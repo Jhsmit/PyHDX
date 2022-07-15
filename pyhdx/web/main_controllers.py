@@ -44,8 +44,6 @@ class MainController(param.Parameterized):
 
     def __init__(self, control_panels, **params):
         super(MainController, self).__init__(**params)
-        # self.client = client if client else Client()
-        # check for client adress in config
 
         self.control_panels = {
             ctrl.name: ctrl(self) for ctrl in control_panels
