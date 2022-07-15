@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from os import PathLike
 from pathlib import Path
 from typing import Union, Dict, Any
 
@@ -49,6 +50,10 @@ class PyHDXConfig(metaclass=Singleton):
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self.conf, item)
+
+    def load_config(self, config_file: PathLike[str]):
+        conf = OmegaConf.create(Path(config_file).read_text())
+        self.set_config(conf)
 
     def set_config(self, conf: DictConfig) -> None:
         self.conf = conf
