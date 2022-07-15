@@ -3,7 +3,7 @@ import configparser
 from os import PathLike
 from typing import Optional, Union, Dict, Any
 
-from omegaconf import OmegaConf, DictConfig
+from omegaconf import OmegaConf, DictConfig, DictKeyType
 from pathlib import Path
 #rom pyhdx._version import get_versions
 from packaging import version
@@ -49,7 +49,7 @@ class PyHDXConfig(metaclass=Singleton):
     def __init__(self) -> None:
         self.conf = None
 
-    def __getattr__(self, item):
+    def __getattr__(self, item: str) -> Any:
         return getattr(self.conf, item)
 
     def set_config(self, conf: DictConfig) -> None:
@@ -59,14 +59,14 @@ class PyHDXConfig(metaclass=Singleton):
         return self.conf.get(key, default_value)
 
     @property
-    def assets_dir(self):
+    def assets_dir(self) -> Path:
         spec_path = self.conf.server.assets_dir
         assets_dir = Path(spec_path.replace("~", str(Path().home())))
 
         return assets_dir
 
     @property
-    def TORCH_DTYPE(self):
+    def TORCH_DTYPE(self) -> Union[torch.float64, torch.float32]:
         dtype = self.conf.fitting.dtype
         if dtype in ["float64", "double"]:
             return torch.float64
@@ -76,12 +76,12 @@ class PyHDXConfig(metaclass=Singleton):
             raise ValueError(f"Unsupported data type: {dtype}")
 
     @property
-    def TORCH_DEVICE(self):
+    def TORCH_DEVICE(self) -> torch.device:
         device = self.conf.fitting.device
         return torch.device(device)
 
 
-def valid_config():
+def valid_config() -> bool:
     """Checks if the current config file in the user home directory is a valid config
     file for the current pyhdx version
 
