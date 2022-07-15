@@ -63,7 +63,7 @@ def blocking_cluster():
         scheduler_address = cfg.cluster.scheduler_address
         port = int(scheduler_address.split(":")[-1])
     try:
-        n_workers = cfg.clusters.n_workers
+        n_workers = cfg.cluster.n_workers
         local_cluster = LocalCluster(scheduler_port=port, n_workers=n_workers)
         print(f"Started local cluster at {local_cluster.scheduler_address}")
     except OSError as e:

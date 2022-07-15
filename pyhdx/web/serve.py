@@ -22,7 +22,7 @@ def run_apps():
     np.random.seed(43)
     torch.manual_seed(43)
 
-    scheduler_address = cfg.get("cluster", "scheduler_address")
+    scheduler_address = cfg.cluster.scheduler_address
     if not verify_cluster(scheduler_address):
         print(
             f"No valid Dask scheduler found at specified address: '{scheduler_address}'"
