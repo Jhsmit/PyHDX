@@ -5,21 +5,33 @@ from pathlib import Path
 import typer
 from ipaddress import ip_address
 import yaml
-
+from omegaconf import OmegaConf
 
 app = typer.Typer()
+
 
 
 @app.command()
 def serve(
     scheduler_address: Optional[str] = typer.Option(
         None, help="Address for dask scheduler to use"
+    ),
+    config: Optional[Path] = typer.Option(
+        None,
+        exists=True,
+        help="Optional PyHDX .yaml config file to use"
     )
+
 ):
     """Launch the PyHDX web application"""
 
     from pyhdx.config import cfg
     from pyhdx.local_cluster import verify_cluster, default_cluster
+
+
+    if config is not None:
+        conf = OmegaConf.create(config.read_text())
+        cfg.set_config(conf)
 
     if scheduler_address is not None:
         ip, port = scheduler_address.split(":")
