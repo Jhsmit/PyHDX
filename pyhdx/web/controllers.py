@@ -1,15 +1,13 @@
+from __future__ import annotations
+
 import asyncio
 import sys
 import uuid
-import warnings
 import zipfile
 from datetime import datetime
-from functools import partial
 from io import StringIO, BytesIO
 from typing import Any
 
-from holoviews.streams import Pipe
-import holoviews as hv
 import colorcet
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -20,11 +18,13 @@ import panel as pn
 import param
 import yaml
 from distributed import Client
+from omegaconf import OmegaConf
 from panel.io.server import async_execute
 from proplot import to_hex
 from scipy.constants import R
 from skimage.filters import threshold_multiotsu
 
+import pyhdx
 from pyhdx.batch_processing import StateParser
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_dataframe, dataframe_to_stringio
@@ -42,13 +42,11 @@ from pyhdx.fitting import (
     optimizer_defaults,
     RatesFitResult,
 )
+from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
-    PeptideMasterTable,
-    HDXMeasurement,
     array_intersection,
     PeptideUptakeModel,
 )
-from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.plot import (
     dG_scatter_figure,
     ddG_scatter_figure,
@@ -69,8 +67,11 @@ from pyhdx.web.opts import CmapOpts
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
-import pyhdx
 
+from pyhdx._version import get_versions
+
+__version__ =  get_versions()["version"]
+del get_versions
 
 def blocking_function(duration):
     import time
@@ -253,11 +254,36 @@ class GlobalSettingsControl(ControlPanel):
         doc="Value of the exponent use for weighted averaging of RFU values",
     )
 
-    @param.depends('drop_first')
+    def make_dict(self):
+        widgets = self.generate_widgets()
+        widgets['config_download'] = pn.widgets.FileDownload(
+            label="Download config file", callback=self.config_download_callback
+        )
+
+        return widgets
+
+    def config_download_callback(self) -> StringIO:
+        # Generate and set filename
+        timestamp = datetime.now().strftime("%Y%m%d%H%M")
+        self.widgets[
+            "config_download"
+        ].filename = f"PyHDX_config_{timestamp}.yaml"
+
+        sio = StringIO()
+        version_string = "# pyhdx configuration file " + __version__ + "\n\n"
+        sio.write(version_string)
+
+        OmegaConf.save(config=cfg.conf, f=sio)
+        sio.seek(0)
+
+        return sio
+
+
+    @param.depends('drop_first', watch=True)
     def _update_drop_first(self):
         cfg.analysis.drop_first = self.drop_first
 
-    @param.depends('weight_exponent')
+    @param.depends('weight_exponent', watch=True)
     def _update_weight_exponent(self):
         cfg.analysis.weight_exponent = self.weight_exponent
 
@@ -346,7 +372,15 @@ class HDXSpecInputBase(PyHDXControlPanel):
                 )
             }
 
+        # Disable input and changing config settings after loading data
         self.widgets["load_dataset_button"].disabled = True
+        try:
+            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            config_ctrl.widgets["drop_first"].disabled = True
+            config_ctrl.widgets["weight_exponent"].disabled = True
+        except KeyError:
+            pass
+
         parser = StateParser(state_spec, data_src=data_src)
 
         for state in state_spec.keys():
@@ -466,15 +500,6 @@ class PeptideFileInputControl(HDXSpecInputBase):
         super(PeptideFileInputControl, self).__init__(
             parent, _excluded=_excluded, **params
         )
-        # # self.src.param.watch(self._hdxm_objects_updated, ["hdxm_objects"])
-        # self.update_box()
-        #
-        # # Dataframe with raw input data of current uploaded files
-        # self._df = None
-        # # Dictionary of accumulated filename: stringIO pairs of uploaded files
-        # self.data_stringIO = {}
-        # # Dictionary of accumulated HDX state specifications:
-        # self.state_spec = {}
 
     # TODO this should be eaiser subclassable by accumulating kwargs and then calling
     # generate widgets OR partially generate widgets
@@ -633,10 +658,10 @@ class PeptideFileInputControl(HDXSpecInputBase):
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
         if (
-            not self.dataset_name
-            or self.dataset_name in self.param["exp_state"].objects
+            not self.measurement_name
+            or self.measurement_name in self.param["exp_state"].objects
         ):
-            self.dataset_name = self.exp_state
+            self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
@@ -646,8 +671,8 @@ class PeptideFileInputControl(HDXSpecInputBase):
         if self._df is None:
             self.parent.logger.info("No data loaded")
             return
-        elif self.dataset_name in self.src.hdxm_objects.keys():
-            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+        elif self.measurement_name in self.src.hdxm_objects.keys():
+            self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
         state_spec = {
@@ -692,9 +717,9 @@ class PeptideFileInputControl(HDXSpecInputBase):
         self.data_stringIO.update(ios)
 
 
-        self.state_spec[self.dataset_name] = state_spec
+        self.state_spec[self.measurement_name] = state_spec
         obj = self.param["hdxm_list"].objects or []
-        self.param["hdxm_list"].objects = obj + [self.dataset_name]
+        self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
 
     def _action_remove_datasets(self):
@@ -962,10 +987,10 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
         if (
-            not self.dataset_name
-            or self.dataset_name in self.param["exp_state"].objects
+            not self.measurement_name
+            or self.measurement_name in self.param["exp_state"].objects
         ):
-            self.dataset_name = self.exp_state
+            self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
@@ -975,8 +1000,8 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         if self._df is None:
             self.parent.logger.info("No data loaded")
             return
-        elif self.dataset_name in self.src.hdxm_objects.keys():
-            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+        elif self.measurement_name in self.src.hdxm_objects.keys():
+            self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
         state_spec = {
@@ -1020,9 +1045,9 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
         self.data_stringIO.update(ios)
 
-        self.state_spec[self.dataset_name] = state_spec
+        self.state_spec[self.measurement_name] = state_spec
         obj = self.param["hdxm_list"].objects or []
-        self.param["hdxm_list"].objects = obj + [self.dataset_name]
+        self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
     def _action_remove_datasets(self):
         raise NotImplementedError("Removing datasets not implemented")
@@ -2668,9 +2693,17 @@ class SessionManagerControl(PyHDXControlPanel):
         self.widgets["export_session"].filename = f"{dt}_PyHDX_session.zip"
         bio = BytesIO()
         with zipfile.ZipFile(bio, "w") as session_zip:
+            # Write tables
             for name, table in self.sources["main"].tables.items():
                 sio = dataframe_to_stringio(table)
                 session_zip.writestr(name + ".csv", sio.getvalue())
+
+            # Write config file
+            version_string = "# pyhdx configuration file " + __version__ + "\n\n"
+            s = OmegaConf.to_yaml(cfg.conf)
+
+            session_zip.writestr("PyHDX_config.yaml", version_string + s)
+
 
         bio.seek(0)
         return bio
