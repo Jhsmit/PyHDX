@@ -8,7 +8,7 @@ from pyhdx.config import cfg
 
 def default_client(timeout="2s", **kwargs):
     """Return Dask client at scheduler adress as defined by the global config"""
-    scheduler_address = cfg.get("cluster", "scheduler_address")
+    scheduler_address = cfg.cluster.scheduler_address
     try:
         client = Client(scheduler_address, timeout=timeout, **kwargs)
         return client
@@ -26,12 +26,12 @@ def default_cluster(**kwargs):
 
     """
 
-    scheduler_address = cfg.get("cluster", "scheduler_address")
+    scheduler_address = cfg.cluster.scheduler_address
     port = int(scheduler_address.split(":")[-1])
 
     settings = {
         "scheduler_port": port,
-        "n_workers": int(cfg.get("cluster", "n_workers")),
+        "n_workers": cfg.cluster.n_workers,
     }
     settings.update(kwargs)
     cluster = LocalCluster(**settings)
@@ -60,10 +60,10 @@ def blocking_cluster():
     if args.port:
         port = int(args.port)
     else:
-        scheduler_address = cfg.get("cluster", "scheduler_address")
+        scheduler_address = cfg.cluster.scheduler_address
         port = int(scheduler_address.split(":")[-1])
     try:
-        n_workers = int(cfg.get("cluster", "n_workers"))
+        n_workers = cfg.clusters.n_workers
         local_cluster = LocalCluster(scheduler_port=port, n_workers=n_workers)
         print(f"Started local cluster at {local_cluster.scheduler_address}")
     except OSError as e:

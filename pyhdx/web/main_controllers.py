@@ -1,11 +1,7 @@
 import logging
 import warnings
 
-import panel as pn
 import param
-
-from pyhdx.web.sources import TableSource
-from pyhdx.web.views import hvCurveView
 
 
 class MainController(param.Parameterized):

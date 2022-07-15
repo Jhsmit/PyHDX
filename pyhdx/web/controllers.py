@@ -116,8 +116,7 @@ class AsyncControlPanel(ControlPanel):
         print("start")
         print(self.field)
         name = self.field  # is indeed stored locally
-        scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             futures = []
             for i in range(10):
                 duration = (i + np.random.rand()) / 3.0
@@ -1178,9 +1177,8 @@ class InitialGuessControl(PyHDXControlPanel):
 
         num_samples = len(self.src.hdxm_objects)
 
-        scheduler_address = cfg.get("cluster", "scheduler_address")
         self.widgets["pbar"].num_tasks = num_samples
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             if self.global_bounds:
                 bounds = [(self.lower_bound, self.upper_bound)] * num_samples
             else:
@@ -1416,8 +1414,7 @@ class FitControl(PyHDXControlPanel):
         )  # returns either DataFrame or Series depending on guess mode
         futures = []
 
-        scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             for protein_state, hdxm in self.src.hdxm_objects.items():
                 if isinstance(gibbs_guesses, pd.Series):
                     guess = gibbs_guesses
@@ -1444,8 +1441,7 @@ class FitControl(PyHDXControlPanel):
         name = self.fit_name
         hdx_set = self.src.hdx_set
         gibbs_guess = self.get_guesses()
-        scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             future = client.submit(
                 fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs
             )
@@ -2413,7 +2409,7 @@ class FigureExportControl(PyHDXControlPanel):
     )
 
     width = param.Number(
-        default=cfg.getfloat("plotting", "page_width"),
+        default=cfg.plotting.page_width,
         label="Figure width (mm)",
         bounds=(50, None),
         doc="""Width of the output figure""",
@@ -2482,13 +2478,13 @@ class FigureExportControl(PyHDXControlPanel):
 
             self._update_reference()
 
-            self.aspect = cfg.getfloat("plotting", f"{self.figure}_aspect")
+            self.aspect = cfg.plotting[f"{self.figure}_aspect"]
             self._excluded = ["groupby", "ncols"]
 
         elif self.figure in ["linear_bars"]:
             # _table_updated?
 
-            self.aspect = cfg.getfloat("plotting", f"{self.figure}_aspect")
+            self.aspect = cfg.plotting[f"{self.figure}_aspect"]
             self._excluded = ["ncols", "figure_selection"]
 
         elif self.figure == "scatter":
@@ -2500,11 +2496,11 @@ class FigureExportControl(PyHDXControlPanel):
             if not self.figure_selection and options:
                 self.figure_selection = options[0]
 
-            self.aspect = cfg.getfloat("plotting", "dG_aspect")
+            self.aspect = cfg.plotting.dG_aspect
             self._excluded = ["groupby"]
         else:
             raise ValueError("how did you manage to get here?")
-            # self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')
+            # self.aspect = conf.getfloat('plotting', f'{self.figure}_aspect')
             # self._excluded = ['ncols']
 
         self.update_box()

@@ -134,7 +134,7 @@ class TestMainGUISecB(object):
         initial_guess._action_fit()
 
         # with cluster() as (s, [a, b]):
-        #     cfg.set("cluster", "scheduler_address", s["address"])
+        #     conf.set("cluster", "scheduler_address", s["address"])
         #
         #     fit_control = ctrl.control_panels["FitControl"]
         #     fit_control.fit_mode = "Batch"

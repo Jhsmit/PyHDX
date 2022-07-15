@@ -29,9 +29,10 @@ def serve(
         elif not 0 <= int(port) < 2**16:
             print("Invalid port, must be 0-65535")
             return
-        cfg.set("cluster", "scheduler_address", scheduler_address)
+        cfg.cluster.scheduler_address = scheduler_address
 
-    scheduler_address = cfg.get("cluster", "scheduler_address")
+
+    scheduler_address = cfg.cluster.scheduler_address
     if not verify_cluster(scheduler_address):
         # Start a new local cluster if none is found
         client = default_cluster()

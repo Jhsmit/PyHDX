@@ -51,7 +51,7 @@ RECT_KWARGS = {"linewidth": 0.5, "linestyle": "-", "edgecolor": "k"}
 
 CBAR_KWARGS = {
     "space": 0,
-    "width": cfg.getfloat("plotting", "cbar_width") / 25.4,
+    "width": cfg.plotting.cbar_width / 25.4,
     "tickminor": True,
 }
 
@@ -75,16 +75,16 @@ def peptide_coverage_figure(
 
     n_subplots = len(subplot_values)
 
-    ncols = figure_kwargs.pop("ncols", min(cfg.getint("plotting", "ncols"), n_subplots))
+    ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
     cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.getfloat("plotting", "cbar_width")) / 25.4
+        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     )
     aspect = figure_kwargs.pop(
-        "aspect", cfg.getfloat("plotting", "peptide_coverage_aspect")
+        "aspect", cfg.plotting.peptide_coverage_aspect
     )
 
     cmap = pplt.Colormap(cmap)
@@ -216,16 +216,16 @@ def residue_time_scatter_figure(
     """per-residue per-exposure values for field  `field` by weighted averaging"""
 
     n_subplots = hdxm.Nt
-    ncols = figure_kwargs.pop("ncols", min(cfg.getint("plotting", "ncols"), n_subplots))
+    ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
     aspect = figure_kwargs.pop(
-        "aspect", cfg.getfloat("plotting", "residue_scatter_aspect")
+        "aspect", cfg.plotting.residue_scatter_aspect
     )
     cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.getfloat("plotting", "cbar_width")) / 25.4
+        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     )
 
     cmap = pplt.Colormap(cmap)  # todo allow None as cmap
@@ -271,7 +271,7 @@ def residue_time_scatter(
     # update cmap, norm defaults
     cmap = pplt.Colormap(cmap)  # todo allow None as cmap
     norm = norm or pplt.Norm("linear", vmin=0, vmax=1)
-    cbar_width = kwargs.pop("cbar_width", cfg.getfloat("plotting", "cbar_width")) / 25.4
+    cbar_width = kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
 
     scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
     values = hdx_tp.weighted_average(field)
@@ -291,18 +291,18 @@ def residue_scatter_figure(
     **figure_kwargs,
 ):
     n_subplots = hdxm_set.Ns
-    ncols = figure_kwargs.pop("ncols", min(cfg.getint("plotting", "ncols"), n_subplots))
+    ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop(
         "nrows", int(np.ceil(n_subplots / ncols))
     )  # todo disallow setting rows
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
     cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.getfloat("plotting", "cbar_width")) / 25.4
+        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     )
     aspect = figure_kwargs.pop(
-        "aspect", cfg.getfloat("plotting", "residue_scatter_aspect")
+        "aspect", cfg.plotting.residue_scatter_aspect
     )
 
     cmap = pplt.Colormap(cmap)
@@ -348,7 +348,7 @@ def residue_scatter(
     tps = hdxm.timepoints[np.nonzero(hdxm.timepoints)]
     norm = norm or pplt.Norm("log", tps.min(), tps.max())
 
-    cbar_width = kwargs.pop("cbar_width", cfg.getfloat("plotting", "cbar_width")) / 25.4
+    cbar_width = kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
     for hdx_tp in hdxm:
         if isinstance(norm, mpl.colors.LogNorm) and hdx_tp.exposure == 0.0:
@@ -372,12 +372,12 @@ def dG_scatter_figure(
     protein_states = data.columns.get_level_values(0).unique()
 
     n_subplots = len(protein_states)
-    ncols = figure_kwargs.pop("ncols", min(cfg.getint("plotting", "ncols"), n_subplots))
+    ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
-    aspect = figure_kwargs.pop("aspect", cfg.getfloat("plotting", "dG_aspect"))
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.dG_aspect)
     sharey = figure_kwargs.pop("sharey", 1)
 
     cmap_default, norm_default = CMAP_NORM_DEFAULTS["dG"]
@@ -468,12 +468,12 @@ def ddG_scatter_figure(
     combined = pd.concat([ddG, cov], axis=1)
 
     n_subplots = len(protein_states) - 1
-    ncols = figure_kwargs.pop("ncols", min(cfg.getint("plotting", "ncols"), n_subplots))
+    ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
-    aspect = figure_kwargs.pop("aspect", cfg.getfloat("plotting", "dG_aspect"))
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.dG_aspect)
     sharey = figure_kwargs.pop("sharey", 1)
 
     cmap_default, norm_default = CMAP_NORM_DEFAULTS["ddG"]
@@ -535,12 +535,12 @@ def peptide_mse_figure(
     peptide_mse, cmap=None, norm=None, rect_kwargs=None, **figure_kwargs
 ):
     n_subplots = len(peptide_mse.columns.unique(level=0))
-    ncols = figure_kwargs.pop("ncols", min(cfg.getint("plotting", "ncols"), n_subplots))
+    ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
-    aspect = figure_kwargs.pop("aspect", cfg.getfloat("plotting", "peptide_mse_aspect"))
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.peptide_mse_apsect)
 
     cmap = cmap or CMAP_NORM_DEFAULTS["mse"][0]
 
@@ -575,10 +575,10 @@ def loss_figure(fit_result, **figure_kwargs):
     ncols = 1
     nrows = 1
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
     aspect = figure_kwargs.pop(
-        "aspect", cfg.getfloat("plotting", "loss_aspect")
+        "aspect", cfg.plotting.loss_aspect
     )  # todo loss aspect also in config?
 
     fig, ax = pplt.subplots(
@@ -706,11 +706,11 @@ def linear_bars(
     ncols = 1
     nrows = len(hspace) + 1
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
-    aspect = figure_kwargs.pop("aspect", cfg.getfloat("plotting", "linear_bars_aspect"))
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.linear_bars_aspect)
     cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.getfloat("plotting", "cbar_width")) / 25.4
+        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     )
 
     fig, axes = pplt.subplots(
@@ -831,10 +831,10 @@ def rainbowclouds_figure(
     ncols = 1
     nrows = 1
     figure_width = (
-        figure_kwargs.pop("width", cfg.getfloat("plotting", "page_width")) / 25.4
+        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
     aspect = figure_kwargs.pop(
-        "aspect", cfg.getfloat("plotting", "rainbowclouds_aspect")
+        "aspect", cfg.plotting.rainbowclouds_aspect
     )
 
     fig, axes = pplt.subplots(
