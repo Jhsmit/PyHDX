@@ -68,7 +68,7 @@ def load_state(ctrl, state_spec, data_dir, name=None):
 
     file_input.exp_state = state_spec["experiment"]["state"]
 
-    file_input.dataset_name = name or state_spec["state"]
+    file_input.measurement_name = name or state_spec["state"]
 
     # file_input._action_load_datasets()
 
@@ -101,7 +101,7 @@ def load_state_rfu(ctrl, state_spec, data_dir, name=None):
 
     file_input.d_percentage = state_spec["d_percentage"]
     file_input.exp_state = state_spec["experiment"]["state"]
-    file_input.dataset_name = name or state_spec["experiment"]["state"]
+    file_input.measurement_name = name or state_spec["experiment"]["state"]
 
 
 def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:

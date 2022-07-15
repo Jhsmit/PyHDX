@@ -6,6 +6,7 @@ import zipfile
 from datetime import datetime
 from functools import partial
 from io import StringIO, BytesIO
+from typing import Any
 
 from holoviews.streams import Pipe
 import holoviews as hv
@@ -63,6 +64,7 @@ from pyhdx.support import (
     clean_types,
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
+from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
@@ -240,14 +242,24 @@ class GlobalSettingsControl(ControlPanel):
     header = "Settings"
 
     drop_first = param.Integer(
-        2, bounds=(0, None), doc="Select the number of N-terminal residues to ignore."
+        default=cfg.analysis.drop_first,
+        bounds=(0, None),
+        doc="Select the number of N-terminal residues to ignore."
     )
 
     weight_exponent = param.Number(
-        1.0,
+        default=cfg.analysis.weight_exponent,
         bounds=(0, None),
         doc="Value of the exponent use for weighted averaging of RFU values",
     )
+
+    @param.depends('drop_first')
+    def _update_drop_first(self):
+        cfg.analysis.drop_first = self.drop_first
+
+    @param.depends('weight_exponent')
+    def _update_weight_exponent(self):
+        cfg.analysis.weight_exponent = self.weight_exponent
 
 
 class HDXSpecInputBase(PyHDXControlPanel):
@@ -264,8 +276,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
 
     batch_file = param.Parameter(doc="Batch file input:")
 
-    # TODO REfactor measurement name
-    dataset_name = param.String(doc="Label for the current HDX measurement")
+    measurement_name = param.String(doc="Label for the current HDX measurement")
 
     add_dataset_button = param.Action(  # -> refactor measurement
         lambda self: self._add_single_dataset_spec(),
@@ -283,7 +294,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
         doc="Parse specified HDX measurements apply back-exchange correction",
     )
 
-    def __init__(self, parent, **params):
+    def __init__(self, parent: MainController, **params):
         super(HDXSpecInputBase, self).__init__(parent, **params)
         self.update_box()
 
@@ -295,7 +306,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
         self.state_spec = {}
 
     @param.depends("input_files", watch=True)
-    def _read_files(self):
+    def _read_files(self) -> None:
         if self.input_files:
             combined_df = read_dynamx(
                 *[
@@ -313,7 +324,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
         else:
             self._df = None
 
-    def _action_load_datasets(self):
+    def _action_load_datasets(self) -> None:
         """Load all specified HDX measurements"""
         if self.input_mode == "Manual":
             state_spec = self.state_spec
@@ -350,8 +361,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
                 f"Redundancy: {hdxm.coverage.redundancy:.2}"
             )
 
-
-    def spec_download_callback(self):
+    def spec_download_callback(self) -> StringIO:
         timestamp = datetime.now().strftime("%Y%m%d%H%M")
         self.widgets[
             "download_spec_button"
@@ -364,15 +374,11 @@ class HDXSpecInputBase(PyHDXControlPanel):
         return sio
 
     @property
-    def hdxm_kwargs(self):
-        try:
-            settings_ctrl = self.parent.control_panels["GlobalSettingsControl"]
-            kwargs = {
-                "drop_first": settings_ctrl.drop_first,
-                "weight_exponent": settings_ctrl.weight_exponent,
-            }
-        except KeyError:
-            kwargs = {}
+    def hdxm_kwargs(self) -> dict[str, Any]:
+        kwargs = {
+            "drop_first": cfg.analysis.drop_first,
+            "weight_exponent": cfg.analysis.weight_exponent,
+        }
 
         return kwargs
 
@@ -518,7 +524,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
             "n_term",
             "c_term",
             "sequence",
-            "dataset_name",
+            "measurement_name",
             "add_dataset_button",
             "download_spec_button",
             "hdxm_list",
@@ -555,7 +561,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
                 "c_term",
                 "sequence",
                 "add_dataset_button",
-                "dataset_name",
+                "measurement_name",
                 "download_spec_button",
             }
 
@@ -807,7 +813,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             "n_term",
             "c_term",
             "sequence",
-            "dataset_name",
+            "measurement_name",
             "add_dataset_button",
             "download_spec_button",
             "hdxm_list",
@@ -837,7 +843,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
                 "c_term",
                 "sequence",
                 "add_dataset_button",
-                "dataset_name",
+                "measurement_name",
                 "download_spec_button",
             }
 

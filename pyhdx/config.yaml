@@ -9,6 +9,9 @@ fitting:
   dtype: float64
   device: cpu
 
+analysis:
+  drop_first: 2
+  weight_exponent: 1.0
 
 plotting:
 # Sizes are in mm

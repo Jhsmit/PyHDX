@@ -111,11 +111,11 @@ class TestMainGUISecB(object):
         file_input.fd_exposure = 0.167 * 60
 
         file_input.exp_state = "SecB WT apo"
-        file_input.dataset_name = "testname_123"
+        file_input.measurement_name = "testname_123"
         file_input._add_single_dataset_spec()
 
         file_input.exp_state = "SecB his dimer apo"
-        file_input.dataset_name = (
+        file_input.measurement_name = (
             "SecB his dimer apo"  # todo catch error duplicate name
         )
         file_input._add_single_dataset_spec()
