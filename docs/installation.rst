@@ -7,13 +7,13 @@ Stable release
 
 Installation of the latest stable release version.
 
-With `conda`:
+With ``conda``:
 
 .. code-block:: rst
 
    $ conda install -c conda-forge pyhdx
 
-With `pip`:
+With ``pip``:
 
 .. code-block:: rst
 
@@ -59,7 +59,6 @@ To start a dask cluster separately, open another terminal tab and run:
     python local_cluster.py
 
 This will start a Dask cluster on the scheduler address as specified in the PyHDX config.
-(user dir / .pyhdx folder)
 
 
 Install from source
@@ -88,27 +87,27 @@ Pinned Dependencies
 You can use one of the files in 'requirements/pinned' to install a pretested set of pinned
 dependencies.
 
-With `pip`:
+With ``pip``:
 
 .. code-block:: rst
 
     $ pip install -r requirements/pinned/py38_windows_pip.txt
 
-Or use 'py38_linux_pip.txt' (These files should be the same)
+Or use ``'py38_linux_pip.txt'`` (These files should be the same)
 
-With `conda`:
+With ``conda``:
 
 .. code-block:: rst
 
     $ conda env create -f requirements/py38_windows_conda.yml
 
-Or use the file `py38_linux_conda.yml` for Linux.
+Or use the file ``'py38_linux_conda.yml'`` for Linux.
 
 
 Resolve Dependencies
 ********************
 
-Dependencies can be installed by letting pip or conda resolve versions from requirements
+Dependencies can alternatively be installed by letting pip or conda resolve versions from requirements
 files. For conda (untested for pip), this can take a long time, so using Mamba_ is recommended.
 
 If you would like a specific PyTorch version to use with PyHDX (ie CUDA/ROCm support), you should install this first.
@@ -122,7 +121,7 @@ To install all dependencies, including development tools:
 
     $ conda install --file requirements/req-all.txt
 
-Or choose which extras to install by using the 'req-<extra>.txt' files.
+Or choose which extras to install by using the ``'req-<extra>.txt'`` files.
 
 Install PyHDX in develop/editable mode
 
@@ -162,11 +161,11 @@ Configuration
 A configuration file is located in the `.pyhdx` folder in the user home directory. This file
 is used by default and can be edited to change PyHDX default settings.
 
-Alternatively, users can create additional `.yaml`configuration files in this directory, after
-which the scripts `local_cluster.py` and `serve.py` prompt the user for which file to use.
+Alternatively, users can create additional `.yaml` configuration files in this directory, after
+which the scripts ``local_cluster.py`` and ``serve.py`` prompt the user for which file to use.
 
-The section `server` configures the panel server settings. In this section the additional keys
-`port` and `websocket_origin` can be added, which are passed to `panel.serve`. See the panel
+The section ``server`` configures the panel server settings. In this section the additional keys
+``port`` and ``websocket_origin`` can be added, which are passed to ``panel.serve``. See the panel
 `Deploy and Export`_ deploy section for more information.
 
 
