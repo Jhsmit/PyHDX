@@ -13,6 +13,6 @@ include versioneer.py
 include pyhdx/_version.py
 include pyhdx/web/*.html
 include pyhdx/web/apps/*.yaml
-include pyhdx/config.ini
+include pyhdx/config.yaml
 
 graft pyhdx/web/static 

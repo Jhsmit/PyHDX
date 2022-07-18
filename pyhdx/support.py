@@ -1,20 +1,22 @@
 from __future__ import annotations
 
+import contextlib
 import hashlib
-from collections import OrderedDict
-from typing import Iterable, List, Mapping, Any
-
-import numpy as np
 import itertools
 import re
-import contextlib
-from io import StringIO
-from skimage.filters import threshold_multiotsu
-import pandas as pd
-from itertools import count, groupby
 import warnings
+from collections import OrderedDict
+from io import StringIO
+from itertools import count, groupby
 from pathlib import Path
-from dask.distributed import Client
+from typing import Iterable, Mapping, Any
+
+import numpy as np
+import pandas as pd
+import typer
+from skimage.filters import threshold_multiotsu
+
+from pyhdx.config import cfg
 
 
 def make_tuple(item):
@@ -767,3 +769,26 @@ def clean_types(d: Any) -> Any:
 
     else:
         return d
+
+
+def select_config() -> None:
+    """When the .pyhdx directory has multiple config files, prompts the users
+    for which config to use and subsequently loads it.
+
+    """
+    pyhdx_dir = Path().home() / '.pyhdx'
+    config_options = list(pyhdx_dir.glob("*.yaml"))
+
+    if len(config_options) > 1:
+        s = "Found multiple configuration files:\n"
+        for i, cfg_file in enumerate(config_options, start=1):
+            s += f"{i}: {cfg_file.stem}\n"
+
+        print(s)
+
+        choice = typer.prompt("Which config file to use?", type=int)
+
+        if choice < 1 or choice > len(config_options):
+            print(f"Invalid option: {choice}")
+        else:
+            cfg.load_config(config_options[choice - 1])

@@ -15,6 +15,7 @@ matplotlib==3.4.3
 mypy
 nbsphinx
 numpy
+omegaconf>=2.2.2
 packaging
 pandas
 panel>=0.13.0

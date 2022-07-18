@@ -1,33 +1,44 @@
 from pathlib import Path
+import yaml
 from pyhdx.config import (
-    ConfigurationSettings,
-    read_config,
+    PyHDXConfig,
     config_file_path,
     reset_config,
-    write_config,
 )
 import pytest
+from omegaconf import OmegaConf
 
 directory = Path(__file__).parent
 
 
 class TestConfig(object):
     def test_cfg_singleton(self, tmp_path):
-        cfg = ConfigurationSettings()
+        cfg = PyHDXConfig()
         scheduler_address = "127.0.0.1:00000"
-        cfg.set("cluster", "scheduler_address", scheduler_address)
+        cfg.cluster.scheduler_address = scheduler_address
 
-        assert cfg.get("cluster", "scheduler_address") == scheduler_address
+        assert cfg.cluster.scheduler_address == scheduler_address
+        assert cfg.conf.cluster.scheduler_address == scheduler_address
 
-        cfg2 = ConfigurationSettings()
+        cfg2 = PyHDXConfig()
         assert id(cfg) == id(cfg2)
+        assert cfg.cluster.scheduler_address == scheduler_address
 
-        fpath = Path(tmp_path) / "config.ini"
-        write_config(fpath, cfg._config)
+        s = """
+        foo: 
+         - bar
+         - apple
+         - banana
+        value: 3
+        """
 
-        cp_config = read_config(fpath)
-        assert cp_config["cluster"]["scheduler_address"] == "127.0.0.1:00000"
+        Path(tmp_path / 'configfile.yaml').write_text(yaml.dump(s))
+        conf = OmegaConf.load(tmp_path / 'configfile.yaml')
 
-        reset_config()  # the effect of this is currently not tested, needs more extensive tests
-        cp_config = read_config(config_file_path)
-        assert cp_config["cluster"]["scheduler_address"] == "127.0.0.1:52123"
+        merged = OmegaConf.merge(cfg.conf, conf)
+
+        cfg.set_config(merged)
+
+        assert 'bar' in cfg.foo
+        assert cfg.value == 3
+        assert cfg2.value == 3

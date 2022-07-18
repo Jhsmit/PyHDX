@@ -5,9 +5,11 @@ from pathlib import Path
 import numpy as np
 import panel as pn
 import torch
+from omegaconf import ListConfig
 
 from pyhdx.config import cfg
 from pyhdx.local_cluster import verify_cluster
+from pyhdx.support import select_config
 from pyhdx.web.apps import main_app, rfu_app, peptide_app
 from pyhdx.web.base import STATIC_DIR
 
@@ -22,7 +24,7 @@ def run_apps():
     np.random.seed(43)
     torch.manual_seed(43)
 
-    scheduler_address = cfg.get("cluster", "scheduler_address")
+    scheduler_address = cfg.cluster.scheduler_address
     if not verify_cluster(scheduler_address):
         print(
             f"No valid Dask scheduler found at specified address: '{scheduler_address}'"
@@ -58,12 +60,17 @@ def run_apps():
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)
 
     print("Welcome to the PyHDX server!")
+    ws = cfg.server.get("websocket_origin")
+    ws = list(ws) if isinstance(ws, ListConfig) else ws
     pn.serve(
         APP_DICT,
+        port=cfg.server.get("port", 0),
+        websocket_origin=ws,
         static_dirs={"pyhdx": STATIC_DIR, "assets": str(cfg.assets_dir)},
         index=str(STATIC_DIR / "index.html"),
     )
 
 
 if __name__ == "__main__":
+    select_config()
     run_apps()

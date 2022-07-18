@@ -1,14 +1,13 @@
+from __future__ import annotations
+
 import asyncio
 import sys
 import uuid
-import warnings
 import zipfile
 from datetime import datetime
-from functools import partial
 from io import StringIO, BytesIO
+from typing import Any
 
-from holoviews.streams import Pipe
-import holoviews as hv
 import colorcet
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -19,11 +18,13 @@ import panel as pn
 import param
 import yaml
 from distributed import Client
+from omegaconf import OmegaConf
 from panel.io.server import async_execute
 from proplot import to_hex
 from scipy.constants import R
 from skimage.filters import threshold_multiotsu
 
+import pyhdx
 from pyhdx.batch_processing import StateParser
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_dataframe, dataframe_to_stringio
@@ -41,13 +42,11 @@ from pyhdx.fitting import (
     optimizer_defaults,
     RatesFitResult,
 )
+from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
-    PeptideMasterTable,
-    HDXMeasurement,
     array_intersection,
     PeptideUptakeModel,
 )
-from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.plot import (
     dG_scatter_figure,
     ddG_scatter_figure,
@@ -63,12 +62,16 @@ from pyhdx.support import (
     clean_types,
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
+from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
-import pyhdx
 
+from pyhdx._version import get_versions
+
+__version__ =  get_versions()["version"]
+del get_versions
 
 def blocking_function(duration):
     import time
@@ -116,8 +119,7 @@ class AsyncControlPanel(ControlPanel):
         print("start")
         print(self.field)
         name = self.field  # is indeed stored locally
-        scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             futures = []
             for i in range(10):
                 duration = (i + np.random.rand()) / 3.0
@@ -241,14 +243,49 @@ class GlobalSettingsControl(ControlPanel):
     header = "Settings"
 
     drop_first = param.Integer(
-        2, bounds=(0, None), doc="Select the number of N-terminal residues to ignore."
+        default=cfg.analysis.drop_first,
+        bounds=(0, None),
+        doc="Select the number of N-terminal residues to ignore."
     )
 
     weight_exponent = param.Number(
-        1.0,
+        default=cfg.analysis.weight_exponent,
         bounds=(0, None),
         doc="Value of the exponent use for weighted averaging of RFU values",
     )
+
+    def make_dict(self):
+        widgets = self.generate_widgets()
+        widgets['config_download'] = pn.widgets.FileDownload(
+            label="Download config file", callback=self.config_download_callback
+        )
+
+        return widgets
+
+    def config_download_callback(self) -> StringIO:
+        # Generate and set filename
+        timestamp = datetime.now().strftime("%Y%m%d%H%M")
+        self.widgets[
+            "config_download"
+        ].filename = f"PyHDX_config_{timestamp}.yaml"
+
+        sio = StringIO()
+        version_string = "# pyhdx configuration file " + __version__ + "\n\n"
+        sio.write(version_string)
+
+        masked_conf = OmegaConf.masked_copy(cfg.conf, cfg.conf.keys() - {'server'})
+        OmegaConf.save(config=masked_conf, f=sio)
+        sio.seek(0)
+
+        return sio
+
+    @param.depends('drop_first', watch=True)
+    def _update_drop_first(self):
+        cfg.analysis.drop_first = self.drop_first
+
+    @param.depends('weight_exponent', watch=True)
+    def _update_weight_exponent(self):
+        cfg.analysis.weight_exponent = self.weight_exponent
 
 
 class HDXSpecInputBase(PyHDXControlPanel):
@@ -265,8 +302,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
 
     batch_file = param.Parameter(doc="Batch file input:")
 
-    # TODO REfactor measurement name
-    dataset_name = param.String(doc="Label for the current HDX measurement")
+    measurement_name = param.String(doc="Label for the current HDX measurement")
 
     add_dataset_button = param.Action(  # -> refactor measurement
         lambda self: self._add_single_dataset_spec(),
@@ -284,7 +320,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
         doc="Parse specified HDX measurements apply back-exchange correction",
     )
 
-    def __init__(self, parent, **params):
+    def __init__(self, parent: MainController, **params):
         super(HDXSpecInputBase, self).__init__(parent, **params)
         self.update_box()
 
@@ -296,7 +332,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
         self.state_spec = {}
 
     @param.depends("input_files", watch=True)
-    def _read_files(self):
+    def _read_files(self) -> None:
         if self.input_files:
             combined_df = read_dynamx(
                 *[
@@ -314,7 +350,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
         else:
             self._df = None
 
-    def _action_load_datasets(self):
+    def _action_load_datasets(self) -> None:
         """Load all specified HDX measurements"""
         if self.input_mode == "Manual":
             state_spec = self.state_spec
@@ -336,7 +372,15 @@ class HDXSpecInputBase(PyHDXControlPanel):
                 )
             }
 
+        # Disable input and changing config settings after loading data
         self.widgets["load_dataset_button"].disabled = True
+        try:
+            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            config_ctrl.widgets["drop_first"].disabled = True
+            config_ctrl.widgets["weight_exponent"].disabled = True
+        except KeyError:
+            pass
+
         parser = StateParser(state_spec, data_src=data_src)
 
         for state in state_spec.keys():
@@ -351,8 +395,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
                 f"Redundancy: {hdxm.coverage.redundancy:.2}"
             )
 
-
-    def spec_download_callback(self):
+    def spec_download_callback(self) -> StringIO:
         timestamp = datetime.now().strftime("%Y%m%d%H%M")
         self.widgets[
             "download_spec_button"
@@ -365,15 +408,11 @@ class HDXSpecInputBase(PyHDXControlPanel):
         return sio
 
     @property
-    def hdxm_kwargs(self):
-        try:
-            settings_ctrl = self.parent.control_panels["GlobalSettingsControl"]
-            kwargs = {
-                "drop_first": settings_ctrl.drop_first,
-                "weight_exponent": settings_ctrl.weight_exponent,
-            }
-        except KeyError:
-            kwargs = {}
+    def hdxm_kwargs(self) -> dict[str, Any]:
+        kwargs = {
+            "drop_first": cfg.analysis.drop_first,
+            "weight_exponent": cfg.analysis.weight_exponent,
+        }
 
         return kwargs
 
@@ -461,15 +500,6 @@ class PeptideFileInputControl(HDXSpecInputBase):
         super(PeptideFileInputControl, self).__init__(
             parent, _excluded=_excluded, **params
         )
-        # # self.src.param.watch(self._hdxm_objects_updated, ["hdxm_objects"])
-        # self.update_box()
-        #
-        # # Dataframe with raw input data of current uploaded files
-        # self._df = None
-        # # Dictionary of accumulated filename: stringIO pairs of uploaded files
-        # self.data_stringIO = {}
-        # # Dictionary of accumulated HDX state specifications:
-        # self.state_spec = {}
 
     # TODO this should be eaiser subclassable by accumulating kwargs and then calling
     # generate widgets OR partially generate widgets
@@ -519,7 +549,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
             "n_term",
             "c_term",
             "sequence",
-            "dataset_name",
+            "measurement_name",
             "add_dataset_button",
             "download_spec_button",
             "hdxm_list",
@@ -556,7 +586,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
                 "c_term",
                 "sequence",
                 "add_dataset_button",
-                "dataset_name",
+                "measurement_name",
                 "download_spec_button",
             }
 
@@ -628,10 +658,10 @@ class PeptideFileInputControl(HDXSpecInputBase):
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
         if (
-            not self.dataset_name
-            or self.dataset_name in self.param["exp_state"].objects
+            not self.measurement_name
+            or self.measurement_name in self.param["exp_state"].objects
         ):
-            self.dataset_name = self.exp_state
+            self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
@@ -641,8 +671,8 @@ class PeptideFileInputControl(HDXSpecInputBase):
         if self._df is None:
             self.parent.logger.info("No data loaded")
             return
-        elif self.dataset_name in self.src.hdxm_objects.keys():
-            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+        elif self.measurement_name in self.src.hdxm_objects.keys():
+            self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
         state_spec = {
@@ -687,9 +717,9 @@ class PeptideFileInputControl(HDXSpecInputBase):
         self.data_stringIO.update(ios)
 
 
-        self.state_spec[self.dataset_name] = state_spec
+        self.state_spec[self.measurement_name] = state_spec
         obj = self.param["hdxm_list"].objects or []
-        self.param["hdxm_list"].objects = obj + [self.dataset_name]
+        self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
 
     def _action_remove_datasets(self):
@@ -808,7 +838,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             "n_term",
             "c_term",
             "sequence",
-            "dataset_name",
+            "measurement_name",
             "add_dataset_button",
             "download_spec_button",
             "hdxm_list",
@@ -838,7 +868,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
                 "c_term",
                 "sequence",
                 "add_dataset_button",
-                "dataset_name",
+                "measurement_name",
                 "download_spec_button",
             }
 
@@ -957,10 +987,10 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
         if (
-            not self.dataset_name
-            or self.dataset_name in self.param["exp_state"].objects
+            not self.measurement_name
+            or self.measurement_name in self.param["exp_state"].objects
         ):
-            self.dataset_name = self.exp_state
+            self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
@@ -970,8 +1000,8 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         if self._df is None:
             self.parent.logger.info("No data loaded")
             return
-        elif self.dataset_name in self.src.hdxm_objects.keys():
-            self.parent.logger.info(f"Dataset name {self.dataset_name} already in use")
+        elif self.measurement_name in self.src.hdxm_objects.keys():
+            self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
         state_spec = {
@@ -1015,9 +1045,9 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
         self.data_stringIO.update(ios)
 
-        self.state_spec[self.dataset_name] = state_spec
+        self.state_spec[self.measurement_name] = state_spec
         obj = self.param["hdxm_list"].objects or []
-        self.param["hdxm_list"].objects = obj + [self.dataset_name]
+        self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
     def _action_remove_datasets(self):
         raise NotImplementedError("Removing datasets not implemented")
@@ -1178,9 +1208,8 @@ class InitialGuessControl(PyHDXControlPanel):
 
         num_samples = len(self.src.hdxm_objects)
 
-        scheduler_address = cfg.get("cluster", "scheduler_address")
         self.widgets["pbar"].num_tasks = num_samples
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             if self.global_bounds:
                 bounds = [(self.lower_bound, self.upper_bound)] * num_samples
             else:
@@ -1416,8 +1445,7 @@ class FitControl(PyHDXControlPanel):
         )  # returns either DataFrame or Series depending on guess mode
         futures = []
 
-        scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             for protein_state, hdxm in self.src.hdxm_objects.items():
                 if isinstance(gibbs_guesses, pd.Series):
                     guess = gibbs_guesses
@@ -1444,8 +1472,7 @@ class FitControl(PyHDXControlPanel):
         name = self.fit_name
         hdx_set = self.src.hdx_set
         gibbs_guess = self.get_guesses()
-        scheduler_address = cfg.get("cluster", "scheduler_address")
-        async with Client(scheduler_address, asynchronous=True) as client:
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             future = client.submit(
                 fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs
             )
@@ -2413,7 +2440,7 @@ class FigureExportControl(PyHDXControlPanel):
     )
 
     width = param.Number(
-        default=cfg.getfloat("plotting", "page_width"),
+        default=cfg.plotting.page_width,
         label="Figure width (mm)",
         bounds=(50, None),
         doc="""Width of the output figure""",
@@ -2482,13 +2509,13 @@ class FigureExportControl(PyHDXControlPanel):
 
             self._update_reference()
 
-            self.aspect = cfg.getfloat("plotting", f"{self.figure}_aspect")
+            self.aspect = cfg.plotting[f"{self.figure}_aspect"]
             self._excluded = ["groupby", "ncols"]
 
         elif self.figure in ["linear_bars"]:
             # _table_updated?
 
-            self.aspect = cfg.getfloat("plotting", f"{self.figure}_aspect")
+            self.aspect = cfg.plotting[f"{self.figure}_aspect"]
             self._excluded = ["ncols", "figure_selection"]
 
         elif self.figure == "scatter":
@@ -2500,11 +2527,11 @@ class FigureExportControl(PyHDXControlPanel):
             if not self.figure_selection and options:
                 self.figure_selection = options[0]
 
-            self.aspect = cfg.getfloat("plotting", "dG_aspect")
+            self.aspect = cfg.plotting.dG_aspect
             self._excluded = ["groupby"]
         else:
             raise ValueError("how did you manage to get here?")
-            # self.aspect = cfg.getfloat('plotting', f'{self.figure}_aspect')
+            # self.aspect = conf.getfloat('plotting', f'{self.figure}_aspect')
             # self._excluded = ['ncols']
 
         self.update_box()
@@ -2666,9 +2693,18 @@ class SessionManagerControl(PyHDXControlPanel):
         self.widgets["export_session"].filename = f"{dt}_PyHDX_session.zip"
         bio = BytesIO()
         with zipfile.ZipFile(bio, "w") as session_zip:
+            # Write tables
             for name, table in self.sources["main"].tables.items():
                 sio = dataframe_to_stringio(table)
                 session_zip.writestr(name + ".csv", sio.getvalue())
+
+            # Write config file
+            masked_conf = OmegaConf.masked_copy(cfg.conf, cfg.conf.keys() - {'server'})
+            s = OmegaConf.to_yaml(masked_conf)
+
+            version_string = "# pyhdx configuration file " + __version__ + "\n\n"
+            session_zip.writestr("PyHDX_config.yaml", version_string + s)
+
 
         bio.seek(0)
         return bio
