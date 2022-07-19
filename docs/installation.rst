@@ -119,7 +119,7 @@ To install all dependencies, including development tools:
 
 .. code-block:: rst
 
-    $ conda install --file requirements/req-all.txt
+    $ conda install --file requirements/req-all.txt -c conda-forge
 
 Or choose which extras to install by using the ``'req-<extra>.txt'`` files.
 
