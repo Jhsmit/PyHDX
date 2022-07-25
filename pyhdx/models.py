@@ -536,9 +536,14 @@ class Coverage(object):
         c_term: Optional[int] = None,
         sequence: Optional[str] = None,
     ) -> None:
-        assert len(np.unique(data["exposure"])) == 1, "Exposure entries are not unique"
-        assert len(np.unique(data["state"])) == 1, "State entries are not unique"
-        self.data = data.sort_values(["start", "end"], axis=0)
+
+        for field in ["exposure", "state"]:
+            if field in data and len(np.unique(data["exposure"])) != 1:
+                raise ValueError(f"Entries in field {field!r} must be unique")
+        try:
+            self.data = data.sort_values(["start", "end"], axis=0)
+        except KeyError:
+            self.data = data.sort_values(["_start", "_end"], axis=0)
         self.data.index.name = "peptide_id"  # todo check these are the same as parent object peptide_id (todo make wide instead of instersection)
 
         assert (
