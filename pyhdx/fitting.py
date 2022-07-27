@@ -280,9 +280,9 @@ def fit_d_uptake(
     reg_arr = np.empty((Nt, repeats))
 
     pbar = tqdm(total=Nt*repeats, disable=not verbose)
-    for Ni, hdxm_t in enumerate(iterable):
+    for Ni, hdx_t in enumerate(iterable):
         for r in range(repeats):
-            res, mse_loss, reg_loss = fit_single_d_update(hdxm_t, guess=guess, r1=r1, bounds=bounds)
+            res, mse_loss, reg_loss = fit_single_d_update(hdx_t, guess=guess, r1=r1, bounds=bounds)
             out[Ni, r, :] = res.x
             mse_arr[Ni, r] = mse_loss
             reg_arr[Ni, r] = reg_loss
@@ -294,7 +294,7 @@ def fit_d_uptake(
         output=out.squeeze(),
         mse_loss=mse_arr.squeeze(),
         reg_loss=reg_arr.squeeze(),
-        r_number=r_number,
+        hdx_obj=hdx_obj,
         metadata=metadata
     )
 
@@ -1083,5 +1083,26 @@ class DUptakeFitResult:
     output: np.ndarray
     mse_loss: np.ndarray
     reg_loss: np.ndarray
-    r_number: pd.Index
+    hdx_obj: Union[HDXMeasurement, HDXTimepoint]
     metadata: dict
+
+    @property
+    def d_uptake(self) -> np.ndarray:
+        d = self.output.copy()
+        d[..., ~self.exchanges] = np.nan
+
+        return d
+
+    @property
+    def exchanges(self) -> pd.Series:
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            return self.hdx_obj.coverage["exchanges"]
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            return self.hdx_obj["exchanges"]
+
+    @property
+    def r_number(self) -> pd.Index:
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            return self.hdx_obj.coverage.r_number
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            return self.hdx_obj.r_number
