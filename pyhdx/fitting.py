@@ -241,7 +241,7 @@ def d_uptake_cost_func(x: np.ndarray, A: np.ndarray, b: np.ndarray, d: float) ->
 def fit_d_uptake(
         hdx_obj: Union[HDXMeasurement, HDXTimepoint],
         guess: Optional[np.ndarray] = None,
-        r1: float = 0.25,
+        r1: float = 1.,
         bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
         repeats=10,
         verbose=True,
