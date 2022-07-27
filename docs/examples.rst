@@ -6,6 +6,7 @@ Examples
     :maxdepth: 1
 
     examples/01_basic_usage
+    examples/02_coverage_objects
     examples/03_fitting
 
 

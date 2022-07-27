@@ -1,14 +1,18 @@
+from __future__ import annotations
+
 from collections import namedtuple
 from dataclasses import dataclass, field
 from functools import partial
+from typing import Union, Optional
 
 import numpy as np
 import pandas as pd
 import torch
 from dask.distributed import Client, worker_client
+from scipy.optimize import Bounds, minimize
 from symfit import Fit
 from symfit.core.minimizers import DifferentialEvolution, Powell
-from tqdm import trange
+from tqdm import trange, tqdm
 
 from pyhdx.fit_models import (
     SingleKineticModel,
@@ -17,7 +21,7 @@ from pyhdx.fit_models import (
 )
 from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
 from pyhdx.support import temporary_seed
-from pyhdx.models import Protein, HDXMeasurementSet
+from pyhdx.models import Protein, HDXMeasurementSet, HDXTimepoint, HDXMeasurement
 from pyhdx.config import cfg
 
 EmptyResult = namedtuple("EmptyResult", ["chi_squared", "params"])
@@ -211,6 +215,136 @@ def fit_rates_weighted_average(
     return fit_result
 
 
+def d_uptake_cost_func(x: np.ndarray, A: np.ndarray, b: np.ndarray, d: float) -> float:
+    """
+    Cost functions for residue-level D-uptake
+    Calculates ||Ax - b|| + d*regualization
+
+    Where the regularization is the sum of the absolute value of the gradient of x
+
+    Args:
+        x: D-uptake values per residue.
+        A: Coupling matrix ('X'), connecting peptides to residues
+        b: D-uptake values per residue
+        d: regularization parameter
+
+    Returns:
+        Value of the cost function
+
+    """
+    norm = np.mean((A.dot(x) - b)**2)
+    reg = d*np.mean(np.abs(np.diff(x)))
+
+    return norm + reg
+
+
+def fit_d_uptake(
+        hdx_obj: Union[HDXMeasurement, HDXTimepoint],
+        guess: Optional[np.ndarray] = None,
+        r1: float = 1.,
+        bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
+        repeats=10,
+        verbose=True,
+        ) -> DUptakeFitResult:
+    """
+    Fit residue-level D-uptake to a HDX measurement of multiple timepoints or a single HDX
+    timepoint.
+
+    Args:
+        hdx_obj: Input HDX object, either HDXMeasurement or HDXTimepoint.
+        guess: Optional guess array of D-uptake values.
+        r1: Value for r1 regularizer.
+        bounds: Optional bounds. Default is `True`, which are bounds [0, 1] for all elements.
+            Set to `False` or `None` to disable. Custom bounds can be supplied as list of
+            tuples or scipy bounds object.
+        repeats: Number of times to repeat the fit.
+        verbose: Show/hide progress bar
+
+    Returns:
+        D-Uptake fit result object.
+    """
+
+    if isinstance(hdx_obj, HDXMeasurement):
+        Nt = hdx_obj.Nt
+        iterable = hdx_obj
+        r_number = hdx_obj.coverage.r_number
+    elif isinstance(hdx_obj, HDXTimepoint):
+        Nt = 1
+        iterable = [hdx_obj]
+        r_number = hdx_obj.r_number
+    else:
+        raise TypeError(f"Invalid type for 'hdx_obj': {type(hdx_obj)!r}")
+
+    out = np.empty((Nt, repeats, hdx_obj.Nr))
+    mse_arr = np.empty((Nt, repeats))
+    reg_arr = np.empty((Nt, repeats))
+
+    pbar = tqdm(total=Nt*repeats, disable=not verbose)
+    for Ni, hdx_t in enumerate(iterable):
+        for r in range(repeats):
+            res, mse_loss, reg_loss = fit_single_d_update(hdx_t, guess=guess, r1=r1, bounds=bounds)
+            out[Ni, r, :] = res.x
+            mse_arr[Ni, r] = mse_loss
+            reg_arr[Ni, r] = reg_loss
+
+            pbar.update()
+
+    metadata = {'r1': r1, 'repeats': repeats}
+    result = DUptakeFitResult(
+        result=out.squeeze(),
+        mse_loss=mse_arr.squeeze(),
+        reg_loss=reg_arr.squeeze(),
+        hdx_obj=hdx_obj,
+        metadata=metadata
+    )
+
+    return result
+
+    ...
+
+
+def fit_single_d_update(
+        hdx_t: HDXTimepoint,
+        guess: Optional[np.ndarray] = None,
+        r1: float = 1.,
+        bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
+        **kwargs: Any
+) -> tuple[OptimizeResult, float, float]:
+    """
+    Fit residue-level D-uptake to a single HDX timepoint.
+
+    Args:
+        hdx_t: Input HDXTimepoint object.
+        guess: Optional guess array of D-uptake values.
+        r1: Value for r1 regularizer.
+        bounds: Optional bounds. Default is `True`, which are bounds [0, 1] for all elements.
+            Set to `False` or `None` to disable. Custom bounds can be supplied as list of
+            tuples or scipy bounds object.
+        **kwargs: Additional kwargs to pass to scipy's minimize.
+
+    Returns:
+
+    """
+
+    A = hdx_t.X
+    b = hdx_t.data["uptake_corrected"].values
+    Nr = A.shape[1]  # number of residues / parameters
+
+    if bounds == True:
+        bounds = Bounds(lb=np.zeros(Nr), ub=np.ones(Nr))
+    elif bounds == False:
+        bounds = None
+
+    args = (A, b, r1)
+    minimize_options = {'method': 'L-BFGS-B'}
+    minimize_options.update(kwargs)
+    x0 = guess or np.random.uniform(size=Nr)
+    res = minimize(d_uptake_cost_func, x0, args=args, bounds=bounds, **minimize_options)
+    mse_loss = np.mean((A.dot(res.x) - b)**2)
+    reg_loss = r1*np.mean(np.abs(np.diff(res.x)))
+
+    return res, mse_loss, reg_loss
+
 def fit_rates(hdxm, method="wt_avg", **kwargs):
     """
     Fit observed rates of exchange to HDX-MS data in `hdxm`
@@ -308,7 +442,7 @@ def run_optimizer(
     patience=PATIENCE,
     stop_loss=STOP_LOSS,
     callbacks=None,
-    tqdm=True,
+    verbose=True,
 ):
     """
 
@@ -337,8 +471,8 @@ def run_optimizer(
         Threshold of optimization value below which no progress is made
     callbacks: :obj:`list` or `None`
         List of callback functions
-    tqdm : :obj:`bool`
-        Toggle tqdm progress bar
+    verbose : :obj:`bool`
+        Toggle progress bar
 
     Returns
     -------
@@ -368,7 +502,7 @@ def run_optimizer(
         return loss
 
     stop = 0
-    iter = trange(epochs) if tqdm else range(epochs)
+    iter = trange(epochs) if verbose else range(epochs)
     for epoch in iter:
         optimizer_obj.zero_grad()
         loss = optimizer_obj.step(closure)
@@ -942,3 +1076,45 @@ class RatesFitResult:
         )
 
         return combined_results
+
+
+@dataclass
+class DUptakeFitResult:
+    result: np.ndarray
+    mse_loss: np.ndarray
+    reg_loss: np.ndarray
+    hdx_obj: Union[HDXMeasurement, HDXTimepoint]
+    metadata: dict
+
+    @property
+    def d_uptake(self) -> np.ndarray:
+        d = self.result.copy()
+        d[..., ~self.exchanges] = np.nan
+
+        return d
+
+    @property
+    def output(self) -> Union[pd.Series, pd.DataFrame]:
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            means = self.d_uptake.mean(axis=1)
+            df = pd.DataFrame(means.T, index=self.r_number, columns=self.hdx_obj.timepoints)
+            return df
+
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            means = self.d_uptake.mean(axis=0)
+            series = pd.Series(means, index=self.r_number)
+            return series
+
+    @property
+    def exchanges(self) -> pd.Series:
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            return self.hdx_obj.coverage["exchanges"]
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            return self.hdx_obj["exchanges"]
+
+    @property
+    def r_number(self) -> pd.Index:
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            return self.hdx_obj.coverage.r_number
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            return self.hdx_obj.r_number
