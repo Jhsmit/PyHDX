@@ -291,7 +291,7 @@ def fit_d_uptake(
 
     metadata = {'r1': r1, 'repeats': repeats}
     result = DUptakeFitResult(
-        output=out.squeeze(),
+        result=out.squeeze(),
         mse_loss=mse_arr.squeeze(),
         reg_loss=reg_arr.squeeze(),
         hdx_obj=hdx_obj,
@@ -1080,7 +1080,7 @@ class RatesFitResult:
 
 @dataclass
 class DUptakeFitResult:
-    output: np.ndarray
+    result: np.ndarray
     mse_loss: np.ndarray
     reg_loss: np.ndarray
     hdx_obj: Union[HDXMeasurement, HDXTimepoint]
@@ -1088,10 +1088,22 @@ class DUptakeFitResult:
 
     @property
     def d_uptake(self) -> np.ndarray:
-        d = self.output.copy()
+        d = self.result.copy()
         d[..., ~self.exchanges] = np.nan
 
         return d
+
+    @property
+    def output(self) -> Union[pd.Series, pd.DataFrame]:
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            means = self.d_uptake.mean(axis=1)
+            df = pd.DataFrame(means.T, index=self.r_number, columns=self.hdx_obj.timepoints)
+            return df
+
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            means = self.d_uptake.mean(axis=0)
+            series = pd.Series(means, index=self.r_number)
+            return series
 
     @property
     def exchanges(self) -> pd.Series:
