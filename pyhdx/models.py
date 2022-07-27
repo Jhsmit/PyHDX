@@ -613,6 +613,7 @@ class Coverage(object):
         )
         self.Z = np.zeros_like(self.X, dtype=float)
         for row, idx in enumerate(self.data.index):
+            # start, end are already corrected for drop_first parameter
             start, end = self.data.loc[idx, "start"], self.data.loc[idx, "end"]
             i0, i1 = self.r_number.get_loc(start), self.r_number.get_loc(end - 1)
             # i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
