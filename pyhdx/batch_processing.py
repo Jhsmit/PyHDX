@@ -118,7 +118,7 @@ class StateParser(object):
 
         pmt = PeptideMasterTable(
             df,
-            drop_first=state_dict.get("drop_first", 1),
+            drop_first=state_dict.get("drop_first", cfg.analysis.drop_first),
             d_percentage=state_dict["d_percentage"],
         )
 
