@@ -277,11 +277,8 @@ class TestSecBDataFit(object):
         yaml_file = input_dir / "data_states_deltas.yaml"
         yaml_spec = yaml.safe_load(yaml_file.read_text())
 
-        # context manager?
-        cfg.analysis.drop_first = 1
         parser = StateParser(yaml_spec, data_src=input_dir)
         hdxm_set = parser.load_hdxmset()
-        cfg.analysis.drop_first = 2
 
         guess_output = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
