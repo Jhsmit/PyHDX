@@ -272,6 +272,8 @@ def fit_d_uptake(
         Nt = 1
         iterable = [hdx_obj]
         r_number = hdx_obj.r_number
+    else:
+        raise TypeError(f"Invalid type for 'hdx_obj': {type(hdx_obj)!r}")
 
     out = np.empty((Nt, repeats, hdx_obj.Nr))
     mse_arr = np.empty((Nt, repeats))
