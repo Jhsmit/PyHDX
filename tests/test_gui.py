@@ -69,9 +69,9 @@ class TestMainGUISecB(object):
 
         assert hdxm.Nt == 6
         assert hdxm.Np == 63
-        assert hdxm.Nr == 146
+        assert hdxm.Nr == 145
 
-        assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.630640188016708)
+        assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.6335831166442542)
 
     def test_batch_input(self):
 
@@ -126,7 +126,7 @@ class TestMainGUISecB(object):
         assert "SecB his dimer apo" in ctrl.sources["main"].hdxm_objects.keys()
 
         rfu_df = ctrl.sources["main"].get_table("rfu_residues")
-        assert rfu_df.shape == (146, 24)
+        assert rfu_df.shape == (145, 24)
         assert rfu_df.columns.nlevels == 3
 
 
