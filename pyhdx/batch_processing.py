@@ -20,6 +20,7 @@ from pyhdx.fitting import (
     GenericFitResult,
 )
 from pyhdx.support import gen_subclasses
+from pyhdx.config import cfg
 
 import param
 import pandas as pd
@@ -211,6 +212,7 @@ class StateParser(object):
             sequence=sequence,
             n_term=n_term,
             c_term=c_term,
+            d_percentage=state_dict["d_percentage"],
             **kwargs,
         )
 
