@@ -11,9 +11,10 @@ from pyhdx.fitting import (
     fit_gibbs_global,
     fit_gibbs_global_batch,
     fit_gibbs_global_batch_aligned,
+    fit_d_uptake
 )
 from pyhdx.local_cluster import default_client
-from pyhdx.batch_processing import yaml_to_hdxmset
+from pyhdx.batch_processing import StateParser
 import yaml
 import numpy as np
 import pandas as pd
@@ -37,7 +38,7 @@ cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
 output_dir = cwd / "test_data" / "output"
 
-guess = True
+guess = False
 control = ("Full deuteration control", 0.167 * 60)
 
 data = read_dynamx(input_dir / "ecSecB_apo.csv", input_dir / "ecSecB_dimer.csv")
@@ -77,9 +78,14 @@ else:
 hdxm_apo.coverage.protein.to_file(output_dir / "ecSecB_info.csv")
 hdxm_apo.coverage.protein.to_file(output_dir / "ecSecB_info.txt", fmt="pprint")
 
+# Save RFU values
 rfu_df = hdxm_apo.rfu_residues
 dataframe_to_file(output_dir / "ecSecB_rfu_per_exposure.csv", rfu_df)
 dataframe_to_file(output_dir / "ecSecB_rfu_per_exposure.txt", rfu_df, fmt="pprint")
+
+# Fit D-uptake per timepoint
+fr_d = fit_d_uptake(hdxm_apo, r1=1., repeats=3)
+dataframe_to_file(output_dir / f"ecSecB_d_uptake.csv", fr_d.output)
 
 gibbs_guess = hdxm_apo.guess_deltaG(guess_output["rate"])
 fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs, r1=2)
@@ -171,7 +177,9 @@ save_fitresult(output_dir / "ecsecb_reduced_batch", batch_result)
 # These datasets have unequal overall coverage range between datasets
 yaml_file = input_dir / "data_states_deltas.yaml"
 yaml_dict = yaml.safe_load(yaml_file.read_text())
-hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
+parser = StateParser(yaml_dict, data_src=input_dir)
+hdxm_set = parser.load_hdxmset()
+#hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
 
 gibbs_guess = hdxm_set[0].guess_deltaG(guess_output["rate"])
 
