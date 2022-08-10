@@ -20,6 +20,7 @@ from pyhdx.fitting import (
     GenericFitResult,
 )
 from pyhdx.support import gen_subclasses
+from pyhdx.config import cfg
 
 import param
 import pandas as pd
@@ -118,7 +119,7 @@ class StateParser(object):
 
         pmt = PeptideMasterTable(
             df,
-            drop_first=state_dict.get("drop_first", 1),
+            drop_first=state_dict.get("drop_first", cfg.analysis.drop_first),
             d_percentage=state_dict["d_percentage"],
         )
 
@@ -211,6 +212,7 @@ class StateParser(object):
             sequence=sequence,
             n_term=n_term,
             c_term=c_term,
+            d_percentage=state_dict["d_percentage"],
             **kwargs,
         )
 

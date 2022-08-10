@@ -16,7 +16,7 @@ from pyhdx.fitting import (
     fit_gibbs_global_batch,
     fit_gibbs_global_batch_aligned,
     fit_rates_half_time_interpolate,
-    GenericFitResult,
+    GenericFitResult, fit_d_uptake,
 )
 from pyhdx.batch_processing import StateParser
 from pyhdx.models import HDXMeasurementSet
@@ -123,6 +123,12 @@ class TestSecBDataFit(object):
             )
 
         cfg.set("fitting", "dtype", "float64")
+
+    def test_duptake_fit(self):
+        fr = fit_d_uptake(self.hdxm_apo, r1=0.5, repeats=3, verbose=False)
+        check_d_uptake = csv_to_dataframe(output_dir / "ecSecB_d_uptake.csv")
+
+        np.allclose(check_d_uptake, fr.output)
 
     def test_global_fit(self):
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
@@ -270,9 +276,10 @@ class TestSecBDataFit(object):
     def test_batch_fit_delta(self, tmp_path):
         yaml_file = input_dir / "data_states_deltas.yaml"
         yaml_spec = yaml.safe_load(yaml_file.read_text())
-        parser = StateParser(yaml_spec, data_src=input_dir)
 
+        parser = StateParser(yaml_spec, data_src=input_dir)
         hdxm_set = parser.load_hdxmset()
+
         guess_output = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
         gibbs_guess = hdxm_set[0].guess_deltaG(guess_output["rate"])
