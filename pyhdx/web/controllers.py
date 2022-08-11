@@ -40,7 +40,7 @@ from pyhdx.fitting import (
     R1,
     R2,
     optimizer_defaults,
-    RatesFitResult,
+    RatesFitResult, fit_d_uptake, DUptakeFitResultSet,
 )
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
@@ -721,7 +721,6 @@ class PeptideFileInputControl(HDXSpecInputBase):
         obj = self.param["hdxm_list"].objects or []
         self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
-
     def _action_remove_datasets(self):
         raise NotImplementedError("Removing datasets not implemented")
         for name in self.hdxm_list:
@@ -1057,6 +1056,93 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         self.parent.param.trigger(
             "datasets"
         )  # Manual trigger as key assignment does not trigger the param
+
+
+class DUptakeFitControl(PyHDXControlPanel):
+    _type = "d_uptake_fit"
+
+    header = "D-Uptake fit"
+
+    repeats = param.Integer(
+        default=50,
+        bounds=(1, 1000),
+        doc="Number of fitting repeats"
+    )
+
+    bounds = param.Boolean(
+        default=True,
+        doc="Toggle to use bounds [0 - 1]"
+    )
+
+    r1 = param.Number(
+        default=1,
+        bounds=(0, None),
+        doc="Value of the regularizer along residue axis.",
+    )
+
+    fit_name = param.String("D_uptake_fit_1", doc="Name for the fit result")
+
+    _fit_names = param.List(
+        [], doc="List of current and future guess names", precedence=-1
+    )
+
+    do_fit = param.Action(
+        lambda self: self._action_fit(),
+        label="Do Fitting",
+        doc="Start D-uptake fit",
+    )
+
+    def make_dict(self):
+        widgets = self.generate_widgets(
+            r1=pn.widgets.FloatInput, repeats=pn.widgets.IntInput,
+        )
+
+        widgets["pbar"] = ASyncProgressBar()
+
+        return widgets
+
+    def _action_fit(self):
+        if len(self.src.hdxm_objects) == 0:
+            self.parent.logger.info("No datasets loaded")
+            return
+
+        if self.fit_name in self._fit_names:
+            self.parent.logger.info(f"D-uptake fit with name {self._fit_names} already in use")
+            return
+
+        self._fit_names.append(self.fit_name)
+        self.parent.logger.info("Started D-uptake fit")
+        self.param["do_fit"].constant = True
+        self.widgets["do_fit"].loading = True
+
+        async_execute(self._fit_d_uptake)
+
+    async def _fit_d_uptake(self):
+
+        name = self.fit_name
+        num_samples = len(self.src.hdxm_objects)
+        guess = None
+
+        self.widgets["pbar"].num_tasks = num_samples
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
+
+            futures = []
+            for hdxm in self.src.hdxm_objects.values():
+                future = client.submit(
+                    fit_d_uptake, hdxm, guess, self.r1, self.bounds, self.repeats, False, "worker_client"
+                )
+                futures.append(future)
+
+            await self.widgets["pbar"].run(futures)
+            results = await asyncio.gather(*futures)
+
+        result_obj = DUptakeFitResultSet(list(results))
+        self.src.add(result_obj, name)
+
+        self.param["do_fit"].constant = False
+        self.widgets["do_fit"].loading = False
+
+        self.parent.logger.info(f"Finished D-uptake fit {name}")
 
 
 class InitialGuessControl(PyHDXControlPanel):

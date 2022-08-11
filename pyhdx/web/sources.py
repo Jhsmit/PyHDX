@@ -6,7 +6,7 @@ import pandas as pd
 import param
 
 from pyhdx import TorchFitResult, TorchFitResultSet
-from pyhdx.fitting import RatesFitResult
+from pyhdx.fitting import RatesFitResult, DUptakeFitResultSet
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dataframe
 from pyhdx.config import cfg
@@ -82,6 +82,7 @@ class PyHDXSource(TableSource):
     # see readme/tables_list for tables and their indexes
 
     hdxm_objects = param.Dict({})
+    d_uptake_results = param.Dict({})
     rate_results = param.Dict({})  # dict of rate fitting / guesses results
     dG_fits = param.Dict({})  # dict of torch fit result objects
 
@@ -97,6 +98,10 @@ class PyHDXSource(TableSource):
             self._add_dG_fit(obj, name)
         elif isinstance(obj, RatesFitResult):
             self._add_rates_fit(obj, name)
+        elif isinstance(obj, DUptakeFitResultSet):
+            self._add_duptake_fit(obj, name)
+            print('got a d uptake fit result')
+            print(obj)
         else:
             raise ValueError(f"Unsupported object {obj!r}")
 
@@ -108,6 +113,19 @@ class PyHDXSource(TableSource):
     def names(self):
         """returns the names of all HDX Measurment objects loaded"""
         return list(self.hdxm_objects.keys())
+
+    def _add_duptake_fit(self, d_uptake_result, name):
+        df = d_uptake_result.output
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["D_uptake_fit_ID", "state", "quantity"]
+        )
+
+        df.columns = columns
+        self._add_table(df, "d_uptake")
+        self.d_uptake_results[name] = d_uptake_result
+        self.param.trigger("d_uptake_results")  # todo no listeners probably
+        self.updated = True
 
     def _add_rates_fit(self, rates_result, name):
         df = rates_result.output.copy()

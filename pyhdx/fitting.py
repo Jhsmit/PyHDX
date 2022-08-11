@@ -3,16 +3,16 @@ from __future__ import annotations
 from collections import namedtuple
 from dataclasses import dataclass, field
 from functools import partial
-from typing import Union, Optional
+from typing import Union, Optional, Any, Literal
 
 import numpy as np
 import pandas as pd
 import torch
 from dask.distributed import Client, worker_client
-from scipy.optimize import Bounds, minimize
+from scipy.optimize import Bounds, minimize, OptimizeResult
 from symfit import Fit
 from symfit.core.minimizers import DifferentialEvolution, Powell
-from tqdm import trange, tqdm
+from tqdm.auto import tqdm, trange
 
 from pyhdx.fit_models import (
     SingleKineticModel,
@@ -20,7 +20,8 @@ from pyhdx.fit_models import (
     TwoComponentDissociationModel,
 )
 from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
-from pyhdx.support import temporary_seed
+from pyhdx.local_cluster import DummyClient
+from pyhdx.support import temporary_seed, pbar_decorator, multiindex_astype
 from pyhdx.models import Protein, HDXMeasurementSet, HDXTimepoint, HDXMeasurement
 from pyhdx.config import cfg
 
@@ -245,6 +246,7 @@ def fit_d_uptake(
         bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
         repeats=10,
         verbose=True,
+        client: Union[Client, Literal["worker_client"], DummyClient, None] = None
         ) -> DUptakeFitResult:
     """
     Fit residue-level D-uptake to a HDX measurement of multiple timepoints or a single HDX
@@ -264,14 +266,14 @@ def fit_d_uptake(
         D-Uptake fit result object.
     """
 
+    client = client or DummyClient()
+
     if isinstance(hdx_obj, HDXMeasurement):
         Nt = hdx_obj.Nt
         iterable = hdx_obj
-        r_number = hdx_obj.coverage.r_number
     elif isinstance(hdx_obj, HDXTimepoint):
         Nt = 1
         iterable = [hdx_obj]
-        r_number = hdx_obj.r_number
     else:
         raise TypeError(f"Invalid type for 'hdx_obj': {type(hdx_obj)!r}")
 
@@ -280,14 +282,55 @@ def fit_d_uptake(
     reg_arr = np.empty((Nt, repeats))
 
     pbar = tqdm(total=Nt*repeats, disable=not verbose)
+    pbar_wrapper = pbar_decorator(pbar)
+
     for Ni, hdx_t in enumerate(iterable):
-        for r in range(repeats):
-            res, mse_loss, reg_loss = fit_single_d_update(hdx_t, guess=guess, r1=r1, bounds=bounds)
+        X = hdx_t.X
+        d_uptake = hdx_t.data["uptake_corrected"].values
+        pfunc = partial(_fit_single_d_update, X, d_uptake, guess=guess, r1=r1, bounds=bounds)
+        if isinstance(client, DummyClient):
+            pbar_func = pbar_wrapper(pfunc)
+        else:
+            pbar_func = pfunc
+
+        if client == 'worker_client':
+            with worker_client() as c:
+                futures = [c.submit(pbar_func, pure=False) for r in range(repeats)]
+                results = c.gather(futures)
+        else:
+            futures = [client.submit(pbar_func, pure=False) for r in range(repeats)]
+            results = client.gather(futures)
+
+        for r, (res, mse_loss, reg_loss) in enumerate(results):
             out[Ni, r, :] = res.x
             mse_arr[Ni, r] = mse_loss
             reg_arr[Ni, r] = reg_loss
 
-            pbar.update()
+            #futures = client.map(pbar_func)
+
+    # if client is None:
+    #     for d, model in zip(d_list, models):
+    #         result = fit_kinetics(hdxm.timepoints, d, model, chisq_thd=chisq_thd)
+    #         results.append(result)
+    # else:
+    #     iterables = [[hdxm.timepoints] * len(d_list), d_list, models]
+    #
+    #     if isinstance(client, Client):
+    #         futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
+    #         results = client.gather(futures)
+    #     elif client == "worker_client":
+    #         with worker_client() as client:
+    #             futures = client.map(fit_kinetics, *iterables, chisq_thd=chisq_thd)
+    #             results = client.gather(futures)
+
+    # for Ni, hdx_t in enumerate(iterable):
+    #     for r in range(repeats):
+    #         res, mse_loss, reg_loss = fit_single_d_update(hdx_t, guess=guess, r1=r1, bounds=bounds)
+    #         out[Ni, r, :] = res.x
+    #         mse_arr[Ni, r] = mse_loss
+    #         reg_arr[Ni, r] = reg_loss
+    #
+    #         pbar.update()
 
     metadata = {'r1': r1, 'repeats': repeats}
     result = DUptakeFitResult(
@@ -303,8 +346,23 @@ def fit_d_uptake(
     ...
 
 
+
 def fit_single_d_update(
         hdx_t: HDXTimepoint,
+        guess: Optional[np.ndarray] = None,
+        r1: float = 1.,
+        bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
+        **kwargs: Any
+) -> tuple[OptimizeResult, float, float]:
+    X = hdx_t.X
+    d_uptake = hdx_t.data["uptake_corrected"].values
+
+    return _fit_single_d_update(X, d_uptake, guess=guess, r1=r1, bounds=bounds, **kwargs)
+
+
+def _fit_single_d_update(
+        X: np.ndarray,
+        d_uptake: np.ndarray,
         guess: Optional[np.ndarray] = None,
         r1: float = 1.,
         bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
@@ -326,21 +384,21 @@ def fit_single_d_update(
 
     """
 
-    A = hdx_t.X
-    b = hdx_t.data["uptake_corrected"].values
-    Nr = A.shape[1]  # number of residues / parameters
+    # X = hdx_t.X
+    # d_uptake = hdx_t.data["uptake_corrected"].values
+    Nr = X.shape[1]  # number of residues / parameters
 
     if bounds == True:
         bounds = Bounds(lb=np.zeros(Nr), ub=np.ones(Nr))
     elif bounds == False:
         bounds = None
 
-    args = (A, b, r1)
+    args = (X, d_uptake, r1)
     minimize_options = {'method': 'L-BFGS-B'}
     minimize_options.update(kwargs)
     x0 = guess or np.random.uniform(size=Nr)
     res = minimize(d_uptake_cost_func, x0, args=args, bounds=bounds, **minimize_options)
-    mse_loss = np.mean((A.dot(res.x) - b)**2)
+    mse_loss = np.mean((X.dot(res.x) - d_uptake)**2)
     reg_loss = r1*np.mean(np.abs(np.diff(res.x)))
 
     return res, mse_loss, reg_loss
@@ -1094,16 +1152,57 @@ class DUptakeFitResult:
         return d
 
     @property
-    def output(self) -> Union[pd.Series, pd.DataFrame]:
+    def percentiles(self) -> pd.DataFrame:
+        percentiles = [5, 25, 75, 95]
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            perc = np.percentile(self.result, percentiles, axis=1)
+            perc[..., ~self.exchanges] = np.nan
+            cols = pd.MultiIndex.from_product(
+                [
+                    self.hdx_obj.timepoints,
+                    [f"percentile_{p:02}" for p in percentiles],
+
+                ], names=['exposure', 'quantity']
+            )
+            reshaped = perc.T.reshape(perc.shape[-1], -1)
+            perc_df = pd.DataFrame(reshaped, columns=cols, index=self.r_number)
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            perc = np.percentile(self.result, percentiles, axis=0)
+            perc[..., ~self.exchanges] = np.nan
+            perc_df = pd.DataFrame(
+                perc.T,
+                columns=[f"percentile_{p:02}" for p in percentiles],
+                index=self.r_number)
+
+        return perc_df
+
+    @property
+    def means(self) -> pd.DataFrame:
         if isinstance(self.hdx_obj, HDXMeasurement):
             means = self.d_uptake.mean(axis=1)
-            df = pd.DataFrame(means.T, index=self.r_number, columns=self.hdx_obj.timepoints)
-            return df
+            cols = pd.MultiIndex.from_product([self.hdx_obj.timepoints, ["mean"]],
+                                              names=['exposure', 'quantity'])
+            means_df = pd.DataFrame(means.T, columns=cols, index=self.r_number)
+
+            return means_df
 
         elif isinstance(self.hdx_obj, HDXTimepoint):
             means = self.d_uptake.mean(axis=0)
-            series = pd.Series(means, index=self.r_number)
-            return series
+            means_df = pd.DataFrame(means, index=self.r_number, columns=["mean"])
+
+            return means_df
+
+    @property
+    def output(self) -> Union[pd.Series, pd.DataFrame]:
+        if isinstance(self.hdx_obj, HDXMeasurement):
+            combined = pd.concat([self.percentiles, self.means], axis=1).sort_index(axis=1, level=0)
+            combined.columns = multiindex_astype(combined.columns, 0, "float")
+            return combined
+
+        elif isinstance(self.hdx_obj, HDXTimepoint):
+            combined = pd.concat([self.percentiles, self.means], axis=1).sort_index(axis=1, level=0)
+
+            return combined
 
     @property
     def exchanges(self) -> pd.Series:
@@ -1118,3 +1217,19 @@ class DUptakeFitResult:
             return self.hdx_obj.coverage.r_number
         elif isinstance(self.hdx_obj, HDXTimepoint):
             return self.hdx_obj.r_number
+
+
+@dataclass
+class DUptakeFitResultSet(object):
+
+    results: list[DUptakeFitResult]
+
+    @property
+    def output(self) -> pd.DataFrame:
+        names = [result.hdx_obj.name for result in self.results]
+        combined_df = pd.concat([result.output for result in self.results],
+                                axis=1,
+                                names=names)
+
+        return combined_df
+

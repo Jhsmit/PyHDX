@@ -588,6 +588,7 @@ modules:
 controllers:
   - global_settings
   - peptide_file_input
+  - d_uptake_fit
   - initial_guess
   - fit
   - diff

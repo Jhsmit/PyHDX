@@ -130,6 +130,11 @@ def init_dashboard():
         load_state(ctrl, v, data_dir=data_dir, name=k)
         input_control._add_single_dataset_spec()
 
+    input_control._action_load_datasets()
+
+    d_uptake_control = ctrl.control_panels["DUptakeFitControl"]
+    d_uptake_control.repeats = 3
+
     # guess_control = ctrl.control_panels['InitialGuessControl']
     # guess_control._action_fit()
     #

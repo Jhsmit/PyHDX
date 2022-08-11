@@ -1,10 +1,42 @@
+from __future__ import annotations
+
 import argparse
 import time
+from asyncio import Future
+from typing import Callable, Iterable, Any
 
 from dask.distributed import LocalCluster, Client
 
 from pyhdx.config import cfg
 from pyhdx.support import select_config
+
+
+
+class DummyClient(object):
+    """Object to use as dask Client-like object for doing local operations with
+        the dask Client API.
+    """
+
+    @staticmethod
+    def submit(func: Callable, *args: Any, **kwargs) -> Future:
+        future = Future()
+        future.set_result(func(*args))
+        return future
+
+    @staticmethod
+    def map(func: Callable, *iterables: Iterable, **kwargs) -> list[Future]:
+        futures = []
+        for items in zip(*iterables):
+            result = func(*items)
+            future = Future()
+            future.set_result(result)
+            futures.append(future)
+
+        return futures
+
+    @staticmethod
+    def gather(futures) -> list[Any]:
+        return [future.result() for future in futures]
 
 
 def default_client(timeout="2s", **kwargs):
