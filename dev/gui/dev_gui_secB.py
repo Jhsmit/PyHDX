@@ -77,13 +77,15 @@ pdb_string = (test_dir / '1qyn.pdb').read_text()
 def reload_tables():
     src = ctrl.sources['main']
     src.tables['peptides'] = csv_to_dataframe(test_dir / 'peptides.csv')
+    src.tables['d_uptake'] = csv_to_dataframe(test_dir / 'd_uptake.csv')
     src.tables['rfu_residues'] = csv_to_dataframe(test_dir / 'rfu_residues.csv')
     src.tables['dG_fits'] = csv_to_dataframe(test_dir / 'dG_fits.csv')
     src.tables['ddG_comparison'] = csv_to_dataframe(test_dir / 'ddG_comparison.csv')
     src.tables['rates'] = csv_to_dataframe(test_dir / 'rates.csv')
+
     src.param.trigger('updated')
 
-    ctrl.views['protein'].object = pdb_string
+    # ctrl.views['protein'].object = pdb_string
 
 
 def reload_dashboard():
@@ -134,6 +136,8 @@ def init_dashboard():
 
     d_uptake_control = ctrl.control_panels["DUptakeFitControl"]
     d_uptake_control.repeats = 3
+
+
 
     # guess_control = ctrl.control_panels['InitialGuessControl']
     # guess_control._action_fit()

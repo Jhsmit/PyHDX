@@ -1180,7 +1180,7 @@ class DUptakeFitResult:
     def means(self) -> pd.DataFrame:
         if isinstance(self.hdx_obj, HDXMeasurement):
             means = self.d_uptake.mean(axis=1)
-            cols = pd.MultiIndex.from_product([self.hdx_obj.timepoints, ["mean"]],
+            cols = pd.MultiIndex.from_product([self.hdx_obj.timepoints, ["d_uptake"]],
                                               names=['exposure', 'quantity'])
             means_df = pd.DataFrame(means.T, columns=cols, index=self.r_number)
 
@@ -1188,7 +1188,7 @@ class DUptakeFitResult:
 
         elif isinstance(self.hdx_obj, HDXTimepoint):
             means = self.d_uptake.mean(axis=0)
-            means_df = pd.DataFrame(means, index=self.r_number, columns=["mean"])
+            means_df = pd.DataFrame(means, index=self.r_number, columns=["d_uptake"])
 
             return means_df
 
@@ -1229,7 +1229,7 @@ class DUptakeFitResultSet(object):
         names = [result.hdx_obj.name for result in self.results]
         combined_df = pd.concat([result.output for result in self.results],
                                 axis=1,
-                                names=names)
+                                keys=names, names=['state', 'exposure', 'quantity'])
 
         return combined_df
 

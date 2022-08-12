@@ -1159,6 +1159,7 @@ class ColorTransforms(object):
             "ddG": pplt.Norm("linear", -1e4, 1e4),
             "rfu": pplt.Norm("linear", 0, 1.0, clip=True),
             "drfu": pplt.Norm("linear", -0.5, 0.5, clip=True),
+            "d_uptake": pplt.Norm("linear", 0., 1., clip=True),
             "mse": None,
             "foldedness": foldedness_cmap,
         }
@@ -1176,6 +1177,7 @@ class ColorTransforms(object):
             "ddG": set_bad(tol_cmap("PRGn").reversed()),
             "rfu": set_bad(pplt.Colormap(cc.cm.gouldian)),
             "drfu": set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
+            "d_uptake": set_bad(pplt.Colormap("Dense")),
             "mse": set_bad(pplt.Colormap("cividis"), color="#e3e3e3"),
             "foldedness": foldedness_cmap,
         }

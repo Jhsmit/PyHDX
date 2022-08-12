@@ -117,6 +117,12 @@ tools:
     #only show closest hit:
     #https://stackoverflow.com/questions/36434562/displaying-only-one-tooltip-when-using-the-hovertool-tool
     #https://github.com/bokeh/bokeh/issues/9087
+  d_uptake_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'D-uptake', '@d_uptake' ]
+
   rates_hover:
     type: hover
     tooltips:
@@ -240,6 +246,35 @@ modules:
         views:
           - rfu_scatter
           - rfu_errorbars
+
+  d_uptake:
+    transforms:
+      d_uptake_select:
+        type: cross_section
+        source: d_uptake_src
+        n_levels: -1
+    opts:
+      d_uptake_scatter:
+        type: generic
+        xlabel: Residue Number
+        ylabel: D-Uptake
+        title: D-Uptake Scatter
+        color: d_uptake
+        colorbar: True
+        ylim: [0, null]
+        tools:
+          - d_uptake_hover
+    views:
+      d_uptake_scatter:
+        type: scatter
+        source: d_uptake_select
+        x: r_number
+        y: d_uptake
+        opts:
+          - base
+          - scatter
+          - d_uptake_scatter
+          - d_uptake_cmap
 
   rates:
     transforms:
