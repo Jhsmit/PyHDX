@@ -11,6 +11,17 @@ from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dataframe
 from pyhdx.config import cfg
 
+# <table_name>: {'cmap_field': <table_column_name>, cmap_opt: <cmap_opt_name>
+TABLE_INFO = {
+    'rfu': {'cmap_field': 'rfu', 'cmap_opt': 'rfu_cmap'},
+    'd_uptake': {'cmap_field': 'd_uptake', 'cmap_opt': 'd_uptake_cmap'},
+    'dG': {'cmap_field': 'dG', 'cmap_opt': 'dG_cmap'},
+    'drfu': {'cmap_field': 'drfu', 'cmap_opt': 'drfu_cmap'},
+    'ddG_comparison': {'cmap_field': 'ddG', 'cmap_opt': 'ddG_cmap'},
+    #'rfu': {'cmap_field': 'rfu', 'cmap_opt': 'rfu_cmap'},
+
+}
+
 
 class Source(param.Parameterized):
     """Base class for sources"""

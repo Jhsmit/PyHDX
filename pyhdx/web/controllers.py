@@ -64,6 +64,7 @@ from pyhdx.support import (
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import CmapOpts
+from pyhdx.web.sources import TABLE_INFO
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
@@ -1065,7 +1066,7 @@ class DUptakeFitControl(PyHDXControlPanel):
 
     repeats = param.Integer(
         default=50,
-        bounds=(1, 1000),
+        bounds=(1, 100),
         doc="Number of fitting repeats"
     )
 
@@ -2422,13 +2423,7 @@ class FileExportControl(PyHDXControlPanel):
         ext = ".csv" if self.export_format == "csv" else ".txt"
         self.widgets["export_tables"].filename = self.table + ext
 
-        # dict which maps tables to cmap opts names
-
-        qty = self.table.split("_")[0]
-        cmap_opts = {
-            k: opt for k, opt in self.opts.items() if isinstance(opt, CmapOpts)
-        }
-        if qty in cmap_opts.keys():
+        if self.table in TABLE_INFO:
             self.widgets["export_pml"].disabled = False
             self.widgets["export_colors"].disabled = False
             self.widgets["export_pml"].filename = self.table + "_pml_scripts.zip"
@@ -2472,14 +2467,11 @@ class FileExportControl(PyHDXControlPanel):
 
     def get_color_df(self):
         df = self.sources["main"].tables[self.table]
-        qty = self.table.split("_")[0]
-        opt = self.opts[qty]
+        opt = self.opts[TABLE_INFO[self.table]["cmap_opt"]]
+        field = TABLE_INFO[self.table]["cmap_field"]
         cmap = opt.cmap
         norm = opt.norm
-        if qty == "dG":
-            df = df.xs("dG", level=-1, axis=1)
-        elif qty == "ddG":
-            df = df.xs("ddG", level=-1, axis=1)
+        df = df.xs(field, level=-1, axis=1)
 
         color_df = apply_cmap(df, cmap, norm)
 
