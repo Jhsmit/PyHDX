@@ -138,6 +138,21 @@ def init_dashboard():
 
     ctrl.sources['pdb'].add_from_string(pdb_string, '1qyn')
 
+    src = ctrl.sources['main']
+    df = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
+    df.columns = fix_multiindex_dtypes(df.columns)
+    src.add_table('d_uptake', df)
+    src.updated = True
+
+    # todo needs to be done on _add_table / add_table
+    src.add_table('dG', csv_to_dataframe(web_data_dir / 'dG.csv'))
+    df = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
+    df.columns = fix_multiindex_dtypes(df.columns)
+
+    #src.param.trigger('updated')
+    src.updated = True
+
+
     # guess_control = ctrl.control_panels['InitialGuessControl']
     # guess_control._action_fit()
     #

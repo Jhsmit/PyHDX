@@ -95,10 +95,13 @@ class SelectTransform(MultiTransform):
             src.param.watch(self.update, ["updated"])
 
         self.labels = self.labels or list(self.sources.keys())
-        self.param["value"].objects = self.labels
+        self.param["value"].objects = self.get_objects()
         if not self.value:
             self.value = self.labels[0]
         self.redraw()
+
+    def get_objects(self):
+        return [val for val in self.labels if self.sources[val].get() is not None]
 
     @property
     def source_hash(self):
@@ -116,6 +119,8 @@ class SelectTransform(MultiTransform):
 
     @pn.depends("value", watch=True)
     def update(self, *events):
+        self.param["value"].objects = self.get_objects()
+
         if self.update_hash():
             self.updated = True
 
@@ -184,9 +189,13 @@ class AppTransform(Transform):
         if self.hash in self._cache:
             return self._cache[self.hash]
         else:
-            data = self.transform()
-            self._cache[self.hash] = data
-            return data
+            try:
+                data = self.transform()
+                self._cache[self.hash] = data
+                return data
+            except ValueError:
+                print(self.name)
+                print('whooo')
 
     @param.depends("source.updated", watch=True)
     def update(self):
@@ -249,7 +258,7 @@ class CrossSectionTransform(AppTransform):
                 for name, selector in zip(self._names, self.selectors):
                     selector.name = name  # todo requires testing if the names are really updated or not (they arent)
                     selector.label = name  # todo requires testing if the names are really updated or not
-                    self.redrawn = True
+                self.redrawn = True
             else:
                 self.redraw()
 

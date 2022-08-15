@@ -12,6 +12,8 @@ from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dat
 from pyhdx.config import cfg
 
 # <table_name>: {'cmap_field': <table_column_name>, cmap_opt: <cmap_opt_name>
+from pyhdx.web.utils import fix_multiindex_dtypes
+
 TABLE_INFO = {
     'rfu': {'cmap_field': 'rfu', 'cmap_opt': 'rfu_cmap'},
     'd_uptake': {'cmap_field': 'd_uptake', 'cmap_opt': 'd_uptake_cmap'},
@@ -130,7 +132,7 @@ class PyHDXSource(TableSource):
             tuples, names=["D_uptake_fit_ID", "state", "exposure", "quantity"]
         )
 
-        df.columns = columns
+        df.columns = fix_multiindex_dtypes(columns)
         self._add_table(df, "d_uptake")
         self.d_uptake_results[name] = d_uptake_result
         self.param.trigger("d_uptake_results")  # todo no listeners probably

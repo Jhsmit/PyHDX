@@ -106,7 +106,7 @@ def load_state_rfu(ctrl, state_spec, data_dir, name=None):
 
 def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:
     """Assigns correct dtypes to (column) multiindex"""
-    if index.names[0] in ["state", "guess_ID", "fit_ID"]:
+    if index.names[0] in ["state", "D_uptake_fit_ID", "guess_ID", "fit_ID"]:
         index = multiindex_astype(index, 0, "category")
         categories = list(index.unique(level=0))
         index = multiindex_set_categories(index, 0, categories, ordered=True)
