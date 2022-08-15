@@ -19,7 +19,7 @@ transforms:
   rfu_src:
     type: table_source
     source: main
-    table: rfu_residues
+    table: rfu
   drfu_src:
     type: table_source
     source: main
@@ -47,10 +47,10 @@ opts:
   scatter:
     type: generic
     size: 8
-  rfu:
+  rfu_cmap:
     type: cmap
     field: rfu
-  drfu:
+  drfu_cmap:
     type: cmap
     field: drfu
   info_log:
@@ -171,7 +171,7 @@ modules:
           - base
           - scatter
           - rfu_scatter
-          - rfu  # rename rfu_cmap
+          - rfu_cmap
       rfu_errorbars:
         type: errorbars
         source: rfu_select
@@ -213,7 +213,7 @@ modules:
           - base
           - scatter
           - drfu_axes
-          - drfu # = cmap opt, rename
+          - drfu_cmap
       drfu_errorbars:
         type: errorbars
         source: drfu_comparison_select

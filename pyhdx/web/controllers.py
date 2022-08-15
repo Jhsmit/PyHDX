@@ -179,7 +179,7 @@ class DevTestControl(ControlPanel):
         opts = self.opts
 
         tables = self.sources["main"].tables
-        rfus = tables["rfu_residues"]
+        rfus = tables["rfu"]
         print(rfus)
         print(rfus.columns.dtypes)
 
@@ -1507,7 +1507,7 @@ class FitControl(PyHDXControlPanel):
 
         # intial guess are dG values from previous fit
         elif self.initial_guess in self.src.dG_fits:
-            dG_df = self.src.get_table("dG_fits")
+            dG_df = self.src.get_table("dG")
 
             if self.guess_mode == "One-to-one":
                 gibbs_guess = dG_df.xs(
@@ -1702,7 +1702,7 @@ class DifferentialControl(PyHDXControlPanel):
         # self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
 
     def add_drfu_comparison(self):
-        rfu_df = self.src.get_table("rfu_residues")
+        rfu_df = self.src.get_table("rfu")
         names = ["comparison_name", "comparison_state", "exposure", "quantity"]
 
         # Take rfu entries from df, to calculate drfu
@@ -1842,12 +1842,12 @@ class ColorTransformControl(PyHDXControlPanel):
         f_cmap, f_norm = CMAP_NORM_DEFAULTS["foldedness"]
         self._user_cmaps = {"lily_blue": f_cmap}
         cmap_opts = [opt for opt in self.opts.values() if isinstance(opt, CmapOpts)]
-        self.quantity_mapping = {}  # quantity: (cmap, norm)
+        self.quantity_mapping = {}  # quantity (column name): (cmap, norm)
         for opt in cmap_opts:
             cmap, norm = opt.cmap, opt.norm_scaled
             self._pyhdx_cmaps[cmap.name] = cmap
-            field = {"dG": "dG"}.get(opt.field, opt.field)  # no longer needed
-            self.quantity_mapping[field] = (cmap, norm)
+            # field = {"dG": "dG"}.get(opt.field, opt.field)  # no longer needed
+            self.quantity_mapping[opt.field] = (cmap, norm)
 
         self.cmap_options = {
             "matplotlib": mpl_cmaps,  # list or dicts
@@ -1860,8 +1860,9 @@ class ColorTransformControl(PyHDXControlPanel):
         self._update_num_values()
         self._update_library()
 
+        # these are rfu, drfu, d_uptake, dg, ddg,
         quantity_options = [
-            opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)
+            opt.field for opt in self.opts.values() if isinstance(opt, CmapOpts)
         ]
         self.param["quantity"].objects = quantity_options
         if self.quantity is None:
@@ -2421,6 +2422,8 @@ class FileExportControl(PyHDXControlPanel):
         ext = ".csv" if self.export_format == "csv" else ".txt"
         self.widgets["export_tables"].filename = self.table + ext
 
+        # dict which maps tables to cmap opts names
+
         qty = self.table.split("_")[0]
         cmap_opts = {
             k: opt for k, opt in self.opts.items() if isinstance(opt, CmapOpts)
@@ -2570,9 +2573,9 @@ class FigureExportControl(PyHDXControlPanel):
             return
 
         if self.figure == "linear_bars":
-            table_options = {"dG_fits", "rfu_residues"}
+            table_options = {"dG", "rfu"}
         else:
-            table_options = {"dG_fits"}
+            table_options = {"dG"}
 
         options = list(table_options & self.src.tables.keys())
         self.param["table"].objects = options
@@ -2654,7 +2657,7 @@ class FigureExportControl(PyHDXControlPanel):
 
     @pn.depends("figure_selection", watch=True)
     def _figure_selection_updated(self):  # selection is usually Fit ID
-        df = self.sources["main"].tables["dG_fits"][self.figure_selection]
+        df = self.sources["main"].tables["dG"][self.figure_selection]
         options = list(df.columns.unique(level=0))
         self.param["reference"].objects = [None] + options
         if not self.reference and options:
@@ -2670,9 +2673,9 @@ class FigureExportControl(PyHDXControlPanel):
         watch=True,
     )
     def _figure_filename_updated(self):
-        if self.table == "dG_fits":
+        if self.table == "dG":
             qty = "dG" if self.reference is None else "ddG"
-        elif self.table == "rfu_residues":
+        elif self.table == "rfu":
             qty = "rfu" if self.reference is None else "drfu"
 
         if self.figure == "linear_bars":
@@ -2706,10 +2709,10 @@ class FigureExportControl(PyHDXControlPanel):
                     **self.figure_kwargs,
                 )
         elif self.figure == "linear_bars":
-            if self.table == "dG_fits":
+            if self.table == "dG":
                 opts = self.opts["ddG"] if self.reference else self.opts["dG"]
                 field = "dG"
-            elif self.table == "rfu_residues":
+            elif self.table == "rfu":
                 opts = (
                     self.opts["drfu"] if self.reference else self.opts["rfu"]
                 )  # TODO update to drfu
@@ -2814,10 +2817,11 @@ class SessionManagerControl(PyHDXControlPanel):
         session_zip.printdir()
         names = set(session_zip.namelist())
         accepted_names = {
-            "rfu_residues.csv",
+            "rfu.csv",
             "rates.csv",
+            "d_uptake.csv",
             "peptides.csv",
-            "dG_fits.csv",
+            "dG.csv",
             "ddG_comparison.csv",
             "d_calc.csv",
             "loss.csv",

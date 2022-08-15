@@ -100,8 +100,6 @@ class PyHDXSource(TableSource):
             self._add_rates_fit(obj, name)
         elif isinstance(obj, DUptakeFitResultSet):
             self._add_duptake_fit(obj, name)
-            print('got a d uptake fit result')
-            print(obj)
         else:
             raise ValueError(f"Unsupported object {obj!r}")
 
@@ -118,7 +116,7 @@ class PyHDXSource(TableSource):
         df = d_uptake_result.output
         tuples = [(name, *tup) for tup in df.columns]
         columns = pd.MultiIndex.from_tuples(
-            tuples, names=["D_uptake_fit_ID", "state", "quantity"]
+            tuples, names=["D_uptake_fit_ID", "state", "exposure", "quantity"]
         )
 
         df.columns = columns
@@ -170,7 +168,7 @@ class PyHDXSource(TableSource):
 
         combined = pd.concat([rfu, rfu_sd], axis=1).sort_index(axis=1)
 
-        self._add_table(combined, "rfu_residues")
+        self._add_table(combined, "rfu")
 
         self.hdxm_objects[name] = hdxm
         self.param.trigger("hdxm_objects")  # protein controller listens here
@@ -184,7 +182,7 @@ class PyHDXSource(TableSource):
             tuples, names=["fit_ID", "state", "quantity"]
         )
         df.columns = columns
-        self._add_table(df, "dG_fits")
+        self._add_table(df, "dG")
 
         # Add calculated d-uptake values
         df = fit_result.get_dcalc()

@@ -19,7 +19,11 @@ transforms:
   rfu_src:
     type: table_source
     source: main
-    table: rfu_residues
+    table: rfu
+  d_uptake_src:
+    type: table_source
+    source: main
+    table: d_uptake
   rates_src:
     type: table_source
     source: main
@@ -27,7 +31,7 @@ transforms:
   dG_src:
     type: table_source
     source: main
-    table: dG_fits
+    table: dG
   loss_src:
     type: table_source
     source: main
@@ -71,17 +75,20 @@ opts:
   scatter:
     type: generic
     size: 8
-  rfu:
+  rfu_cmap:
     type: cmap
     field: rfu
-  drfu:
+  d_uptake_cmap:
+    type: cmap
+    field: d_uptake
+  drfu_cmap:
     type: cmap
     field: drfu
-  dG:  # perhaps they need better names?
+  dG_cmap:
     type: cmap
     field: dG
     sclf: 1.0e-3
-  ddG:
+  ddG_cmap:
     type: cmap
     field: ddG
     sclf: 1.0e-3
@@ -196,7 +203,7 @@ modules:
         opts:
           - base
           - coverage
-          - rfu
+          - rfu_cmap
         vdims:
           - rfu
           - uptake_corrected
@@ -231,7 +238,7 @@ modules:
           - base
           - scatter
           - rfu_scatter
-          - rfu  # rename rfu_cmap
+          - rfu_cmap
       rfu_errorbars:
         type: errorbars
         source: rfu_select
@@ -470,7 +477,7 @@ modules:
           - base
           - scatter
           - dG_axes
-          - dG
+          - dG_cmap
         x: r_number
         y: dG
       gibbs_errors:
@@ -521,7 +528,7 @@ modules:
           - base
           - scatter
           - ddG_axes
-          - ddG  # = cmap, rename
+          - ddG_cmap
         x: r_number
         y: ddG
       ddG_errors:
@@ -565,7 +572,7 @@ modules:
           - base
           - scatter
           - drfu_axes
-          - drfu # = cmap opt, rename
+          - drfu_cmap
       drfu_errorbars:
         type: errorbars
         source: drfu_comparison_select
@@ -602,16 +609,18 @@ modules:
         hide_carbs: True
         hide_expand_icon: True
         opts:  # opts are not applied directly but matched to color dataframe and then applied
-          - rfu
-          - drfu
-          - dG
-          - ddG
+          - rfu_cmap
+          - drfu_cmap
+          - d_uptake_cmap
+          - dG_cmap
+          - ddG_cmap
         dependencies:
           opts:
-            - rfu
-            - drfu
-            - dG
-            - ddG
+            - rfu_cmap
+            - drfu_cmap
+            - d_uptake_cmap
+            - dG_cmap
+            - ddG_cmap
 
   ddG_control:
     transforms:

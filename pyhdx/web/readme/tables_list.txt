@@ -1,27 +1,38 @@
 table options are (table_name, (opts)):  (General: <quantity>_<specifier> -> opts[qty] for colors
+
 peptides
 index: peptide_id
 columns: state, exposure, quantity
 
-rfu_residues (rfu)
+
+rfu
 index: r_number
-columns: state, exposure (TODO add quantity)
+columns: state, exposure, quantity
+cmap opt: rfu_cmap
+
+d_uptake
+index: r_number
+columns: D_uptake_fit_ID, state, exposure, quantity
+cmap opt: d_uptake_cmap
 
 rates
 index: r_number
 columns: guess_ID, state, quantity
 
-dG_fits (dG)
+dG
 index: r_number
 columns: fit_ID, state, quantity
+cmap opt: dG_cmap
 
 ddG_comparison (ddG)
 index: r_number
 columns: comparison_name, comparison_state, quantity
+cmap opt: ddG_cmap
 
 drfu_comparison (drfu)
 index: r_number
 columns: comparison_name, comparison_state, exposure, quantity
+cmap opt: drfu_cmap
 
 d_calc
 index: exposure
