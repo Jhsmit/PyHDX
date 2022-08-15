@@ -1843,7 +1843,8 @@ class ColorTransformControl(PyHDXControlPanel):
         f_cmap, f_norm = CMAP_NORM_DEFAULTS["foldedness"]
         self._user_cmaps = {"lily_blue": f_cmap}
         cmap_opts = [opt for opt in self.opts.values() if isinstance(opt, CmapOpts)]
-        self.quantity_mapping = {}  # quantity (column name): (cmap, norm)
+        # quantity (column name / cmap_field): (cmap, norm)
+        self.quantity_mapping: dict[str, (Colormap, Normalize)] = {}
         for opt in cmap_opts:
             cmap, norm = opt.cmap, opt.norm_scaled
             self._pyhdx_cmaps[cmap.name] = cmap
@@ -1984,11 +1985,12 @@ class ColorTransformControl(PyHDXControlPanel):
         if cmap and norm:
             cmap.name = self.color_transform_name
             # with # aggregate and execute at once: #            with param.parameterized.discard_events(opt): ??
-            opt = self.opts[self.quantity]
+
+            opt = self.opts[TABLE_INFO[self.quantity]["cmap_opt"]]
             opt.cmap = cmap
             opt.norm_scaled = norm  # perhaps setter for norm such that externally it behaves as a rescaled thingy?
 
-            self.quantity_mapping[self.quantity] = (cmap, norm)
+            self.quantity_mapping[TABLE_INFO[self.quantity]["cmap_field"]] = (cmap, norm)
             self._user_cmaps[cmap.name] = cmap
 
     @param.depends("colormap", "values", "colors", watch=True)
@@ -1999,7 +2001,7 @@ class ColorTransformControl(PyHDXControlPanel):
 
     @param.depends("quantity", watch=True)
     def _quantity_updated(self):
-        cmap, norm = self.quantity_mapping[self.quantity]
+        cmap, norm = self.quantity_mapping[TABLE_INFO[self.quantity]["cmap_field"]]
 
         # with .. # todo accumulate events?
 
@@ -2465,7 +2467,7 @@ class FileExportControl(PyHDXControlPanel):
             bio.seek(0)
             return bio
 
-    def get_color_df(self):
+    def get_color_df(self) -> pd.Dataframe:
         df = self.sources["main"].tables[self.table]
         opt = self.opts[TABLE_INFO[self.table]["cmap_opt"]]
         field = TABLE_INFO[self.table]["cmap_field"]
