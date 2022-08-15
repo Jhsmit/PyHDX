@@ -58,45 +58,43 @@ ctrl, tmpl = main_app()
 
 cwd = Path(__file__).parent
 root_dir = cwd.parent.parent
-data_dir = root_dir / 'tests' / 'test_data' / 'input'
-fitresult_dir = root_dir / 'tests' / 'test_data' / 'output' / 'ecsecb_tetramer_dimer'
 
-cwd = Path(__file__).parent
-test_dir = cwd / 'test_data' / 'secb'
+web_data_dir = root_dir / 'tests' / 'test_data' / 'output' / 'web'
+input_data_dir = root_dir / 'tests' / 'test_data' / 'input'
 
 
 filenames = ['ecSecB_apo.csv', 'ecSecB_dimer.csv']
-file_dict = {fname: (data_dir / fname).read_bytes() for fname in filenames}
+file_dict = {fname: (input_data_dir / fname).read_bytes() for fname in filenames}
 
 batch_fname = 'data_states_deltas.yaml' # secb apo / dimer but artificial delta C/N tail
 
-state_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
-pdb_string = (test_dir / '1qyn.pdb').read_text()
+state_spec = yaml.safe_load(Path(input_data_dir / batch_fname).read_text())
+pdb_string = (web_data_dir / '1qyn.pdb').read_text()
 
+print(pdb_string)
 
 def reload_tables():
     src = ctrl.sources['main']
-    src.tables['peptides'] = csv_to_dataframe(test_dir / 'peptides.csv')
-    src.tables['d_uptake'] = csv_to_dataframe(test_dir / 'd_uptake.csv')
-    src.tables['rfu_residues'] = csv_to_dataframe(test_dir / 'rfu_residues.csv')
-    src.tables['dG_fits'] = csv_to_dataframe(test_dir / 'dG_fits.csv')
-    src.tables['ddG_comparison'] = csv_to_dataframe(test_dir / 'ddG_comparison.csv')
-    src.tables['rates'] = csv_to_dataframe(test_dir / 'rates.csv')
+    src.tables['peptides'] = csv_to_dataframe(web_data_dir / 'peptides.csv')
+    src.tables['d_uptake'] = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
+    src.tables['rfu_residues'] = csv_to_dataframe(web_data_dir / 'rfu.csv')
+    src.tables['dG_fits'] = csv_to_dataframe(web_data_dir / 'dG.csv')
+    src.tables['ddG_comparison'] = csv_to_dataframe(web_data_dir / 'ddG_comparison.csv')
+    src.tables['rates'] = csv_to_dataframe(web_data_dir / 'rates.csv')
 
     src.param.trigger('updated')
 
     # ctrl.views['protein'].object = pdb_string
 
-
 def reload_dashboard():
     source = ctrl.sources['dataframe']
     for ds in ['peptides', 'peptides_mse', 'd_calc', 'rfu', 'rates', 'global_fit', 'losses']:
-        df = csv_to_dataframe(test_dir / f'{ds}.csv')
+        df = csv_to_dataframe(web_data_dir / f'{ds}.csv')
         source.add_df(df, ds)
 
     #Temporary workaround for comment characters in csv files
     ds = 'colors'
-    df = pd.read_csv(test_dir / f'{ds}.csv', header=[0, 1, 2], index_col=0,
+    df = pd.read_csv(web_data_dir / f'{ds}.csv', header=[0, 1, 2], index_col=0,
                      skiprows=3)
     source.add_df(df, ds)
 
@@ -106,10 +104,10 @@ def init_batch():
     input_control.input_files = list(file_dict.values())
     input_control.widgets['input_files'].filename = list(file_dict.keys())
 
-    input_control.batch_file = Path(data_dir / batch_fname).read_bytes()
+    input_control.batch_file = Path(input_data_dir / batch_fname).read_bytes()
     input_control._action_load_datasets()
 
-    input_control.batch_file = Path(data_dir / batch_fname).read_bytes()
+    input_control.batch_file = Path(input_data_dir / batch_fname).read_bytes()
     input_control._action_add_dataset()
 
     fit_control = ctrl.control_panels['FitControl']
@@ -129,7 +127,7 @@ def init_dashboard():
     for i, (k, v) in enumerate(state_spec.items()):
         if i == n:
             break
-        load_state(ctrl, v, data_dir=data_dir, name=k)
+        load_state(ctrl, v, data_dir=input_data_dir, name=k)
         input_control._add_single_dataset_spec()
 
     input_control._action_load_datasets()
@@ -138,6 +136,7 @@ def init_dashboard():
     d_uptake_control.repeats = 3
 
 
+    ctrl.sources['pdb'].add_from_string(pdb_string, '1qyn')
 
     # guess_control = ctrl.control_panels['InitialGuessControl']
     # guess_control._action_fit()
