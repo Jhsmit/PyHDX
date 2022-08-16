@@ -1660,7 +1660,7 @@ class DifferentialControl(PyHDXControlPanel):
         # RFU only app has no dGs,
         if "ddG_fit_select" in self.transforms:
             self.add_ddG_comparison()
-        if "dduptake_fit_select":
+        if "dduptake_fit_select" in self.transforms:
             self.add_dd_uptake_comparison()
         self.add_drfu_comparison()
 

@@ -69,19 +69,18 @@ file_dict = {fname: (input_data_dir / fname).read_bytes() for fname in filenames
 batch_fname = 'data_states_deltas.yaml' # secb apo / dimer but artificial delta C/N tail
 
 state_spec = yaml.safe_load(Path(input_data_dir / batch_fname).read_text())
-pdb_string = (web_data_dir / '1qyn.pdb').read_text()
+# pdb_string = (web_data_dir / '1qyn.pdb').read_text()
+pdb_string = (web_data_dir / '5JTR_mod.pdb').read_text()
 
-print(pdb_string)
 
 def reload_tables():
     src = ctrl.sources['main']
-    src.tables['peptides'] = csv_to_dataframe(web_data_dir / 'peptides.csv')
-    src.tables['d_uptake'] = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
-    src.tables['rfu_residues'] = csv_to_dataframe(web_data_dir / 'rfu.csv')
-    src.tables['dG_fits'] = csv_to_dataframe(web_data_dir / 'dG.csv')
-    src.tables['ddG_comparison'] = csv_to_dataframe(web_data_dir / 'ddG_comparison.csv')
-    src.tables['rates'] = csv_to_dataframe(web_data_dir / 'rates.csv')
-
+    src.add_table('peptides', csv_to_dataframe(web_data_dir / 'peptides.csv'))
+    src.add_table('d_uptake', csv_to_dataframe(web_data_dir / 'd_uptake.csv'))
+    src.add_table('rfu', csv_to_dataframe(web_data_dir / 'rfu.csv'))
+    src.add_table('dG', csv_to_dataframe(web_data_dir / 'dG.csv'))
+    src.add_table('ddG_comparison', csv_to_dataframe(web_data_dir / 'ddG_comparison.csv'))
+    src.add_table('rates', csv_to_dataframe(web_data_dir / 'rates.csv'))
     src.param.trigger('updated')
 
     # ctrl.views['protein'].object = pdb_string
@@ -145,9 +144,9 @@ def init_dashboard():
     src.updated = True
 
     # todo needs to be done on _add_table / add_table
-    src.add_table('dG', csv_to_dataframe(web_data_dir / 'dG.csv'))
-    df = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
+    df = csv_to_dataframe(web_data_dir / 'dG.csv')
     df.columns = fix_multiindex_dtypes(df.columns)
+    src.add_table('dG', df)
 
     #src.param.trigger('updated')
     src.updated = True

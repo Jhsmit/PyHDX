@@ -23,7 +23,7 @@ transforms:
   drfu_src:
     type: table_source
     source: main
-    table: drfu_comparison
+    table: drfu
 
 opts:
   base:
@@ -136,7 +136,7 @@ modules:
         opts:
           - base
           - coverage
-          - rfu
+          - rfu_cmap
         vdims:
           - rfu
           - uptake_corrected
@@ -178,8 +178,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: rfu
+        x: r_number
+        y: rfu
         err: rfu_sd
       rfu_overlay:
         type: overlay
@@ -220,8 +220,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: drfu
+        x: r_number
+        y: drfu
         err: drfu_sd
       drfu_overlay:
         type: overlay
@@ -250,14 +250,14 @@ modules:
         hide_heteroatoms: True
         hide_carbs: True
         hide_expand_icon: True
-        opts:  # opts are not applied directly but matched to color dataframe and then applied
-          - rfu
-          - drfu
+        opts:
+          - rfu_cmap
+          - drfu_cmap
 
         dependencies:
           opts:
-            - rfu
-            - drfu
+            - rfu_cmap
+            - drfu_cmap
 
 
   peptides:
