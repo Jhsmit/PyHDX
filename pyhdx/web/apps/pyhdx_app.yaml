@@ -302,11 +302,25 @@ modules:
         err_pos: percentile_75
         err_neg: percentile_25
         err_type: positions
+        opts:
+          - base
+      d_uptake_errorbars_05:
+        type: errorbars
+        source: d_uptake_select
+        x: r_number
+        y: d_uptake
+        err_pos: percentile_95
+        err_neg: percentile_05
+        err_type: positions
+        opts:
+          - base
+          - errorbars
       d_uptake_overlay:
         type: overlay
         views:
           - d_uptake_scatter
           - d_uptake_errorbars
+          - d_uptake_errorbars_05
 
   rates:
     transforms:
