@@ -1,5 +1,6 @@
 import itertools
 import warnings
+from typing import Union
 
 import numpy as np
 import pandas as pd
@@ -95,10 +96,13 @@ class SelectTransform(MultiTransform):
             src.param.watch(self.update, ["updated"])
 
         self.labels = self.labels or list(self.sources.keys())
-        self.param["value"].objects = self.labels
+        self.param["value"].objects = self.get_objects()
         if not self.value:
             self.value = self.labels[0]
         self.redraw()
+
+    def get_objects(self):
+        return [val for val in self.labels if self.sources[val].get() is not None]
 
     @property
     def source_hash(self):
@@ -116,6 +120,8 @@ class SelectTransform(MultiTransform):
 
     @pn.depends("value", watch=True)
     def update(self, *events):
+        self.param["value"].objects = self.get_objects()
+
         if self.update_hash():
             self.updated = True
 
@@ -249,7 +255,7 @@ class CrossSectionTransform(AppTransform):
                 for name, selector in zip(self._names, self.selectors):
                     selector.name = name  # todo requires testing if the names are really updated or not (they arent)
                     selector.label = name  # todo requires testing if the names are really updated or not
-                    self.redrawn = True
+                self.redrawn = True
             else:
                 self.redraw()
 
@@ -280,15 +286,19 @@ class CrossSectionTransform(AppTransform):
 
         self.redrawn = True
 
-    def transform(self):
+    def transform(self) -> Union[pd.DataFrame, None]:
         df = self.source.get()
         if df is None:
             return df
 
         kwargs = self.pd_kwargs
         # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
-        df = df.xs(**kwargs)
-        return df
+
+        if kwargs['key']:
+            return df.xs(**kwargs)
+        else:
+            return None
+
 
     def _selector_changed(self, *events):
         # this sends multiple updated events as it triggers changes in other selectors

@@ -6,10 +6,24 @@ import pandas as pd
 import param
 
 from pyhdx import TorchFitResult, TorchFitResultSet
-from pyhdx.fitting import RatesFitResult
+from pyhdx.fitting import RatesFitResult, DUptakeFitResultSet
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dataframe
 from pyhdx.config import cfg
+
+# <table_name>: {'cmap_field': <table_column_name>, cmap_opt: <cmap_opt_name>
+from pyhdx.web.utils import fix_multiindex_dtypes
+
+TABLE_INFO = {
+    'rfu': {'cmap_field': 'rfu', 'cmap_opt': 'rfu_cmap'},
+    'd_uptake': {'cmap_field': 'd_uptake', 'cmap_opt': 'd_uptake_cmap'},
+    'dd_uptake': {'cmap_field': 'dd_uptake', 'cmap_opt': 'dd_uptake_cmap'},
+    'dG': {'cmap_field': 'dG', 'cmap_opt': 'dG_cmap'},
+    'drfu': {'cmap_field': 'drfu', 'cmap_opt': 'drfu_cmap'},
+    'ddG': {'cmap_field': 'ddG', 'cmap_opt': 'ddG_cmap'},
+    #'rfu': {'cmap_field': 'rfu', 'cmap_opt': 'rfu_cmap'},
+
+}
 
 
 class Source(param.Parameterized):
@@ -82,6 +96,7 @@ class PyHDXSource(TableSource):
     # see readme/tables_list for tables and their indexes
 
     hdxm_objects = param.Dict({})
+    d_uptake_results = param.Dict({})
     rate_results = param.Dict({})  # dict of rate fitting / guesses results
     dG_fits = param.Dict({})  # dict of torch fit result objects
 
@@ -97,6 +112,8 @@ class PyHDXSource(TableSource):
             self._add_dG_fit(obj, name)
         elif isinstance(obj, RatesFitResult):
             self._add_rates_fit(obj, name)
+        elif isinstance(obj, DUptakeFitResultSet):
+            self._add_duptake_fit(obj, name)
         else:
             raise ValueError(f"Unsupported object {obj!r}")
 
@@ -108,6 +125,19 @@ class PyHDXSource(TableSource):
     def names(self):
         """returns the names of all HDX Measurment objects loaded"""
         return list(self.hdxm_objects.keys())
+
+    def _add_duptake_fit(self, d_uptake_result, name):
+        df = d_uptake_result.output
+        tuples = [(name, *tup) for tup in df.columns]
+        columns = pd.MultiIndex.from_tuples(
+            tuples, names=["D_uptake_fit_ID", "state", "exposure", "quantity"]
+        )
+
+        df.columns = fix_multiindex_dtypes(columns)
+        self._add_table(df, "d_uptake")
+        self.d_uptake_results[name] = d_uptake_result
+        self.param.trigger("d_uptake_results")  # todo no listeners probably
+        self.updated = True
 
     def _add_rates_fit(self, rates_result, name):
         df = rates_result.output.copy()
@@ -152,7 +182,7 @@ class PyHDXSource(TableSource):
 
         combined = pd.concat([rfu, rfu_sd], axis=1).sort_index(axis=1)
 
-        self._add_table(combined, "rfu_residues")
+        self._add_table(combined, "rfu")
 
         self.hdxm_objects[name] = hdxm
         self.param.trigger("hdxm_objects")  # protein controller listens here
@@ -166,7 +196,7 @@ class PyHDXSource(TableSource):
             tuples, names=["fit_ID", "state", "quantity"]
         )
         df.columns = columns
-        self._add_table(df, "dG_fits")
+        self._add_table(df, "dG")
 
         # Add calculated d-uptake values
         df = fit_result.get_dcalc()

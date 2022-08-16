@@ -18,6 +18,7 @@ import panel as pn
 import param
 import yaml
 from distributed import Client
+from matplotlib.colors import Normalize, Colormap
 from omegaconf import OmegaConf
 from panel.io.server import async_execute
 from proplot import to_hex
@@ -40,7 +41,7 @@ from pyhdx.fitting import (
     R1,
     R2,
     optimizer_defaults,
-    RatesFitResult,
+    RatesFitResult, fit_d_uptake, DUptakeFitResultSet,
 )
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
@@ -64,6 +65,7 @@ from pyhdx.support import (
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import CmapOpts
+from pyhdx.web.sources import TABLE_INFO
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
@@ -178,20 +180,19 @@ class DevTestControl(ControlPanel):
         views = self.views
         opts = self.opts
 
-        tables = self.sources["main"].tables
-        rfus = tables["rfu_residues"]
-        print(rfus)
-        print(rfus.columns.dtypes)
+        t = transforms['d_uptake_select']
+        df = t.get()
 
-        c = self.parent.control_panels
+        print(t)
+        print(df)
 
-        drfu = tables.get("drfu_comparison")
-        if drfu is not None:
-            print(drfu.columns.dtypes)
-            print(drfu)
+        print('break')
 
-        drfu_selected = self.transforms["drfu_comparison_select"].get()
-        print("break")
+        t_rfu = transforms['rfu_select']
+        df_rfu = t.get()
+
+        print(t_rfu)
+        print(df_rfu)
 
     def _action_test(self):
         pdbe_view = self.views["protein"]
@@ -721,7 +722,6 @@ class PeptideFileInputControl(HDXSpecInputBase):
         obj = self.param["hdxm_list"].objects or []
         self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
-
     def _action_remove_datasets(self):
         raise NotImplementedError("Removing datasets not implemented")
         for name in self.hdxm_list:
@@ -1057,6 +1057,93 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         self.parent.param.trigger(
             "datasets"
         )  # Manual trigger as key assignment does not trigger the param
+
+
+class DUptakeFitControl(PyHDXControlPanel):
+    _type = "d_uptake_fit"
+
+    header = "D-Uptake fit"
+
+    repeats = param.Integer(
+        default=50,
+        bounds=(1, 100),
+        doc="Number of fitting repeats"
+    )
+
+    bounds = param.Boolean(
+        default=True,
+        doc="Toggle to use bounds [0 - 1]"
+    )
+
+    r1 = param.Number(
+        default=1,
+        bounds=(0, None),
+        doc="Value of the regularizer along residue axis.",
+    )
+
+    fit_name = param.String("D_uptake_fit_1", doc="Name for the fit result")
+
+    _fit_names = param.List(
+        [], doc="List of current and future guess names", precedence=-1
+    )
+
+    do_fit = param.Action(
+        lambda self: self._action_fit(),
+        label="Do Fitting",
+        doc="Start D-uptake fit",
+    )
+
+    def make_dict(self):
+        widgets = self.generate_widgets(
+            r1=pn.widgets.FloatInput, repeats=pn.widgets.IntInput,
+        )
+
+        widgets["pbar"] = ASyncProgressBar()
+
+        return widgets
+
+    def _action_fit(self):
+        if len(self.src.hdxm_objects) == 0:
+            self.parent.logger.info("No datasets loaded")
+            return
+
+        if self.fit_name in self._fit_names:
+            self.parent.logger.info(f"D-uptake fit with name {self._fit_names} already in use")
+            return
+
+        self._fit_names.append(self.fit_name)
+        self.parent.logger.info("Started D-uptake fit")
+        self.param["do_fit"].constant = True
+        self.widgets["do_fit"].loading = True
+
+        async_execute(self._fit_d_uptake)
+
+    async def _fit_d_uptake(self):
+
+        name = self.fit_name
+        num_samples = len(self.src.hdxm_objects)
+        guess = None
+
+        self.widgets["pbar"].num_tasks = num_samples
+        async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
+
+            futures = []
+            for hdxm in self.src.hdxm_objects.values():
+                future = client.submit(
+                    fit_d_uptake, hdxm, guess, self.r1, self.bounds, self.repeats, False, "worker_client"
+                )
+                futures.append(future)
+
+            await self.widgets["pbar"].run(futures)
+            results = await asyncio.gather(*futures)
+
+        result_obj = DUptakeFitResultSet(list(results))
+        self.src.add(result_obj, name)
+
+        self.param["do_fit"].constant = False
+        self.widgets["do_fit"].loading = False
+
+        self.parent.logger.info(f"Finished D-uptake fit {name}")
 
 
 class InitialGuessControl(PyHDXControlPanel):
@@ -1421,7 +1508,7 @@ class FitControl(PyHDXControlPanel):
 
         # intial guess are dG values from previous fit
         elif self.initial_guess in self.src.dG_fits:
-            dG_df = self.src.get_table("dG_fits")
+            dG_df = self.src.get_table("dG")
 
             if self.guess_mode == "One-to-one":
                 gibbs_guess = dG_df.xs(
@@ -1534,16 +1621,20 @@ class DifferentialControl(PyHDXControlPanel):
     @property
     def _layout(self):
         layout = []
+        # These are 'blind' transform and serve only to provide selection in this controller;
+        # they are not coupled to any 'view'
         if "ddG_fit_select" in self.transforms:
             layout.append(("transforms.ddG_fit_select", None))
+        if "dduptake_fit_select" in self.transforms:
+            layout.append(("transforms.dduptake_fit_select", None))
         layout.append(("self", None))
 
         return layout
 
-    def get(self):
-        print("remove this")
-        df = self.transforms["ddG_fit_select"].get()
-        return df
+    # def get(self):
+    #     print("remove this")
+    #     df = self.transforms["ddG_fit_select"].get()
+    #     return df
 
     def _source_updated(self, *events):
         # Triggered when hdxm objects are added
@@ -1556,7 +1647,7 @@ class DifferentialControl(PyHDXControlPanel):
             self.reference_state = options[0]
 
     def _action_add_comparison(self):
-        current_df = self.src.get_table("drfu_comparison")
+        current_df = self.src.get_table("drfu")
         if (
             current_df is not None
             and self.comparison_name in current_df.columns.get_level_values(level=0)
@@ -1569,6 +1660,8 @@ class DifferentialControl(PyHDXControlPanel):
         # RFU only app has no dGs,
         if "ddG_fit_select" in self.transforms:
             self.add_ddG_comparison()
+        if "dduptake_fit_select" in self.transforms:
+            self.add_dd_uptake_comparison()
         self.add_drfu_comparison()
 
         self.parent.logger.info(
@@ -1611,12 +1704,12 @@ class DifferentialControl(PyHDXControlPanel):
             combined.columns, 1, categories, ordered=True
         )
 
-        self.src._add_table(combined, "ddG_comparison")
+        self.src._add_table(combined, "ddG")
 
         # self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
 
     def add_drfu_comparison(self):
-        rfu_df = self.src.get_table("rfu_residues")
+        rfu_df = self.src.get_table("rfu")
         names = ["comparison_name", "comparison_state", "exposure", "quantity"]
 
         # Take rfu entries from df, to calculate drfu
@@ -1669,7 +1762,30 @@ class DifferentialControl(PyHDXControlPanel):
         combined = pd.concat([drfu, drfu_sd], axis=1).sort_index(axis=1)
 
         # TODO should be public
-        self.src._add_table(combined, "drfu_comparison")
+        self.src._add_table(combined, "drfu")
+
+    def add_dd_uptake_comparison(self):
+        d_uptake_df = self.transforms["dduptake_fit_select"].get()
+        if d_uptake_df is None:
+            return
+
+        reference_d_uptake = d_uptake_df.xs(key=(self.reference_state, "d_uptake"),
+                                            level=[0, 2], axis=1)
+        test_d_uptake = d_uptake_df.drop(self.reference_state, axis=1, level=0).xs(
+            "d_uptake", level=2, axis=1
+        )
+
+        dd_uptake = test_d_uptake.sub(reference_d_uptake, level="exposure").dropna(how="all", axis=1)
+
+        names = ["comparison_name", "comparison_state", "exposure", "quantity"]
+        columns = pd.MultiIndex.from_tuples(
+            [(self.comparison_name, *cols, "dd_uptake") for cols in dd_uptake.columns],
+            names=names,
+        )
+
+        dd_uptake.columns = fix_multiindex_dtypes(columns)
+
+        self.src._add_table(dd_uptake, "dd_uptake")
 
 
 class ColorTransformControl(PyHDXControlPanel):
@@ -1756,12 +1872,13 @@ class ColorTransformControl(PyHDXControlPanel):
         f_cmap, f_norm = CMAP_NORM_DEFAULTS["foldedness"]
         self._user_cmaps = {"lily_blue": f_cmap}
         cmap_opts = [opt for opt in self.opts.values() if isinstance(opt, CmapOpts)]
-        self.quantity_mapping = {}  # quantity: (cmap, norm)
+        # quantity (column name / cmap_field): (cmap, norm)
+        self.quantity_mapping: dict[str, (Colormap, Normalize)] = {}
         for opt in cmap_opts:
             cmap, norm = opt.cmap, opt.norm_scaled
             self._pyhdx_cmaps[cmap.name] = cmap
-            field = {"dG": "dG"}.get(opt.field, opt.field)  # no longer needed
-            self.quantity_mapping[field] = (cmap, norm)
+            # field = {"dG": "dG"}.get(opt.field, opt.field)  # no longer needed
+            self.quantity_mapping[opt.field] = (cmap, norm)
 
         self.cmap_options = {
             "matplotlib": mpl_cmaps,  # list or dicts
@@ -1774,8 +1891,9 @@ class ColorTransformControl(PyHDXControlPanel):
         self._update_num_values()
         self._update_library()
 
+        # these are rfu, drfu, d_uptake, dg, ddg,
         quantity_options = [
-            opt.name for opt in self.opts.values() if isinstance(opt, CmapOpts)
+            opt.field for opt in self.opts.values() if isinstance(opt, CmapOpts)
         ]
         self.param["quantity"].objects = quantity_options
         if self.quantity is None:
@@ -1896,11 +2014,12 @@ class ColorTransformControl(PyHDXControlPanel):
         if cmap and norm:
             cmap.name = self.color_transform_name
             # with # aggregate and execute at once: #            with param.parameterized.discard_events(opt): ??
-            opt = self.opts[self.quantity]
+
+            opt = self.opts[TABLE_INFO[self.quantity]["cmap_opt"]]
             opt.cmap = cmap
             opt.norm_scaled = norm  # perhaps setter for norm such that externally it behaves as a rescaled thingy?
 
-            self.quantity_mapping[self.quantity] = (cmap, norm)
+            self.quantity_mapping[TABLE_INFO[self.quantity]["cmap_field"]] = (cmap, norm)
             self._user_cmaps[cmap.name] = cmap
 
     @param.depends("colormap", "values", "colors", watch=True)
@@ -1911,7 +2030,7 @@ class ColorTransformControl(PyHDXControlPanel):
 
     @param.depends("quantity", watch=True)
     def _quantity_updated(self):
-        cmap, norm = self.quantity_mapping[self.quantity]
+        cmap, norm = self.quantity_mapping[TABLE_INFO[self.quantity]["cmap_field"]]
 
         # with .. # todo accumulate events?
 
@@ -2335,11 +2454,8 @@ class FileExportControl(PyHDXControlPanel):
         ext = ".csv" if self.export_format == "csv" else ".txt"
         self.widgets["export_tables"].filename = self.table + ext
 
-        qty = self.table.split("_")[0]
-        cmap_opts = {
-            k: opt for k, opt in self.opts.items() if isinstance(opt, CmapOpts)
-        }
-        if qty in cmap_opts.keys():
+        #currently only r_number indexed tables are in TABLE_INFO
+        if self.table in TABLE_INFO:
             self.widgets["export_pml"].disabled = False
             self.widgets["export_colors"].disabled = False
             self.widgets["export_pml"].filename = self.table + "_pml_scripts.zip"
@@ -2381,16 +2497,13 @@ class FileExportControl(PyHDXControlPanel):
             bio.seek(0)
             return bio
 
-    def get_color_df(self):
+    def get_color_df(self) -> pd.Dataframe:
         df = self.sources["main"].tables[self.table]
-        qty = self.table.split("_")[0]
-        opt = self.opts[qty]
+        opt = self.opts[TABLE_INFO[self.table]["cmap_opt"]]
+        field = TABLE_INFO[self.table]["cmap_field"]
         cmap = opt.cmap
         norm = opt.norm
-        if qty == "dG":
-            df = df.xs("dG", level=-1, axis=1)
-        elif qty == "ddG":
-            df = df.xs("ddG", level=-1, axis=1)
+        df = df.xs(field, level=-1, axis=1)
 
         color_df = apply_cmap(df, cmap, norm)
 
@@ -2484,9 +2597,9 @@ class FigureExportControl(PyHDXControlPanel):
             return
 
         if self.figure == "linear_bars":
-            table_options = {"dG_fits", "rfu_residues"}
+            table_options = {"dG", "rfu"}
         else:
-            table_options = {"dG_fits"}
+            table_options = {"dG"}
 
         options = list(table_options & self.src.tables.keys())
         self.param["table"].objects = options
@@ -2568,7 +2681,7 @@ class FigureExportControl(PyHDXControlPanel):
 
     @pn.depends("figure_selection", watch=True)
     def _figure_selection_updated(self):  # selection is usually Fit ID
-        df = self.sources["main"].tables["dG_fits"][self.figure_selection]
+        df = self.sources["main"].tables["dG"][self.figure_selection]
         options = list(df.columns.unique(level=0))
         self.param["reference"].objects = [None] + options
         if not self.reference and options:
@@ -2584,9 +2697,9 @@ class FigureExportControl(PyHDXControlPanel):
         watch=True,
     )
     def _figure_filename_updated(self):
-        if self.table == "dG_fits":
+        if self.table == "dG":
             qty = "dG" if self.reference is None else "ddG"
-        elif self.table == "rfu_residues":
+        elif self.table == "rfu":
             qty = "rfu" if self.reference is None else "drfu"
 
         if self.figure == "linear_bars":
@@ -2620,10 +2733,10 @@ class FigureExportControl(PyHDXControlPanel):
                     **self.figure_kwargs,
                 )
         elif self.figure == "linear_bars":
-            if self.table == "dG_fits":
+            if self.table == "dG":
                 opts = self.opts["ddG"] if self.reference else self.opts["dG"]
                 field = "dG"
-            elif self.table == "rfu_residues":
+            elif self.table == "rfu":
                 opts = (
                     self.opts["drfu"] if self.reference else self.opts["rfu"]
                 )  # TODO update to drfu
@@ -2728,11 +2841,12 @@ class SessionManagerControl(PyHDXControlPanel):
         session_zip.printdir()
         names = set(session_zip.namelist())
         accepted_names = {
-            "rfu_residues.csv",
+            "rfu.csv",
             "rates.csv",
+            "d_uptake.csv",
             "peptides.csv",
-            "dG_fits.csv",
-            "ddG_comparison.csv",
+            "dG.csv",
+            "ddG.csv",
             "d_calc.csv",
             "loss.csv",
             "peptide_mse.csv",

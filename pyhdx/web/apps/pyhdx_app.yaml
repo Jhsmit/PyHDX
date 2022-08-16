@@ -19,7 +19,11 @@ transforms:
   rfu_src:
     type: table_source
     source: main
-    table: rfu_residues
+    table: rfu
+  d_uptake_src:
+    type: table_source
+    source: main
+    table: d_uptake
   rates_src:
     type: table_source
     source: main
@@ -27,7 +31,7 @@ transforms:
   dG_src:
     type: table_source
     source: main
-    table: dG_fits
+    table: dG
   loss_src:
     type: table_source
     source: main
@@ -43,11 +47,15 @@ transforms:
   ddG_src:
     type: table_source
     source: main
-    table: ddG_comparison
+    table: ddG
   drfu_src:
     type: table_source
     source: main
-    table: drfu_comparison
+    table: drfu
+  dd_uptake_src:
+    type: table_source
+    source: main
+    table: dd_uptake
 
 opts:
   base:
@@ -71,17 +79,23 @@ opts:
   scatter:
     type: generic
     size: 8
-  rfu:
+  rfu_cmap:
     type: cmap
     field: rfu
-  drfu:
+  d_uptake_cmap:
+    type: cmap
+    field: d_uptake
+  dd_uptake_cmap:
+    type: cmap
+    field: dd_uptake
+  drfu_cmap:
     type: cmap
     field: drfu
-  dG:  # perhaps they need better names?
+  dG_cmap:
     type: cmap
     field: dG
     sclf: 1.0e-3
-  ddG:
+  ddG_cmap:
     type: cmap
     field: ddG
     sclf: 1.0e-3
@@ -117,6 +131,12 @@ tools:
     #only show closest hit:
     #https://stackoverflow.com/questions/36434562/displaying-only-one-tooltip-when-using-the-hovertool-tool
     #https://github.com/bokeh/bokeh/issues/9087
+  d_uptake_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'D-uptake', '@d_uptake' ]
+
   rates_hover:
     type: hover
     tooltips:
@@ -139,6 +159,11 @@ tools:
     tooltips:
       - [ 'Residue', '@r_number' ]
       - [ 'ΔRFU', '@drfu' ]
+  dd_uptake_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'ΔD-Uptake', '@dd_uptake' ]
 
 views:
   logging_info:
@@ -190,7 +215,7 @@ modules:
         opts:
           - base
           - coverage
-          - rfu
+          - rfu_cmap
         vdims:
           - rfu
           - uptake_corrected
@@ -225,21 +250,77 @@ modules:
           - base
           - scatter
           - rfu_scatter
-          - rfu  # rename rfu_cmap
+          - rfu_cmap
       rfu_errorbars:
         type: errorbars
         source: rfu_select
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: rfu
+        x: r_number
+        y: rfu
         err: rfu_sd
       rfu_overlay:
         type: overlay
         views:
           - rfu_scatter
           - rfu_errorbars
+
+  d_uptake:
+    transforms:
+      d_uptake_select:
+        type: cross_section
+        source: d_uptake_src
+        n_levels: -1
+    opts:
+      d_uptake_scatter:
+        type: generic
+        xlabel: Residue Number
+        ylabel: D-Uptake
+        title: D-Uptake Scatter
+        color: d_uptake
+        colorbar: True
+        ylim: [0, null]
+        tools:
+          - d_uptake_hover
+    views:
+      d_uptake_scatter:
+        type: scatter
+        source: d_uptake_select
+        x: r_number
+        y: d_uptake
+        opts:
+          - base
+          - scatter
+          - d_uptake_scatter
+          - d_uptake_cmap
+      d_uptake_errorbars:
+        type: errorbars
+        source: d_uptake_select
+        x: r_number
+        y: d_uptake
+        err_pos: percentile_75
+        err_neg: percentile_25
+        err_type: positions
+        opts:
+          - base
+      d_uptake_errorbars_05:
+        type: errorbars
+        source: d_uptake_select
+        x: r_number
+        y: d_uptake
+        err_pos: percentile_95
+        err_neg: percentile_05
+        err_type: positions
+        opts:
+          - base
+          - errorbars
+      d_uptake_overlay:
+        type: overlay
+        views:
+          - d_uptake_scatter
+          - d_uptake_errorbars
+          - d_uptake_errorbars_05
 
   rates:
     transforms:
@@ -435,7 +516,7 @@ modules:
           - base
           - scatter
           - dG_axes
-          - dG
+          - dG_cmap
         x: r_number
         y: dG
       gibbs_errors:
@@ -444,8 +525,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: dG
+        x: r_number
+        y: dG
         err: covariance
       gibbs_overlay:
         type: overlay
@@ -486,7 +567,7 @@ modules:
           - base
           - scatter
           - ddG_axes
-          - ddG  # = cmap, rename
+          - ddG_cmap
         x: r_number
         y: ddG
       ddG_errors:
@@ -495,8 +576,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: ddG
+        x: r_number
+        y: ddG
         err: covariance
       ddG_overlay:
         type: overlay
@@ -530,21 +611,49 @@ modules:
           - base
           - scatter
           - drfu_axes
-          - drfu # = cmap opt, rename
+          - drfu_cmap
       drfu_errorbars:
         type: errorbars
         source: drfu_comparison_select
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: drfu
+        x: r_number
+        y: drfu
         err: drfu_sd
       drfu_overlay:
         type: overlay
         views:
           - drfu_scatter
           - drfu_errorbars
+
+  dd_uptake_view:
+    transforms:
+      dd_uptake_comparison_select:
+        type: cross_section
+        source: dd_uptake_src
+        n_levels: -1
+    opts:
+      dd_uptake_axes:
+        type: generic
+        xlabel: Residue Number
+        ylabel: ΔD-Uptake
+        title: ΔD-Uptake Scatterplot
+        color: dd_uptake
+        colorbar: True
+        tools:
+          - dd_uptake_hover
+    views:
+      dd_uptake_scatter:
+        type: scatter
+        source: dd_uptake_comparison_select
+        x: r_number
+        y: dd_uptake
+        opts:
+          - base
+          - scatter
+          - dd_uptake_axes
+          - dd_uptake_cmap
 
   protein_view:
     transforms:
@@ -553,6 +662,8 @@ modules:
         sources:
           rfu: rfu_select
           drfu: drfu_comparison_select
+          d_uptake: d_uptake_select
+          dd_uptake: dd_uptake_comparison_select
           dG: dG_fit_select  # or do we need dG_rescale here?
           ddG: ddG_comparison_select
     views:
@@ -567,27 +678,36 @@ modules:
         hide_carbs: True
         hide_expand_icon: True
         opts:  # opts are not applied directly but matched to color dataframe and then applied
-          - rfu
-          - drfu
-          - dG
-          - ddG
+          - rfu_cmap
+          - drfu_cmap
+          - d_uptake_cmap
+          - dd_uptake_cmap
+          - dG_cmap
+          - ddG_cmap
         dependencies:
           opts:
-            - rfu
-            - drfu
-            - dG
-            - ddG
+            - rfu_cmap
+            - drfu_cmap
+            - d_uptake_cmap
+            - dG_cmap
+            - ddG_cmap
 
-  ddG_control:
+  differential_hdx_control:
     transforms:
       ddG_fit_select:
         type: cross_section
         source: dG_src
         n_levels: 1
+      dduptake_fit_select:
+        type: cross_section
+        source: d_uptake_src
+        n_levels: 1
 
 controllers:
+  - dev
   - global_settings
   - peptide_file_input
+  - d_uptake_fit
   - initial_guess
   - fit
   - diff

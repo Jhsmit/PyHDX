@@ -64,6 +64,9 @@ def init_dashboard():
         load_state_rfu(ctrl, v, data_dir=data_dir, name=k)
         input_control._add_single_dataset_spec()
 
+    input_control._action_load_datasets()
+
+
 
     # if n > 1:
     #     diff = ctrl.control_panels['DifferentialControl']

@@ -435,12 +435,18 @@ class hvRectanglesAppView(hvView):
 class hvErrorBarsAppView(hvView):
     _type = "errorbars"
 
-    pos = param.String(
-        "x", doc="Positions of the errobars, x-values for vertical errorbars"
+    x = param.String(
+        "x", doc="Positions of the errorbars, x-values for vertical errorbars"
     )
 
-    value = param.String(
+    y = param.String(
         "y", doc="Values of the samples, y-values for vertical errorbars"
+    )
+
+    err_type = param.Selector(
+        default="size", objects=["size", "positions"],
+        doc="The type of error specified, errors are either given by a size as distance from 'y'"
+            "values, or as absolute positions"
     )
 
     err = param.String(None, doc="Error values in both directions")
@@ -455,6 +461,34 @@ class hvErrorBarsAppView(hvView):
 
         # todo left and right cannot be none?
         super().__init__(**params)
+        if self.horizontal:
+            raise NotImplementedError("Horizontal error bars are not implemented")
+
+    @property
+    def value(self):
+        return self.x if self.horizontal else self.y
+
+    @property
+    def pos(self):
+        return self.y if self.horizontal else self.x
+
+    def get_data(self):
+        df = super().get_data()
+        if df is None:
+            return df
+        if self.err_type == 'size':
+            return df
+        else:
+            new_df = df[[self.value]]
+            if self.err is not None:
+                raise ValueError("Must specify 'err_pos' and 'err_neg' with positional"
+                                 "errors")
+            new_df[self.err_pos] = df[self.err_pos] - df[self.value]
+            new_df[self.err_neg] = df[self.value] - df[self.err_neg]
+
+            return new_df
+
+
 
     def get_plot(self):
         """

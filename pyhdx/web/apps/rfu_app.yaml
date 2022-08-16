@@ -19,11 +19,11 @@ transforms:
   rfu_src:
     type: table_source
     source: main
-    table: rfu_residues
+    table: rfu
   drfu_src:
     type: table_source
     source: main
-    table: drfu_comparison
+    table: drfu
 
 opts:
   base:
@@ -47,10 +47,10 @@ opts:
   scatter:
     type: generic
     size: 8
-  rfu:
+  rfu_cmap:
     type: cmap
     field: rfu
-  drfu:
+  drfu_cmap:
     type: cmap
     field: drfu
   info_log:
@@ -136,7 +136,7 @@ modules:
         opts:
           - base
           - coverage
-          - rfu
+          - rfu_cmap
         vdims:
           - rfu
           - uptake_corrected
@@ -171,15 +171,15 @@ modules:
           - base
           - scatter
           - rfu_scatter
-          - rfu  # rename rfu_cmap
+          - rfu_cmap
       rfu_errorbars:
         type: errorbars
         source: rfu_select
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: rfu
+        x: r_number
+        y: rfu
         err: rfu_sd
       rfu_overlay:
         type: overlay
@@ -213,15 +213,15 @@ modules:
           - base
           - scatter
           - drfu_axes
-          - drfu # = cmap opt, rename
+          - drfu_cmap
       drfu_errorbars:
         type: errorbars
         source: drfu_comparison_select
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: drfu
+        x: r_number
+        y: drfu
         err: drfu_sd
       drfu_overlay:
         type: overlay
@@ -236,6 +236,8 @@ modules:
         sources:
           rfu: rfu_select
           drfu: drfu_comparison_select
+         #  d_uptake: d_uptake_select
+
 
     views:
       protein:
@@ -248,14 +250,14 @@ modules:
         hide_heteroatoms: True
         hide_carbs: True
         hide_expand_icon: True
-        opts:  # opts are not applied directly but matched to color dataframe and then applied
-          - rfu
-          - drfu
+        opts:
+          - rfu_cmap
+          - drfu_cmap
 
         dependencies:
           opts:
-            - rfu
-            - drfu
+            - rfu_cmap
+            - drfu_cmap
 
 
   peptides:

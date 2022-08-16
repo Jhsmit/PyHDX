@@ -84,7 +84,7 @@ Finally, press the button :guillabel:`Load dataset` to parse and load the full d
 
 Datasets currently cannot be removed, if you want to remove datasets, press the browser 'refresh' button to start over.
 
-Coverage
+Coverage (Figure)
 ````````
 
 The 'Coverage' figure in the main application area rectangles show corresponding to the peptides of a single
@@ -99,8 +99,8 @@ By hovering the mouse over the peptides in the graph, more information is shown 
 * D(corrected): Absolute D-uptake, corrected by FD control
 * sequence: FASTA sequence of the peptide. Non-exchanging N-terminal reisues marked as 'x' and prolines in lower case.
 
-RFU
-```
+RFU (Figure)
+````````````
 
 The 'RFU' scatterplot shows Relative Fractional Uptake per residue. These values are obtained by
 weighted averaging of peptides (weights are 1/length) and error bars shown are calculated by
@@ -108,8 +108,38 @@ error propagation of the standard deviations on the input data values (`uptake s
 both the experiment state as well as the control(s)). Users can choose which exposure time
 and protein state to show in this graph using the selectors under `Graph Control`
 
+
+D-Uptake fit
+````````````
+
+This controller can be used to perform a fit of residue-level D-Uptake, independently for each timepoint in each measurement. The advantage of
+these residue-level D-Uptake values compared to residue-level RFU values is that the former is calculated by weighted averaging, which results 
+in loss of residue resolution, while the former is calculated by a least-squares fitting procedure, thus higher resulution results can be obtained
+depending on the peptide overlap. 
+D-Uptake fits can be advantageuos over ΔG fits when HDX kinetics are not in the EX2 regime and apporoximations made in the ΔG fit procecure with respect 
+to HDX kinetics are thus not applicable. 
+D-Uptake fit take back exchange into account (by using the Fully Deuterated control sample) as well as the D-percentage of the labelling solution. Fully 
+exchanged residues will therefore have a D-uptake value equal to the D fraction in solution (ie 0.9 for 90% deuterium).
+
+As fitting of residue-level D-uptake also suffers from the issues of non-identifyability or underdetermined systems (more parameters than datapoints),
+typically fits are repeated for N times with random initially guesses and a smoothing regularization term is applied along the primary structure. The number of 
+fitting repeats can be set with :guilabel:`Repeats`. The checkbox :guilabel:`Bounds` controls whether or not bounds are applied to the fit (beteween 0 and 1), and 
+should typically be checked. The value at :guilabel:`R1` controls the degree of smoothing along primary structure. A good starting value is 1 (For the SecB test data),
+and diffenent values should be tried to find an optimal value and depends on the size of the protein and the number and sizes of availalbe peptides. Finally, before 
+starting a fit, choose a name for the fit with current settings at :guilabel:`Fit name` and click :guilabel:`Do Fitting` to start the fitting process. 
+
+When the fit finishes, the found mean of the D-uptake values of all repeats will be shown as a scatterplot under the tab 'D-uptake'. The scatterplot has two sets of errorbars,
+which show the 5, 25, 75 and 95 percentiles of the repeats; gray errorbars are 5-95 percentile and black errorbars are 25-75 percentiles. 
+
+As with RFUs, differential D-uptake values between protein states can be calculated under :guilabel:`Differential HDX`. Both D-uptake and ΔD-uptake values can be directly 
+visualized on the tertiary structure using :guilabel:`Protein Control` and the 'Protein' tab. 
+When calculating and interpreting ΔD-uptake values, users should be aware that artefactual differences can arise as the fitting can converge to different solutions if in
+specific regions not enough peptide overlap is available or if peptide coverage dramatically differs between protein states. Therefore, sanity checking of differential HDX
+results with input data (peptide D-uptake / RFU values) is recommended.  
+
+
 Initial Guesses
-```````````````
+````````````````
 
 As a first step in the fitting procedure, initial guesses for the exchange kinetics need to be derived. This can be done
 through two options (:guilabel:`Fitting model`): 'Half-life' (fast but less accurate), or 'Association' (slower but more accurate).
@@ -128,10 +158,10 @@ tab 'Rates'. Note that these rates are merely an guesstimate of HDX rates and th
 interpretation whatsoever but should only function to provide the global fit with initial guesses.
 
 ΔG Fit
-``````
+`````
 
 After the initial guesses are calculated we can move on the the global fit of the data. Details of the fitting equation
-can be found the PyHDX publication (currently `_ACS`_).
+can be found the PyHDX publication (`Analytical Chemistry`_).
 
 At :guilabel:`Initial guess`, select which dataset to use for initial guesses (typically 'Guess_1'). Both previous fits (ΔG values)
 or estimated HX rates can be used as initial guesses. The initial guesses can be applied as 'One-to-one', where each protein state
@@ -154,7 +184,7 @@ learning rate should be 50-100. Smaller datasets require larger learning rates a
 The maximum number of epochs or fit iterations is set in the field :guilabel:`Epochs`.
 
 Finally, the fields :guilabel:`Regualizer 1` and :guilabel:`Regualizer 2` control the magnitude of the regualizers. Please refer
-to our `_ACS`_ publication for more details. In short, ``r1`` acts along consecutive residues and affects as a 'smoothing'
+to our `Analytical Chemistry`_ publication for more details. In short, ``r1`` acts along consecutive residues and affects as a 'smoothing'
 along the primary structure. Higher values give a more smoothed result. This prevents overfitting or helps avoid problems
 in the 'non-identifiability' issue where in unresolved (no residue-level overlap) regions the correct kinetic components
 can be found (ΔGs of residues given correct choice of timepoints) but it cannot confidently be assigned to residues as
@@ -289,4 +319,4 @@ in the browser (F5).
 
 
 .. _PDBeMolStar: https://github.com/molstar/pdbe-molstar
-.. _ACS: https://doi.org/10.1021/acs.analchem.1c02155
+.. _Analytical Chemistry: https://doi.org/10.1021/acs.analchem.1c02155

@@ -125,7 +125,7 @@ class TestMainGUISecB(object):
         assert "testname_123" in ctrl.sources["main"].hdxm_objects.keys()
         assert "SecB his dimer apo" in ctrl.sources["main"].hdxm_objects.keys()
 
-        rfu_df = ctrl.sources["main"].get_table("rfu_residues")
+        rfu_df = ctrl.sources["main"].get_table("rfu")
         assert rfu_df.shape == (145, 24)
         assert rfu_df.columns.nlevels == 3
 

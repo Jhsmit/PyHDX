@@ -6,6 +6,7 @@ import itertools
 import re
 import warnings
 from collections import OrderedDict
+from functools import wraps
 from io import StringIO
 from itertools import count, groupby
 from pathlib import Path
@@ -84,10 +85,10 @@ def multiindex_apply_function(
     return new_index
 
 
-def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
-
-    new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
-    return new_index
+# def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
+#
+#     new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
+#     return new_index
 
 
 def multiindex_set_categories(
@@ -792,3 +793,16 @@ def select_config() -> None:
             print(f"Invalid option: {choice}")
         else:
             cfg.load_config(config_options[choice - 1])
+
+
+def pbar_decorator(pbar):
+    """Wraps a progress bar around a function, updating the progress bar with each function call"""
+    def func_wrapper(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            result = func(*args, **kwargs)
+            pbar.update()
+            return result
+
+        return wrapper
+    return func_wrapper
