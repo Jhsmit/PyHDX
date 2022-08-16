@@ -180,20 +180,19 @@ class DevTestControl(ControlPanel):
         views = self.views
         opts = self.opts
 
-        tables = self.sources["main"].tables
-        rfus = tables["rfu"]
-        print(rfus)
-        print(rfus.columns.dtypes)
+        t = transforms['d_uptake_select']
+        df = t.get()
 
-        c = self.parent.control_panels
+        print(t)
+        print(df)
 
-        drfu = tables.get("drfu_comparison")
-        if drfu is not None:
-            print(drfu.columns.dtypes)
-            print(drfu)
+        print('break')
 
-        drfu_selected = self.transforms["drfu_comparison_select"].get()
-        print("break")
+        t_rfu = transforms['rfu_select']
+        df_rfu = t.get()
+
+        print(t_rfu)
+        print(df_rfu)
 
     def _action_test(self):
         pdbe_view = self.views["protein"]
@@ -1622,16 +1621,20 @@ class DifferentialControl(PyHDXControlPanel):
     @property
     def _layout(self):
         layout = []
+        # These are 'blind' transform and serve only to provide selection in this controller;
+        # they are not coupled to any 'view'
         if "ddG_fit_select" in self.transforms:
             layout.append(("transforms.ddG_fit_select", None))
+        if "dduptake_fit_select" in self.transforms:
+            layout.append(("transforms.dduptake_fit_select", None))
         layout.append(("self", None))
 
         return layout
 
-    def get(self):
-        print("remove this")
-        df = self.transforms["ddG_fit_select"].get()
-        return df
+    # def get(self):
+    #     print("remove this")
+    #     df = self.transforms["ddG_fit_select"].get()
+    #     return df
 
     def _source_updated(self, *events):
         # Triggered when hdxm objects are added
@@ -1644,7 +1647,7 @@ class DifferentialControl(PyHDXControlPanel):
             self.reference_state = options[0]
 
     def _action_add_comparison(self):
-        current_df = self.src.get_table("drfu_comparison")
+        current_df = self.src.get_table("drfu")
         if (
             current_df is not None
             and self.comparison_name in current_df.columns.get_level_values(level=0)
@@ -1657,6 +1660,8 @@ class DifferentialControl(PyHDXControlPanel):
         # RFU only app has no dGs,
         if "ddG_fit_select" in self.transforms:
             self.add_ddG_comparison()
+        if "dduptake_fit_select":
+            self.add_dd_uptake_comparison()
         self.add_drfu_comparison()
 
         self.parent.logger.info(
@@ -1699,7 +1704,7 @@ class DifferentialControl(PyHDXControlPanel):
             combined.columns, 1, categories, ordered=True
         )
 
-        self.src._add_table(combined, "ddG_comparison")
+        self.src._add_table(combined, "ddG")
 
         # self.parent.sources['main'].param.trigger('tables')  #todo check/remove tables trigger
 
@@ -1757,7 +1762,30 @@ class DifferentialControl(PyHDXControlPanel):
         combined = pd.concat([drfu, drfu_sd], axis=1).sort_index(axis=1)
 
         # TODO should be public
-        self.src._add_table(combined, "drfu_comparison")
+        self.src._add_table(combined, "drfu")
+
+    def add_dd_uptake_comparison(self):
+        d_uptake_df = self.transforms["dduptake_fit_select"].get()
+        if d_uptake_df is None:
+            return
+
+        reference_d_uptake = d_uptake_df.xs(key=(self.reference_state, "d_uptake"),
+                                            level=[0, 2], axis=1)
+        test_d_uptake = d_uptake_df.drop(self.reference_state, axis=1, level=0).xs(
+            "d_uptake", level=2, axis=1
+        )
+
+        dd_uptake = test_d_uptake.sub(reference_d_uptake, level="exposure").dropna(how="all", axis=1)
+
+        names = ["comparison_name", "comparison_state", "exposure", "quantity"]
+        columns = pd.MultiIndex.from_tuples(
+            [(self.comparison_name, *cols, "dd_uptake") for cols in dd_uptake.columns],
+            names=names,
+        )
+
+        dd_uptake.columns = fix_multiindex_dtypes(columns)
+
+        self.src._add_table(dd_uptake, "dd_uptake")
 
 
 class ColorTransformControl(PyHDXControlPanel):
@@ -2426,6 +2454,7 @@ class FileExportControl(PyHDXControlPanel):
         ext = ".csv" if self.export_format == "csv" else ".txt"
         self.widgets["export_tables"].filename = self.table + ext
 
+        #currently only r_number indexed tables are in TABLE_INFO
         if self.table in TABLE_INFO:
             self.widgets["export_pml"].disabled = False
             self.widgets["export_colors"].disabled = False
@@ -2817,7 +2846,7 @@ class SessionManagerControl(PyHDXControlPanel):
             "d_uptake.csv",
             "peptides.csv",
             "dG.csv",
-            "ddG_comparison.csv",
+            "ddG.csv",
             "d_calc.csv",
             "loss.csv",
             "peptide_mse.csv",

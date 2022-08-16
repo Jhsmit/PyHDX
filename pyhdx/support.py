@@ -85,10 +85,10 @@ def multiindex_apply_function(
     return new_index
 
 
-def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
-
-    new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
-    return new_index
+# def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
+#
+#     new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
+#     return new_index
 
 
 def multiindex_set_categories(

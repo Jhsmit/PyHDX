@@ -236,6 +236,8 @@ modules:
         sources:
           rfu: rfu_select
           drfu: drfu_comparison_select
+         #  d_uptake: d_uptake_select
+
 
     views:
       protein:

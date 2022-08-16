@@ -47,11 +47,15 @@ transforms:
   ddG_src:
     type: table_source
     source: main
-    table: ddG_comparison
+    table: ddG
   drfu_src:
     type: table_source
     source: main
-    table: drfu_comparison
+    table: drfu
+  dd_uptake_src:
+    type: table_source
+    source: main
+    table: dd_uptake
 
 opts:
   base:
@@ -81,6 +85,9 @@ opts:
   d_uptake_cmap:
     type: cmap
     field: d_uptake
+  dd_uptake_cmap:
+    type: cmap
+    field: dd_uptake
   drfu_cmap:
     type: cmap
     field: drfu
@@ -152,6 +159,11 @@ tools:
     tooltips:
       - [ 'Residue', '@r_number' ]
       - [ 'ΔRFU', '@drfu' ]
+  dd_uptake_hover:
+    type: hover
+    tooltips:
+      - [ 'Residue', '@r_number' ]
+      - [ 'ΔD-Uptake', '@dd_uptake' ]
 
 views:
   logging_info:
@@ -601,6 +613,34 @@ modules:
           - drfu_scatter
           - drfu_errorbars
 
+  dd_uptake_view:
+    transforms:
+      dd_uptake_comparison_select:
+        type: cross_section
+        source: dd_uptake_src
+        n_levels: -1
+    opts:
+      dd_uptake_axes:
+        type: generic
+        xlabel: Residue Number
+        ylabel: ΔD-Uptake
+        title: ΔD-Uptake Scatterplot
+        color: dd_uptake
+        colorbar: True
+        tools:
+          - dd_uptake_hover
+    views:
+      dd_uptake_scatter:
+        type: scatter
+        source: dd_uptake_comparison_select
+        x: r_number
+        y: dd_uptake
+        opts:
+          - base
+          - scatter
+          - dd_uptake_axes
+          - dd_uptake_cmap
+
   protein_view:
     transforms:
       protein_src:
@@ -609,6 +649,7 @@ modules:
           rfu: rfu_select
           drfu: drfu_comparison_select
           d_uptake: d_uptake_select
+          dd_uptake: dd_uptake_comparison_select
           dG: dG_fit_select  # or do we need dG_rescale here?
           ddG: ddG_comparison_select
     views:
@@ -626,6 +667,7 @@ modules:
           - rfu_cmap
           - drfu_cmap
           - d_uptake_cmap
+          - dd_uptake_cmap
           - dG_cmap
           - ddG_cmap
         dependencies:
@@ -636,11 +678,15 @@ modules:
             - dG_cmap
             - ddG_cmap
 
-  ddG_control:
+  differential_hdx_control:
     transforms:
       ddG_fit_select:
         type: cross_section
         source: dG_src
+        n_levels: 1
+      dduptake_fit_select:
+        type: cross_section
+        source: d_uptake_src
         n_levels: 1
 
 controllers:
