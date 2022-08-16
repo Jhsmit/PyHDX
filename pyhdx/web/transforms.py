@@ -1,5 +1,6 @@
 import itertools
 import warnings
+from typing import Union
 
 import numpy as np
 import pandas as pd
