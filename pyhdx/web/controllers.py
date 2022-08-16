@@ -18,6 +18,7 @@ import panel as pn
 import param
 import yaml
 from distributed import Client
+from matplotlib.colors import Normalize, Colormap
 from omegaconf import OmegaConf
 from panel.io.server import async_execute
 from proplot import to_hex
