@@ -245,8 +245,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: rfu
+        x: r_number
+        y: rfu
         err: rfu_sd
       rfu_overlay:
         type: overlay
@@ -282,6 +282,19 @@ modules:
           - scatter
           - d_uptake_scatter
           - d_uptake_cmap
+      d_uptake_errorbars:
+        type: errorbars
+        source: d_uptake_select
+        x: r_number
+        y: d_uptake
+        err_pos: percentile_75
+        err_neg: percentile_25
+        err_type: positions
+      d_uptake_overlay:
+        type: overlay
+        views:
+          - d_uptake_scatter
+          - d_uptake_errorbars
 
   rates:
     transforms:
@@ -486,8 +499,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: dG
+        x: r_number
+        y: dG
         err: covariance
       gibbs_overlay:
         type: overlay
@@ -537,8 +550,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: ddG
+        x: r_number
+        y: ddG
         err: covariance
       ddG_overlay:
         type: overlay
@@ -579,8 +592,8 @@ modules:
         opts:
           - base
           - errorbars
-        pos: r_number
-        value: drfu
+        x: r_number
+        y: drfu
         err: drfu_sd
       drfu_overlay:
         type: overlay
@@ -595,6 +608,7 @@ modules:
         sources:
           rfu: rfu_select
           drfu: drfu_comparison_select
+          d_uptake: d_uptake_select
           dG: dG_fit_select  # or do we need dG_rescale here?
           ddG: ddG_comparison_select
     views:
@@ -630,6 +644,7 @@ modules:
         n_levels: 1
 
 controllers:
+  - dev
   - global_settings
   - peptide_file_input
   - d_uptake_fit
