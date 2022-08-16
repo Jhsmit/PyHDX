@@ -189,13 +189,9 @@ class AppTransform(Transform):
         if self.hash in self._cache:
             return self._cache[self.hash]
         else:
-            try:
-                data = self.transform()
-                self._cache[self.hash] = data
-                return data
-            except ValueError:
-                print(self.name)
-                print('whooo')
+            data = self.transform()
+            self._cache[self.hash] = data
+            return data
 
     @param.depends("source.updated", watch=True)
     def update(self):
@@ -289,15 +285,19 @@ class CrossSectionTransform(AppTransform):
 
         self.redrawn = True
 
-    def transform(self):
+    def transform(self) -> Union[pd.DataFrame, None]:
         df = self.source.get()
         if df is None:
             return df
 
         kwargs = self.pd_kwargs
         # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
-        df = df.xs(**kwargs)
-        return df
+
+        if kwargs['key']:
+            return df.xs(**kwargs)
+        else:
+            return None
+
 
     def _selector_changed(self, *events):
         # this sends multiple updated events as it triggers changes in other selectors
