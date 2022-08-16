@@ -161,7 +161,7 @@ interpretation whatsoever but should only function to provide the global fit wit
 `````
 
 After the initial guesses are calculated we can move on the the global fit of the data. Details of the fitting equation
-can be found the PyHDX publication (currently `ACS`_).
+can be found the PyHDX publication (`Analytical Chemistry`_).
 
 At :guilabel:`Initial guess`, select which dataset to use for initial guesses (typically 'Guess_1'). Both previous fits (ΔG values)
 or estimated HX rates can be used as initial guesses. The initial guesses can be applied as 'One-to-one', where each protein state
@@ -184,7 +184,7 @@ learning rate should be 50-100. Smaller datasets require larger learning rates a
 The maximum number of epochs or fit iterations is set in the field :guilabel:`Epochs`.
 
 Finally, the fields :guilabel:`Regualizer 1` and :guilabel:`Regualizer 2` control the magnitude of the regualizers. Please refer
-to our `_ACS`_ publication for more details. In short, ``r1`` acts along consecutive residues and affects as a 'smoothing'
+to our `Analytical Chemistry`_ publication for more details. In short, ``r1`` acts along consecutive residues and affects as a 'smoothing'
 along the primary structure. Higher values give a more smoothed result. This prevents overfitting or helps avoid problems
 in the 'non-identifiability' issue where in unresolved (no residue-level overlap) regions the correct kinetic components
 can be found (ΔGs of residues given correct choice of timepoints) but it cannot confidently be assigned to residues as
@@ -319,4 +319,4 @@ in the browser (F5).
 
 
 .. _PDBeMolStar: https://github.com/molstar/pdbe-molstar
-.. _ACS: https://doi.org/10.1021/acs.analchem.1c02155
+.. _Analytical Chemistry: https://doi.org/10.1021/acs.analchem.1c02155
