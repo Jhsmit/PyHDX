@@ -1065,7 +1065,7 @@ class DUptakeFitControl(PyHDXControlPanel):
     header = "D-Uptake fit"
 
     repeats = param.Integer(
-        default=50,
+        default=25,
         bounds=(1, 100),
         doc="Number of fitting repeats"
     )
