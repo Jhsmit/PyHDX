@@ -217,11 +217,14 @@ def fit_rates_weighted_average(
 
 
 def d_uptake_cost_func(x: np.ndarray, A: np.ndarray, b: np.ndarray, d: float) -> float:
-    """
+    r"""
     Cost functions for residue-level D-uptake
-    Calculates ||Ax - b|| + d*regualization
+    Calculates ||Ax - b|| + d*regularization
 
-    Where the regularization is the sum of the absolute value of the gradient of x
+    Where the regularization is the sum of the absolute value of the gradient of x:
+
+    .. math::
+        \frac{d}{N-1}\sum^{N-1}_i |x_i - x_{i+1}|
 
     Args:
         x: D-uptake values per residue.
@@ -1139,6 +1142,8 @@ class RatesFitResult:
 @dataclass
 class DUptakeFitResult:
     result: np.ndarray
+    """Array with raw D-uptake fit values, including (guessed/interpolated) D-uptake at 
+        residues without coverage."""
     mse_loss: np.ndarray
     reg_loss: np.ndarray
     hdx_obj: Union[HDXMeasurement, HDXTimepoint]
