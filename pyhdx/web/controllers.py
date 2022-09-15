@@ -366,6 +366,9 @@ class HDXSpecInputBase(PyHDXControlPanel):
             state_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
             self.param["hdxm_list"].objects = list(state_spec.keys())
 
+            #store state spec for export
+            self.state_spec = state_spec
+
             data_src = {
                 name: StringIO(byte_content.decode("UTF-8"))
                 for name, byte_content in zip(
@@ -552,9 +555,9 @@ class PeptideFileInputControl(HDXSpecInputBase):
             "sequence",
             "measurement_name",
             "add_dataset_button",
-            "download_spec_button",
             "hdxm_list",
             "load_dataset_button",
+            "download_spec_button",
         ]
 
         sorted_widgets = {k: widgets[k] for k in widget_order}
@@ -2818,6 +2821,13 @@ class SessionManagerControl(PyHDXControlPanel):
             version_string = "# pyhdx configuration file " + __version__ + "\n\n"
             session_zip.writestr("PyHDX_config.yaml", version_string + s)
 
+            # Write state spec file
+            input_controllers = {"PeptideFileInputControl", "PeptideRFUFileInputControl"}
+            input_ctrls = self.parent.control_panels.keys() & input_controllers
+            if len(input_ctrls) == 1:
+                input_ctrl = self.parent.control_panels[list(input_ctrls)[0]]
+                sio = input_ctrl.spec_download_callback()
+                session_zip.writestr("PyHDX_state_spec.yaml", sio.read())
 
         bio.seek(0)
         return bio

@@ -59,14 +59,23 @@ def load_state(ctrl, state_spec, data_dir, name=None):
 
     file_input.fd_state = control_state
     file_input.fd_exposure = control_exp
-    file_input.pH = state_spec["pH"]
-    file_input.temperature = (
-        state_spec["temperature"]["value"]
-        + temperature_offsets[state_spec["temperature"]["unit"].lower()]
-    )
-    file_input.d_percentage = state_spec["d_percentage"]
 
     file_input.exp_state = state_spec["experiment"]["state"]
+    # todo exp_exposures
+
+    file_input.d_percentage = state_spec["d_percentage"]
+    file_input.temperature = (
+            state_spec["temperature"]["value"]
+            + temperature_offsets[state_spec["temperature"]["unit"].lower()]
+    )
+    file_input.pH = state_spec["pH"]
+
+    if 'n_term' in state_spec:
+        file_input.n_term = state_spec["n_term"]
+    if 'c_term' in state_spec:
+        file_input.c_term = state_spec["c_term"]
+    if 'sequence' in state_spec:
+        file_input.sequence = state_spec["sequence"]
 
     file_input.measurement_name = name or state_spec["state"]
 
