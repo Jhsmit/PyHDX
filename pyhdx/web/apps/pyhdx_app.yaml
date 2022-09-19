@@ -10,6 +10,8 @@ sources:
     type: pyhdx
   pdb:
     type: pdb
+  metadata:
+    type: dict
 
 transforms:
   peptide_src:

@@ -4,7 +4,6 @@ import asyncio
 import sys
 import uuid
 import zipfile
-from datetime import datetime
 from io import StringIO, BytesIO
 from typing import Any
 
@@ -195,8 +194,9 @@ class DevTestControl(ControlPanel):
         print(df_rfu)
 
     def _action_test(self):
-        pdbe_view = self.views["protein"]
-        pdbe_view.pdbe.test = not pdbe_view.pdbe.test
+        src = self.sources['metadata']
+        d = src.get('user_settings')
+        print(d)
 
     @property
     def _layout(self):
@@ -265,7 +265,7 @@ class GlobalSettingsControl(ControlPanel):
 
     def config_download_callback(self) -> StringIO:
         # Generate and set filename
-        timestamp = datetime.now().strftime("%Y%m%d%H%M")
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
         self.widgets[
             "config_download"
         ].filename = f"PyHDX_config_{timestamp}.yaml"
@@ -400,15 +400,12 @@ class HDXSpecInputBase(PyHDXControlPanel):
             )
 
     def spec_download_callback(self) -> StringIO:
-        timestamp = datetime.now().strftime("%Y%m%d%H%M")
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
         self.widgets[
             "download_spec_button"
         ].filename = f"PyHDX_state_spec_{timestamp}.yaml"
 
-        s = yaml.dump(clean_types(self.state_spec), sort_keys=False)
-        output = "# " + pyhdx.VERSION_STRING + "\n" + s
-        sio = StringIO(output)
-
+        sio = self.parent.state_spec_callback()
         return sio
 
     @property
@@ -1119,7 +1116,18 @@ class DUptakeFitControl(PyHDXControlPanel):
         self.param["do_fit"].constant = True
         self.widgets["do_fit"].loading = True
 
+        user_dict = self.sources['metadata'].get('user_settings')
+        user_dict['d_uptake_fit'][self.fit_name] = self.get_user_settings()
         async_execute(self._fit_d_uptake)
+
+    def get_user_settings(self) -> dict:
+        """
+         Returns a dictionary with the current user settings.
+        """
+        keys = ['bounds', 'r1']
+        d = {k: getattr(self, k) for k in keys}
+
+        return d
 
     async def _fit_d_uptake(self):
 
@@ -1276,7 +1284,9 @@ class InitialGuessControl(PyHDXControlPanel):
         self.param["do_fit1"].constant = True
         self.widgets["do_fit1"].loading = True
 
-        num_samples = len(self.src.hdxm_objects)
+        user_dict = self.sources['metadata'].get('user_settings')
+        user_dict['initial_guess'][self.guess_name] = self.get_user_settings()
+
         if self.fitting_model.lower() in ["association", "dissociation"]:
             loop = asyncio.get_running_loop()
             loop.create_task(self._fit_rates(self.guess_name))
@@ -1321,6 +1331,21 @@ class InitialGuessControl(PyHDXControlPanel):
         self.param["do_fit1"].constant = False
         self.widgets["do_fit1"].loading = False
         self.parent.logger.info(f"Finished initial guess fit {name}")
+
+    def get_user_settings(self) -> dict:
+        """
+        Returns a dictionary with the current user settings.
+        """
+
+        d = {'fitting_model': self.fitting_model}
+        if self.fitting_model in ["association", "dissociation"]:
+            d['global_bounds'] = self.global_bounds
+            if self.global_bounds:
+                d["bounds"] = [self.lower_bound, self.upper_bound]
+            else:
+                d["bounds"] = self.bounds
+
+        return d
 
 
 class FitControl(PyHDXControlPanel):
@@ -1481,6 +1506,9 @@ class FitControl(PyHDXControlPanel):
         self._fit_names.append(self.fit_name)
         self.parent.logger.info("Started PyTorch fit")
 
+        user_dict = self.sources['metadata'].get('user_settings')
+        user_dict['dG_fit'][self.fit_name] = self.get_user_settings()
+
         self._current_jobs += 1
         # if self._current_jobs >= self._max_jobs:
         #     self.widgets['do_fit'].constant = True
@@ -1600,6 +1628,24 @@ class FitControl(PyHDXControlPanel):
 
         return fit_kwargs
 
+    def get_user_settings(self) -> dict:
+        """
+         Returns a dictionary with the current user settings.
+        """
+
+        d = {
+            'initial_guess': self.initial_guess,
+            'guess_mode': self.guess_mode
+        }
+
+        if self.guess_mode == 'One-to-many':
+            d['guess_state'] = self.guess_state
+        d['fit_mode'] = self.fit_mode
+
+        d.update(self.fit_kwargs)
+
+        return d
+
 
 class DifferentialControl(PyHDXControlPanel):
     _type = "diff"
@@ -1659,6 +1705,9 @@ class DifferentialControl(PyHDXControlPanel):
                 f"Comparison name {self.comparison_name!r} already exists"
             )
             return
+
+        user_dict = self.sources['metadata'].get('user_settings')
+        user_dict['differential_HDX'][self.comparison_name] = self.get_user_settings()
 
         # RFU only app has no dGs,
         if "ddG_fit_select" in self.transforms:
@@ -1790,6 +1839,14 @@ class DifferentialControl(PyHDXControlPanel):
 
         self.src._add_table(dd_uptake, "dd_uptake")
 
+    def get_user_settings(self) -> dict:
+        """
+         Returns a dictionary with the current user settings.
+        """
+        
+        d = {'reference_state': self.reference_state}
+
+        return d
 
 class ColorTransformControl(PyHDXControlPanel):
     """
@@ -2430,12 +2487,39 @@ class FileExportControl(PyHDXControlPanel):
             callback=self.color_export_callback,
         )
 
+        widgets["divider"] = pn.layout.Divider()
+
+        widgets["download_state_spec"] = pn.widgets.FileDownload(
+            label="Download HDX spec",
+            callback=self.state_spec_callback,
+        )
+
+        widgets["download_config"] = pn.widgets.FileDownload(
+            label="Download config",
+            callback=self.config_callback,
+        )
+
+        widgets["download_user_settings"] = pn.widgets.FileDownload(
+            label="Download user settings",
+            callback=self.user_settings_callback,
+        )
+
+        widgets["download_log"] = pn.widgets.FileDownload(
+            label="Download log",
+            callback = self.log_callback,
+        )
+
         widget_order = [
             "table",
             "export_format",
             "export_tables",
             "export_pml",
             "export_colors",
+            "divider",
+            "download_state_spec",
+            "download_config",
+            "download_user_settings",
+            "download_log",
         ]
         final_widgets = {w: widgets[w] for w in widget_order}
 
@@ -2520,6 +2604,42 @@ class FileExportControl(PyHDXControlPanel):
             return io
         else:
             return None
+
+    def state_spec_callback(self) -> StringIO:
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
+        self.widgets[
+            "download_state_spec"
+        ].filename = f"PyHDX_state_spec_{timestamp}.yaml"
+
+        sio = self.parent.state_spec_callback()
+        return sio
+
+    def config_callback(self) -> StringIO:
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
+        self.widgets[
+            "download_config"
+        ].filename = f"PyHDX_config_{timestamp}.yaml"
+
+        sio = self.parent.config_callback()
+        return sio
+
+    def user_settings_callback(self) -> StringIO:
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
+        self.widgets[
+            "download_user_settings"
+        ].filename = f"PyHDX_config_{timestamp}.yaml"
+
+        sio = self.parent.user_settings_callback()
+        return sio
+
+    def log_callback(self) -> StringIO:
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
+        self.widgets[
+            "download_log"
+        ].filename = f"PyHDX_log_{timestamp}.txt"
+
+        sio = self.parent.log_callback()
+        return sio
 
 
 class FigureExportControl(PyHDXControlPanel):
@@ -2805,8 +2925,7 @@ class SessionManagerControl(PyHDXControlPanel):
         return widgets
 
     def export_session_callback(self):
-        dt = datetime.today().strftime("%Y%m%d_%H%M")
-        self.widgets["export_session"].filename = f"{dt}_PyHDX_session.zip"
+        self.widgets["export_session"].filename = f"{self.parent.session_time.strftime('%Y%m%d_%H%M')}_PyHDX_session.zip"
         bio = BytesIO()
         with zipfile.ZipFile(bio, "w") as session_zip:
             # Write tables
@@ -2814,20 +2933,21 @@ class SessionManagerControl(PyHDXControlPanel):
                 sio = dataframe_to_stringio(table)
                 session_zip.writestr(name + ".csv", sio.getvalue())
 
-            # Write config file
-            masked_conf = OmegaConf.masked_copy(cfg.conf, cfg.conf.keys() - {'server'})
-            s = OmegaConf.to_yaml(masked_conf)
-
-            version_string = "# pyhdx configuration file " + __version__ + "\n\n"
-            session_zip.writestr("PyHDX_config.yaml", version_string + s)
-
-            # Write state spec file
-            input_controllers = {"PeptideFileInputControl", "PeptideRFUFileInputControl"}
-            input_ctrls = self.parent.control_panels.keys() & input_controllers
-            if len(input_ctrls) == 1:
-                input_ctrl = self.parent.control_panels[list(input_ctrls)[0]]
-                sio = input_ctrl.spec_download_callback()
+            # Write HDX measurement state specifications
+            if sio := self.parent.state_spec_callback():
                 session_zip.writestr("PyHDX_state_spec.yaml", sio.read())
+
+            # Write config file
+            sio = self.parent.config_callback()
+            session_zip.writestr("PyHDX_config.yaml", sio.read())
+
+            # Write user settings
+            sio = self.parent.user_settings_callback()
+            session_zip.writestr("PyHDX_user_settings.yaml", sio.read())
+
+            # Write log file
+            sio = self.parent.log_callback()
+            session_zip.writestr("PyHDX_log.txt", sio.read())
 
         bio.seek(0)
         return bio

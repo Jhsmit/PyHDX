@@ -1,5 +1,9 @@
+import json
 import os
 import urllib.request
+import uuid
+from collections import defaultdict
+from typing import Optional, Any
 
 import numpy as np
 import pandas as pd
@@ -323,3 +327,46 @@ class PDBSource(Source):
 
     def get_pdb(self, pdb_id):
         return self.pdb_files[pdb_id]
+
+
+class DictSource(Source):
+    """Source for (metadata) dictionaries"""
+
+
+    _type = 'dict'
+
+    _items = param.Dict({})
+
+    hashes = param.Dict({})
+
+    def set(self, item: dict, name: Optional[str] = None):
+        if not isinstance(item, dict):
+            raise TypeError(f"Invalid type of 'item', must be {dict!r}, got {type(item)!r}")
+        # self.make_room()
+        name = name or f"_item_{uuid.uuid4()}" # self.new_key()
+        self._items[name] = item
+        self.hashes[name] = self.hash_item(item)
+
+    # def set_value(self, name: str, key: Any, value: Any,):
+    #     d = self._items[name]
+    #
+    #
+    #     d[key] = value
+    #     self.hashes[name] = self.hash_item(self._items[name])
+
+    def hash_item(self, item: dict) -> int:
+        return hash(json.dumps(item))
+
+    def update(self) -> None:
+        self.hashes = {key: self.hash_item(item) for key, item in self._items}
+        self.updated = True
+
+    #todo does not match base object
+    def get(self, name: str) -> Optional[dict]:
+        if name not in self._items:
+            item = defaultdict(dict)
+            self._items[name] = item
+            return item
+
+        name = name or next(iter(self.keys()))
+        return self._items[name]

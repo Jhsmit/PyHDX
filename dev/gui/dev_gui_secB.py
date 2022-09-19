@@ -21,8 +21,6 @@ from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.utils import load_state, fix_multiindex_dtypes
 from pyhdx.config import cfg, reset_config
 
-reset_config()
-
 #def printfunc(args):
     # 1/0
 
@@ -132,24 +130,21 @@ def init_dashboard():
     input_control._action_load_datasets()
 
     d_uptake_control = ctrl.control_panels["DUptakeFitControl"]
-    d_uptake_control.repeats = 3
-
+    d_uptake_control.repeats = 2
 
     ctrl.sources['pdb'].add_from_string(pdb_string, '1qyn')
 
     src = ctrl.sources['main']
-    df = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
-    df.columns = fix_multiindex_dtypes(df.columns)
-    src.add_table('d_uptake', df)
-    src.updated = True
+    # df = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
+    # df.columns = fix_multiindex_dtypes(df.columns)
+    # src.add_table('d_uptake', df)
+    # src.updated = True
+    #
+    # df = csv_to_dataframe(web_data_dir / 'dG.csv')
+    # df.columns = fix_multiindex_dtypes(df.columns)
+    # src.add_table('dG', df)
 
-    # todo needs to be done on _add_table / add_table
-    df = csv_to_dataframe(web_data_dir / 'dG.csv')
-    df.columns = fix_multiindex_dtypes(df.columns)
-    src.add_table('dG', df)
-
-    #src.param.trigger('updated')
-    src.updated = True
+    # src.updated = True
 
 
     # guess_control = ctrl.control_panels['InitialGuessControl']
