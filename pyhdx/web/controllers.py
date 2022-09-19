@@ -1706,6 +1706,9 @@ class DifferentialControl(PyHDXControlPanel):
             )
             return
 
+        user_dict = self.sources['metadata'].get('user_settings')
+        user_dict['differential_HDX'][self.comparison_name] = self.get_user_settings()
+
         # RFU only app has no dGs,
         if "ddG_fit_select" in self.transforms:
             self.add_ddG_comparison()
@@ -1836,6 +1839,14 @@ class DifferentialControl(PyHDXControlPanel):
 
         self.src._add_table(dd_uptake, "dd_uptake")
 
+    def get_user_settings(self) -> dict:
+        """
+         Returns a dictionary with the current user settings.
+        """
+        
+        d = {'reference_state': self.reference_state}
+
+        return d
 
 class ColorTransformControl(PyHDXControlPanel):
     """
@@ -2629,6 +2640,7 @@ class FileExportControl(PyHDXControlPanel):
 
         sio = self.parent.log_callback()
         return sio
+
 
 class FigureExportControl(PyHDXControlPanel):
 
