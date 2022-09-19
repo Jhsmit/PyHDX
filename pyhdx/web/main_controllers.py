@@ -96,6 +96,16 @@ class PyHDXController(MainController):
     def __init__(self, *args, **kwargs):
         super(PyHDXController, self).__init__(*args, **kwargs)
 
+        self.log_io = StringIO()
+        sh = logging.StreamHandler(self.log_io)
+        sh.terminator = "  \n"
+        # sh.setLevel(logging.CRITICAL)
+        formatter = logging.Formatter(
+            "%(asctime)s [%(levelname)s]: %(message)s", "%Y-%m-%d %H:%M:%S"
+        )
+        sh.setFormatter(formatter)
+        self.logger.addHandler(sh)
+
     @property
     def logger(self):
         return self.loggers["pyhdx"]
@@ -157,6 +167,19 @@ class PyHDXController(MainController):
 
         return sio
 
+    def log_callback(self) -> StringIO:
+        """
+        Get a StringIO with the full log.
+
+        """
+
+        self.log_io.seek(0)
+        s = self.log_io.read()
+
+        output = self._get_file_header() + "\n" + s
+        sio = StringIO(output)
+
+        return sio
 
 # single amide slider only first?
 class PeptideController(MainController):

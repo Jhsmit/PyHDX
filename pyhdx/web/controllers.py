@@ -2493,6 +2493,11 @@ class FileExportControl(PyHDXControlPanel):
             callback=self.user_settings_callback,
         )
 
+        widgets["download_log"] = pn.widgets.FileDownload(
+            label="Download log",
+            callback = self.log_callback,
+        )
+
         widget_order = [
             "table",
             "export_format",
@@ -2503,6 +2508,7 @@ class FileExportControl(PyHDXControlPanel):
             "download_state_spec",
             "download_config",
             "download_user_settings",
+            "download_log",
         ]
         final_widgets = {w: widgets[w] for w in widget_order}
 
@@ -2615,7 +2621,14 @@ class FileExportControl(PyHDXControlPanel):
         sio = self.parent.user_settings_callback()
         return sio
 
+    def log_callback(self) -> StringIO:
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
+        self.widgets[
+            "download_log"
+        ].filename = f"PyHDX_log_{timestamp}.txt"
 
+        sio = self.parent.log_callback()
+        return sio
 
 class FigureExportControl(PyHDXControlPanel):
 
@@ -2920,7 +2933,9 @@ class SessionManagerControl(PyHDXControlPanel):
             sio = self.parent.user_settings_callback()
             session_zip.writestr("PyHDX_user_settings.yaml", sio.read())
 
-
+            # Write log file
+            sio = self.parent.log_callback()
+            session_zip.writestr("PyHDX_log.txt", sio.read())
 
         bio.seek(0)
         return bio
