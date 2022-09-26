@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import time
 from asyncio import Future
 from typing import Callable, Iterable, Any
 
 from dask.distributed import LocalCluster, Client
+from distributed import connect
 
 from pyhdx.config import cfg
 from pyhdx.support import select_config
@@ -75,10 +77,20 @@ def default_cluster(**kwargs):
 def verify_cluster(scheduler_address, timeout="2s"):
     """Check if a valid dask scheduler is running at the provided scheduler_address"""
     try:
-        client = Client(scheduler_address, timeout=timeout)
+        asyncio.run(connect(scheduler_address, timeout=timeout))
         return True
-    except (TimeoutError, IOError):
+    except (TimeoutError, OSError):
         return False
+
+
+def verify_cluster_async(scheduler_address, timeout="2s"):
+    """Check if a valid dask scheduler is running at the provided scheduler_address"""
+    try:
+        asyncio.run(connect(scheduler_address, timeout=timeout))
+        return True
+    except (TimeoutError, OSError):
+        return False
+
 
 
 def blocking_cluster():

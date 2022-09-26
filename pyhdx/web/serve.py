@@ -24,17 +24,18 @@ def run_apps():
     np.random.seed(43)
     torch.manual_seed(43)
 
-    scheduler_address = cfg.cluster.scheduler_address
-    if not verify_cluster(scheduler_address):
-        print(
-            f"No valid Dask scheduler found at specified address: '{scheduler_address}'"
-        )
+    # Checking clusters like this interferes with starting the server somehow
+    # scheduler_address = cfg.cluster.scheduler_address
+    # if not verify_cluster(scheduler_address):
+    #     print(
+    #         f"No valid Dask scheduler found at specified address: '{scheduler_address}'"
+    #     )
 
-    log_root_dir = Path.home() / ".pyhdx" / "logs"
+    log_root_dir = cfg.log_dir
     log_dir = log_root_dir / datetime.datetime.now().strftime("%Y%m%d")
     log_dir.mkdir(
         parents=True, exist_ok=True
-    )  # catch error when log dir does not exist
+    )
     root_log = logging.getLogger("pyhdx")
     root_log.setLevel(logging.DEBUG)
 

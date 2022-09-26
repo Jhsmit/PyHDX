@@ -4,6 +4,7 @@ cluster:
 
 server:
   assets_dir: ~/.pyhdx/assets
+  log_dir: ~/.pyhdx/logs
 
 fitting:
   dtype: float64

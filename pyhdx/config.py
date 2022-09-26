@@ -69,6 +69,13 @@ class PyHDXConfig(metaclass=Singleton):
         return assets_dir
 
     @property
+    def log_dir(self) -> Path:
+        spec_path = self.conf.server.log_dir
+        log_dir = Path(spec_path.replace("~", str(Path().home())))
+
+        return log_dir
+
+    @property
     def TORCH_DTYPE(self) -> Union[torch.float64, torch.float32]:
         dtype = self.conf.fitting.dtype
         if dtype in ["float64", "double"]:
