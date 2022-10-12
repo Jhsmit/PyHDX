@@ -6,18 +6,94 @@ import itertools
 import re
 import warnings
 from collections import OrderedDict
-from functools import wraps
+from functools import wraps, reduce
 from io import StringIO
 from itertools import count, groupby
 from pathlib import Path
-from typing import Iterable, Mapping, Any
+from typing import Iterable, Mapping, Any, Literal, Union, overload, TypeVar, Optional, List
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import typer
 from skimage.filters import threshold_multiotsu
 
 from pyhdx.config import cfg
+
+
+def dataframe_intersection(
+    dataframes: list[pd.DataFrame], by: Union[list, str]
+) -> list[pd.DataFrame]:
+    set_index = [d.set_index(by) for d in dataframes]
+    index_intersection = reduce(pd.Index.intersection, (d.index for d in set_index))
+    intersected = [df.loc[index_intersection].reset_index() for df in set_index]
+
+    return intersected
+
+
+def filter_peptides(df,
+                    state: Optional[str] = None,
+                    exposure: Optional[dict] = None,
+                    query: Optional[List[str]] = None,
+                    dropna: bool = True
+                    ) -> pd.DataFrame:
+    """
+    Convenience function to pandas DataFrame with peptides.
+
+    Args:
+        df: Input :class:`pandas.DataFrame`
+        state: Name of protein state to select.
+        exposure: Exposure value(s) to select. Exposure is given as a :obj:`dict`, with keys "value" or "values" for
+            exposure value, and "unit" for the time unit.
+        query: Additional queries to pass to :meth:`pandas.DataFrame.query`.
+        dropna: Drop rows with NaN uptake entries.
+
+    Example:
+        ::
+
+        d = {"state", "SecB WT apo", "exposure": {"value": 0.167, "unit": "min"}
+        filtered_df = filter_peptides(df, **d)
+
+    Returns:
+
+    """
+
+    if state:
+        df = df[df['state'] == state]
+
+    if exposure:
+        if values := exposure.get("values"):
+            values = convert_time(values, exposure.get("unit", "s"), "s")
+            df = df[df["exposure"].isin(values)]
+        elif value := exposure.get("value"):
+            value = convert_time(value, exposure.get("unit", "s"), "s")
+            df = df[df["exposure"] == value]
+
+    if query:
+        for q in query:
+            df = df.query(q)
+
+    if dropna:
+        df = df.dropna(subset=["uptake"])
+
+    return df
+
+
+A = TypeVar('A', npt.ArrayLike, pd.Series, pd.DataFrame)
+
+
+def convert_time(
+    values: A,
+    src_unit: Literal["h", "min", "s"],
+    target_unit: Literal["h", "min", "s"]) -> A:
+
+    time_lut = {"h": 3600., "min": 60., "s": 1.}
+    time_factor = time_lut[src_unit] / time_lut[target_unit]
+
+    if isinstance(values, list):
+        return [v*time_factor for v in values]
+    else:
+        return values*time_factor
 
 
 def make_tuple(item):

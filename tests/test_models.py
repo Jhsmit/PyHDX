@@ -13,40 +13,30 @@ import tempfile
 import pickle
 import pytest
 
+from pyhdx.process import apply_control, correct_d_uptake
+from pyhdx.support import filter_peptides
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
 output_dir = cwd / "test_data" / "output"
 
 
-class TestPeptideMasterTable(object):
-    @classmethod
-    def setup_class(cls):
-        fpath = input_dir / "ecSecB_apo.csv"
-        cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-
-    def test_properties(self):
-        states = ["Full deuteration control", "SecB WT apo"]
-        assert list(self.pmt.states) == states
-
-        exposures = np.array(
-            [0.0, 10.020000000000001, 30.0, 60.0, 300.0, 600.0, 6000.00048]
-        )
-        assert np.allclose(exposures, self.pmt.exposures, atol=0.01)
-
-    # def test_methods(self):
-    # testing of PeptideMasterTable methods
-
-
 class TestHDXMeasurement(object):
     @classmethod
     def setup_class(cls):
         fpath = input_dir / "ecSecB_apo.csv"
-        cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        cls.pmt.set_control(("Full deuteration control", 0.167 * 60))
-        d = cls.pmt.get_state("SecB WT apo")
+        df = read_dynamx(fpath)
+
+        fd = {'state': 'Full deuteration control',
+            'exposure': {'value': 0.167, 'unit': 'min'}}
+
+        fd_df = filter_peptides(df, **fd)
+        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
+        peptides_control = apply_control(peptides, fd_df)
+        peptides_corrected = correct_d_uptake(peptides_control)
+
         cls.temperature, cls.pH = 273.15 + 30, 8.0
-        cls.hdxm = HDXMeasurement(d, temperature=cls.temperature, pH=cls.pH)
+        cls.hdxm = HDXMeasurement(peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155)
 
     def test_dim(self):
         assert self.hdxm.Nt == len(self.hdxm.data["exposure"].unique())
@@ -58,6 +48,12 @@ class TestHDXMeasurement(object):
         tensors = self.hdxm.get_tensors()
 
         # assert ...
+
+    # def test_data(self):
+    #     data = self.hdxm.data
+    #     compare = csv_to_dataframe(output_dir / "ecSecB_data.csv")
+    #
+    #     assert_frame_equal(data, compare)
 
     def test_rfu(self):
         rfu_residues = self.hdxm.rfu_residues
@@ -81,10 +77,24 @@ class TestHDXMeasurement(object):
 class TestCoverage(object):
     @classmethod
     def setup_class(cls):
+
         fpath = input_dir / "ecSecB_apo.csv"
-        cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        data = cls.pmt.get_state("SecB WT apo")
-        cls.hdxm = HDXMeasurement(data)
+        df = read_dynamx(fpath)
+
+        fd = {'state': 'Full deuteration control',
+            'exposure': {'value': 0.167, 'unit': 'min'}}
+
+        fd_df = filter_peptides(df, **fd)
+        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
+        peptides_control = apply_control(peptides, fd_df)
+        peptides_corrected = correct_d_uptake(peptides_control)
+        #
+        # fpath = input_dir / "ecSecB_apo.csv"
+        # cls.pmt = PeptideMasterTable(read_dynamx(fpath))
+        # data = cls.pmt.get_state("SecB WT apo")
+        #
+
+        cls.hdxm = HDXMeasurement(peptides_corrected, c_term=155)
         cls.sequence = (
             "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQM"
             "AHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA"
@@ -92,7 +102,7 @@ class TestCoverage(object):
 
     def test_sequence(self):
         data = self.hdxm[0].data
-        cov = Coverage(data)
+        cov = Coverage(data, c_term=155)
 
         for r, s in zip(cov.r_number, cov["sequence"]):
             if s != "X":
@@ -148,8 +158,10 @@ class TestProtein(object):
         cls.protein.metadata = metadata
 
         fpath = input_dir / "ecSecB_apo.csv"
-        pf1 = PeptideMasterTable(read_dynamx(fpath))
-        cls.series = HDXMeasurement(pf1.get_state("SecB WT apo"), c_term=200)
+        df = read_dynamx(fpath)
+        peptides = filter_peptides(df, state="SecB WT apo")
+        corrected = correct_d_uptake(peptides)
+        cls.series = HDXMeasurement(corrected, c_term=200)
 
     def test_artithmetic(self):
         p1 = Protein(self.array1, index="r_number")

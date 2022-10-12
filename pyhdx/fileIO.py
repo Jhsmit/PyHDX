@@ -1,10 +1,14 @@
+from __future__ import annotations
+
 from pathlib import Path
+from typing import Union, Literal, Tuple, List, TextIO
+
 import torch as t
 import torch.nn as nn
-import numpy as np
-from numpy.lib.recfunctions import stack_arrays
 from io import StringIO, BytesIO
 import pandas as pd
+from typing.io import IO
+
 import pyhdx
 import yaml
 import json
@@ -15,71 +19,49 @@ from datetime import datetime
 from importlib import import_module
 
 # Dtype of fields in peptide table data
-PEPTIDE_DTYPES = {"start": int, "end": int, "_start": int, "_end": int}
+PEPTIDE_DTYPES = {"start": int, "end": int, "stop": int, "_start": int, "_stop": int}
 
 
-def read_dynamx(*file_paths, intervals=("inclusive", "inclusive"), time_unit="min"):
-    """
-    Reads a dynamX .csv file and returns the data as a numpy structured array
-
-    Parameters
-    ----------
-    file_paths : :obj:`iterable`
-        File path of the .csv file or :class:`~io.StringIO` object
-    intervals : :obj:`tuple`
-        Format of how start and end intervals are specified.
-    time_unit : :obj:`str`
-        Time unit of the field 'exposure'. Options are 'h', 'min' or 's'
-
-    Returns
-    -------
-    full_df : :class:`~pandas.DataFrame`
-        Peptides as a pandas DataFrame
+# filepath_or_buffer
+def read_dynamx(
+    filepath_or_buffer: Union[Path[str], str, StringIO],
+    time_conversion: Tuple[Literal["h", "min", "s"], Literal["h", "min", "s"]] = ("min", "s")
+) -> pd.DataFrame:
 
     """
+    Reads DynamX .csv files and returns the resulting peptide table as a pandas DataFrame.
 
-    dfs = []
-    for fpath in file_paths:
-        # names = [t[0] for t in CSV_DTYPE]
-        if isinstance(fpath, StringIO):
-            hdr = fpath.readline().strip("# \n\t")
-            fpath.seek(0)
-        else:
-            with open(fpath, "r") as f:
-                hdr = f.readline().strip("# \n\t")
+    Args:
+        filepath_or_buffer: File path of the .csv file or :class:`~io.StringIO` object.
+        time_conversion: How to convert the time unit of the field 'exposure'. Format is ('<from>', <'to'>).
+            Unit options are 'h', 'min' or 's'.
 
-        names = [name.lower().strip("\r\t\n") for name in hdr.split(",")]
-        df = pd.read_csv(fpath, header=0, names=names)
-        dfs.append(df)
+    Returns:
+        Peptide table as a pandas DataFrame.
+    """
 
-    full_df = pd.concat(dfs, axis=0, ignore_index=True)
-    if intervals[0] == "inclusive":
-        start_correction = 0
-    elif intervals[0] == "exclusive":
-        start_correction = 1
+    if isinstance(filepath_or_buffer, StringIO):
+        hdr = filepath_or_buffer.readline().strip("# \n\t")
+        filepath_or_buffer.seek(0)
     else:
-        raise ValueError(
-            f"Invalid start interval value {intervals[0]}, must be 'inclusive' or 'exclusive'"
-        )
-    if intervals[1] == "inclusive":
-        end_correction = 1
-    elif intervals[1] == "exclusive":
-        end_correction = 0
-    else:
-        raise ValueError(
-            f"Invalid start interval value {intervals[1]}, must be 'inclusive' or 'exclusive'"
-        )
+        with open(filepath_or_buffer, "r") as f_obj:
+            hdr = f_obj.readline().strip("# \n\t")
 
-    full_df["start"] += start_correction
-    full_df["end"] += end_correction
+    names = [name.lower().strip("\r\t\n") for name in hdr.split(",")]
+    df = pd.read_csv(filepath_or_buffer, header=0, names=names)
 
-    t_conversion = {"h": 3600, "min": 60, "s": 1}
-    full_df["exposure"] *= t_conversion[time_unit]
+    df.insert(df.columns.get_loc('end') + 1, 'stop', df['end'] + 1)
 
-    return full_df
+    time_lut = {"h": 3600, "min": 60, "s": 1}
+    time_factor = time_lut[time_conversion[0]] / time_lut[time_conversion[1]]
+
+    df["exposure"] *= time_factor
+    df.columns = df.columns.str.replace(' ', '_')
+
+    return df
 
 
-def read_header(file_obj, comment="#"):
+def read_header(file_obj: TextIO, comment: str = "#") -> List[str]:
     header = []
 
     while True:
@@ -93,7 +75,7 @@ def read_header(file_obj, comment="#"):
 
 
 def parse_header(filepath_or_buffer, comment="#"):
-    if isinstance(filepath_or_buffer, (StringIO, BytesIO)):
+    if isinstance(filepath_or_buffer, StringIO):
         header = read_header(filepath_or_buffer, comment=comment)
         filepath_or_buffer.seek(0)
     else:

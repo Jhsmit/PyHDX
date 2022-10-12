@@ -1,0 +1,4 @@
+# 2022/10/12 17:59:00 (1665590340)
+PyHDX v0.4.1+101.gdc82a4a.dirty
+Total_loss 0.71, mse_loss 0.39, reg_loss 0.32(45.34%)
+Number of epochs: 200000

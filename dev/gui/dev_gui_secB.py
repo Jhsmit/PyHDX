@@ -64,7 +64,9 @@ input_data_dir = root_dir / 'tests' / 'test_data' / 'input'
 filenames = ['ecSecB_apo.csv', 'ecSecB_dimer.csv']
 file_dict = {fname: (input_data_dir / fname).read_bytes() for fname in filenames}
 
-batch_fname = 'data_states_deltas.yaml' # secb apo / dimer but artificial delta C/N tail
+#batch_fname = 'data_states_deltas.yaml' # secb apo / dimer but artificial delta C/N tail, needs additional files
+batch_fname = 'data_states.yaml' #
+
 
 state_spec = yaml.safe_load(Path(input_data_dir / batch_fname).read_text())
 # pdb_string = (web_data_dir / '1qyn.pdb').read_text()
@@ -98,14 +100,14 @@ def reload_dashboard():
 def init_batch():
     input_control = ctrl.control_panels['PeptideFileInputControl']
     input_control.input_mode = 'Batch'
+
+    file_dict = {fname: (input_data_dir / fname).read_bytes() for fname in filenames}
+    input_control.widgets["input_files"].filename = list(file_dict.keys())
     input_control.input_files = list(file_dict.values())
-    input_control.widgets['input_files'].filename = list(file_dict.keys())
 
     input_control.batch_file = Path(input_data_dir / batch_fname).read_bytes()
     input_control._action_load_datasets()
 
-    input_control.batch_file = Path(input_data_dir / batch_fname).read_bytes()
-    input_control._action_add_dataset()
 
     fit_control = ctrl.control_panels['FitControl']
 
@@ -176,11 +178,25 @@ def init_dashboard():
     #     diff._action_add_comparison()
 
 
+def init_manual():
+    input_control = ctrl.control_panels['PeptideFileInputControl']
+
+
+    file_dict = {fname: (input_data_dir / fname).read_bytes() for fname in filenames}
+    input_control.widgets["input_files"].filename = list(file_dict.keys())
+    input_control.input_files = list(file_dict.values())
+
+    input_control.fd_state = "Full deuteration control"
+    input_control.fd_exposure = 10.020000000000001
+
+    input_control.exp_state = "SecB WT apo"
+
+
 #pn.state.onload(reload_dashboard)
 #pn.state.onload(reload_tables)
-pn.state.onload(init_dashboard)
-#pn.state.onload(init_batch)
-
+#pn.state.onload(init_dashboard)
+pn.state.onload(init_batch)
+#pn.state.onload(init_manual)
 
 if __name__ == '__main__':
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)

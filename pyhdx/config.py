@@ -29,7 +29,6 @@ def reset_config():
     # shutil.copy(current_dir / 'config.ini', config_file_path)
 
 
-
 class Singleton(type):
     _instances: Dict[type, "Singleton"] = {}
 

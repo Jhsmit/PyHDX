@@ -122,7 +122,7 @@ class PyHDXController(MainController):
 
         return s
 
-    def state_spec_callback(self) -> Optional[StringIO]:
+    def hdx_spec_callback(self) -> Optional[StringIO]:
         """
         Get a StringIO with input HDX measurement specifications.
 
@@ -132,7 +132,7 @@ class PyHDXController(MainController):
         if len(input_ctrls) == 1:
             input_ctrl = self.control_panels[list(input_ctrls)[0]]
 
-            s = yaml.dump(clean_types(input_ctrl.state_spec), sort_keys=False)
+            s = yaml.dump(clean_types(input_ctrl.hdx_spec), sort_keys=False)
             output = self._get_file_header() +  "\n" + s
             sio = StringIO(output)
 
