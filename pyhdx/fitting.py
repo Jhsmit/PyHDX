@@ -22,7 +22,7 @@ from pyhdx.fit_models import (
 from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
 from pyhdx.local_cluster import DummyClient
 from pyhdx.support import temporary_seed, pbar_decorator, multiindex_astype
-from pyhdx.models import Protein, HDXMeasurementSet, HDXTimepoint, HDXMeasurement
+from pyhdx.models import HDXMeasurementSet, HDXTimepoint, HDXMeasurement
 from pyhdx.config import cfg
 
 EmptyResult = namedtuple("EmptyResult", ["chi_squared", "params"])

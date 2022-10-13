@@ -9,6 +9,7 @@ import pandas as pd
 from pyhdx import read_dynamx, HDXMeasurement
 from pyhdx.config import cfg
 from pyhdx.fileIO import csv_to_dataframe
+from pyhdx.process import filter_peptides, apply_control, correct_d_uptake
 from pyhdx.support import hash_dataframe, hash_array
 from pyhdx.web.apps import main_app
 
@@ -32,15 +33,18 @@ class TestMainGUISecB(object):
     @classmethod
     def setup_class(cls):
         cls.fpath = input_dir / "ecSecB_apo.csv"
-        cls.pmt = PeptideMasterTable(read_dynamx(cls.fpath))
+        df = read_dynamx(cls.fpath)
 
-        cls.state = "SecB WT apo"
-        cls.control = ("Full deuteration control", 0.167 * 60)
-        cls.pmt.set_control(cls.control)
+        fd = {'state': 'Full deuteration control',
+            'exposure': {'value': 0.167, 'unit': 'min'}}
 
-        state_data = cls.pmt.get_state(cls.state)
+        fd_df = filter_peptides(df, **fd)
+        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
+        peptides_control = apply_control(peptides, fd_df)
+        peptides_corrected = correct_d_uptake(peptides_control)
+
         cls.temperature, cls.pH = 273.15 + 30, 8.0
-        cls.hdxm = HDXMeasurement(state_data, temperature=cls.temperature, pH=cls.pH)
+        cls.hdxm = HDXMeasurement(peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155)
 
     def test_load_single_file(self):
         with open(self.fpath, "rb") as f:
@@ -48,24 +52,24 @@ class TestMainGUISecB(object):
 
         ctrl, tmpl = main_app()
         src = ctrl.sources["main"]
-        file_input_control = ctrl.control_panels["PeptideFileInputControl"]
+        input_control = ctrl.control_panels["PeptideFileInputControl"]
 
-        file_input_control.input_files = [binary]
-        file_input_control.widgets['input_files'].filename = ["ecSecB_apo.csv"]
-        assert file_input_control.fd_state == "Full deuteration control"
-        assert file_input_control.fd_exposure == 0.0
+        input_control.widgets['input_files'].filename = ["ecSecB_apo.csv"]
+        input_control.input_files = [binary]
+        assert input_control.fd_state == "Full deuteration control"
+        assert input_control.fd_exposure == 0.0
 
-        file_input_control.fd_state = self.control[0]
-        file_input_control.fd_exposure = self.control[1]
+        input_control.fd_state = "Full deuteration control"
+        input_control.fd_exposure = 10.020000000000001
 
-        file_input_control.exp_state = self.state
+        input_control.exp_state = "SecB WT apo"
         timepoints = list(np.array([0.167, 0.5, 1.0, 5.0, 10.0, 100.000008]) * 60)
-        assert file_input_control.exp_exposures == timepoints
-        file_input_control._add_single_dataset_spec()
-        file_input_control._action_load_datasets()
+        assert input_control.exp_exposures == timepoints
+        input_control._add_single_dataset_spec()
+        input_control._action_load_datasets()
 
-        assert self.state in src.hdxm_objects
-        hdxm = src.hdxm_objects[self.state]
+        assert "SecB WT apo" in src.hdxm_objects
+        hdxm = src.hdxm_objects["SecB WT apo"]
 
         assert hdxm.Nt == 6
         assert hdxm.Np == 63
@@ -74,7 +78,6 @@ class TestMainGUISecB(object):
         assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.6335831166442542)
 
     def test_batch_input(self):
-
         filenames = ["ecSecB_apo.csv", "ecSecB_dimer.csv"]
         file_dict = {fname: (input_dir / fname).read_bytes() for fname in filenames}
 
@@ -82,8 +85,8 @@ class TestMainGUISecB(object):
 
         input_control = ctrl.control_panels["PeptideFileInputControl"]
         input_control.input_mode = "Batch"
-        input_control.input_files = list(file_dict.values())
         input_control.widgets["input_files"].filename = list(file_dict.keys())
+        input_control.input_files = list(file_dict.values())
 
         input_control.batch_file = Path(input_dir / "data_states.yaml").read_bytes()
 
@@ -94,33 +97,35 @@ class TestMainGUISecB(object):
         # ... additional tests
 
     # @pytest.mark.skip(reason="Fails in GitHub Actions")
-    def test_batch_mode(self):
-        fpath_1 = input_dir / "ecSecB_apo.csv"
-        fpath_2 = input_dir / "ecSecB_dimer.csv"
-
-        fpaths = [fpath_1, fpath_2]
-        files = [p.read_bytes() for p in fpaths]
+    def test_web_fitting(self):
+        filenames = ["ecSecB_apo.csv", "ecSecB_dimer.csv"]
+        file_dict = {fname: (input_dir / fname).read_bytes() for fname in filenames}
 
         ctrl, tmpl = main_app()
-        file_input = ctrl.control_panels["PeptideFileInputControl"]
 
-        file_input.input_files = files
+        input_control = ctrl.control_panels["PeptideFileInputControl"]
+        # input_control.input_mode = "Batch"
+        input_control.widgets["input_files"].filename = list(file_dict.keys())
+        input_control.input_files = list(file_dict.values())
+
         filenames = ["ecSecB_apo.csv", "ecSecB_dimer.csv"]
-        file_input.widgets["input_files"].filename = filenames
-        file_input.fd_state = "Full deuteration control"
-        file_input.fd_exposure = 0.167 * 60
+        input_control.widgets["input_files"].filename = filenames
 
-        file_input.exp_state = "SecB WT apo"
-        file_input.measurement_name = "testname_123"
-        file_input._add_single_dataset_spec()
+        input_control.fd_state = "Full deuteration control"
+        input_control.fd_exposure = 0.167 * 60
 
-        file_input.exp_state = "SecB his dimer apo"
-        file_input.measurement_name = (
+        input_control.exp_state = "SecB WT apo"
+        input_control.measurement_name = "testname_123"
+        input_control._add_single_dataset_spec()
+
+        input_control.exp_file = "ecSecB_dimer.csv"
+        input_control.exp_state = "SecB his dimer apo"
+        input_control.measurement_name = (
             "SecB his dimer apo"  # todo catch error duplicate name
         )
-        file_input._add_single_dataset_spec()
+        input_control._add_single_dataset_spec()
 
-        file_input._action_load_datasets()
+        input_control._action_load_datasets()
 
         assert "testname_123" in ctrl.sources["main"].hdxm_objects.keys()
         assert "SecB his dimer apo" in ctrl.sources["main"].hdxm_objects.keys()
