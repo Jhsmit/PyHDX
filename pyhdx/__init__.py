@@ -1,5 +1,4 @@
 from .models import (
-    PeptideMasterTable,
     HDXTimepoint,
     HDXMeasurement,
     Coverage,
