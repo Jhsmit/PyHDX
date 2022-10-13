@@ -7,7 +7,7 @@ import pytest
 import torch
 import yaml
 from pandas.testing import assert_series_equal, assert_frame_equal
-from pyhdx import PeptideMasterTable, HDXMeasurement
+from pyhdx import HDXMeasurement
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe
 from pyhdx.fitting import (

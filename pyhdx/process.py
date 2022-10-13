@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Optional, List, Tuple, Literal
+from typing import Optional, Literal
 
 import pandas as pd
 import numpy as np
@@ -21,7 +21,7 @@ COLUMN_ORDER = [
 ]
 
 
-def sort_columns(df: pd.DataFrame, column_order: Optional[List[str]] = None) -> pd.DataFrame:
+def sort_columns(df: pd.DataFrame, column_order: Optional[list[str]] = None) -> pd.DataFrame:
     """
     Sorts columns in DataFrame by a given column order. Columns not in suplied order are appended to the end
     of the dataframe.
@@ -135,7 +135,7 @@ def correct_d_uptake(peptides: pd.DataFrame, drop_first: int = 1, d_percentage: 
     return peptides
 
 
-def verify_sequence(df: pd.DataFrame, sequence: Optional[str] = None, n_term: Optional[int] = None, c_term: Optional[int] = None) -> Tuple[pd.Series, pd.Series]:
+def verify_sequence(df: pd.DataFrame, sequence: Optional[str] = None, n_term: Optional[int] = None, c_term: Optional[int] = None) -> tuple[pd.Series, pd.Series]:
     """
     Verify if sequence information in the dataframe is compatible with an externally supplied sequence and/or the residue
     numbers of the N terminal and C terminal residues.
@@ -191,7 +191,7 @@ def verify_sequence(df: pd.DataFrame, sequence: Optional[str] = None, n_term: Op
 def filter_peptides(df: pd.DataFrame,
                     state: Optional[str] = None,
                     exposure: Optional[dict] = None,
-                    query: Optional[List[str]] = None,
+                    query: Optional[list[str]] = None,
                     dropna: bool = True
                     ) -> pd.DataFrame:
     """

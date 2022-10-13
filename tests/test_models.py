@@ -1,6 +1,6 @@
 import pytest
 import os
-from pyhdx import HDXTimepoint, PeptideMasterTable, HDXMeasurement
+from pyhdx import HDXTimepoint, HDXMeasurement
 from pyhdx.models import Protein, Coverage
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_hdxm, csv_to_dataframe
 import numpy as np

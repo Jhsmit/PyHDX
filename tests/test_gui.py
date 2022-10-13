@@ -6,7 +6,7 @@ import torch
 from distributed.utils_test import cluster
 import pandas as pd
 
-from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
+from pyhdx import read_dynamx, HDXMeasurement
 from pyhdx.config import cfg
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.support import hash_dataframe, hash_array

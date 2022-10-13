@@ -8,7 +8,7 @@ from pyhdx.fileIO import (
     save_fitresult,
     load_fitresult,
 )
-from pyhdx.models import Protein, PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
+from pyhdx.models import Protein, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fitting import fit_gibbs_global
 from pathlib import Path
 from io import StringIO
