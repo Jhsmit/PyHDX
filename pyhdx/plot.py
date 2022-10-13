@@ -540,7 +540,7 @@ def peptide_mse_figure(
     figure_width = (
         figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     )
-    aspect = figure_kwargs.pop("aspect", cfg.plotting.peptide_mse_apsect)
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.peptide_mse_aspect)
 
     cmap = cmap or CMAP_NORM_DEFAULTS["mse"][0]
 
