@@ -2,7 +2,7 @@
 
 from pathlib import Path
 import numpy as np
-from pyhdx import PeptideMasterTable, read_dynamx, HDXMeasurement
+from pyhdx import read_dynamx, HDXMeasurement
 from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 current_dir = Path(__file__).parent
