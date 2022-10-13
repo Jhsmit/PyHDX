@@ -1,9 +1,12 @@
+from __future__ import annotations
+
 from functools import reduce
 from typing import Optional, List, Tuple, Literal
 
 import pandas as pd
 import numpy as np
 
+from pyhdx.support import convert_time
 
 
 def parse_temperature(value: float, unit: Literal["Celsius", "C", "Kelvin", "K"]):
@@ -162,7 +165,7 @@ def verify_sequence(df: pd.DataFrame, sequence: Optional[str] = None, n_term: Op
 
     seq_full = pd.Series(index=r_number, dtype="U").fillna("X")
     seq_reconstruct = pd.Series(index=r_number, dtype="U").fillna("X")
-    # seq_field = "_sequence" if "_sequence" in df else "sequence"
+
     # iterate over dataframe from C terminal peptides to N terminal peptides
     # paste sequence information in pd.Series at the correct positions.
     for idx in df.index[::-1]:
@@ -183,3 +186,51 @@ def verify_sequence(df: pd.DataFrame, sequence: Optional[str] = None, n_term: Op
         seq_full = pd.Series(index=r_number, data=list(sequence))
 
     return seq_full, seq_reconstruct
+
+
+def filter_peptides(df: pd.DataFrame,
+                    state: Optional[str] = None,
+                    exposure: Optional[dict] = None,
+                    query: Optional[List[str]] = None,
+                    dropna: bool = True
+                    ) -> pd.DataFrame:
+    """
+    Convenience function to filter a peptides DataFrame.
+
+    Args:
+        df: Input :class:`pandas.DataFrame`
+        state: Name of protein state to select.
+        exposure: Exposure value(s) to select. Exposure is given as a :obj:`dict`, with keys "value" or "values" for
+            exposure value, and "unit" for the time unit.
+        query: Additional queries to pass to :meth:`pandas.DataFrame.query`.
+        dropna: Drop rows with NaN uptake entries.
+
+    Example:
+        ::
+
+        d = {"state", "SecB WT apo", "exposure": {"value": 0.167, "unit": "min"}
+        filtered_df = filter_peptides(df, **d)
+
+    Returns:
+
+    """
+
+    if state:
+        df = df[df['state'] == state]
+
+    if exposure:
+        if values := exposure.get("values"):
+            values = convert_time(values, exposure.get("unit", "s"), "s")
+            df = df[df["exposure"].isin(values)]
+        elif value := exposure.get("value"):
+            value = convert_time(value, exposure.get("unit", "s"), "s")
+            df = df[df["exposure"] == value]
+
+    if query:
+        for q in query:
+            df = df.query(q)
+
+    if dropna:
+        df = df.dropna(subset=["uptake"])
+
+    return df

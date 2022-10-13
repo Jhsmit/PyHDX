@@ -12,8 +12,8 @@ from typing import Union, Any, Optional, Iterable, Literal
 from pyhdx import TorchFitResult
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fileIO import read_dynamx, csv_to_dataframe, save_fitresult
-from pyhdx.process import correct_d_uptake, apply_control
-from pyhdx.support import gen_subclasses, filter_peptides
+from pyhdx.process import correct_d_uptake, apply_control, filter_peptides
+from pyhdx.support import gen_subclasses
 from pyhdx.config import cfg
 
 import param

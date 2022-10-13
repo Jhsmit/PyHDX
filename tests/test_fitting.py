@@ -20,8 +20,7 @@ from pyhdx.fitting import (
 )
 from pyhdx.batch_processing import StateParser
 from pyhdx.models import HDXMeasurementSet
-from pyhdx.process import apply_control, correct_d_uptake
-from pyhdx.support import filter_peptides
+from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"

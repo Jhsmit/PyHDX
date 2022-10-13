@@ -21,8 +21,7 @@ from pyhdx.fitting import (
     fit_d_uptake
 )
 from pyhdx.models import HDXMeasurementSet
-from pyhdx.process import apply_control, correct_d_uptake
-from pyhdx.support import filter_peptides
+from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 """Run this file to renew the fit results which is used to test against"""
 

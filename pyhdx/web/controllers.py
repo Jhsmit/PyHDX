@@ -45,7 +45,6 @@ from pyhdx.fitting import (
 )
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
-    array_intersection,
     PeptideUptakeModel,
 )
 from pyhdx.plot import (
@@ -55,14 +54,13 @@ from pyhdx.plot import (
     rainbowclouds_figure,
     CMAP_NORM_DEFAULTS,
 )
-from pyhdx.process import verify_sequence, correct_d_uptake
+from pyhdx.process import verify_sequence, correct_d_uptake, filter_peptides
 from pyhdx.support import (
     series_to_pymol,
     apply_cmap,
     multiindex_astype,
     multiindex_set_categories,
-    clean_types, filter_peptides,
-)
+    clean_types, array_intersection, )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import CmapOpts

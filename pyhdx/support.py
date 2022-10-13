@@ -10,7 +10,7 @@ from functools import wraps, reduce
 from io import StringIO
 from itertools import count, groupby
 from pathlib import Path
-from typing import Iterable, Mapping, Any, Literal, Union, overload, TypeVar, Optional, List
+from typing import Iterable, Mapping, Any, Literal, Union, TypeVar
 
 import numpy as np
 import numpy.typing as npt
@@ -29,54 +29,6 @@ def dataframe_intersection(
     intersected = [df.loc[index_intersection].reset_index() for df in set_index]
 
     return intersected
-
-
-def filter_peptides(df,
-                    state: Optional[str] = None,
-                    exposure: Optional[dict] = None,
-                    query: Optional[List[str]] = None,
-                    dropna: bool = True
-                    ) -> pd.DataFrame:
-    """
-    Convenience function to pandas DataFrame with peptides.
-
-    Args:
-        df: Input :class:`pandas.DataFrame`
-        state: Name of protein state to select.
-        exposure: Exposure value(s) to select. Exposure is given as a :obj:`dict`, with keys "value" or "values" for
-            exposure value, and "unit" for the time unit.
-        query: Additional queries to pass to :meth:`pandas.DataFrame.query`.
-        dropna: Drop rows with NaN uptake entries.
-
-    Example:
-        ::
-
-        d = {"state", "SecB WT apo", "exposure": {"value": 0.167, "unit": "min"}
-        filtered_df = filter_peptides(df, **d)
-
-    Returns:
-
-    """
-
-    if state:
-        df = df[df['state'] == state]
-
-    if exposure:
-        if values := exposure.get("values"):
-            values = convert_time(values, exposure.get("unit", "s"), "s")
-            df = df[df["exposure"].isin(values)]
-        elif value := exposure.get("value"):
-            value = convert_time(value, exposure.get("unit", "s"), "s")
-            df = df[df["exposure"] == value]
-
-    if query:
-        for q in query:
-            df = df.query(q)
-
-    if dropna:
-        df = df.dropna(subset=["uptake"])
-
-    return df
 
 
 A = TypeVar('A', npt.ArrayLike, pd.Series, pd.DataFrame)
@@ -159,12 +111,6 @@ def multiindex_apply_function(
     )
 
     return new_index
-
-
-# def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
-#
-#     new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
-#     return new_index
 
 
 def multiindex_set_categories(
@@ -882,3 +828,25 @@ def pbar_decorator(pbar):
 
         return wrapper
     return func_wrapper
+
+
+def array_intersection(
+    arrays: Iterable[np.ndarray], fields: Iterable[str]
+) -> list[np.ndarray]:
+    """
+    Find and return the intersecting entries in multiple arrays.
+
+    Args:
+        arrays: Iterable of input structured arrays
+        fields: Iterable of fields to use to decide if entires are intersecting
+
+    Returns:
+        selected: Output iterable of arrays with only intersecting entries.
+    """
+
+    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays])
+    selected = [
+        elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays
+    ]
+
+    return selected
