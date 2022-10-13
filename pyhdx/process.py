@@ -17,7 +17,7 @@ def parse_temperature(value: float, unit: Literal["Celsius", "C", "Kelvin", "K"]
 
 COLUMN_ORDER = [
     'start', 'end', 'stop', 'sequence', 'state', 'exposure', 'uptake_corrected', 'uptake', 'uptake sd', 'maxuptake', 'ex_residues',
-    'fd_uptake', 'fd_uptake_sd', 'nd_uptake_sd', 'nd_uptake', 'rfu', 'rfu_sd'
+    'fd_uptake', 'fd_uptake_sd', 'nd_uptake', 'nd_uptake_sd', 'rfu', 'rfu_sd'
 ]
 
 
