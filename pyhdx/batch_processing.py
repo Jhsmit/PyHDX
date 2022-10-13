@@ -89,12 +89,7 @@ class StateParser(object):
         peptide_spec = self.hdx_spec["states"][state]['peptides'][peptides]
         filter_fields = {'state', 'exposure', 'query', 'dropna'}
 
-        print('remove this try excpet')
-        try:
-            df = self.data_files[peptide_spec['data_file']].data
-        except:
-            #vprint(e)
-            print('break')
+        df = self.data_files[peptide_spec['data_file']].data
         peptides = filter_peptides(df, **{k: v for k, v in peptide_spec.items() if k in filter_fields})
 
         return peptides
