@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from functools import reduce
-from typing import Optional, Literal
+from typing import Optional, Literal, Union
 
 import pandas as pd
 import numpy as np
@@ -190,7 +190,7 @@ def verify_sequence(df: pd.DataFrame, sequence: Optional[str] = None, n_term: Op
 
 def filter_peptides(df: pd.DataFrame,
                     state: Optional[str] = None,
-                    exposure: Optional[dict] = None,
+                    exposure: Union[dict, float, None] = None,
                     query: Optional[list[str]] = None,
                     dropna: bool = True
                     ) -> pd.DataFrame:
@@ -218,13 +218,15 @@ def filter_peptides(df: pd.DataFrame,
     if state:
         df = df[df['state'] == state]
 
-    if exposure:
+    if isinstance(exposure, dict):
         if values := exposure.get("values"):
             values = convert_time(values, exposure.get("unit", "s"), "s")
             df = df[df["exposure"].isin(values)]
         elif value := exposure.get("value"):
             value = convert_time(value, exposure.get("unit", "s"), "s")
             df = df[df["exposure"] == value]
+    elif isinstance(exposure, float):
+        df = df[df["exposure"] == exposure]
 
     if query:
         for q in query:
