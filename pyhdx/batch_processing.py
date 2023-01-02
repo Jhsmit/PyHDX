@@ -111,7 +111,9 @@ class StateParser(object):
             peptides = apply_control(peptides, fd_peptides, nd_peptides)
             peptides = correct_d_uptake(peptides, drop_first=cfg.analysis.drop_first)
 
-        hdxm = HDXMeasurement(peptides, name=state, **metadata)
+        global_metadata = self.hdx_spec.get('metadata', {})
+        global_metadata.update(metadata)
+        hdxm = HDXMeasurement(peptides, name=state, **global_metadata)
 
         return hdxm
 

@@ -14,7 +14,6 @@ __version__ = get_versions()["version"]
 del get_versions
 
 
-
 def reset_config():
     """create a new config.yaml file in the user home dir/.pyhdx folder"""
 

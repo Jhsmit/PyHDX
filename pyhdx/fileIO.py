@@ -22,7 +22,6 @@ from importlib import import_module
 PEPTIDE_DTYPES = {"start": int, "end": int, "stop": int, "_start": int, "_stop": int}
 
 
-# filepath_or_buffer
 def read_dynamx(
     filepath_or_buffer: Union[Path[str], str, StringIO],
     time_conversion: Tuple[Literal["h", "min", "s"], Literal["h", "min", "s"]] = ("min", "s")
