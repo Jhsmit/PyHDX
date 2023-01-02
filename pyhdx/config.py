@@ -8,28 +8,26 @@ import torch
 from omegaconf import OmegaConf, DictConfig, DictKeyType
 from packaging import version
 
-from pyhdx._version import get_versions
 
-__version__ = get_versions()["version"]
-del get_versions
+PACKAGE_NAME = "pyhdx"
 
 
 def reset_config():
     """create a new config.yaml file in the user home dir/.pyhdx folder"""
 
     with open(config_file_path, "w") as target:
-        version_string = "# pyhdx configuration file " + __version__ + "\n\n"
+        from pyhdx.__version__ import __version__
+
+        version_string = f"# {PACKAGE_NAME} configuration file " + __version__ + "\n\n"
         target.write(version_string)
 
         with open(current_dir / "config.yaml") as source:
             for line in source:
                 target.write(line)
 
-    # shutil.copy(current_dir / 'config.ini', config_file_path)
-
 
 class Singleton(type):
-    _instances: Dict[type, "Singleton"] = {}
+    _instances: dict[type, Singleton] = {}
 
     def __call__(cls, *args: Any, **kwargs: Any) -> Any:
         if cls not in cls._instances:
@@ -48,6 +46,14 @@ class PyHDXConfig(metaclass=Singleton):
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self.conf, item)
+
+    def __setattr__(self, key: str, value: Any) -> None:
+        if key in self.__slots__:
+            super().__setattr__(key, value)
+        elif key in self.conf.keys():
+            setattr(self.conf, key, value)
+        else:
+            raise AttributeError(f"Config has no attribute {key}")
 
     def load_config(self, config_file: PathLike[str]):
         conf = OmegaConf.create(Path(config_file).read_text())
@@ -100,19 +106,22 @@ def valid_config() -> bool:
         with open(config_file_path, "r") as f:
             version_string = f.readline().strip("; ").split(" ")[-1]
 
-        pyhdx_version = version.parse(__version__)
+        from pyhdx.__version__ import __version__
+
+        local_version = version.parse(__version__)
         cfg_version = version.parse(version_string)
 
-        return pyhdx_version.public == cfg_version.public
+        return local_version.public == cfg_version.public
 
 
 home_dir = Path.home()
-
-config_dir = home_dir / ".pyhdx"
+config_dir = home_dir / f".{PACKAGE_NAME}"
 config_dir.mkdir(parents=False, exist_ok=True)
 config_file_path = config_dir / "config.yaml"
 
 current_dir = Path(__file__).parent
+conf_src_pth = current_dir / "config.yaml"
+
 
 # Current config version is outdated
 if not valid_config():
@@ -121,9 +130,9 @@ if not valid_config():
         conf = OmegaConf.load(config_file_path)
     except FileNotFoundError:
         # This will happen on conda-forge docker build.
-        # When no config.yaml file is in home_dir / '.pyhdx',
+        # When no config.yaml file is in home_dir / '.{PACKAGE_NAME}>',
         # ConfigurationSettings will use the hardcoded version (pyhdx/config.ini)
-        conf = OmegaConf.load(current_dir / "config.yaml")
+        conf = OmegaConf.load(conf_src_pth)
         # (this is run twice due to import but should be OK since conf is singleton)
 else:
     conf = OmegaConf.load(config_file_path)

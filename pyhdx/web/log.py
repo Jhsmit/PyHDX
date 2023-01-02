@@ -13,9 +13,7 @@ def get_default_handler(stream=None):
 
 # https://stackoverflow.com/questions/7621897/python-logging-module-globally
 def setup_custom_logger(name):
-    formatter = logging.Formatter(
-        fmt="%(asctime)s - %(levelname)s - %(module)s - %(message)s"
-    )
+    formatter = logging.Formatter(fmt="%(asctime)s - %(levelname)s - %(module)s - %(message)s")
 
     handler = logging.StreamHandler()
     handler.setFormatter(formatter)
@@ -60,9 +58,7 @@ def logger(root_name):
         def wrapper(*args, **kwargs):
             wrapper.calls += 1
             dt = datetime.datetime.now().strftime("%Y%m%d")
-            logger = logging.getLogger(
-                f"{root_name}.{function.__name__}.{dt}_{wrapper.calls}"
-            )
+            logger = logging.getLogger(f"{root_name}.{function.__name__}.{dt}_{wrapper.calls}")
             logger.setLevel(logging.DEBUG)
             sys.stderr = StreamToLogger(logger, logging.DEBUG)
             wrapper.logger = logger

@@ -130,9 +130,7 @@ class GoldenElvis(object):
         panel_ID = "ID" + str(id(fig_panel))
         title = title or default_label_formatter(getattr(fig_panel, "name", None))
 
-        item = pn.Row(
-            fig_panel.panel, sizing_mode="stretch_both"
-        )  # Place figure in layout
+        item = pn.Row(fig_panel.panel, sizing_mode="stretch_both")  # Place figure in layout
         self.panels[panel_ID] = item
         title_str = "title: '%s'," % str(title) if title is not None else "title: '',"
         width_str = "width: %s," % str(width) if width is not None else ""

@@ -128,9 +128,7 @@ class ControlPanel(param.Parameterized):
         parameters = {p_name for p_name in self.param if not p_name.startswith("_")}
         parameters -= {"name"}
         parameters -= {
-            p_name
-            for p_name, par in self.param.objects().items()
-            if not has_precedence(par)
+            p_name for p_name, par in self.param.objects().items() if not has_precedence(par)
         }
 
         widgets_layout = Param(
@@ -221,9 +219,7 @@ class ControlPanel(param.Parameterized):
         """get a single widget with for parameter param_name with type widget_type"""
 
         # not sure if this function still exists
-        return pn.Param.get_widget(
-            getattr(self.param, param_name), widget_type, **kwargs
-        )[0]
+        return pn.Param.get_widget(getattr(self.param, param_name), widget_type, **kwargs)[0]
 
     @property
     def panel(self):

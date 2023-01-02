@@ -114,9 +114,7 @@ class TestSecBDataFit(object):
                 )
         else:
             with pytest.raises(AssertionError, match=r".* CUDA .*"):
-                fr_global = fit_gibbs_global(
-                    self.hdxm_apo, gibbs_guess, epochs=1000, r1=2
-                )
+                fr_global = fit_gibbs_global(self.hdxm_apo, gibbs_guess, epochs=1000, r1=2)
 
         cfg.set("fitting", "device", "cpu")
         cfg.set("fitting", "dtype", "float32")
@@ -166,9 +164,7 @@ class TestSecBDataFit(object):
         errors = fr_global.get_squared_errors()
         assert errors.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
-    @pytest.mark.skip(
-        reason="Longer fit is not checked by default due to long computation times"
-    )
+    @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended(self):
         check_deltaG = csv_to_protein(output_dir / "ecSecB_torch_fit_epochs_20000.csv")
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
@@ -191,9 +187,7 @@ class TestSecBDataFit(object):
         errors = fr_global.get_squared_errors()
         assert errors.shape == (1, self.hdxm_apo.Np, self.hdxm_apo.Nt)
 
-    @pytest.mark.skip(
-        reason="Longer fit is not checked by default due to long computation times"
-    )
+    @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended_cuda(self):
         check_deltaG = csv_to_protein(output_dir / "ecSecB_torch_fit_epochs_20000.csv")
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
@@ -267,9 +261,7 @@ class TestSecBDataFit(object):
 
         hdx_set.add_alignment(list(mock_alignment.values()))
 
-        gibbs_guess = hdx_set[0].guess_deltaG(
-            guess["rate"]
-        )  # Guesses from first measurement
+        gibbs_guess = hdx_set[0].guess_deltaG(guess["rate"])  # Guesses from first measurement
         aligned_result = fit_gibbs_global_batch_aligned(
             hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000
         )

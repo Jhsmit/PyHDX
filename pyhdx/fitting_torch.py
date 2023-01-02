@@ -53,16 +53,12 @@ def estimate_errors(hdxm, dG):
     dG = joined.query("ex==True")["dG"]
     dG_tensor = t.tensor(dG.to_numpy(), dtype=dtype)
 
-    tensors = {
-        k: v.cpu() for k, v in hdxm.get_tensors(exchanges=True, dtype=dtype).items()
-    }
+    tensors = {k: v.cpu() for k, v in hdxm.get_tensors(exchanges=True, dtype=dtype).items()}
 
     def hes_loss(dG_input):
         criterion = t.nn.MSELoss(reduction="sum")
         pfact = t.exp(dG_input.unsqueeze(-1) / (constants.R * tensors["temperature"]))
-        uptake = 1 - t.exp(
-            -t.matmul((tensors["k_int"] / (1 + pfact)), tensors["timepoints"])
-        )
+        uptake = 1 - t.exp(-t.matmul((tensors["k_int"] / (1 + pfact)), tensors["timepoints"]))
         d_calc = t.matmul(tensors["X"], uptake)
 
         loss = criterion(d_calc, tensors["d_exp"])
@@ -75,9 +71,7 @@ def estimate_errors(hdxm, dG):
 
     def jac_loss(dG_input):
         pfact = t.exp(dG_input.unsqueeze(-1) / (constants.R * tensors["temperature"]))
-        uptake = 1 - t.exp(
-            -t.matmul((tensors["k_int"] / (1 + pfact)), tensors["timepoints"])
-        )
+        uptake = 1 - t.exp(-t.matmul((tensors["k_int"] / (1 + pfact)), tensors["timepoints"]))
         d_calc = t.matmul(tensors["X"], uptake)
 
         residuals = d_calc - tensors["d_exp"]
@@ -133,9 +127,7 @@ class TorchFitResult(object):
             self.generate_output(hdxm, self.dG[g_column])
             for hdxm, g_column in zip(self.hdxm_set, self.dG)
         ]
-        df = pd.concat(
-            dfs, keys=self.names, names=["state", "quantity"], axis=1, sort=True
-        )
+        df = pd.concat(dfs, keys=self.names, names=["state", "quantity"], axis=1, sort=True)
 
         self.output = df
 
@@ -173,16 +165,12 @@ class TorchFitResult(object):
 
         residue_mse_list = []
         for hdxm in self.hdxm_set:
-            peptide_mse_values = (
-                peptide_mse[hdxm.name, "peptide_mse"].dropna().to_numpy()
-            )
+            peptide_mse_values = peptide_mse[hdxm.name, "peptide_mse"].dropna().to_numpy()
             residue_mse_values = hdxm.coverage.Z_norm.T.dot(peptide_mse_values)
             residue_mse = pd.Series(residue_mse_values, index=hdxm.coverage.r_number)
             residue_mse_list.append(residue_mse)
 
-        residue_mse = pd.concat(
-            residue_mse_list, keys=self.hdxm_set.names, axis=1, sort=True
-        )
+        residue_mse = pd.concat(residue_mse_list, keys=self.hdxm_set.names, axis=1, sort=True)
         columns = pd.MultiIndex.from_tuples(
             [(name, "residue_mse") for name in self.hdxm_set.names],
             names=["state", "quantity"],
@@ -360,9 +348,7 @@ class TorchFitResult(object):
         )
         index = pd.Index(timepoints, name="exposure")
         df = pd.DataFrame(reshaped.T, index=index, columns=columns)
-        df = df.loc[
-            :, (df != 0).any(axis=0)
-        ]  # remove zero columns, replace with NaN when possible
+        df = df.loc[:, (df != 0).any(axis=0)]  # remove zero columns, replace with NaN when possible
 
         return df
 
@@ -390,9 +376,7 @@ class TorchFitResultSet(object):
 
     @property
     def metadata(self):
-        return {
-            "_".join(result.hdxm_set.names): result.metadata for result in self.results
-        }
+        return {"_".join(result.hdxm_set.names): result.metadata for result in self.results}
 
     def to_file(
         self,
@@ -487,10 +471,7 @@ class CheckPoint(Callback):
             dfs = []
             for i in range(num_states):
                 df = pd.DataFrame(
-                    {
-                        k: v[field].numpy()[i].squeeze()
-                        for k, v in self.model_history.items()
-                    }
+                    {k: v[field].numpy()[i].squeeze() for k, v in self.model_history.items()}
                 )
                 dfs.append(df)
                 full_df = pd.concat(dfs, keys=names, axis=1)

@@ -42,9 +42,7 @@ def load_hdxm_v041(self, state: str, **kwargs: Any) -> HDXMeasurement:
         control_exposure = exposure_value * time_factors[exposure_units]
 
         pmt.set_control((control_state, control_exposure))
-    elif (
-        "be_percent" in state_dict.keys()
-    ):  # Flat back exchange percentage for all peptides\
+    elif "be_percent" in state_dict.keys():  # Flat back exchange percentage for all peptides\
         pmt.set_backexchange(state_dict["be_percent"])
     else:
         raise ValueError("No valid back exchange control method specified")

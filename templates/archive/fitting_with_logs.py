@@ -50,9 +50,7 @@ for r1 in [0, 0.01, 0.25, 0.5, 1]:
     time_elapsed = f"Time elapsed: {(t1 - t0):.2f} s"
     epochs = f"Number of epochs: {result.metadata['epochs_run']}"
 
-    result.output.to_csv(
-        output_dir / f"fit_output_r1_{r1}_r2_{r2}.csv"
-    )  # , na_rep='NaN')
+    result.output.to_csv(output_dir / f"fit_output_r1_{r1}_r2_{r2}.csv")  # , na_rep='NaN')
     result.output.to_file(
         output_dir / f"fit_output_r1_{r1}_r2_{r2}.txt", fmt="pprint", na_rep="NaN"
     )

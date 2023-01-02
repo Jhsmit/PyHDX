@@ -17,12 +17,10 @@ fixed_result = csv_to_dataframe(test_data_dir / "ecSecB_torch_fit_fixed.csv").re
 )
 comparisons["single_fit"] = (new_result, fixed_result)
 
-new_result = csv_to_dataframe(
-    test_data_dir / "output" / "ecSecB_torch_fit_epochs_20000.csv"
+new_result = csv_to_dataframe(test_data_dir / "output" / "ecSecB_torch_fit_epochs_20000.csv")
+fixed_result = csv_to_dataframe(test_data_dir / "ecSecB_torch_fit_epochs_20000_fixed.csv").rename(
+    columns={"deltaG": "dG"}
 )
-fixed_result = csv_to_dataframe(
-    test_data_dir / "ecSecB_torch_fit_epochs_20000_fixed.csv"
-).rename(columns={"deltaG": "dG"})
 comparisons["single_20k"] = (new_result, fixed_result)
 
 new_result = csv_to_dataframe(test_data_dir / "output" / "ecSecB_batch.csv")
@@ -32,9 +30,9 @@ fixed_result = csv_to_dataframe(test_data_dir / "ecSecB_batch_fixed.csv").rename
 comparisons["batch"] = (new_result, fixed_result)
 
 new_result = csv_to_dataframe(test_data_dir / "output" / "ecSecB_batch_aligned.csv")
-fixed_result = csv_to_dataframe(
-    test_data_dir / "ecSecB_batch_aligned_fixed.csv"
-).rename(columns={"deltaG": "dG"})
+fixed_result = csv_to_dataframe(test_data_dir / "ecSecB_batch_aligned_fixed.csv").rename(
+    columns={"deltaG": "dG"}
+)
 comparisons["batch_aligned"] = (new_result, fixed_result)
 
 
@@ -43,9 +41,7 @@ for k, (new_result, fixed_result) in comparisons.items():
     bools = new_result.columns.get_level_values(new_result.columns.nlevels - 1) == "dG"
     new = new_result.xs("dG", level=-1, axis=1).dropna(how="any")
 
-    bools = (
-        fixed_result.columns.get_level_values(fixed_result.columns.nlevels - 1) == "dG"
-    )
+    bools = fixed_result.columns.get_level_values(fixed_result.columns.nlevels - 1) == "dG"
     old = fixed_result.xs("dG", level=-1, axis=1).dropna(how="any")
 
     abs_diffs = (new - old).abs()

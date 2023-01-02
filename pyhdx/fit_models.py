@@ -164,9 +164,7 @@ class TwoComponentAssociationModel(SingleKineticModel):
         d_final = np.min([0.95, d[-1]])  # todo refactor norm
         kmin = np.log(1 - d_final) / -t[-1]
 
-        tau_space = np.logspace(
-            np.log10(1 / kmax), np.log10(1 / kmin), num=step, endpoint=True
-        )
+        tau_space = np.logspace(np.log10(1 / kmax), np.log10(1 / kmin), num=step, endpoint=True)
         r_space = np.linspace(0.05, 0.95, num=step, endpoint=True)
 
         guess = np.column_stack([tau_space, tau_space, r_space])
@@ -321,9 +319,7 @@ class TwoComponentDissociationModel(SingleKineticModel):
         d_final = np.min([0.95, d[-1]])  # todo refactor norm
         kmin = np.log(1 - d_final) / -t[-1]
 
-        tau_space = np.logspace(
-            np.log10(1 / kmax), np.log10(1 / kmin), num=step, endpoint=True
-        )
+        tau_space = np.logspace(np.log10(1 / kmax), np.log10(1 / kmin), num=step, endpoint=True)
         r_space = np.linspace(0.05, 0.95, num=step, endpoint=True)
 
         guess = np.column_stack([tau_space, tau_space, r_space])

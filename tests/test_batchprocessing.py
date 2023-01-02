@@ -24,8 +24,7 @@ class TestBatchProcessing(object):
 
         assert (
             hdxm.temperature
-            == hdx_spec["states"]["SecB_tetramer"]["metadata"]["temperature"]["value"]
-            + 273.15
+            == hdx_spec["states"]["SecB_tetramer"]["metadata"]["temperature"]["value"] + 273.15
         )
 
         assert hdxm.name == "SecB_tetramer"

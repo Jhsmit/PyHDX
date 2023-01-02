@@ -48,9 +48,7 @@ fmt = {"accent_base_color": "#1d417a"}
 
 views_names = ["xy_scatter", "xy_line"]
 
-elvis = GoldenElvis(
-    ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme, title="test"
-)
+elvis = GoldenElvis(ctrl, ExtendedGoldenTemplate, ExtendedGoldenDefaultTheme, title="test")
 
 
 views = {v: ctrl.views[v] for v in views_names}

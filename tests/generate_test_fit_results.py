@@ -58,9 +58,7 @@ dimer_corrected = correct_d_uptake(dimer_control)
 
 temperature, pH = 273.15 + 30, 8.0
 
-hdxm_apo = HDXMeasurement(
-    apo_corrected, sequence=sequence, temperature=temperature, pH=pH
-)
+hdxm_apo = HDXMeasurement(apo_corrected, sequence=sequence, temperature=temperature, pH=pH)
 
 reduced_data = apo_corrected[apo_corrected["end"] < 40]
 hdxm_reduced = HDXMeasurement(reduced_data, temperature=temperature, pH=pH, c_term=155)
@@ -75,9 +73,7 @@ fr_torch = fit_gibbs_global(hdxm_reduced, gibbs_guess, epochs=epochs, r1=2)
 save_fitresult(output_dir / "ecsecb_reduced", fr_torch)
 
 if guess:
-    wt_avg_result = fit_rates_weighted_average(
-        hdxm_apo, bounds=(1e-2 / 60.0, 800 / 60.0)
-    )
+    wt_avg_result = fit_rates_weighted_average(hdxm_apo, bounds=(1e-2 / 60.0, 800 / 60.0))
     guess_output = wt_avg_result.output
     dataframe_to_file(output_dir / "ecSecB_guess.csv", guess_output)
     dataframe_to_file(output_dir / "ecSecB_guess.txt", guess_output, fmt="pprint")
@@ -109,9 +105,7 @@ dataframe_to_file(output_dir / f"ecSecB_torch_fit.csv", fr_torch.output)
 dataframe_to_file(output_dir / f"ecSecB_torch_fit.txt", fr_torch.output, fmt="pprint")
 
 fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs_long, r1=2)
-dataframe_to_file(
-    output_dir / f"ecSecB_torch_fit_epochs_{epochs_long}.csv", fr_torch.output
-)
+dataframe_to_file(output_dir / f"ecSecB_torch_fit_epochs_{epochs_long}.csv", fr_torch.output)
 dataframe_to_file(
     output_dir / f"ecSecB_torch_fit_epochs_{epochs_long}.txt",
     fr_torch.output,
@@ -139,12 +133,8 @@ dataframe_to_file(output_dir / "ecSecB_batch.csv", batch_result.output)
 dataframe_to_file(output_dir / "ecSecB_batch.txt", batch_result.output, fmt="pprint")
 
 # Save errors and losses
-dataframe_to_file(
-    output_dir / "ecSecB_batch_peptide_mse.csv", batch_result.get_peptide_mse()
-)
-dataframe_to_file(
-    output_dir / "ecSecB_batch_residue_mse.csv", batch_result.get_residue_mse()
-)
+dataframe_to_file(output_dir / "ecSecB_batch_peptide_mse.csv", batch_result.get_peptide_mse())
+dataframe_to_file(output_dir / "ecSecB_batch_residue_mse.csv", batch_result.get_residue_mse())
 dataframe_to_file(output_dir / "ecSecB_batch_loss.csv", batch_result.losses)
 
 # Aligned sequences test
@@ -158,14 +148,10 @@ mock_alignment = {
 
 hdx_set.add_alignment(list(mock_alignment.values()))
 
-aligned_result = fit_gibbs_global_batch_aligned(
-    hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000
-)
+aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
 
 dataframe_to_file(output_dir / "ecSecB_batch_aligned.csv", aligned_result.output)
-dataframe_to_file(
-    output_dir / "ecSecB_batch_aligned.txt", aligned_result.output, fmt="pprint"
-)
+dataframe_to_file(output_dir / "ecSecB_batch_aligned.txt", aligned_result.output, fmt="pprint")
 
 # ------------------
 # Reduced Batch fits

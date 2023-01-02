@@ -75,9 +75,7 @@ class StateParser(object):
         elif isinstance(data_src, dict):
             self.data_files = data_src
         else:
-            raise TypeError(
-                f"Invalid data type {type(data_src)!r}, must be path or dict"
-            )
+            raise TypeError(f"Invalid data type {type(data_src)!r}, must be path or dict")
 
     def load_hdxmset(self) -> HDXMeasurementSet:
         hdxm_list = [self.load_hdxm(state) for state in self.hdx_spec["states"].keys()]
@@ -103,22 +101,16 @@ class StateParser(object):
 
         peptides = self.load_peptides(state, "experiment")
         fd_peptides = (
-            self.load_peptides(state, "FD_control")
-            if "FD_control" in peptide_spec
-            else None
+            self.load_peptides(state, "FD_control") if "FD_control" in peptide_spec else None
         )
         nd_peptides = (
-            self.load_peptides(state, "ND_control")
-            if "ND_control" in peptide_spec
-            else None
+            self.load_peptides(state, "ND_control") if "ND_control" in peptide_spec else None
         )
 
         if fd_peptides is None and "be_percent" in metadata:
             peptides = correct_d_uptake(peptides)
             back_exchange = metadata["be_percent"] / 100.0
-            peptides["rfu"] = peptides["uptake"] / (
-                (1 - back_exchange) * peptides["ex_residues"]
-            )
+            peptides["rfu"] = peptides["uptake"] / ((1 - back_exchange) * peptides["ex_residues"])
             peptides["uptake_corrected"] = peptides["uptake"] / (1 - back_exchange)
         elif isinstance(fd_peptides, pd.DataFrame):
             peptides = apply_control(peptides, fd_peptides, nd_peptides)

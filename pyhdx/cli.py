@@ -12,9 +12,7 @@ app = typer.Typer()
 
 @app.command()
 def serve(
-    scheduler_address: Optional[str] = typer.Option(
-        None, help="Address for dask scheduler to use"
-    ),
+    scheduler_address: Optional[str] = typer.Option(None, help="Address for dask scheduler to use"),
     config: Optional[Path] = typer.Option(
         None, exists=True, help="Optional PyHDX .yaml config file to use"
     ),

@@ -14,9 +14,7 @@ class TestTemplates(object):
         sys.path.append(str(template_dir))
 
         scripts = [
-            f.stem
-            for f in template_dir.iterdir()
-            if f.stem[:2].isdigit() and f.suffix == ".py"
+            f.stem for f in template_dir.iterdir() if f.stem[:2].isdigit() and f.suffix == ".py"
         ]
         for s in scripts:
             pass

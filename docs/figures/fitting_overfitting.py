@@ -47,9 +47,7 @@ else:
 
 fig, ax = plt.subplots(1, figsize=(12, 3.5))
 ax.set_yscale("log")
-ax.scatter(
-    out_orig["r_number"], out_orig["rate"], color="r", label="original", marker="v"
-)
+ax.scatter(out_orig["r_number"], out_orig["rate"], color="r", label="original", marker="v")
 ax.scatter(out_red["r_number"], out_red["rate"], color="b", label="reduced")
 ax.legend()
 ax.set_xlabel("Residue")

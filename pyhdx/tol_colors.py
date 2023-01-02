@@ -21,8 +21,7 @@ def discretemap(colormap, hexclrs):
     cdict = {}
     for ki, key in enumerate(("red", "green", "blue")):
         cdict[key] = [
-            (i / (len(clrs) - 2.0), clrs[i, ki], clrs[i + 1, ki])
-            for i in range(len(clrs) - 1)
+            (i / (len(clrs) - 2.0), clrs[i, ki], clrs[i + 1, ki]) for i in range(len(clrs) - 1)
         ]
     return LinearSegmentedColormap(colormap, cdict)
 
@@ -682,9 +681,7 @@ def tol_cset(colorset=None):
             "Mcset",
             "light_blue dark_blue light_yellow dark_red dark_yellow light_red black",
         )
-        return cset(
-            "#6699CC", "#004488", "#EECC66", "#994455", "#997700", "#EE99AA", "#000000"
-        )
+        return cset("#6699CC", "#004488", "#EECC66", "#994455", "#997700", "#EE99AA", "#000000")
 
     if colorset == "light":
         cset = namedtuple(

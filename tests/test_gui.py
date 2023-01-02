@@ -41,9 +41,7 @@ class TestMainGUISecB(object):
         }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(
-            df, state="SecB WT apo"
-        )  # , query=["exposure != 0."])
+        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
 
@@ -126,9 +124,7 @@ class TestMainGUISecB(object):
 
         input_control.exp_file = "ecSecB_dimer.csv"
         input_control.exp_state = "SecB his dimer apo"
-        input_control.measurement_name = (
-            "SecB his dimer apo"  # todo catch error duplicate name
-        )
+        input_control.measurement_name = "SecB his dimer apo"  # todo catch error duplicate name
         input_control._add_single_dataset_spec()
 
         input_control._action_load_datasets()

@@ -105,9 +105,7 @@ def multiindex_apply_function(
 
     args = args or []
     kwargs = kwargs or {}
-    new_index = index.set_levels(
-        getattr(index.levels[level], func)(*args, **kwargs), level=level
-    )
+    new_index = index.set_levels(getattr(index.levels[level], func)(*args, **kwargs), level=level)
 
     return new_index
 
@@ -134,9 +132,7 @@ def multiindex_add_categories(
     level: int,
     categories: Any,  # index-like
 ) -> pd.MultiIndex:
-    new_index = multiindex_apply_function(
-        index, level, "add_categories", args=[categories]
-    )
+    new_index = multiindex_apply_function(index, level, "add_categories", args=[categories])
     return new_index
 
 
@@ -230,9 +226,7 @@ def get_original_blocks(coverage):
     return block_length
 
 
-def reduce_inter(
-    args: list[tuple[int, int]], gap_size: int = -1
-) -> list[tuple[int, int]]:
+def reduce_inter(args: list[tuple[int, int]], gap_size: int = -1) -> list[tuple[int, int]]:
     """Reduce overlapping intervals to its non-overlapping intveral parts
 
     Author: Brent Pedersen
@@ -347,9 +341,7 @@ def fmt_export(
 
                 # scientific notation width
                 i = 1 if sign or np.any(arr[name] < 0) else 0
-                w_s = (
-                    sig_fig + 4 + i + 1
-                )  # +1 for decimal point which is not always needed
+                w_s = sig_fig + 4 + i + 1  # +1 for decimal point which is not always needed
                 w = min(w_f, w_s) + 1
 
             elif dtype.kind in ["U", "S", "O"]:
@@ -391,9 +383,7 @@ def fmt_export(
 
 # move to fileIO?
 def np_from_txt(file_path, delimiter="\t"):
-    warnings.warn(
-        "np_from_txt is moved to pyhdx.fileIO as txt_to_np", PendingDeprecationWarning
-    )
+    warnings.warn("np_from_txt is moved to pyhdx.fileIO as txt_to_np", PendingDeprecationWarning)
 
     if isinstance(file_path, StringIO):
         file_obj = file_path
@@ -514,9 +504,7 @@ def rgb_to_hex(rgb_a):
 
     elif isinstance(rgb_a, list):
         try:
-            rgba_array = np.array(
-                [[b, g, r, 0] for r, g, b, a in rgb_a], dtype=np.uint8
-            )
+            rgba_array = np.array([[b, g, r, 0] for r, g, b, a in rgb_a], dtype=np.uint8)
         except ValueError:
             # todo this only works with lists of list and gives to wrong result? tests needed
             rgba_array = np.array([[b, g, r, 0] for r, g, b in rgb_a], dtype=np.uint8)
@@ -607,8 +595,7 @@ def color_pymol(pd_series, cmd, model=None):
 
     for c, pd_series in grp:
         result = [
-            list(g)
-            for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))
+            list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))
         ]
         r, g, b = hex_to_rgb(c)
         residues = [f"resi {g[0]}-{g[-1]}" for g in result]
@@ -648,8 +635,7 @@ def series_to_pymol(pd_series):
     # https://stackoverflow.com/questions/30993182/how-to-get-the-index-range-of-a-list-that-the-values-satisfy-some-criterion-in-p
     for c, pd_series in grp:
         result = [
-            list(g)
-            for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))
+            list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))
         ]
         residues = [f"resi {g[0]}-{g[-1]}" for g in result]
 
@@ -831,9 +817,7 @@ def pbar_decorator(pbar):
     return func_wrapper
 
 
-def array_intersection(
-    arrays: Iterable[np.ndarray], fields: Iterable[str]
-) -> list[np.ndarray]:
+def array_intersection(arrays: Iterable[np.ndarray], fields: Iterable[str]) -> list[np.ndarray]:
     """
     Find and return the intersecting entries in multiple arrays.
 
@@ -846,8 +830,6 @@ def array_intersection(
     """
 
     intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays])
-    selected = [
-        elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays
-    ]
+    selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays]
 
     return selected

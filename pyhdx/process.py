@@ -36,9 +36,7 @@ COLUMN_ORDER = [
 ]
 
 
-def sort_columns(
-    df: pd.DataFrame, column_order: Optional[list[str]] = None
-) -> pd.DataFrame:
+def sort_columns(df: pd.DataFrame, column_order: Optional[list[str]] = None) -> pd.DataFrame:
     """
     Sorts columns in DataFrame by a given column order. Columns not in suplied order are appended to the end
     of the dataframe.
@@ -56,9 +54,7 @@ def sort_columns(
     column_order = column_order or COLUMN_ORDER
 
     columns_to_order = [col for col in column_order if col in df.columns]
-    new_columns = columns_to_order + [
-        col for col in df.columns if col not in columns_to_order
-    ]
+    new_columns = columns_to_order + [col for col in df.columns if col not in columns_to_order]
 
     return df[new_columns]
 
@@ -74,9 +70,7 @@ def apply_control(
         nd_control["uptake"] = 0
         nd_control["uptake_sd"] = 0
 
-    set_index = [
-        d.set_index(["start", "stop"]) for d in [experiment, fd_control, nd_control]
-    ]
+    set_index = [d.set_index(["start", "stop"]) for d in [experiment, fd_control, nd_control]]
 
     index_intersection = reduce(pd.Index.intersection, (d.index for d in set_index))
     intersected = [df.loc[index_intersection] for df in set_index]
@@ -148,9 +142,7 @@ def correct_d_uptake(
 
     c_term = np.array([len(seq) - len(seq.rstrip("p")) for seq in peptides["sequence"]])
 
-    peptides["sequence"] = [
-        "x" * nt + s[nt:] for nt, s in zip(n_term, peptides["sequence"])
-    ]
+    peptides["sequence"] = ["x" * nt + s[nt:] for nt, s in zip(n_term, peptides["sequence"])]
     peptides["_start"] = peptides["start"] + n_term
     peptides["_stop"] = peptides["stop"] - c_term
 

@@ -168,13 +168,9 @@ class Protein(object):
         """
 
         if "sequence" not in self:
-            raise ValueError(
-                "No sequence data available to calculate intrinsic exchange rates."
-            )
+            raise ValueError("No sequence data available to calculate intrinsic exchange rates.")
 
-        sequence = list(
-            self["sequence"]
-        )  # Includes 'X' padding at cterm if cterm > last peptide
+        sequence = list(self["sequence"])  # Includes 'X' padding at cterm if cterm > last peptide
         k_int_array = k_int_from_sequence(sequence, temperature, pH, **kwargs)
         k_int = pd.Series(k_int_array, index=self.df.index)
 
@@ -282,9 +278,7 @@ class Coverage(object):
 
         # matrix dimensions N_peptides N_residues, dtype for PyTorch compatibility
         _exchanges = self["exchanges"]  # Array only on covered part
-        self.X = np.zeros(
-            (len(self.data), self.interval[1] - self.interval[0]), dtype=int
-        )
+        self.X = np.zeros((len(self.data), self.interval[1] - self.interval[0]), dtype=int)
         self.Z = np.zeros_like(self.X, dtype=float)
         for row, idx in enumerate(self.data.index):
             # start, end are already corrected for drop_first parameter
@@ -308,9 +302,7 @@ class Coverage(object):
         pd_series = self.protein[item]
         return self.apply_interval(pd_series)
 
-    def apply_interval(
-        self, array_or_series: Union[np.ndarray, pd.Series]
-    ) -> pd.Series:
+    def apply_interval(self, array_or_series: Union[np.ndarray, pd.Series]) -> pd.Series:
         """Returns the section of `array_or_series` in the interval
 
 
@@ -463,9 +455,7 @@ class HDXMeasurement(object):
 
         intersected_data = dataframe_intersection(df_list, by=["start", "stop"])
 
-        cov_kwargs = {
-            kwarg: metadata.get(kwarg) for kwarg in ["c_term", "n_term", "sequence"]
-        }
+        cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ["c_term", "n_term", "sequence"]}
         self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
         # Create coverage object from the first time point (as all are now equal)
@@ -655,16 +645,14 @@ class HDXMeasurement(object):
         device = cfg.TORCH_DEVICE
 
         tensors = {
-            "temperature": torch.tensor(
-                [self.temperature], dtype=dtype, device=device
-            ).unsqueeze(-1),
+            "temperature": torch.tensor([self.temperature], dtype=dtype, device=device).unsqueeze(
+                -1
+            ),
             "X": torch.tensor(self.coverage.X[:, bools], dtype=dtype, device=device),
             "k_int": torch.tensor(
                 self.coverage["k_int"].to_numpy()[bools], dtype=dtype, device=device
             ).unsqueeze(-1),
-            "timepoints": torch.tensor(
-                self.timepoints, dtype=dtype, device=device
-            ).unsqueeze(0),
+            "timepoints": torch.tensor(self.timepoints, dtype=dtype, device=device).unsqueeze(0),
             "d_exp": torch.tensor(self.d_exp.to_numpy(), dtype=dtype, device=device),
         }
 
@@ -696,18 +684,14 @@ class HDXMeasurement(object):
 
         p_guess = (self.coverage.protein["k_int"] / rates) - 1
 
-        p_guess.clip(
-            0.0, None, inplace=True
-        )  # Some initial guesses might have negative PF values
+        p_guess.clip(0.0, None, inplace=True)  # Some initial guesses might have negative PF values
         with np.errstate(divide="ignore"):
             deltaG = np.log(p_guess) * constants.R * self.temperature
 
         deltaG.replace([np.inf, -np.inf], np.nan, inplace=True)
 
         if correct_c_term and self.coverage.protein.c_term in deltaG.index:
-            deltaG.loc[self.coverage.protein.c_term] = deltaG.loc[
-                self.coverage.protein.c_term - 1
-            ]
+            deltaG.loc[self.coverage.protein.c_term] = deltaG.loc[self.coverage.protein.c_term - 1]
 
         return deltaG
 
@@ -872,9 +856,7 @@ class CoverageSet(object):
         self.hdxm_list = hdxm_list
 
         # todo create Coverage object for the 3d case
-        intervals = np.array(
-            [hdxm_list.coverage.interval for hdxm_list in self.hdxm_list]
-        )
+        intervals = np.array([hdxm_list.coverage.interval for hdxm_list in self.hdxm_list])
         self.interval = (intervals[:, 0].min(), intervals[:, 1].max())
         # TODO should be pandas dataframe? or should be the same on both coverage objects
         self.r_number = np.arange(*self.interval)
@@ -979,9 +961,7 @@ class HDXMeasurementSet(object):
         self.timepoints = np.zeros((self.Ns, self.Nt))
         self.timepoints[self.masks["st"]] = timepoints_values
 
-        d_values = np.concatenate(
-            [hdxm.d_exp.to_numpy().flatten() for hdxm in self.hdxm_list]
-        )
+        d_values = np.concatenate([hdxm.d_exp.to_numpy().flatten() for hdxm in self.hdxm_list])
         self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
         self.d_exp[self.masks["spt"]] = d_values
 
@@ -1061,8 +1041,7 @@ class HDXMeasurementSet(object):
         """
 
         guesses = [
-            hdxm.guess_deltaG(rates_df[name], **kwargs)
-            for hdxm, name in zip(self, self.names)
+            hdxm.guess_deltaG(rates_df[name], **kwargs) for hdxm, name in zip(self, self.names)
         ]
         deltaG = pd.concat(guesses, keys=self.names, axis=1)
 
@@ -1083,21 +1062,13 @@ class HDXMeasurementSet(object):
         df = self.aligned_dataframes["r_number"]
 
         # Crop residue numbers to interval range
-        df = df[
-            ((self.coverage.interval[0] <= df) & (df < self.coverage.interval[1])).all(
-                axis=1
-            )
-        ]
-        df = (
-            df - self.coverage.interval[0]
-        )  # First residue in interval selected by index 0
+        df = df[((self.coverage.interval[0] <= df) & (df < self.coverage.interval[1])).all(axis=1)]
+        df = df - self.coverage.interval[0]  # First residue in interval selected by index 0
         df.dropna(how="any", inplace=True)  # Remove non-aligned residues
 
         self.aligned_indices = df.to_numpy(dtype=int).T
 
-    def get_tensors(
-        self, dtype: Optional[torch.dtype] = None
-    ) -> dict[str, torch.Tensor]:
+    def get_tensors(self, dtype: Optional[torch.dtype] = None) -> dict[str, torch.Tensor]:
         """Returns a dictionary of tensor variables for fitting HD kinetics.
 
         Tensor variables are (shape):
@@ -1116,9 +1087,7 @@ class HDXMeasurementSet(object):
         # TODO property?
         temperature = np.array([kf.temperature for kf in self.hdxm_list])
 
-        X_values = np.concatenate(
-            [hdxm.coverage.X.flatten() for hdxm in self.hdxm_list]
-        )
+        X_values = np.concatenate([hdxm.coverage.X.flatten() for hdxm in self.hdxm_list])
         X = np.zeros((self.Ns, self.Np, self.Nr))
         X[self.masks["spr"]] = X_values
 
@@ -1132,16 +1101,14 @@ class HDXMeasurementSet(object):
         device = cfg.TORCH_DEVICE
 
         tensors = {
-            "temperature": torch.tensor(
-                temperature, dtype=dtype, device=device
-            ).reshape(self.Ns, 1, 1),
-            "X": torch.tensor(X, dtype=dtype, device=device),
-            "k_int": torch.tensor(k_int, dtype=dtype, device=device).reshape(
-                self.Ns, self.Nr, 1
+            "temperature": torch.tensor(temperature, dtype=dtype, device=device).reshape(
+                self.Ns, 1, 1
             ),
-            "timepoints": torch.tensor(
-                self.timepoints, dtype=dtype, device=device
-            ).reshape(self.Ns, 1, self.Nt),
+            "X": torch.tensor(X, dtype=dtype, device=device),
+            "k_int": torch.tensor(k_int, dtype=dtype, device=device).reshape(self.Ns, self.Nr, 1),
+            "timepoints": torch.tensor(self.timepoints, dtype=dtype, device=device).reshape(
+                self.Ns, 1, self.Nt
+            ),
             "d_exp": torch.tensor(
                 self.d_exp, dtype=dtype, device=device
             ),  # todo this is called uptake_corrected/D/uptake
@@ -1156,9 +1123,7 @@ class HDXMeasurementSet(object):
         Shape of the returned array is Ns x Np
 
         """
-        values = np.concatenate(
-            [hdxm.coverage["exchanges"].to_numpy() for hdxm in self.hdxm_list]
-        )
+        values = np.concatenate([hdxm.coverage["exchanges"].to_numpy() for hdxm in self.hdxm_list])
         exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
         exchanges[self.masks["sr"]] = values
 
@@ -1186,9 +1151,7 @@ class HDXMeasurementSet(object):
         dfs = []
         metadata = {}
         for hdxm in self.hdxm_list:
-            metadata[hdxm.name] = (
-                hdxm.metadata if include_metadata else include_metadata
-            )
+            metadata[hdxm.name] = hdxm.metadata if include_metadata else include_metadata
             dfs.append(hdxm.data)
 
         full_df = pd.concat(dfs, axis=1, keys=self.names)
@@ -1229,9 +1192,7 @@ def contiguous_regions(condition):
     return idx
 
 
-def hdx_intersection(
-    hdx_list: list[HDXMeasurement], fields: Optional[list[str]] = None
-):
+def hdx_intersection(hdx_list: list[HDXMeasurement], fields: Optional[list[str]] = None):
     """
     Finds the intersection between peptides.
 
@@ -1257,8 +1218,7 @@ def hdx_intersection(
     selected = array_intersection(full_arrays, fields=fields)
 
     hdx_out = [
-        HDXMeasurement(data, **data_obj.metadata)
-        for data, data_obj in zip(selected, hdx_list)
+        HDXMeasurement(data, **data_obj.metadata) for data, data_obj in zip(selected, hdx_list)
     ]
     return hdx_out
 

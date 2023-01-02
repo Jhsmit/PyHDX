@@ -1,6 +1,0 @@
-bokeh
-colorcet >= 3.0.0
-holoviews
-hvplot
-panel>=0.13.0
-proplot==0.9.3

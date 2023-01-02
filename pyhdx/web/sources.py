@@ -146,9 +146,7 @@ class PyHDXSource(TableSource):
         df = rates_result.output.copy()
 
         tuples = [(name, *tup) for tup in df.columns]
-        columns = pd.MultiIndex.from_tuples(
-            tuples, names=["guess_ID", "state", "quantity"]
-        )
+        columns = pd.MultiIndex.from_tuples(tuples, names=["guess_ID", "state", "quantity"])
         df.columns = columns
         self._add_table(df, "rates")
         self.rate_results[name] = rates_result
@@ -161,9 +159,7 @@ class PyHDXSource(TableSource):
         # Add peptide data
         df = hdxm.data_wide.copy()
         tuples = [(name, *tup) for tup in df.columns]
-        columns = pd.MultiIndex.from_tuples(
-            tuples, names=["state", "exposure", "quantity"]
-        )
+        columns = pd.MultiIndex.from_tuples(tuples, names=["state", "exposure", "quantity"])
         df.columns = columns
         self._add_table(df, "peptides")
 
@@ -195,9 +191,7 @@ class PyHDXSource(TableSource):
         # Add dG values table (+ covariances etc)
         df = fit_result.output.copy()
         tuples = [(name, *tup) for tup in df.columns]
-        columns = pd.MultiIndex.from_tuples(
-            tuples, names=["fit_ID", "state", "quantity"]
-        )
+        columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "quantity"])
         df.columns = columns
         self._add_table(df, "dG")
 
@@ -217,14 +211,10 @@ class PyHDXSource(TableSource):
         df = fit_result.losses.copy()
         if df.columns.nlevels == 1:
             tuples = [(name, "*", column) for column in df.columns]
-            columns = pd.MultiIndex.from_tuples(
-                tuples, names=["fit_ID", "state", "loss_type"]
-            )
+            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "loss_type"])
         else:
             tuples = [(name, *tup) for tup in df.columns]
-            columns = pd.MultiIndex.from_tuples(
-                tuples, names=["fit_ID", "state", "loss_type"]
-            )
+            columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "loss_type"])
 
         df.columns = columns
         self._add_table(df, "loss")
@@ -236,18 +226,14 @@ class PyHDXSource(TableSource):
         # mse_df = pd.concat(dfs.values(), keys=dfs.keys(), axis=1).convert_dtypes()
         mse_df.index.name = "peptide_id"
         tuples = [(name, *tup) for tup in mse_df.columns]
-        columns = pd.MultiIndex.from_tuples(
-            tuples, names=["fit_ID", "state", "quantity"]
-        )
+        columns = pd.MultiIndex.from_tuples(tuples, names=["fit_ID", "state", "quantity"])
         mse_df.columns = columns
         self._add_table(mse_df, "peptide_mse")
 
         self.dG_fits[name] = fit_result
         self.updated = True
 
-    def _add_table(
-        self, df, table, categorical=True
-    ):  # TODO add_table is (name, dataframe)
+    def _add_table(self, df, table, categorical=True):  # TODO add_table is (name, dataframe)
         """
 
         :param df:
@@ -259,17 +245,13 @@ class PyHDXSource(TableSource):
         if table in self.tables:
             current = self.tables[table]
             new = pd.concat([current, df], axis=1, sort=True)
-            categories = list(current.columns.unique(level=0)) + list(
-                df.columns.unique(level=0)
-            )
+            categories = list(current.columns.unique(level=0)) + list(df.columns.unique(level=0))
         else:
             new = df
             categories = list(df.columns.unique(level=0))
         if categorical:
             new.columns = multiindex_astype(new.columns, 0, "category")
-            new.columns = multiindex_set_categories(
-                new.columns, 0, categories, ordered=True
-            )
+            new.columns = multiindex_set_categories(new.columns, 0, categories, ordered=True)
 
         self.add_table(table, new)
 
@@ -339,9 +321,7 @@ class DictSource(Source):
 
     def set(self, item: dict, name: Optional[str] = None):
         if not isinstance(item, dict):
-            raise TypeError(
-                f"Invalid type of 'item', must be {dict!r}, got {type(item)!r}"
-            )
+            raise TypeError(f"Invalid type of 'item', must be {dict!r}, got {type(item)!r}")
         # self.make_room()
         name = name or f"_item_{uuid.uuid4()}"  # self.new_key()
         self._items[name] = item

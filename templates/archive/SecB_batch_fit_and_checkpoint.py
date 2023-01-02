@@ -38,15 +38,11 @@ data_dir = current_dir.parent / "tests" / "test_data"
 
 #%%
 
-data = read_dynamx(
-    data_dir / "input" / "ecSecB_apo.csv", data_dir / "input" / "ecSecB_dimer.csv"
-)
+data = read_dynamx(data_dir / "input" / "ecSecB_apo.csv", data_dir / "input" / "ecSecB_dimer.csv")
 pmt = PeptideMasterTable(data)
 pmt.set_control(("Full deuteration control", 0.167 * 60))
 
-dimer = HDXMeasurement(
-    pmt.get_state("SecB his dimer apo"), pH=8, temperature=273.15 + 30
-)
+dimer = HDXMeasurement(pmt.get_state("SecB his dimer apo"), pH=8, temperature=273.15 + 30)
 apo = HDXMeasurement(pmt.get_state("SecB WT apo"), pH=8, temperature=273.15 + 30)
 
 hdx_set = HDXMeasurementSet([dimer, apo])
@@ -86,9 +82,7 @@ colors = iter(cmap(np.linspace(0, 1, num=num)))
 fig, ax = plt.subplots()
 for key, val in history.items():
     n = len(val["dG"].numpy().squeeze())
-    ax.scatter(
-        hdx_set.coverage.index, val["dG"].numpy().squeeze()[0], color=next(colors)
-    )
+    ax.scatter(hdx_set.coverage.index, val["dG"].numpy().squeeze()[0], color=next(colors))
 
 fig.colorbar(mpl.cm.ScalarMappable(cmap=cmap, norm=norm), label="Epochs")
 plt.show()
