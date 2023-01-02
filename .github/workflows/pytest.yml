@@ -79,7 +79,7 @@ jobs:
       #             install root project
       #----------------------------------------------
       - name: Install library
-        run: poetry install --no-interaction
+        run: poetry install --no-interaction --all-extras
       #----------------------------------------------
       #               run test suite
       #----------------------------------------------
