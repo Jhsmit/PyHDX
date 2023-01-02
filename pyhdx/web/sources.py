@@ -19,14 +19,13 @@ from pyhdx.config import cfg
 from pyhdx.web.utils import fix_multiindex_dtypes
 
 TABLE_INFO = {
-    'rfu': {'cmap_field': 'rfu', 'cmap_opt': 'rfu_cmap'},
-    'd_uptake': {'cmap_field': 'd_uptake', 'cmap_opt': 'd_uptake_cmap'},
-    'dd_uptake': {'cmap_field': 'dd_uptake', 'cmap_opt': 'dd_uptake_cmap'},
-    'dG': {'cmap_field': 'dG', 'cmap_opt': 'dG_cmap'},
-    'drfu': {'cmap_field': 'drfu', 'cmap_opt': 'drfu_cmap'},
-    'ddG': {'cmap_field': 'ddG', 'cmap_opt': 'ddG_cmap'},
+    "rfu": {"cmap_field": "rfu", "cmap_opt": "rfu_cmap"},
+    "d_uptake": {"cmap_field": "d_uptake", "cmap_opt": "d_uptake_cmap"},
+    "dd_uptake": {"cmap_field": "dd_uptake", "cmap_opt": "dd_uptake_cmap"},
+    "dG": {"cmap_field": "dG", "cmap_opt": "dG_cmap"},
+    "drfu": {"cmap_field": "drfu", "cmap_opt": "drfu_cmap"},
+    "ddG": {"cmap_field": "ddG", "cmap_opt": "ddG_cmap"},
     #'rfu': {'cmap_field': 'rfu', 'cmap_opt': 'rfu_cmap'},
-
 }
 
 
@@ -332,8 +331,7 @@ class PDBSource(Source):
 class DictSource(Source):
     """Source for (metadata) dictionaries"""
 
-
-    _type = 'dict'
+    _type = "dict"
 
     _items = param.Dict({})
 
@@ -341,9 +339,11 @@ class DictSource(Source):
 
     def set(self, item: dict, name: Optional[str] = None):
         if not isinstance(item, dict):
-            raise TypeError(f"Invalid type of 'item', must be {dict!r}, got {type(item)!r}")
+            raise TypeError(
+                f"Invalid type of 'item', must be {dict!r}, got {type(item)!r}"
+            )
         # self.make_room()
-        name = name or f"_item_{uuid.uuid4()}" # self.new_key()
+        name = name or f"_item_{uuid.uuid4()}"  # self.new_key()
         self._items[name] = item
         self.hashes[name] = self.hash_item(item)
 
@@ -361,7 +361,7 @@ class DictSource(Source):
         self.hashes = {key: self.hash_item(item) for key, item in self._items}
         self.updated = True
 
-    #todo does not match base object
+    # todo does not match base object
     def get(self, name: str) -> Optional[dict]:
         if name not in self._items:
             item = defaultdict(dict)

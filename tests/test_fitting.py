@@ -7,7 +7,7 @@ import pytest
 import torch
 import yaml
 from pandas.testing import assert_series_equal, assert_frame_equal
-from pyhdx import PeptideMasterTable, HDXMeasurement
+from pyhdx import HDXMeasurement
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe
 from pyhdx.fitting import (
@@ -16,10 +16,12 @@ from pyhdx.fitting import (
     fit_gibbs_global_batch,
     fit_gibbs_global_batch_aligned,
     fit_rates_half_time_interpolate,
-    GenericFitResult, fit_d_uptake,
+    GenericFitResult,
+    fit_d_uptake,
 )
 from pyhdx.batch_processing import StateParser
 from pyhdx.models import HDXMeasurementSet
+from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
@@ -37,31 +39,42 @@ class TestSecBDataFit(object):
     def setup_class(cls):
         fpath_apo = input_dir / "ecSecB_apo.csv"
         fpath_dimer = input_dir / "ecSecB_dimer.csv"
-        data = read_dynamx(fpath_apo, fpath_dimer)
-        control = ("Full deuteration control", 0.167 * 60)
+        df_apo = read_dynamx(fpath_apo)
+        df_dimer = read_dynamx(fpath_dimer)
+
+        fd = {
+            "state": "Full deuteration control",
+            "exposure": {"value": 0.167, "unit": "min"},
+        }
+
+        fd_df = filter_peptides(df_apo, **fd)
+
+        apo_peptides = filter_peptides(df_apo, state="SecB WT apo")
+        dimer_peptides = filter_peptides(df_dimer, state="SecB his dimer apo")
+
+        apo_control = apply_control(apo_peptides, fd_df)
+        dimer_control = apply_control(dimer_peptides, fd_df)
+
+        apo_corrected = correct_d_uptake(apo_control)
+        dimer_corrected = correct_d_uptake(dimer_control)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.0
 
-        pf = PeptideMasterTable(
-            data, drop_first=1, ignore_prolines=True, remove_nan=False
-        )
-        pf.set_control(control)
         cls.hdxm_apo = HDXMeasurement(
-            pf.get_state("SecB WT apo"),
+            apo_corrected,
             temperature=cls.temperature,
             pH=cls.pH,
             sequence=sequence,
         )
         cls.hdxm_dimer = HDXMeasurement(
-            pf.get_state("SecB his dimer apo"),
+            dimer_corrected,
             temperature=cls.temperature,
             pH=cls.pH,
             sequence=sequence_dimer,
         )
 
-        data = pf.get_state("SecB WT apo")
-        reduced_data = data[data["end"] < 40]
-        cls.reduced_hdxm = HDXMeasurement(reduced_data)
+        reduced_data = apo_corrected[apo_corrected["_stop"] < 40]
+        cls.reduced_hdxm = HDXMeasurement(reduced_data, c_term=155)
 
     def test_initial_guess_wt_average(self):
         result = fit_rates_weighted_average(self.reduced_hdxm)

@@ -77,15 +77,9 @@ def peptide_coverage_figure(
 
     ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
-    cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
-    )
-    aspect = figure_kwargs.pop(
-        "aspect", cfg.plotting.peptide_coverage_aspect
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
+    cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.peptide_coverage_aspect)
 
     cmap = pplt.Colormap(cmap)
     norm = norm or pplt.Norm("linear", vmin=0, vmax=1)
@@ -218,15 +212,9 @@ def residue_time_scatter_figure(
     n_subplots = hdxm.Nt
     ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
-    aspect = figure_kwargs.pop(
-        "aspect", cfg.plotting.residue_scatter_aspect
-    )
-    cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.residue_scatter_aspect)
+    cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
 
     cmap = pplt.Colormap(cmap)  # todo allow None as cmap
     norm = norm or pplt.Norm("linear", vmin=0, vmax=1)
@@ -295,15 +283,9 @@ def residue_scatter_figure(
     nrows = figure_kwargs.pop(
         "nrows", int(np.ceil(n_subplots / ncols))
     )  # todo disallow setting rows
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
-    cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
-    )
-    aspect = figure_kwargs.pop(
-        "aspect", cfg.plotting.residue_scatter_aspect
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
+    cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.residue_scatter_aspect)
 
     cmap = pplt.Colormap(cmap)
     if norm is None:
@@ -374,9 +356,7 @@ def dG_scatter_figure(
     n_subplots = len(protein_states)
     ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     aspect = figure_kwargs.pop("aspect", cfg.plotting.dG_aspect)
     sharey = figure_kwargs.pop("sharey", 1)
 
@@ -470,9 +450,7 @@ def ddG_scatter_figure(
     n_subplots = len(protein_states) - 1
     ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     aspect = figure_kwargs.pop("aspect", cfg.plotting.dG_aspect)
     sharey = figure_kwargs.pop("sharey", 1)
 
@@ -537,10 +515,8 @@ def peptide_mse_figure(
     n_subplots = len(peptide_mse.columns.unique(level=0))
     ncols = figure_kwargs.pop("ncols", min(cfg.plotting.ncols, n_subplots))
     nrows = figure_kwargs.pop("nrows", int(np.ceil(n_subplots / ncols)))
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
-    aspect = figure_kwargs.pop("aspect", cfg.plotting.peptide_mse_apsect)
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.peptide_mse_aspect)
 
     cmap = cmap or CMAP_NORM_DEFAULTS["mse"][0]
 
@@ -574,9 +550,7 @@ def peptide_mse_figure(
 def loss_figure(fit_result, **figure_kwargs):
     ncols = 1
     nrows = 1
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     aspect = figure_kwargs.pop(
         "aspect", cfg.plotting.loss_aspect
     )  # todo loss aspect also in config?
@@ -705,13 +679,9 @@ def linear_bars(
 
     ncols = 1
     nrows = len(hspace) + 1
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     aspect = figure_kwargs.pop("aspect", cfg.plotting.linear_bars_aspect)
-    cbar_width = (
-        figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
-    )
+    cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
 
     fig, axes = pplt.subplots(
         nrows=nrows, ncols=ncols, aspect=aspect, width=figure_width, hspace=hspace
@@ -830,12 +800,8 @@ def rainbowclouds_figure(
 
     ncols = 1
     nrows = 1
-    figure_width = (
-        figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
-    )
-    aspect = figure_kwargs.pop(
-        "aspect", cfg.plotting.rainbowclouds_aspect
-    )
+    figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
+    aspect = figure_kwargs.pop("aspect", cfg.plotting.rainbowclouds_aspect)
 
     fig, axes = pplt.subplots(
         nrows=nrows, ncols=ncols, width=figure_width, aspect=aspect, hspace=0
@@ -1159,7 +1125,7 @@ class ColorTransforms(object):
             "ddG": pplt.Norm("linear", -1e4, 1e4),
             "rfu": pplt.Norm("linear", 0, 1.0, clip=True),
             "drfu": pplt.Norm("linear", -0.5, 0.5, clip=True),
-            "d_uptake": pplt.Norm("linear", 0., 1., clip=True),
+            "d_uptake": pplt.Norm("linear", 0.0, 1.0, clip=True),
             "dd_uptake": pplt.Norm("linear", -0.5, 0.5, clip=True),
             "mse": None,
             "foldedness": foldedness_cmap,
@@ -1177,7 +1143,7 @@ class ColorTransforms(object):
             "dG": set_bad(pplt.Colormap(tol_cmap("rainbow_PuRd")).reversed()),
             "ddG": set_bad(tol_cmap("PRGn").reversed()),
             "rfu": set_bad(pplt.Colormap(cc.cm.gouldian)),
-            "drfu": set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)), #=CET_D1A
+            "drfu": set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),  # =CET_D1A
             "d_uptake": set_bad(pplt.Colormap("Dense")),
             "dd_uptake": set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
             "mse": set_bad(pplt.Colormap("cividis"), color="#e3e3e3"),

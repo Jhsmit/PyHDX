@@ -294,11 +294,10 @@ class CrossSectionTransform(AppTransform):
         kwargs = self.pd_kwargs
         # drop level bugged? https://github.com/pandas-dev/pandas/issues/6507
 
-        if kwargs['key']:
+        if kwargs["key"]:
             return df.xs(**kwargs)
         else:
             return None
-
 
     def _selector_changed(self, *events):
         # this sends multiple updated events as it triggers changes in other selectors

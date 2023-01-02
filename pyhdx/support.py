@@ -6,18 +6,45 @@ import itertools
 import re
 import warnings
 from collections import OrderedDict
-from functools import wraps
+from functools import wraps, reduce
 from io import StringIO
 from itertools import count, groupby
 from pathlib import Path
-from typing import Iterable, Mapping, Any
+from typing import Iterable, Mapping, Any, Literal, Union, TypeVar
 
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import typer
 from skimage.filters import threshold_multiotsu
 
 from pyhdx.config import cfg
+
+
+def dataframe_intersection(
+    dataframes: list[pd.DataFrame], by: Union[list, str]
+) -> list[pd.DataFrame]:
+    set_index = [d.set_index(by) for d in dataframes]
+    index_intersection = reduce(pd.Index.intersection, (d.index for d in set_index))
+    intersected = [df.loc[index_intersection].reset_index() for df in set_index]
+
+    return intersected
+
+
+A = TypeVar("A", npt.ArrayLike, pd.Series, pd.DataFrame)
+
+
+def convert_time(
+    values: A, src_unit: Literal["h", "min", "s"], target_unit: Literal["h", "min", "s"]
+) -> A:
+
+    time_lut = {"h": 3600.0, "min": 60.0, "s": 1.0}
+    time_factor = time_lut[src_unit] / time_lut[target_unit]
+
+    if isinstance(values, list):
+        return [v * time_factor for v in values]
+    else:
+        return values * time_factor
 
 
 def make_tuple(item):
@@ -83,12 +110,6 @@ def multiindex_apply_function(
     )
 
     return new_index
-
-
-# def multiindex_astype(index: pd.MultiIndex, level: int, dtype: str) -> pd.MultiIndex:
-#
-#     new_index = multiindex_apply_function(index, level, "astype", args=[dtype])
-#     return new_index
 
 
 def multiindex_set_categories(
@@ -777,7 +798,7 @@ def select_config() -> None:
     for which config to use and subsequently loads it.
 
     """
-    pyhdx_dir = Path().home() / '.pyhdx'
+    pyhdx_dir = Path().home() / ".pyhdx"
     config_options = list(pyhdx_dir.glob("*.yaml"))
 
     if len(config_options) > 1:
@@ -797,6 +818,7 @@ def select_config() -> None:
 
 def pbar_decorator(pbar):
     """Wraps a progress bar around a function, updating the progress bar with each function call"""
+
     def func_wrapper(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -805,4 +827,27 @@ def pbar_decorator(pbar):
             return result
 
         return wrapper
+
     return func_wrapper
+
+
+def array_intersection(
+    arrays: Iterable[np.ndarray], fields: Iterable[str]
+) -> list[np.ndarray]:
+    """
+    Find and return the intersecting entries in multiple arrays.
+
+    Args:
+        arrays: Iterable of input structured arrays
+        fields: Iterable of fields to use to decide if entires are intersecting
+
+    Returns:
+        selected: Output iterable of arrays with only intersecting entries.
+    """
+
+    intersection = reduce(np.intersect1d, [fields_view(d, fields) for d in arrays])
+    selected = [
+        elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays
+    ]
+
+    return selected

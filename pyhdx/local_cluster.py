@@ -13,10 +13,9 @@ from pyhdx.config import cfg
 from pyhdx.support import select_config
 
 
-
 class DummyClient(object):
     """Object to use as dask Client-like object for doing local operations with
-        the dask Client API.
+    the dask Client API.
     """
 
     @staticmethod
@@ -90,7 +89,6 @@ def verify_cluster_async(scheduler_address, timeout="2s"):
         return True
     except (TimeoutError, OSError):
         return False
-
 
 
 def blocking_cluster():

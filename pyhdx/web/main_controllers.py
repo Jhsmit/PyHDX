@@ -117,12 +117,14 @@ class PyHDXController(MainController):
         """
 
         s = f"# {pyhdx.VERSION_STRING} \n"
-        s += f"# {self.session_time.strftime('%Y/%m/%d %H:%M:%S')}" \
-             f"({int(self.session_time.timestamp())})\n"
+        s += (
+            f"# {self.session_time.strftime('%Y/%m/%d %H:%M:%S')}"
+            f"({int(self.session_time.timestamp())})\n"
+        )
 
         return s
 
-    def state_spec_callback(self) -> Optional[StringIO]:
+    def hdx_spec_callback(self) -> Optional[StringIO]:
         """
         Get a StringIO with input HDX measurement specifications.
 
@@ -132,8 +134,8 @@ class PyHDXController(MainController):
         if len(input_ctrls) == 1:
             input_ctrl = self.control_panels[list(input_ctrls)[0]]
 
-            s = yaml.dump(clean_types(input_ctrl.state_spec), sort_keys=False)
-            output = self._get_file_header() +  "\n" + s
+            s = yaml.dump(clean_types(input_ctrl.hdx_spec), sort_keys=False)
+            output = self._get_file_header() + "\n" + s
             sio = StringIO(output)
 
             return sio
@@ -146,7 +148,7 @@ class PyHDXController(MainController):
 
         """
 
-        masked_conf = OmegaConf.masked_copy(cfg.conf, cfg.conf.keys() - {'server'})
+        masked_conf = OmegaConf.masked_copy(cfg.conf, cfg.conf.keys() - {"server"})
         s = OmegaConf.to_yaml(masked_conf)
 
         output = self._get_file_header() + "\n" + s
@@ -159,7 +161,7 @@ class PyHDXController(MainController):
         Get a StringIO with user settings.
 
         """
-        user_dict = self.sources['metadata'].get('user_settings')
+        user_dict = self.sources["metadata"].get("user_settings")
         s = yaml.dump(clean_types(user_dict), sort_keys=False)
 
         output = self._get_file_header() + "\n" + s
@@ -180,6 +182,7 @@ class PyHDXController(MainController):
         sio = StringIO(output)
 
         return sio
+
 
 # single amide slider only first?
 class PeptideController(MainController):

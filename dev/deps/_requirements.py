@@ -23,7 +23,6 @@ from pathlib import Path
 from typing import Optional
 
 
-
 #%%
 # Pycharm scientific mode compat
 if "__file__" not in locals():
@@ -143,6 +142,5 @@ if __name__ == "__main__":
     for os in platforms:
         conda_file = Path(f"pinned/py38_{os}_conda.yml")
         pip_file = Path(f"pinned/py38_{os}_pip.txt")
-
 
         conda_to_pip(conda_file, pip_file)

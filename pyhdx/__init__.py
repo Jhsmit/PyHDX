@@ -1,5 +1,4 @@
 from .models import (
-    PeptideMasterTable,
     HDXTimepoint,
     HDXMeasurement,
     Coverage,
@@ -7,6 +6,7 @@ from .models import (
 )
 from .fileIO import read_dynamx
 from .fitting_torch import TorchFitResult, TorchFitResultSet
+from .batch_processing import StateParser
 from ._version import get_versions
 
 try:

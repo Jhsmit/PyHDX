@@ -32,13 +32,13 @@ class TestConfig(object):
         value: 3
         """
 
-        Path(tmp_path / 'configfile.yaml').write_text(yaml.dump(s))
-        conf = OmegaConf.load(tmp_path / 'configfile.yaml')
+        Path(tmp_path / "configfile.yaml").write_text(yaml.dump(s))
+        conf = OmegaConf.load(tmp_path / "configfile.yaml")
 
         merged = OmegaConf.merge(cfg.conf, conf)
 
         cfg.set_config(merged)
 
-        assert 'bar' in cfg.foo
+        assert "bar" in cfg.foo
         assert cfg.value == 3
         assert cfg2.value == 3

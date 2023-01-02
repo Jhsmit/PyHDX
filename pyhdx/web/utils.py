@@ -65,16 +65,16 @@ def load_state(ctrl, state_spec, data_dir, name=None):
 
     file_input.d_percentage = state_spec["d_percentage"]
     file_input.temperature = (
-            state_spec["temperature"]["value"]
-            + temperature_offsets[state_spec["temperature"]["unit"].lower()]
+        state_spec["temperature"]["value"]
+        + temperature_offsets[state_spec["temperature"]["unit"].lower()]
     )
     file_input.pH = state_spec["pH"]
 
-    if 'n_term' in state_spec:
+    if "n_term" in state_spec:
         file_input.n_term = state_spec["n_term"]
-    if 'c_term' in state_spec:
+    if "c_term" in state_spec:
         file_input.c_term = state_spec["c_term"]
-    if 'sequence' in state_spec:
+    if "sequence" in state_spec:
         file_input.sequence = state_spec["sequence"]
 
     file_input.measurement_name = name or state_spec["state"]
@@ -116,7 +116,14 @@ def load_state_rfu(ctrl, state_spec, data_dir, name=None):
 def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:
     """Assigns correct dtypes to (column) multiindex"""
     for level, name in enumerate(index.names):
-        if name in ["state", "D_uptake_fit_ID", "guess_ID", "fit_ID", "comparison_name", "comparison_state"]:
+        if name in [
+            "state",
+            "D_uptake_fit_ID",
+            "guess_ID",
+            "fit_ID",
+            "comparison_name",
+            "comparison_state",
+        ]:
             index = multiindex_astype(index, level, "category")
             categories = list(index.unique(level=level))
             index = multiindex_set_categories(index, level, categories, ordered=True)

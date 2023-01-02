@@ -3,19 +3,23 @@ import matplotlib as mpl
 from pyhdx.support import rgb_to_hex
 import importlib
 from pathlib import Path
+import sys
 
 
 class TestTemplates(object):
     def test_templates_converions(self):
         # import templates and run
-        template_dir = Path(__file__).parent  # / something
+        template_dir = Path(__file__).parent.parent / "templates"  # / something
+        print(template_dir)
+        sys.path.append(str(template_dir))
 
-        # todo fix
         scripts = [
             f.stem
             for f in template_dir.iterdir()
-            if f.stem.startswith("fig") and f.suffix == ".py"
+            if f.stem[:2].isdigit() and f.suffix == ".py"
         ]
         for s in scripts:
-            print(s)
+            pass
+            # doesnt work with some scripts requiring a cluster
+            # print(s)
             # importlib.import_module(s)

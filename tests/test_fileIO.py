@@ -8,13 +8,15 @@ from pyhdx.fileIO import (
     save_fitresult,
     load_fitresult,
 )
-from pyhdx.models import Protein, PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
+from pyhdx.models import Protein, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fitting import fit_gibbs_global
 from pathlib import Path
 from io import StringIO
 import numpy as np
 import pandas as pd
 import pytest
+
+from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
@@ -25,17 +27,23 @@ class TestFileIO(object):
     @classmethod
     def setup_class(cls):
         cls.fpath = input_dir / "ecSecB_apo.csv"
-        data = read_dynamx(cls.fpath)
-        control = ("Full deuteration control", 0.167 * 60)
+        df = read_dynamx(cls.fpath)
+
+        fd = {
+            "state": "Full deuteration control",
+            "exposure": {"value": 0.167, "unit": "min"},
+        }
+
+        fd_df = filter_peptides(df, **fd)
+        peptides = filter_peptides(
+            df, state="SecB WT apo"
+        )  # , query=["exposure != 0."])
+        peptides_control = apply_control(peptides, fd_df)
+        peptides_corrected = correct_d_uptake(peptides_control)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.0
-
-        pf = PeptideMasterTable(
-            data, drop_first=1, ignore_prolines=True, remove_nan=False
-        )
-        pf.set_control(control)
         cls.hdxm = HDXMeasurement(
-            pf.get_state("SecB WT apo"), temperature=cls.temperature, pH=cls.pH
+            peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155
         )
 
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
@@ -48,19 +56,8 @@ class TestFileIO(object):
 
         assert df.shape[0] == 567
         assert df["start"][0] == 9
-        assert df["end"][0] == 18
-        df = read_dynamx(self.fpath, intervals=("exclusive", "inclusive"))
-        assert df["start"][0] == 10
-        assert np.sum(df["exposure"]) == 441632.55024
-        assert np.sum(df["uptake"]) == 1910.589614
-
-        df = read_dynamx(self.fpath, intervals=("inclusive", "exclusive"))
         assert df["end"][0] == 17
-
-        with pytest.raises(ValueError):
-            df = read_dynamx(self.fpath, intervals=("foo", "inclusive"))
-        with pytest.raises(ValueError):
-            df = read_dynamx(self.fpath, intervals=("inclusive", "bar"))
+        assert df["stop"][0] == 18
 
         with open(self.fpath, mode="r") as f:
             df = read_dynamx(StringIO(f.read()))

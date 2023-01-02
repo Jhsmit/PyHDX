@@ -1,25 +1,27 @@
+from pathlib import Path
+
+import numpy as np
+import pandas as pd
+import torch
+import yaml
+
+from pyhdx import HDXMeasurement
+from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import (
     read_dynamx,
     save_fitresult,
     dataframe_to_file,
     csv_to_dataframe,
 )
-from pyhdx import PeptideMasterTable, HDXMeasurement
-from pyhdx.models import HDXMeasurementSet
 from pyhdx.fitting import (
     fit_rates_weighted_average,
     fit_gibbs_global,
     fit_gibbs_global_batch,
     fit_gibbs_global_batch_aligned,
-    fit_d_uptake
+    fit_d_uptake,
 )
-from pyhdx.local_cluster import default_client
-from pyhdx.batch_processing import StateParser
-import yaml
-import numpy as np
-import pandas as pd
-from pathlib import Path
-import torch
+from pyhdx.models import HDXMeasurementSet
+from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 """Run this file to renew the fit results which is used to test against"""
 
@@ -33,27 +35,35 @@ epochs = 1000
 sequence = "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA"
 sequence_dimer = "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA"
 
-
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
 output_dir = cwd / "test_data" / "output"
 
 guess = False
-control = ("Full deuteration control", 0.167 * 60)
 
-data = read_dynamx(input_dir / "ecSecB_apo.csv", input_dir / "ecSecB_dimer.csv")
+df_apo = read_dynamx(input_dir / "ecSecB_apo.csv")
+df_dimer = read_dynamx(input_dir / "ecSecB_dimer.csv")
 
-pmt = PeptideMasterTable(data, drop_first=1, ignore_prolines=True, remove_nan=False)
-pmt.set_control(control)
+fd = {"state": "Full deuteration control", "exposure": {"value": 0.167, "unit": "min"}}
+fd_df = filter_peptides(df_apo, **fd)
+
+apo_peptides = filter_peptides(df_apo, state="SecB WT apo")
+dimer_peptides = filter_peptides(df_dimer, state="SecB his dimer apo")
+
+apo_control = apply_control(apo_peptides, fd_df)
+dimer_control = apply_control(dimer_peptides, fd_df)
+
+apo_corrected = correct_d_uptake(apo_control)
+dimer_corrected = correct_d_uptake(dimer_control)
+
 temperature, pH = 273.15 + 30, 8.0
 
 hdxm_apo = HDXMeasurement(
-    pmt.get_state("SecB WT apo"), sequence=sequence, temperature=temperature, pH=pH
+    apo_corrected, sequence=sequence, temperature=temperature, pH=pH
 )
 
-data = pmt.get_state("SecB WT apo")
-reduced_data = data[data["end"] < 40]
-hdxm_reduced = HDXMeasurement(reduced_data, temperature=temperature, pH=pH)
+reduced_data = apo_corrected[apo_corrected["end"] < 40]
+hdxm_reduced = HDXMeasurement(reduced_data, temperature=temperature, pH=pH, c_term=155)
 
 result = fit_rates_weighted_average(hdxm_reduced)
 reduced_guess = result.output
@@ -83,8 +93,13 @@ rfu_df = hdxm_apo.rfu_residues
 dataframe_to_file(output_dir / "ecSecB_rfu_per_exposure.csv", rfu_df)
 dataframe_to_file(output_dir / "ecSecB_rfu_per_exposure.txt", rfu_df, fmt="pprint")
 
+# Save data DataFrame
+data_df = hdxm_apo.data
+dataframe_to_file(output_dir / "ecSecB_data.csv", data_df)
+dataframe_to_file(output_dir / "ecSecB_data.txt", data_df, fmt="pprint")
+
 # Fit D-uptake per timepoint
-fr_d = fit_d_uptake(hdxm_apo, r1=1., repeats=3)
+fr_d = fit_d_uptake(hdxm_apo, r1=1.0, repeats=3)
 dataframe_to_file(output_dir / f"ecSecB_d_uptake.csv", fr_d.output)
 
 gibbs_guess = hdxm_apo.guess_deltaG(guess_output["rate"])
@@ -92,7 +107,6 @@ fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs, r1=2)
 
 dataframe_to_file(output_dir / f"ecSecB_torch_fit.csv", fr_torch.output)
 dataframe_to_file(output_dir / f"ecSecB_torch_fit.txt", fr_torch.output, fmt="pprint")
-
 
 fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs_long, r1=2)
 dataframe_to_file(
@@ -104,13 +118,12 @@ dataframe_to_file(
     fmt="pprint",
 )
 
-
 # ----------
 # Batch fits
 # ----------
 
 hdxm_dimer = HDXMeasurement(
-    pmt.get_state("SecB his dimer apo"),
+    dimer_corrected,
     sequence=sequence_dimer,
     temperature=temperature,
     pH=pH,
@@ -133,7 +146,6 @@ dataframe_to_file(
     output_dir / "ecSecB_batch_residue_mse.csv", batch_result.get_residue_mse()
 )
 dataframe_to_file(output_dir / "ecSecB_batch_loss.csv", batch_result.losses)
-
 
 # Aligned sequences test
 # -------------
@@ -159,10 +171,12 @@ dataframe_to_file(
 # Reduced Batch fits
 # ------------------
 
-data = pmt.get_state("SecB his dimer apo")
-reduced_data = data[data["end"] < 40]
+dimer_red = dimer_corrected[dimer_corrected["end"] < 40]
 hdxm_reduced_dimer = HDXMeasurement(
-    pmt.get_state("SecB his dimer apo"), temperature=temperature, pH=pH
+    dimer_red,
+    temperature=temperature,
+    pH=pH,
+    c_term=155,
 )
 
 reduced_hdx_set = HDXMeasurementSet([hdxm_reduced, hdxm_reduced_dimer])
@@ -179,7 +193,7 @@ yaml_file = input_dir / "data_states_deltas.yaml"
 yaml_dict = yaml.safe_load(yaml_file.read_text())
 parser = StateParser(yaml_dict, data_src=input_dir)
 hdxm_set = parser.load_hdxmset()
-#hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
+# hdxm_set = yaml_to_hdxmset(yaml_dict, data_dir=input_dir)
 
 gibbs_guess = hdxm_set[0].guess_deltaG(guess_output["rate"])
 
