@@ -2119,7 +2119,10 @@ files = [
 ]
 
 [package.dependencies]
-numpy = {version = ">=1.20.3", markers = "python_version < \"3.10\""}
+numpy = [
+    {version = ">=1.20.3", markers = "python_version < \"3.10\""},
+    {version = ">=1.21.0", markers = "python_version >= \"3.10\""},
+]
 python-dateutil = ">=2.8.1"
 pytz = ">=2020.1"
 
@@ -4185,5 +4188,5 @@ web = ["panel", "bokeh", "holoviews", "colorcet", "hvplot", "proplot"]
 
 [metadata]
 lock-version = "2.0"
-python-versions = "3.9.*"
-content-hash = "328c5daa165eb9f63483cb17a35d59996987755f765ce927676e1fcecbb43834"
+python-versions = ">=3.9.*, <3.11"
+content-hash = "f4eebd57d7de44545d6fd9dea90b45936c353c77ed0dd52f7ff80c0b2ab6f970"
