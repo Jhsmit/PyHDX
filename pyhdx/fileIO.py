@@ -232,9 +232,7 @@ def dataframe_to_stringio(
         prefix = "# " if fmt == "csv" else ""
         sio.write(prefix + pyhdx.VERSION_STRING + " \n")
         now = datetime.now()
-        sio.write(
-            prefix + f'{now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n'
-        )
+        sio.write(prefix + f'{now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
 
     json_header = {}
     if include_metadata and "metadata" in df.attrs:
@@ -273,9 +271,7 @@ def dataframe_to_stringio(
         ):
             sio.write(df.__str__())
     else:
-        raise ValueError(
-            f"Invalid specification for fmt: '{fmt}', must be 'csv' or 'pprint'"
-        )
+        raise ValueError(f"Invalid specification for fmt: '{fmt}', must be 'csv' or 'pprint'")
 
     sio.seek(0)
     return sio
@@ -399,9 +395,7 @@ def load_fitresult(fit_dir):
         data_obj = csv_to_hdxm(fit_dir / "HDXMeasurements.csv")
         result_klass = pyhdx.fitting_torch.TorchFitResult
     elif pth.is_file():
-        raise DeprecationWarning(
-            "`load_fitresult` only loads from fit result directories"
-        )
+        raise DeprecationWarning("`load_fitresult` only loads from fit result directories")
         fit_result = csv_to_dataframe(fit_dir)
         assert isinstance(
             hdxm, pyhdx.HDXMeasurement
@@ -410,17 +404,13 @@ def load_fitresult(fit_dir):
         raise ValueError("Specified fit result path is not a directory")
 
     fit_metadata = fit_result.attrs.pop("metadata")
-    model_klass = getattr(
-        import_module("pyhdx.fitting_torch"), fit_metadata["model_name"]
-    )
+    model_klass = getattr(import_module("pyhdx.fitting_torch"), fit_metadata["model_name"])
 
     if isinstance(fit_result.columns, pd.MultiIndex):
         g_arr = fit_result.xs("_dG", level=-1, axis=1).to_numpy().T
     else:
         g_arr = fit_result["_dG"].to_numpy().T
-    g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(
-        -1
-    )  # todo record/generalize shapes
+    g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(-1)  # todo record/generalize shapes
     model = model_klass(g_parameter)
 
     fit_result_obj = result_klass(data_obj, model, losses=losses, metadata=fit_metadata)

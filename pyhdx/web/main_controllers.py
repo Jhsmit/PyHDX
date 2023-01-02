@@ -53,9 +53,7 @@ class MainController(param.Parameterized):
     def __init__(self, control_panels, **params):
         super(MainController, self).__init__(**params)
 
-        self.control_panels = {
-            ctrl.name: ctrl(self) for ctrl in control_panels
-        }  # todo as param?
+        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  # todo as param?
 
         self.template = None  # Panel template (remove?)
 

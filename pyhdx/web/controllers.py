@@ -107,9 +107,7 @@ class AsyncControlPanel(ControlPanel):
 
     slider = param.Number(2.4, bounds=(1.0, 4.0))
 
-    field = param.String(
-        default="init_value", doc="what is the value of this field during async?"
-    )
+    field = param.String(default="init_value", doc="what is the value of this field during async?")
 
     @property
     def src(self):
@@ -292,9 +290,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
 
     input_files_label = param.String("Input files:")
 
-    input_files = param.List(
-        doc="HDX input files. Currently only supports DynamX format"
-    )
+    input_files = param.List(doc="HDX input files. Currently only supports DynamX format")
 
     batch_file_label = param.String("Batch file (yaml)")
 
@@ -363,9 +359,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
             data_src = self.data_files
         elif self.input_mode == "Batch":
             if self.hdxm_list:
-                self.parent.logger.info(
-                    "Cannot add data in batch after manually inputting data"
-                )
+                self.parent.logger.info("Cannot add data in batch after manually inputting data")
                 return
 
             hdx_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
@@ -408,9 +402,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
 
     def spec_download_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets[
-            "download_spec_button"
-        ].filename = f"PyHDX_state_spec_{timestamp}.yaml"
+        self.widgets["download_spec_button"].filename = f"PyHDX_state_spec_{timestamp}.yaml"
 
         sio = self.parent.hdx_spec_callback()
         return sio
@@ -438,9 +430,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
     fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
 
-    fd_exposure = param.Selector(
-        doc="Exposure used to normalize uptake", label="FD Exposure"
-    )
+    fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
 
     be_percent = param.Number(
         28.0,
@@ -451,9 +441,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
     exp_file = param.Selector(doc="File with experiment peptides")
 
-    exp_state = param.Selector(
-        doc="State for selected experiment", label="Experiment State"
-    )
+    exp_state = param.Selector(doc="State for selected experiment", label="Experiment State")
 
     exp_exposures = param.ListSelector(
         default=[],
@@ -500,9 +488,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
     def __init__(self, parent, **params):
         _excluded = ["be_percent", "batch_file", "batch_file_label"]
-        super(PeptideFileInputControl, self).__init__(
-            parent, _excluded=_excluded, **params
-        )
+        super(PeptideFileInputControl, self).__init__(parent, _excluded=_excluded, **params)
 
     # TODO this should be eaiser subclassable by accumulating kwargs and then calling
     # generate widgets OR partially generate widgets
@@ -699,10 +685,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
         # Set default measurmenet name if not set already
-        if (
-            not self.measurement_name
-            or self.measurement_name in self.param["exp_state"].objects
-        ):
+        if not self.measurement_name or self.measurement_name in self.param["exp_state"].objects:
             self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
@@ -714,9 +697,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
             self.parent.logger.info("No data loaded")
             return
         elif self.measurement_name in self.src.hdxm_objects.keys():
-            self.parent.logger.info(
-                f"Dataset name {self.measurement_name} already in use"
-            )
+            self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
         metadata = {}
@@ -731,9 +712,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
         df = self.data_files[self.exp_file].data
         peptides = filter_peptides(df, **exp_spec)
-        corrected = correct_d_uptake(
-            peptides
-        )  # remove this step when _sequence field is removed
+        corrected = correct_d_uptake(peptides)  # remove this step when _sequence field is removed
         exp_spec["data_file"] = self.exp_file
         try:
             verify_sequence(corrected, self.sequence, self.n_term, self.c_term)
@@ -797,19 +776,13 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
 
-    fd_exposure = param.Selector(
-        doc="Exposure used to normalize uptake", label="FD Exposure"
-    )
+    fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
 
     nd_state = param.Selector(doc="State used to normalize uptake", label="ND State")
 
-    nd_exposure = param.Selector(
-        doc="Exposure used to normalize uptake", label="ND Exposure"
-    )
+    nd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="ND Exposure")
 
-    exp_state = param.Selector(
-        doc="State for selected experiment", label="Experiment State"
-    )
+    exp_state = param.Selector(doc="State for selected experiment", label="Experiment State")
 
     exp_exposures = param.ListSelector(
         default=[],
@@ -842,9 +815,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     def __init__(self, parent, **params):
         excluded = ["batch_file", "batch_file_label"]
-        super(PeptideRFUFileInputControl, self).__init__(
-            parent, _excluded=excluded, **params
-        )
+        super(PeptideRFUFileInputControl, self).__init__(parent, _excluded=excluded, **params)
 
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(
@@ -1037,10 +1008,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         self.param["exp_exposures"].objects = exposures
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
-        if (
-            not self.measurement_name
-            or self.measurement_name in self.param["exp_state"].objects
-        ):
+        if not self.measurement_name or self.measurement_name in self.param["exp_state"].objects:
             self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
@@ -1052,9 +1020,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             self.parent.logger.info("No data loaded")
             return
         elif self.measurement_name in self.src.hdxm_objects.keys():
-            self.parent.logger.info(
-                f"Dataset name {self.measurement_name} already in use"
-            )
+            self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
         state_spec = {
@@ -1086,15 +1052,11 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
         ios = {
             name: StringIO(byte_content.decode("UTF-8"))
-            for name, byte_content in zip(
-                self.widgets["input_files"].filename, self.input_files
-            )
+            for name, byte_content in zip(self.widgets["input_files"].filename, self.input_files)
         }
 
         if overlap := self.data_stringIO.keys() & ios.keys():
-            self.parent.logger.info(
-                f"Data files already loaded: {', '.join(overlap)}, overwriting"
-            )
+            self.parent.logger.info(f"Data files already loaded: {', '.join(overlap)}, overwriting")
 
         self.data_stringIO.update(ios)
 
@@ -1117,9 +1079,7 @@ class DUptakeFitControl(PyHDXControlPanel):
 
     header = "D-Uptake fit"
 
-    repeats = param.Integer(
-        default=25, bounds=(1, 100), doc="Number of fitting repeats"
-    )
+    repeats = param.Integer(default=25, bounds=(1, 100), doc="Number of fitting repeats")
 
     bounds = param.Boolean(default=True, doc="Toggle to use bounds [0 - 1]")
 
@@ -1131,9 +1091,7 @@ class DUptakeFitControl(PyHDXControlPanel):
 
     fit_name = param.String("D_uptake_fit_1", doc="Name for the fit result")
 
-    _fit_names = param.List(
-        [], doc="List of current and future guess names", precedence=-1
-    )
+    _fit_names = param.List([], doc="List of current and future guess names", precedence=-1)
 
     do_fit = param.Action(
         lambda self: self._action_fit(),
@@ -1157,9 +1115,7 @@ class DUptakeFitControl(PyHDXControlPanel):
             return
 
         if self.fit_name in self._fit_names:
-            self.parent.logger.info(
-                f"D-uptake fit with name {self._fit_names} already in use"
-            )
+            self.parent.logger.info(f"D-uptake fit with name {self._fit_names} already in use")
             return
 
         self._fit_names.append(self.fit_name)
@@ -1231,18 +1187,14 @@ class InitialGuessControl(PyHDXControlPanel):
     dataset = param.Selector(
         default="", doc="Dataset to apply bounds to", label="Dataset (for bounds)"
     )
-    global_bounds = param.Boolean(
-        default=False, doc="Set bounds globally across all datasets"
-    )
+    global_bounds = param.Boolean(default=False, doc="Set bounds globally across all datasets")
     lower_bound = param.Number(0.0, doc="Lower bound for association model fitting")
 
     upper_bound = param.Number(0.0, doc="Upper bound for association model fitting")
 
     guess_name = param.String(default="Guess_1", doc="Name for the initial guesses")
 
-    _guess_names = param.List(
-        [], doc="List of current and future guess names", precedence=-1
-    )
+    _guess_names = param.List([], doc="List of current and future guess names", precedence=-1)
 
     do_fit1 = param.Action(
         lambda self: self._action_fit(),
@@ -1251,9 +1203,7 @@ class InitialGuessControl(PyHDXControlPanel):
         constant=True,
     )
 
-    bounds = param.Dict(
-        {}, doc="Dictionary which stores rate fitting bounds", precedence=-1
-    )
+    bounds = param.Dict({}, doc="Dictionary which stores rate fitting bounds", precedence=-1)
 
     def __init__(self, parent, **params):
         _excluded = ["lower_bound", "upper_bound", "global_bounds", "dataset"]
@@ -1351,9 +1301,7 @@ class InitialGuessControl(PyHDXControlPanel):
 
         # this is practically instantaneous and does not require dask
         elif self.fitting_model == "Half-life (λ)":
-            results = map(
-                fit_rates_half_time_interpolate, self.src.hdxm_objects.values()
-            )
+            results = map(fit_rates_half_time_interpolate, self.src.hdxm_objects.values())
 
             result_obj = RatesFitResult(list(results))
             self.src.add(result_obj, self.guess_name)
@@ -1461,9 +1409,7 @@ class FitControl(PyHDXControlPanel):
         doc="Use Nesterov type of momentum for SGD",
     )
 
-    epochs = param.Integer(
-        EPOCHS, bounds=(1, None), doc="Maximum number of epochs (iterations."
-    )
+    epochs = param.Integer(EPOCHS, bounds=(1, None), doc="Maximum number of epochs (iterations.")
 
     r1 = param.Number(
         R1,
@@ -1488,9 +1434,7 @@ class FitControl(PyHDXControlPanel):
 
     fit_name = param.String("Gibbs_fit_1", doc="Name for for the fit result")
 
-    _fit_names = param.List(
-        [], precedence=-1, doc="List of names of completed and running fits"
-    )
+    _fit_names = param.List([], precedence=-1, doc="List of names of completed and running fits")
 
     do_fit = param.Action(
         lambda self: self._action_fit(),
@@ -1557,9 +1501,7 @@ class FitControl(PyHDXControlPanel):
 
     def _action_fit(self):
         if self.fit_name in self._fit_names:
-            self.parent.logger.info(
-                f"Fit result with name {self.fit_name} already in use"
-            )
+            self.parent.logger.info(f"Fit result with name {self.fit_name} already in use")
             return
         self._fit_names.append(self.fit_name)
         self.parent.logger.info("Started PyTorch fit")
@@ -1600,9 +1542,7 @@ class FitControl(PyHDXControlPanel):
             dG_df = self.src.get_table("dG")
 
             if self.guess_mode == "One-to-one":
-                gibbs_guess = dG_df.xs(
-                    (self.initial_guess, "_dG"), level=[0, 2], axis=1
-                )
+                gibbs_guess = dG_df.xs((self.initial_guess, "_dG"), level=[0, 2], axis=1)
             elif self.guess_mode == "One-to-many":
                 gibbs_guess = dG_df[(self.initial_guess, self.guess_state, "_dG")]
 
@@ -1649,9 +1589,7 @@ class FitControl(PyHDXControlPanel):
         hdx_set = self.src.hdx_set
         gibbs_guess = self.get_guesses()
         async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
-            future = client.submit(
-                fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs
-            )
+            future = client.submit(fit_gibbs_global_batch, hdx_set, gibbs_guess, **self.fit_kwargs)
             result = await future
 
         self.src.add(result, name)
@@ -1709,9 +1647,7 @@ class DifferentialControl(PyHDXControlPanel):
 
     reference_state = param.Selector(doc="Which of the states to use as reference")
 
-    comparison_name = param.String(
-        default="comparison_1", doc="Name for the comparison table"
-    )
+    comparison_name = param.String(default="comparison_1", doc="Name for the comparison table")
 
     add_comparison = param.Action(lambda self: self._action_add_comparison())
 
@@ -1752,13 +1688,10 @@ class DifferentialControl(PyHDXControlPanel):
 
     def _action_add_comparison(self):
         current_df = self.src.get_table("drfu")
-        if (
-            current_df is not None
-            and self.comparison_name in current_df.columns.get_level_values(level=0)
+        if current_df is not None and self.comparison_name in current_df.columns.get_level_values(
+            level=0
         ):
-            self.parent.logger.info(
-                f"Comparison name {self.comparison_name!r} already exists"
-            )
+            self.parent.logger.info(f"Comparison name {self.comparison_name!r} already exists")
             return
 
         user_dict = self.sources["metadata"].get("user_settings")
@@ -1771,9 +1704,7 @@ class DifferentialControl(PyHDXControlPanel):
             self.add_dd_uptake_comparison()
         self.add_drfu_comparison()
 
-        self.parent.logger.info(
-            f"Successfully added comparison set {self.comparison_name!r}"
-        )
+        self.parent.logger.info(f"Successfully added comparison set {self.comparison_name!r}")
         self.src.updated = True
 
     def add_ddG_comparison(self):
@@ -1793,10 +1724,7 @@ class DifferentialControl(PyHDXControlPanel):
         ddG.columns = columns
 
         cov_ref = dG_df[self.reference_state, "covariance"] ** 2
-        cov_test = (
-            dG_df.xs("covariance", axis=1, level=1).drop(self.reference_state, axis=1)
-            ** 2
-        )
+        cov_test = dG_df.xs("covariance", axis=1, level=1).drop(self.reference_state, axis=1) ** 2
         cov = cov_test.add(cov_ref, axis=0).pow(0.5)
         columns = pd.MultiIndex.from_product(
             [[self.comparison_name], cov.columns, ["covariance"]], names=names
@@ -1807,9 +1735,7 @@ class DifferentialControl(PyHDXControlPanel):
 
         categories = list(combined.columns.unique(level=1))
         combined.columns = multiindex_astype(combined.columns, 1, "category")
-        combined.columns = multiindex_set_categories(
-            combined.columns, 1, categories, ordered=True
-        )
+        combined.columns = multiindex_set_categories(combined.columns, 1, categories, ordered=True)
 
         self.src._add_table(combined, "ddG")
 
@@ -1820,12 +1746,8 @@ class DifferentialControl(PyHDXControlPanel):
         names = ["comparison_name", "comparison_state", "exposure", "quantity"]
 
         # Take rfu entries from df, to calculate drfu
-        reference_rfu = rfu_df.xs(
-            key=[self.reference_state, "rfu"], level=[0, 2], axis=1
-        )
-        test_rfu = rfu_df.drop(self.reference_state, axis=1, level=0).xs(
-            "rfu", level=2, axis=1
-        )
+        reference_rfu = rfu_df.xs(key=[self.reference_state, "rfu"], level=[0, 2], axis=1)
+        test_rfu = rfu_df.drop(self.reference_state, axis=1, level=0).xs("rfu", level=2, axis=1)
 
         drfu = test_rfu.sub(reference_rfu, level="exposure").dropna(how="all", axis=1)
 
@@ -1837,21 +1759,15 @@ class DifferentialControl(PyHDXControlPanel):
         drfu.columns = columns
         categories = list(drfu.columns.unique(level=1))
         drfu.columns = multiindex_astype(drfu.columns, 1, "category")
-        drfu.columns = multiindex_set_categories(
-            drfu.columns, 1, categories, ordered=True
-        )
+        drfu.columns = multiindex_set_categories(drfu.columns, 1, categories, ordered=True)
 
-        reference_rfu_sd = rfu_df.xs(
-            key=(self.reference_state, "rfu_sd"), level=[0, 2], axis=1
-        )
+        reference_rfu_sd = rfu_df.xs(key=(self.reference_state, "rfu_sd"), level=[0, 2], axis=1)
         test_rfu_sd = rfu_df.drop(self.reference_state, axis=1, level=0).xs(
             "rfu_sd", level=2, axis=1
         )
 
         drfu_sd = (
-            ((test_rfu_sd**2).add((reference_rfu_sd**2)))
-            .pow(0.5)
-            .dropna(how="all", axis=1)
+            ((test_rfu_sd**2).add((reference_rfu_sd**2))).pow(0.5).dropna(how="all", axis=1)
         )
 
         # Expand multiindex level and set 'comparison_state' level as category
@@ -1862,9 +1778,7 @@ class DifferentialControl(PyHDXControlPanel):
         drfu_sd.columns = columns
         categories = list(drfu_sd.columns.unique(level=1))
         drfu_sd.columns = multiindex_astype(drfu_sd.columns, 1, "category")
-        drfu_sd.columns = multiindex_set_categories(
-            drfu_sd.columns, 1, categories, ordered=True
-        )
+        drfu_sd.columns = multiindex_set_categories(drfu_sd.columns, 1, categories, ordered=True)
 
         combined = pd.concat([drfu, drfu_sd], axis=1).sort_index(axis=1)
 
@@ -1920,9 +1834,7 @@ class ColorTransformControl(PyHDXControlPanel):
 
     # todo unify name for target field (target_data set)
     # When coupling param with the same name together there should be an option to exclude this behaviour
-    quantity = param.Selector(
-        label="Target Quantity"
-    )  # todo refactor cmapopt / color transform??
+    quantity = param.Selector(label="Target Quantity")  # todo refactor cmapopt / color transform??
     # fit_ID = param.Selector()  # generalize selecting widgets based on selected table
     # quantity = param.Selector(label='Quantity')  # this is the lowest-level quantity of the multiindex df (filter??)
 
@@ -1957,13 +1869,9 @@ class ColorTransformControl(PyHDXControlPanel):
     # log_space = param.Boolean(False,
     #                          doc='Boolean to set whether to apply colors in log space or not.')
     # apply = param.Action(lambda self: self._action_apply())
-    no_coverage = param.Color(
-        default="#8c8c8c", doc="Color to use for regions of no coverage"
-    )
+    no_coverage = param.Color(default="#8c8c8c", doc="Color to use for regions of no coverage")
 
-    live_preview = param.Boolean(
-        default=True, doc="Toggle live preview on/off", precedence=-1
-    )
+    live_preview = param.Boolean(default=True, doc="Toggle live preview on/off", precedence=-1)
 
     color_transform_name = param.String("", doc="Name for the color transform to add")
     apply_colormap = param.Action(
@@ -1983,9 +1891,7 @@ class ColorTransformControl(PyHDXControlPanel):
         # update to proplot cmaps?
         self._bounds = True  # set to False to disable updating bounds on thresholds
         cc_cmaps = sorted(colorcet.cm.keys())
-        mpl_cmaps = sorted(
-            set(plt.colormaps()) - set("cet_" + cmap for cmap in cc_cmaps)
-        )
+        mpl_cmaps = sorted(set(plt.colormaps()) - set("cet_" + cmap for cmap in cc_cmaps))
 
         self._pyhdx_cmaps = {}  # Dict of pyhdx default colormaps
         f_cmap, f_norm = CMAP_NORM_DEFAULTS["foldedness"]
@@ -2011,9 +1917,7 @@ class ColorTransformControl(PyHDXControlPanel):
         self._update_library()
 
         # these are rfu, drfu, d_uptake, dg, ddg,
-        quantity_options = [
-            opt.field for opt in self.opts.values() if isinstance(opt, CmapOpts)
-        ]
+        quantity_options = [opt.field for opt in self.opts.values() if isinstance(opt, CmapOpts)]
         self.param["quantity"].objects = quantity_options
         if self.quantity is None:
             self.quantity = quantity_options[0]
@@ -2027,9 +1931,7 @@ class ColorTransformControl(PyHDXControlPanel):
         initial_widgets = []
         for name in self.param:
             precedence = self.param[name].precedence
-            if (precedence is None or precedence > 0) and name not in self._excluded + [
-                "name"
-            ]:
+            if (precedence is None or precedence > 0) and name not in self._excluded + ["name"]:
                 initial_widgets.append(name)
 
         # todo control color / value fields with param.add_parameter function
@@ -2047,21 +1949,15 @@ class ColorTransformControl(PyHDXControlPanel):
     def get_selected_data(self):
         # todo rfu residues peptides should be expanded one more dim to add quantity column level on top
         if self.quantity is None:
-            self.parent.logger.info(
-                "No quantity selected to derive colormap thresholds from"
-            )
+            self.parent.logger.info("No quantity selected to derive colormap thresholds from")
             return None
 
         # get the table key corresponding to the selected cmap quantity
-        table_key = next(
-            iter((k for k in self.src.tables.keys() if k.startswith(self.quantity)))
-        )
+        table_key = next(iter((k for k in self.src.tables.keys() if k.startswith(self.quantity))))
 
         table = self.src.get_table(table_key)
         if table is None:
-            self.parent.logger.info(
-                f"Table corresponding to {self.quantity!r} is empty"
-            )
+            self.parent.logger.info(f"Table corresponding to {self.quantity!r} is empty")
             return None
 
         field = self.opts[self.quantity].field
@@ -2092,9 +1988,7 @@ class ColorTransformControl(PyHDXControlPanel):
         # func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
         func = lambda x: x
         thds = threshold_multiotsu(func(values), classes=self.num_colors)
-        widgets = [
-            widget for name, widget in self.widgets.items() if name.startswith("value")
-        ]
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith("value")]
         for thd, widget in zip(thds[::-1], widgets):  # Values from high to low
             widget.start = None
             widget.end = None
@@ -2111,13 +2005,9 @@ class ColorTransformControl(PyHDXControlPanel):
         #     thds = np.logspace(np.log(np.min(values)), np.log(np.max(values)),
         #                        num=self.num_colors + i, endpoint=True, base=np.e)
         # else:
-        thds = np.linspace(
-            np.min(values), np.max(values), num=self.num_colors + i, endpoint=True
-        )
+        thds = np.linspace(np.min(values), np.max(values), num=self.num_colors + i, endpoint=True)
 
-        widgets = [
-            widget for name, widget in self.widgets.items() if name.startswith("value")
-        ]
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith("value")]
         for thd, widget in zip(thds[i : self.num_colors][::-1], widgets):
             # Remove bounds, set values, update bounds
             widget.start = None
@@ -2161,9 +2051,7 @@ class ColorTransformControl(PyHDXControlPanel):
         self.live_preview = False
         self.mode = "Colormap"
 
-        lib = (
-            "pyhdx_default" if cmap.name in self._pyhdx_cmaps.keys() else "user_defined"
-        )
+        lib = "pyhdx_default" if cmap.name in self._pyhdx_cmaps.keys() else "user_defined"
         self.library = lib
         self.no_coverage = to_hex(cmap.get_bad(), keep_alpha=False)
         self.colormap = cmap.name
@@ -2171,9 +2059,7 @@ class ColorTransformControl(PyHDXControlPanel):
         self.current_color_transform = cmap.name
 
         thds = [norm.vmax, norm.vmin]
-        widgets = [
-            widget for name, widget in self.widgets.items() if name.startswith("value")
-        ]
+        widgets = [widget for name, widget in self.widgets.items() if name.startswith("value")]
         self._bounds = False  # todo decorator
         for i, (thd, widget) in enumerate(zip(thds, widgets)):
             # Remove bounds, set values, update bounds
@@ -2210,18 +2096,14 @@ class ColorTransformControl(PyHDXControlPanel):
             )  # todo refactor values to thd_values
 
         elif self.mode == "Continuous":
-            norm = norm_klass(
-                vmin=np.min(self.values), vmax=np.max(self.values), clip=True
-            )
+            norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
             positions = norm(self.values[::-1])
             cmap = mpl.colors.LinearSegmentedColormap.from_list(
                 "custom_cmap", list(zip(positions, self.colors))
             )
 
         elif self.mode == "Colormap":
-            norm = norm_klass(
-                vmin=np.min(self.values), vmax=np.max(self.values), clip=True
-            )
+            norm = norm_klass(vmin=np.min(self.values), vmax=np.max(self.values), clip=True)
             if self.library == "matplotlib":
                 cmap = mpl.cm.get_cmap(self.colormap)
             elif self.library == "colorcet":
@@ -2243,9 +2125,7 @@ class ColorTransformControl(PyHDXControlPanel):
     @param.depends("library", watch=True)
     def _update_library(self):
         collection = self.cmap_options[self.library]
-        options = (
-            collection if isinstance(collection, list) else list(collection.keys())
-        )
+        options = collection if isinstance(collection, list) else list(collection.keys())
         self.param["colormap"].objects = options
         if (
             self.colormap is None or self.colormap not in options
@@ -2368,9 +2248,7 @@ class ColorTransformControl(PyHDXControlPanel):
 
     def _update_bounds(self):
         # for i, widget in enumerate(self.values_widgets.values()):
-        if (
-            not self._bounds
-        ):  # temporary fix to turn on/off bounds (perhaps should be a decorator)
+        if not self._bounds:  # temporary fix to turn on/off bounds (perhaps should be a decorator)
             return
         for i in range(len(self.values)):
             widget = self.widgets[f"value_{i}"]
@@ -2638,9 +2516,7 @@ class FileExportControl(PyHDXControlPanel):
                         else str(col_name)
                     )
                     colors = color_df[col_name]
-                    pml_script = series_to_pymol(
-                        colors
-                    )  # todo refactor pd_series_to_pymol?
+                    pml_script = series_to_pymol(colors)  # todo refactor pd_series_to_pymol?
                     pml_zip.writestr(name + ".pml", pml_script)
 
             bio.seek(0)
@@ -2669,9 +2545,7 @@ class FileExportControl(PyHDXControlPanel):
 
     def hdx_spec_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets[
-            "download_state_spec"
-        ].filename = f"PyHDX_state_spec_{timestamp}.yaml"
+        self.widgets["download_state_spec"].filename = f"PyHDX_state_spec_{timestamp}.yaml"
 
         sio = self.parent.hdx_spec_callback()
         return sio
@@ -2685,9 +2559,7 @@ class FileExportControl(PyHDXControlPanel):
 
     def user_settings_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets[
-            "download_user_settings"
-        ].filename = f"PyHDX_config_{timestamp}.yaml"
+        self.widgets["download_user_settings"].filename = f"PyHDX_config_{timestamp}.yaml"
 
         sio = self.parent.user_settings_callback()
         return sio
@@ -2706,9 +2578,7 @@ class FigureExportControl(PyHDXControlPanel):
 
     header = "Figure Export"
 
-    figure = param.Selector(
-        default="scatter", objects=["scatter", "linear_bars", "rainbowclouds"]
-    )
+    figure = param.Selector(default="scatter", objects=["scatter", "linear_bars", "rainbowclouds"])
 
     table = param.Selector(doc="which table data to use for figure")
 
@@ -2729,9 +2599,7 @@ class FigureExportControl(PyHDXControlPanel):
         doc="Number of columns in subfigure",
     )
 
-    aspect = param.Number(
-        default=3.0, label="Aspect ratio", doc="Subfigure aspect ratio"
-    )
+    aspect = param.Number(default=3.0, label="Aspect ratio", doc="Subfigure aspect ratio")
 
     width = param.Number(
         default=cfg.plotting.page_width,
@@ -2985,9 +2853,7 @@ class SessionManagerControl(PyHDXControlPanel):
     def export_session_callback(self):
         self.widgets[
             "export_session"
-        ].filename = (
-            f"{self.parent.session_time.strftime('%Y%m%d_%H%M')}_PyHDX_session.zip"
-        )
+        ].filename = f"{self.parent.session_time.strftime('%Y%m%d_%H%M')}_PyHDX_session.zip"
         bio = BytesIO()
         with zipfile.ZipFile(bio, "w") as session_zip:
             # Write tables
@@ -3090,9 +2956,7 @@ class GraphControl(PyHDXControlPanel):
         super(GraphControl, self).__init__(parent, **params)
 
         self.widget_transforms = [
-            name
-            for name, trs in self.transforms.items()
-            if isinstance(trs, CrossSectionTransform)
+            name for name, trs in self.transforms.items() if isinstance(trs, CrossSectionTransform)
         ]
         self._watchers = {}
 
@@ -3109,9 +2973,7 @@ class GraphControl(PyHDXControlPanel):
         self.update_box()
 
     def _link_widgets(self):
-        trs_dict = {
-            flt: self.transforms[flt].widgets.keys() for flt in self.widget_transforms
-        }
+        trs_dict = {flt: self.transforms[flt].widgets.keys() for flt in self.widget_transforms}
         grouped = {}
         for k, v in trs_dict.items():
             for vi in v:
@@ -3125,9 +2987,7 @@ class GraphControl(PyHDXControlPanel):
         for widget_name, trs in grouped.items():
             if len(trs) > 1:  # If there are multiple in the same group, link them
                 master_widget = self.transforms[trs[0]].widgets[widget_name]
-                client_widgets = [
-                    self.transforms[t].widgets[widget_name] for t in trs[1:]
-                ]
+                client_widgets = [self.transforms[t].widgets[widget_name] for t in trs[1:]]
 
                 for watcher in self._watchers.get(widget_name, []):
                     pass
@@ -3141,9 +3001,7 @@ class GraphControl(PyHDXControlPanel):
 
                 output_widgets[widget_name] = master_widget
             else:
-                output_widgets[widget_name] = self.transforms[trs[0]].widgets[
-                    widget_name
-                ]
+                output_widgets[widget_name] = self.transforms[trs[0]].widgets[widget_name]
         return output_widgets
 
 
@@ -3215,9 +3073,7 @@ class PeptidePropertiesControl(ControlPanel):
         self._excluded = ["dG", "k_open", "k_close"]
         with param.edit_constant(self):
             self.k_close = self._get_k_close(self.dG, self.k_open)
-        self.model = PeptideUptakeModel(
-            list(self.fasta_sequence), self.temperature, self.pH
-        )
+        self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
         self.update_k_int_data()
 
         self.widgets = self.make_dict()  # this is the second trigger of make_dict
@@ -3234,20 +3090,16 @@ class PeptidePropertiesControl(ControlPanel):
         self.src.add_table("k_int", df)
 
     def _action_reload(self):
-        self.model = PeptideUptakeModel(
-            list(self.fasta_sequence), self.temperature, self.pH
-        )
+        self.model = PeptideUptakeModel(list(self.fasta_sequence), self.temperature, self.pH)
         self.update_k_int_data()
 
         self.dependent_variable = "k_close"
         with param.parameterized.batch_call_watchers(self):
             self.dG = np.array(
-                DG_DEFAULT[: len(self.model)]
-                + [35.0] * (len(self.model) - len(DG_DEFAULT))
+                DG_DEFAULT[: len(self.model)] + [35.0] * (len(self.model) - len(DG_DEFAULT))
             )
             self.k_open = np.array(
-                K_OPEN_DEFAULT[: len(self.model)]
-                + [2.0] * (len(self.model) - len(K_OPEN_DEFAULT))
+                K_OPEN_DEFAULT[: len(self.model)] + [2.0] * (len(self.model) - len(K_OPEN_DEFAULT))
             )
 
         with param.edit_constant(self):
@@ -3261,8 +3113,7 @@ class PeptidePropertiesControl(ControlPanel):
         dG_limits = {"start": 10, "end": 50}  # kJ/mol
         k_open_limits = {"start": -2, "end": 4}  # Log10
         k_close_limits = {
-            k: self._get_k_close(dG_limits[k], k_open_limits[k])
-            for k in dG_limits.keys()
+            k: self._get_k_close(dG_limits[k], k_open_limits[k]) for k in dG_limits.keys()
         }
 
         model = getattr(self, "model", None)
@@ -3328,9 +3179,7 @@ class PeptidePropertiesControl(ControlPanel):
     def update_d_uptake(self):
         time = np.logspace(-2, 6, num=250)
 
-        d_uptake = self.model.eval_analytical(
-            time, 10.0**self.k_open, 10.0**self.k_close
-        )
+        d_uptake = self.model.eval_analytical(time, 10.0**self.k_open, 10.0**self.k_close)
 
         cols = [f"aa_{i}" for i in range(len(self.model))]
         idx = pd.Index(time, name="time")

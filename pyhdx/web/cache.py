@@ -80,14 +80,9 @@ class HybridHDFCache(Cache):
 
     def __setitem__(self, key, value):
         key = str(key)
-        if (
-            isinstance(value, pd.DataFrame)
-            and value.memory_usage().sum() > self.bytes_threshold
-        ):
+        if isinstance(value, pd.DataFrame) and value.memory_usage().sum() > self.bytes_threshold:
             self._store_put(key, value)
-        elif (
-            isinstance(value, pd.Series) and value.memory_usage() > self.bytes_threshold
-        ):
+        elif isinstance(value, pd.Series) and value.memory_usage() > self.bytes_threshold:
             self._store_put(key, value)
         else:
             self._cache[str(key)] = value

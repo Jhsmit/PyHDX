@@ -30,9 +30,7 @@ class OptsBase(param.Parameterized):
     @property
     def opts(self):
         opts = {
-            name: self.param[name]
-            for name in self.param
-            if name not in self._excluded_from_opts
+            name: self.param[name] for name in self.param if name not in self._excluded_from_opts
         }
         return opts
 
@@ -45,9 +43,7 @@ class OptsBase(param.Parameterized):
             for p in self.param
             if self.param[p].precedence is None or self.param[p].precedence > 1
         ]
-        widgets = pn.Param(
-            self.param, show_name=False, show_labels=True, widgets=kwargs
-        )
+        widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
 
         return {k: v for k, v in zip(names[1:], widgets)}
 

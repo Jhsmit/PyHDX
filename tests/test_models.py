@@ -32,9 +32,7 @@ class TestHDXMeasurement(object):
         }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(
-            df, state="SecB WT apo"
-        )  # , query=["exposure != 0."])
+        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
 
@@ -92,9 +90,7 @@ class TestCoverage(object):
         }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(
-            df, state="SecB WT apo"
-        )  # , query=["exposure != 0."])
+        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
         #

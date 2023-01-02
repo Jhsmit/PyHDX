@@ -209,9 +209,7 @@ class CrossSectionTransform(AppTransform):
 
     axis = param.Integer(1, bounds=[0, 1])
 
-    n_levels = param.Integer(
-        0, doc="Number of levels. negative to count from the back of the list"
-    )
+    n_levels = param.Integer(0, doc="Number of levels. negative to count from the back of the list")
 
     level = param.List()
 
@@ -229,9 +227,7 @@ class CrossSectionTransform(AppTransform):
 
     def __init__(self, **params):
         super().__init__(**params)
-        self.index = (
-            None  # index is the df index which determines the selector's options
-        )
+        self.index = None  # index is the df index which determines the selector's options
         self.update()
 
     @param.depends("source.updated", watch=True)
@@ -254,7 +250,9 @@ class CrossSectionTransform(AppTransform):
                 self.selectors[0].param.trigger("value")
                 for name, selector in zip(self._names, self.selectors):
                     selector.name = name  # todo requires testing if the names are really updated or not (they arent)
-                    selector.label = name  # todo requires testing if the names are really updated or not
+                    selector.label = (
+                        name  # todo requires testing if the names are really updated or not
+                    )
                 self.redrawn = True
             else:
                 self.redraw()
@@ -315,9 +313,7 @@ class CrossSectionTransform(AppTransform):
                 next_selector = self.selectors[current_index + 1]
 
                 # Determine key/level to obtain new index which gives options for the next slider
-                values = [
-                    selector.value for selector in self.selectors[: current_index + 1]
-                ]
+                values = [selector.value for selector in self.selectors[: current_index + 1]]
                 key = [value if value != "None" else slice(None) for value in values]
                 level = list(range(current_index + 1))
                 bools, current_columns = self.index.get_loc_level(key=key, level=level)
@@ -327,9 +323,7 @@ class CrossSectionTransform(AppTransform):
                 if self.empty_select:
                     options = ["None"] + options
                 next_selector.options = options
-                if (
-                    next_selector.value is None
-                ):  # If the selector was not set yet, set it to 'None'
+                if next_selector.value is None:  # If the selector was not set yet, set it to 'None'
                     next_selector.value = options[0]
             except IndexError:
                 pass
@@ -369,9 +363,7 @@ class ApplyCmapOptTransform(AppTransform):
     # def check_args(... )  #todo method for constructor to see if the supplied kwargs are correct for this object
 
     def __init__(self, opts, **params):  # opts: list of opts objects
-        warnings.warn(
-            "ApplyCmapOptTransform does not implement hashing", NotImplementedError
-        )
+        warnings.warn("ApplyCmapOptTransform does not implement hashing", NotImplementedError)
         self._opts_dict = {o.name: o for o in opts}
         opts = list(self._opts_dict.keys())
         params["opts"] = opts
@@ -408,9 +400,7 @@ class ApplyCmapOptTransform(AppTransform):
             self.param["opts"].objects = []
             self.opts = None
         else:
-            options = list(
-                self._opts_dict.keys()
-            )  # this needs updating as opts_dict is static
+            options = list(self._opts_dict.keys())  # this needs updating as opts_dict is static
             # with turn off param triggers, then update (unexpected results)
             # with param.parameterized.discard_events(self):
             self.param[
@@ -441,12 +431,8 @@ class RectangleLayoutTransform(AppTransform):
     right = param.String("end", doc="Field name to use for for the right coordinate")
 
     height = param.Integer(1, doc="Height of the rectangles", constant=True)
-    value = param.String(
-        None, doc="Optional field name to pass through as value column"
-    )
-    passthrough = param.List(
-        [], doc="Optional field names to pass through (for hovertools)"
-    )
+    value = param.String(None, doc="Optional field name to pass through as value column")
+    passthrough = param.List([], doc="Optional field names to pass through (for hovertools)")
 
     wrap = param.Integer(
         doc="Amount of peptides to plot on the y axis before wrapping around to y axis top"
@@ -456,18 +442,14 @@ class RectangleLayoutTransform(AppTransform):
         bounds=(1, None),
         doc="Step size used for finding 'wrap' when its not specified",
     )
-    margin = param.Integer(
-        4, doc="Margin space to keep between peptides when finding 'wrap'"
-    )
+    margin = param.Integer(4, doc="Margin space to keep between peptides when finding 'wrap'")
 
     def transform(self):
         df = self.source.get()
         if df is None:
             return None
 
-        df = df.dropna(subset=[self.left, self.right]).sort_values(
-            by=[self.left, self.right]
-        )
+        df = df.dropna(subset=[self.left, self.right]).sort_values(by=[self.left, self.right])
 
         # todo fix types to be ints in the df
         left = df[self.left].to_numpy(dtype=int)
@@ -615,9 +597,7 @@ class StackTransform(GenericTransform):
 
     pd_function = "stack"
 
-    level = param.Integer(
-        -1
-    )  # actually int, str, or list of these, default -1 (last level)
+    level = param.Integer(-1)  # actually int, str, or list of these, default -1 (last level)
     # level = param.ClassSelector(_class=[int, str, list])  # where list is list of (str | int)
 
     dropna = param.Boolean(True)
@@ -654,9 +634,7 @@ class SampleTransform(AppTransform):
         doc="Fraction of subsamples to return. Incompatible with n",
     )
 
-    random = param.Boolean(
-        False, doc="whether to sample randomly or equidistanly spaced"
-    )
+    random = param.Boolean(False, doc="whether to sample randomly or equidistanly spaced")
 
     axis = param.Number(0, inclusive_bounds=(0, 1))
 
@@ -669,9 +647,7 @@ class SampleTransform(AppTransform):
             raise ValueError("Must specify either 'n' or 'frac'")
 
         if self.random:
-            df = df.sample(
-                n=self.n, frac=self.frac, axis=self.axis
-            )  # todo allow other kwargs?
+            df = df.sample(n=self.n, frac=self.frac, axis=self.axis)  # todo allow other kwargs?
         else:
             size = df.shape[self.axis]
             if self.n is not None:

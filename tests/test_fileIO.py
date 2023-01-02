@@ -35,9 +35,7 @@ class TestFileIO(object):
         }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(
-            df, state="SecB WT apo"
-        )  # , query=["exposure != 0."])
+        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
 
@@ -145,6 +143,4 @@ class TestFileIO(object):
         fr_load_with_hdxm_and_losses = load_fitresult(fit_result_dir)
         assert len(fr_load_with_hdxm_and_losses.losses) == 100
 
-        assert (
-            fr_load_with_hdxm_and_losses.metadata["total_loss"] == losses.iloc[-1].sum()
-        )
+        assert fr_load_with_hdxm_and_losses.metadata["total_loss"] == losses.iloc[-1].sum()

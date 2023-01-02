@@ -81,9 +81,7 @@ def reload_tables():
     src.add_table("d_uptake", csv_to_dataframe(web_data_dir / "d_uptake.csv"))
     src.add_table("rfu", csv_to_dataframe(web_data_dir / "rfu.csv"))
     src.add_table("dG", csv_to_dataframe(web_data_dir / "dG.csv"))
-    src.add_table(
-        "ddG_comparison", csv_to_dataframe(web_data_dir / "ddG_comparison.csv")
-    )
+    src.add_table("ddG_comparison", csv_to_dataframe(web_data_dir / "ddG_comparison.csv"))
     src.add_table("rates", csv_to_dataframe(web_data_dir / "rates.csv"))
     src.param.trigger("updated")
 
@@ -106,9 +104,7 @@ def reload_dashboard():
 
     # Temporary workaround for comment characters in csv files
     ds = "colors"
-    df = pd.read_csv(
-        web_data_dir / f"{ds}.csv", header=[0, 1, 2], index_col=0, skiprows=3
-    )
+    df = pd.read_csv(web_data_dir / f"{ds}.csv", header=[0, 1, 2], index_col=0, skiprows=3)
     source.add_df(df, ds)
 
 

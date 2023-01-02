@@ -141,10 +141,7 @@ def fit_rates_half_time_interpolate(hdxm):
     """
     # find t_50
     interpolated = np.array(
-        [
-            np.interp(0.5, d_uptake, hdxm.timepoints)
-            for d_uptake in hdxm.rfu_residues.to_numpy()
-        ]
+        [np.interp(0.5, d_uptake, hdxm.timepoints) for d_uptake in hdxm.rfu_residues.to_numpy()]
     )  # iterate over residues
     rate = np.log(2) / interpolated  # convert to rate
 
@@ -186,9 +183,7 @@ def fit_rates_weighted_average(
     fit_result : :class:`~pyhdx.fitting.KineticsFitResult`
 
     """
-    d_list, intervals, models = _prepare_wt_avg_fit(
-        hdxm, model_type=model_type, bounds=bounds
-    )
+    d_list, intervals, models = _prepare_wt_avg_fit(hdxm, model_type=model_type, bounds=bounds)
     if pbar:
         raise NotImplementedError()
     else:
@@ -246,9 +241,7 @@ def fit_d_uptake(
     hdx_obj: Union[HDXMeasurement, HDXTimepoint],
     guess: Optional[np.ndarray] = None,
     r1: float = 1.0,
-    bounds: Union[
-        Bounds, list[tuple[Optional[float], Optional[float]]], None, bool
-    ] = True,
+    bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
     repeats=10,
     verbose=True,
     client: Union[Client, Literal["worker_client"], DummyClient, None] = None,
@@ -292,9 +285,7 @@ def fit_d_uptake(
     for Ni, hdx_t in enumerate(iterable):
         X = hdx_t.X
         d_uptake = hdx_t.data["uptake_corrected"].values
-        pfunc = partial(
-            _fit_single_d_update, X, d_uptake, guess=guess, r1=r1, bounds=bounds
-        )
+        pfunc = partial(_fit_single_d_update, X, d_uptake, guess=guess, r1=r1, bounds=bounds)
         if isinstance(client, DummyClient):
             pbar_func = pbar_wrapper(pfunc)
         else:
@@ -357,17 +348,13 @@ def fit_single_d_update(
     hdx_t: HDXTimepoint,
     guess: Optional[np.ndarray] = None,
     r1: float = 1.0,
-    bounds: Union[
-        Bounds, list[tuple[Optional[float], Optional[float]]], None, bool
-    ] = True,
+    bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
     **kwargs: Any,
 ) -> tuple[OptimizeResult, float, float]:
     X = hdx_t.X
     d_uptake = hdx_t.data["uptake_corrected"].values
 
-    return _fit_single_d_update(
-        X, d_uptake, guess=guess, r1=r1, bounds=bounds, **kwargs
-    )
+    return _fit_single_d_update(X, d_uptake, guess=guess, r1=r1, bounds=bounds, **kwargs)
 
 
 def _fit_single_d_update(
@@ -375,9 +362,7 @@ def _fit_single_d_update(
     d_uptake: np.ndarray,
     guess: Optional[np.ndarray] = None,
     r1: float = 1.0,
-    bounds: Union[
-        Bounds, list[tuple[Optional[float], Optional[float]]], None, bool
-    ] = True,
+    bounds: Union[Bounds, list[tuple[Optional[float], Optional[float]]], None, bool] = True,
     **kwargs: Any,
 ) -> tuple[OptimizeResult, float, float]:
     """
@@ -638,8 +623,7 @@ def _loss_df(losses_array):
 
     loss_df = pd.DataFrame(
         losses_array,
-        columns=["mse_loss"]
-        + [f"reg_{i + 1}" for i in range(losses_array.shape[1] - 1)],
+        columns=["mse_loss"] + [f"reg_{i + 1}" for i in range(losses_array.shape[1] - 1)],
     )
     loss_df.index.name = "epoch"
     loss_df.index += 1
@@ -711,9 +695,7 @@ def fit_gibbs_global(
 
     dtype = torch.float64
     dG_par = torch.nn.Parameter(
-        torch.tensor(
-            initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE
-        ).unsqueeze(-1)
+        torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).unsqueeze(-1)
     )  # reshape (nr, 1)
 
     model = DeltaGFit(dG_par)
@@ -907,9 +889,9 @@ def _batch_fit(hdx_set, initial_guess, reg_func, fit_kwargs, optimizer_kwargs):
         raise ValueError("Invalid shape of initial guesses, must be (Nr, ) or (Ns, Nr")
 
     dG_par = torch.nn.Parameter(
-        torch.tensor(
-            initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE
-        ).reshape(hdx_set.Ns, hdx_set.Nr, 1)
+        torch.tensor(initial_guess, dtype=cfg.TORCH_DTYPE, device=cfg.TORCH_DEVICE).reshape(
+            hdx_set.Ns, hdx_set.Nr, 1
+        )
     )
 
     model = DeltaGFit(dG_par)
@@ -1051,9 +1033,7 @@ class KineticsFitResult(object):
 
     def __iter__(self):
         raise DeprecationWarning()
-        iterable = [
-            (r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)
-        ]
+        iterable = [(r, m, b) for r, m, b in zip(self.results, self.models, self.block_length)]
         return iterable.__iter__()
 
     def get_param(self, name):
@@ -1142,9 +1122,7 @@ class RatesFitResult:
     def output(self):
         dfs = [result.output for result in self.results]
         keys = [result.name for result in self.results]
-        combined_results = pd.concat(
-            dfs, axis=1, keys=keys, names=["state", "quantity"]
-        )
+        combined_results = pd.concat(dfs, axis=1, keys=keys, names=["state", "quantity"])
 
         return combined_results
 
@@ -1212,16 +1190,12 @@ class DUptakeFitResult:
     @property
     def output(self) -> Union[pd.Series, pd.DataFrame]:
         if isinstance(self.hdx_obj, HDXMeasurement):
-            combined = pd.concat([self.percentiles, self.means], axis=1).sort_index(
-                axis=1, level=0
-            )
+            combined = pd.concat([self.percentiles, self.means], axis=1).sort_index(axis=1, level=0)
             combined.columns = multiindex_astype(combined.columns, 0, "float")
             return combined
 
         elif isinstance(self.hdx_obj, HDXTimepoint):
-            combined = pd.concat([self.percentiles, self.means], axis=1).sort_index(
-                axis=1, level=0
-            )
+            combined = pd.concat([self.percentiles, self.means], axis=1).sort_index(axis=1, level=0)
 
             return combined
 

@@ -24,17 +24,13 @@ view_kwargs = {"scrollable": False}
 
 fmt_kwargs = {**fmt}
 
-yaml.SafeLoader.add_constructor(
-    "!regexp", lambda l, n: re.compile(l.construct_scalar(n))
-)
+yaml.SafeLoader.add_constructor("!regexp", lambda l, n: re.compile(l.construct_scalar(n)))
 
 
 @logger("pyhdx")
 def main_app():
     cwd = Path(__file__).parent.resolve()
-    yaml_dict = yaml.safe_load(
-        (cwd / "apps" / "pyhdx_app.yaml").read_text(encoding="utf-8")
-    )
+    yaml_dict = yaml.safe_load((cwd / "apps" / "pyhdx_app.yaml").read_text(encoding="utf-8"))
 
     ctr = AppConstructor(loggers={"pyhdx": main_app.logger}, cache=cache)
 
@@ -83,9 +79,7 @@ def main_app():
 @logger("pyhdx")
 def rfu_app():
     cwd = Path(__file__).parent.resolve()
-    yaml_dict = yaml.safe_load(
-        (cwd / "apps" / "rfu_app.yaml").read_text(encoding="utf-8")
-    )
+    yaml_dict = yaml.safe_load((cwd / "apps" / "rfu_app.yaml").read_text(encoding="utf-8"))
 
     ctr = AppConstructor(loggers={"pyhdx": rfu_app.logger}, cache=cache)
     ctrl = ctr.parse(yaml_dict)
@@ -172,9 +166,7 @@ class MarkDownFile(param.Parameterized):
 @logger("pyhdx")
 def peptide_app():
     cwd = Path(__file__).parent.resolve()
-    yaml_dict = yaml.safe_load(
-        (cwd / "apps" / "peptide_app.yaml").read_text(encoding="utf-8")
-    )
+    yaml_dict = yaml.safe_load((cwd / "apps" / "peptide_app.yaml").read_text(encoding="utf-8"))
 
     ctr = AppConstructor(cache=cache)
 

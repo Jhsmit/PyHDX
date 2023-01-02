@@ -117,9 +117,7 @@ class NGL(ReactiveHTML):
         objects=EXTENSIONS,
     )
 
-    background_color = param.Color(
-        default="#F7F7F7", doc="Color to use for the background"
-    )
+    background_color = param.Color(default="#F7F7F7", doc="Color to use for the background")
 
     representation = param.Selector(
         default="ball+stick",
@@ -139,9 +137,7 @@ class NGL(ReactiveHTML):
         http://nglviewer.org/ngl/api/manual/coloring.html#custom-coloring.""",
     )
 
-    effect = param.Selector(
-        default=None, objects=[None, "spin", "rock"], allow_None=True
-    )
+    effect = param.Selector(default=None, objects=[None, "spin", "rock"], allow_None=True)
 
     _template = """
     <div id="ngl_stage" style="width:100%; height:100%;"></div>
@@ -323,9 +319,7 @@ class CompositeFloatSliders(pn.widgets.base.CompositeWidget):
         is_instance=False,
     )
 
-    slider_params = param.Dict(
-        default={}, doc="Additional params to pass to the sliders"
-    )
+    slider_params = param.Dict(default={}, doc="Additional params to pass to the sliders")
 
     _composite_type = pn.Row
 

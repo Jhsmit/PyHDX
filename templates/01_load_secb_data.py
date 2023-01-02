@@ -33,9 +33,7 @@ sequence = "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASL
 temperature, pH = 273.15 + 30, 8.0
 
 # Create HDX Measurement object with addtional experimental metadata (sequence, pH, temperature)
-hdxm = HDXMeasurement(
-    peptides_corrected, sequence=sequence, pH=pH, temperature=temperature
-)
+hdxm = HDXMeasurement(peptides_corrected, sequence=sequence, pH=pH, temperature=temperature)
 
 
 # Output of general info such as if residues have coverage / exchange and intrinsic rate of exchange.

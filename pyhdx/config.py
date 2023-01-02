@@ -9,7 +9,8 @@ from omegaconf import OmegaConf, DictConfig, DictKeyType
 from packaging import version
 
 
-PACKAGE_NAME = 'pyhdx'
+PACKAGE_NAME = "pyhdx"
+
 
 def reset_config():
     """create a new config.yaml file in the user home dir/.pyhdx folder"""

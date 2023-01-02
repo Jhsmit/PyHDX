@@ -33,9 +33,7 @@ class View(param.Parameterized):
 
     _type = None
 
-    opts = param.List(
-        default=[], doc="list of opts dicts to apply on the plot", precedence=-1
-    )
+    opts = param.List(default=[], doc="list of opts dicts to apply on the plot", precedence=-1)
 
     dependencies = param.List(
         default=[],
@@ -74,9 +72,7 @@ class View(param.Parameterized):
             for p in self.param
             if self.param[p].precedence is None or self.param[p].precedence > 1
         ]
-        widgets = pn.Param(
-            self.param, show_name=False, show_labels=True, widgets=kwargs
-        )
+        widgets = pn.Param(self.param, show_name=False, show_labels=True, widgets=kwargs)
 
         return {k: v for k, v in zip(names[1:], widgets)}
 
@@ -191,9 +187,7 @@ class hvView(View):
             df = self.empty_df
 
         self._stream = Pipe(data=df)
-        return dict(
-            object=self.get_plot(), sizing_mode="stretch_both"
-        )  # todo update sizing mode
+        return dict(object=self.get_plot(), sizing_mode="stretch_both")  # todo update sizing mode
 
     @property
     def panel(self):
@@ -242,17 +236,11 @@ class hvXYView(hvView):
 
     x = param.Selector(default=None, doc="The column to render on the x-axis.")
 
-    x_objects = param.ClassSelector(
-        class_=(list, re.Pattern), default=None, precedence=-1
-    )
+    x_objects = param.ClassSelector(class_=(list, re.Pattern), default=None, precedence=-1)
 
-    y = param.Selector(
-        default=None, objects=[], doc="The column to render on the y-axis."
-    )
+    y = param.Selector(default=None, objects=[], doc="The column to render on the y-axis.")
 
-    y_objects = param.ClassSelector(
-        class_=(list, re.Pattern), default=None, precedence=-1
-    )
+    y_objects = param.ClassSelector(class_=(list, re.Pattern), default=None, precedence=-1)
 
     @param.depends("source.updated", watch=True)
     def update(self, *events) -> None:
@@ -271,9 +259,7 @@ class hvXYView(hvView):
             self._stream.send(data)
 
     @staticmethod
-    def resolve_columns(
-        data: pd.DataFrame, spec: Union[list, re.Pattern, None]
-    ) -> list[str]:
+    def resolve_columns(data: pd.DataFrame, spec: Union[list, re.Pattern, None]) -> list[str]:
         """Resolve the columns of a dataframe to find the ones that match specification.
 
         Args:
@@ -435,9 +421,7 @@ class hvRectanglesAppView(hvView):
 class hvErrorBarsAppView(hvView):
     _type = "errorbars"
 
-    x = param.String(
-        "x", doc="Positions of the errorbars, x-values for vertical errorbars"
-    )
+    x = param.String("x", doc="Positions of the errorbars, x-values for vertical errorbars")
 
     y = param.String("y", doc="Values of the samples, y-values for vertical errorbars")
 
@@ -480,9 +464,7 @@ class hvErrorBarsAppView(hvView):
         else:
             new_df = df[[self.value]]
             if self.err is not None:
-                raise ValueError(
-                    "Must specify 'err_pos' and 'err_neg' with positional" "errors"
-                )
+                raise ValueError("Must specify 'err_pos' and 'err_neg' with positional" "errors")
             new_df[self.err_pos] = df[self.err_pos] - df[self.value]
             new_df[self.err_neg] = df[self.value] - df[self.err_neg]
 
@@ -502,9 +484,7 @@ class hvErrorBarsAppView(hvView):
 
         """
 
-        func = partial(
-            hv.ErrorBars, kdims=self.kdims, vdims=self.vdims, horizontal=self.horizontal
-        )
+        func = partial(hv.ErrorBars, kdims=self.kdims, vdims=self.vdims, horizontal=self.horizontal)
         plot = hv.DynamicMap(func, streams=[self._stream])
 
         if self.opts_dict:
@@ -519,9 +499,7 @@ class hvErrorBarsAppView(hvView):
         elif self.err is None and self.err_pos is not None and self.err_neg is not None:
             return [self.value, self.err_pos, self.err_neg]
         else:
-            raise ValueError(
-                "Must set either only 'err' or both 'err_pos' and 'err_neg'"
-            )
+            raise ValueError("Must set either only 'err' or both 'err_pos' and 'err_neg'")
 
     @property
     def kdims(self):
@@ -591,9 +569,7 @@ class PDBeMolStarColorView(View):
 
     spin = param.Boolean(default=False, doc="Toggle object spin")
 
-    highlight_color = param.Color(
-        default="#ff6699", doc="Color for mouseover highlighting"
-    )
+    highlight_color = param.Color(default="#ff6699", doc="Color for mouseover highlighting")
 
     reset = param.Action(lambda self: self._action_reset())
 
@@ -611,9 +587,7 @@ class PDBeMolStarColorView(View):
         self.sources["color"].param.watch(self._color_updated, "updated")
 
         # field: opts for all cmap otps
-        self._cmap_opts = {
-            opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)
-        }
+        self._cmap_opts = {opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)}
 
     def _action_reset(self):
         data = {"camera": True}
@@ -748,9 +722,7 @@ class NGLColorView(View):
 
     representation = param.Selector(default="cartoon", objects=NGL_REPRESENTATIONS)
 
-    effect = param.Selector(
-        default=None, objects=[None, "spin", "rock"], allow_None=True
-    )
+    effect = param.Selector(default=None, objects=[None, "spin", "rock"], allow_None=True)
 
     color_scheme = param.Selector(default="custom", objects=COLOR_SCHEMES)
 
@@ -779,9 +751,7 @@ class NGLColorView(View):
         self.sources["color"].param.watch(self._color_updated, "updated")
 
         # field: opts for all cmap otps
-        self._cmap_opts = {
-            opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)
-        }
+        self._cmap_opts = {opt.field: opt for opt in self.opts if isinstance(opt, CmapOpts)}
 
     def _update_params(self, *events):
         for event in events:
@@ -822,10 +792,7 @@ class NGLColorView(View):
         color_list = []
         for c, pd_series in grp:
             result = [
-                list(g)
-                for _, g in groupby(
-                    pd_series.index, key=lambda n, c=count(): n - next(c)
-                )
+                list(g) for _, g in groupby(pd_series.index, key=lambda n, c=count(): n - next(c))
             ]
 
             resi = " or ".join([f"{g[0]}-{g[-1]}" for g in result])
@@ -855,9 +822,7 @@ class NGLColorView(View):
 class LoggingView(View):
     _type = "logging"
 
-    logger = param.ClassSelector(
-        logging.Logger, doc="Logger object to show in Log view"
-    )
+    logger = param.ClassSelector(logging.Logger, doc="Logger object to show in Log view")
 
     level = param.Integer(
         default=10,

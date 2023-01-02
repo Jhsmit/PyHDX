@@ -84,9 +84,7 @@ class AppConstructor(param.Parameterized):
             types = [cls._type for cls in all_classes]
             if len(types) != len(set(types)):
                 duplicate_items = [
-                    item
-                    for item, count in collections.Counter(types).items()
-                    if count > 1
+                    item for item, count in collections.Counter(types).items() if count > 1
                 ]
                 raise ValueError(
                     f"Multiple implementations of {key!r} found with the same type: {duplicate_items}"
@@ -107,20 +105,14 @@ class AppConstructor(param.Parameterized):
             d = yaml_dict.get(section, {})
             for name, spec in d.items():
                 if name in element_dict:
-                    raise ValueError(
-                        f"The element {element!r} with name {name!r} already exists"
-                    )
+                    raise ValueError(f"The element {element!r} with name {name!r} already exists")
                 # todo move to classmethod on object which checks spec/kwargs  (also prevents logger from needing a source)
                 if "type" not in spec:
-                    raise KeyError(
-                        f"The field 'type' is not specified for {section[:-1]} {name!r}"
-                    )
+                    raise KeyError(f"The field 'type' is not specified for {section[:-1]} {name!r}")
                 # _type = spec.pop('type')
                 if section in ["transforms", "views"] and "source" not in spec:
                     # raise KeyError(f"The field 'source' is not specified for {section[:-1]} {name!r}")
-                    print(
-                        f"The field 'source' is not specified for {section[:-1]} {name!r}"
-                    )
+                    print(f"The field 'source' is not specified for {section[:-1]} {name!r}")
                 obj = self.create_element(name, element, **spec)
                 element_dict[name] = obj
 

@@ -71,9 +71,7 @@ def param_format_basic(app, what, name, obj, options, lines):
             if not issubclass(cls, param.Parameterized) or cls is param.Parameterized:
                 continue
             cls_params = [
-                p
-                for p in cls.param
-                if p not in parameters and cls.param[p] == obj.param[p]
+                p for p in cls.param if p not in parameters and cls.param[p] == obj.param[p]
             ]
             if not cls_params:
                 continue
@@ -120,9 +118,7 @@ def param_format_basic(app, what, name, obj, options, lines):
             params_str = params_str[:-2]
             ptype = pobj.__class__.__name__
 
-            display_name = pobj.label or " ".join(
-                s.capitalize() for s in child.split("_")
-            )
+            display_name = pobj.label or " ".join(s.capitalize() for s in child.split("_"))
             if params_str.lstrip():
                 lines.extend([f"| **{display_name}** (*{ptype}*, {params_str})"])
             else:

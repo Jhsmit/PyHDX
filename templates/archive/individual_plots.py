@@ -10,9 +10,7 @@ import matplotlib.pyplot as plt
 
 #%%
 
-__file__ = (
-    Path().cwd() / "templates" / "script.py"
-)  # Uncomment for PyCharm scientific mode
+__file__ = Path().cwd() / "templates" / "script.py"  # Uncomment for PyCharm scientific mode
 
 cwd = Path(__file__).parent
 output_dir = cwd / "output" / "single_figures"

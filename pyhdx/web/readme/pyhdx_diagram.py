@@ -114,9 +114,7 @@ def make_diagram(name, yaml_dict):
                     trs = node(trs_name)
                     transforms[trs_name] = trs
                     if "source" in spec:
-                        source = sources.get(spec["source"]) or transforms.get(
-                            spec["source"]
-                        )
+                        source = sources.get(spec["source"]) or transforms.get(spec["source"])
                         source >> trs
                     if "sources" in spec:  # sources dict is label: src_name
                         for src_id, src_name in spec["sources"].items():
@@ -134,9 +132,7 @@ def make_diagram(name, yaml_dict):
                     view = node(view_name)
                     views[view_name] = view
                     if "source" in spec:
-                        source = sources.get(spec["source"]) or transforms.get(
-                            spec["source"]
-                        )
+                        source = sources.get(spec["source"]) or transforms.get(spec["source"])
                         source >> view
                     elif "sources" in spec:
                         for src_id, src_name in spec["sources"].items():
