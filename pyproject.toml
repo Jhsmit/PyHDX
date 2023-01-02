@@ -4,7 +4,7 @@ version = "0.0.0" # placeholder
 description = "Derive ΔG for single residues from HDX-MS data"
 authors = ["Jochem H. Smit <jhsmit@gmail.com>"]
 license = "MIT"
-readme = "README.rst"
+readme = "README.md"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Science/Research",
