@@ -10,6 +10,7 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "Natural Language :: English",
     "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
 ]
 exclude = ["pyhdx/_version.py"]
 
@@ -27,7 +28,7 @@ max-complexity = 10
 line-length = 100
 
 [tool.poetry.dependencies]
-python = "3.9.*"
+python = ">=3.9.*, <3.11"
 torch = "^1.13.1"
 hdxrate = "^0.2.0"
 numpy = "^1.24.1"
