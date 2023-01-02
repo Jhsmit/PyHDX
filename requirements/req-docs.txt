@@ -1,8 +1,0 @@
-furo
-ipykernel
-nbsphinx
-sphinx-autobuild
-sphinx-autodoc-typehints
-sphinx-copybutton
-sphinx>=4.4.0
-sphinxcontrib-bibtex

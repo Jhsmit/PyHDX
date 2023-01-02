@@ -1,0 +1,89 @@
+[tool.poetry]
+name = "pyhdx"
+version = "0.0.0" # placeholder
+description = "Derive ΔG for single residues from HDX-MS data"
+authors = ["Jochem H. Smit <jhsmit@gmail.com>"]
+license = "MIT"
+readme = "README.rst"
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Natural Language :: English",
+    "Programming Language :: Python :: 3.9",
+]
+exclude = ["pyhdx/_version.py"]
+
+[tool.poetry.urls]
+repository = "https://github.com/Jhsmit/PyHDX/"
+documentation = "https://pyhdx.readthedocs.io/en/stable/"
+
+[tool.flake8]
+max-line-length = 100
+ignore = "D203"
+exclude = [".git", "__pycache__", "build", "dist", "docs"]
+max-complexity = 10
+
+[tool.black]
+line-length = 100
+
+[tool.poetry.dependencies]
+python = "3.9.*"
+torch = "^1.13.1"
+hdxrate = "^0.2.0"
+numpy = "^1.24.1"
+matplotlib = "3.4.3"
+pandas = "^1.5.2"
+scikit-image = "^0.19.3"
+scipy = "^1.9.3"
+symfit = "^0.5.5"
+tqdm = "^4.64.1"
+typer = "^0.7.0"
+# dask, distributed use calver, so version is unclamped
+dask = ">=2022.12.1"
+distributed = ">=2022.12.1"
+packaging = "^22.0"
+param = "^1.12.3"
+pyyaml = "^6.0"
+omegaconf = "^2.3.0"
+panel = { version = "^0.14.2", optional = true }
+bokeh = { version = "2.4.3", optional = true }
+holoviews = { version = "^1.15.3", optional = true }
+colorcet = { version = "^3.0.1", optional = true }
+hvplot = { version = "^0.8.2", optional = true }
+proplot = { version = "0.9.3", optional = true }
+pylatex = { version = "^1.4.1", optional = true }
+
+[tool.poetry.extras]
+web = ["panel", "bokeh", "holoviews", "colorcet", "hvplot", "proplot"]
+pdf = ["pylatex", "proplot"]
+
+[tool.poetry.group.dev.dependencies]
+black = "^22.12.0"
+pytest = "^7.2.0"
+mypy = "^0.991"
+pylint = "^2.15.9"
+poetry-dynamic-versioning = {extras = ["plugin"], version = "^0.21.3"}
+
+
+[tool.poetry.group.docs.dependencies]
+sphinx = "^6.0.0"
+ipykernel = "^6.19.4"
+nbsphinx = "^0.8.11"
+furo = "^2022.12.7"
+sphinx-copybutton = "^0.5.1"
+sphinx-autodoc-typehints = "^1.19.5"
+sphinx-autobuild = "^2021.3.14"
+sphinxcontrib-bibtex = "^2.5.0"
+
+[tool.poetry.scripts]
+pyhdx = 'pyhdx.cli:app'
+
+[tool.poetry-dynamic-versioning]
+enable = true
+vcs = "git"
+style = "pep440"
+metadata = false
+
+[build-system]
+requires = ["poetry-core>=1.0.0", "poetry-dynamic-versioning"]
+build-backend = "poetry_dynamic_versioning.backend"

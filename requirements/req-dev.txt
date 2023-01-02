@@ -1,7 +1,0 @@
-bandit
-black
-flake8
-invoke
-mypy
-pylint
-pytest
