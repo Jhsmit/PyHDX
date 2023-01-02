@@ -16,9 +16,9 @@ hdx_spec = yaml.safe_load(yaml_stream)
 
 #%%
 # Modify the HDX spec to Limit the data to < 40. seconds exposure
-for state, state_spec in hdx_spec['states'].items():
-    peptide_spec = state_spec['peptides']
-    peptide_spec['experiment']['query'] = ['exposure < 40.']
+for state, state_spec in hdx_spec["states"].items():
+    peptide_spec = state_spec["peptides"]
+    peptide_spec["experiment"]["query"] = ["exposure < 40."]
 
 input_dir = current_dir.parent / "tests" / "test_data" / "input"
 parser = StateParser(hdx_spec, input_dir)
@@ -36,4 +36,3 @@ results
 
 fr = DUptakeFitResultSet(results)
 fr.output
-

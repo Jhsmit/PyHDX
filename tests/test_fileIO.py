@@ -29,16 +29,22 @@ class TestFileIO(object):
         cls.fpath = input_dir / "ecSecB_apo.csv"
         df = read_dynamx(cls.fpath)
 
-        fd = {'state': 'Full deuteration control',
-            'exposure': {'value': 0.167, 'unit': 'min'}}
+        fd = {
+            "state": "Full deuteration control",
+            "exposure": {"value": 0.167, "unit": "min"},
+        }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
+        peptides = filter_peptides(
+            df, state="SecB WT apo"
+        )  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.0
-        cls.hdxm = HDXMeasurement(peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155)
+        cls.hdxm = HDXMeasurement(
+            peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155
+        )
 
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 

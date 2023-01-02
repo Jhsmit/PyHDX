@@ -35,16 +35,22 @@ class TestMainGUISecB(object):
         cls.fpath = input_dir / "ecSecB_apo.csv"
         df = read_dynamx(cls.fpath)
 
-        fd = {'state': 'Full deuteration control',
-            'exposure': {'value': 0.167, 'unit': 'min'}}
+        fd = {
+            "state": "Full deuteration control",
+            "exposure": {"value": 0.167, "unit": "min"},
+        }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
+        peptides = filter_peptides(
+            df, state="SecB WT apo"
+        )  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.0
-        cls.hdxm = HDXMeasurement(peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155)
+        cls.hdxm = HDXMeasurement(
+            peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155
+        )
 
     def test_load_single_file(self):
         with open(self.fpath, "rb") as f:
@@ -54,7 +60,7 @@ class TestMainGUISecB(object):
         src = ctrl.sources["main"]
         input_control = ctrl.control_panels["PeptideFileInputControl"]
 
-        input_control.widgets['input_files'].filename = ["ecSecB_apo.csv"]
+        input_control.widgets["input_files"].filename = ["ecSecB_apo.csv"]
         input_control.input_files = [binary]
         assert input_control.fd_state == "Full deuteration control"
         assert input_control.fd_exposure == 0.0
@@ -133,7 +139,6 @@ class TestMainGUISecB(object):
         rfu_df = ctrl.sources["main"].get_table("rfu")
         assert rfu_df.shape == (145, 24)
         assert rfu_df.columns.nlevels == 3
-
 
         initial_guess = ctrl.control_panels["InitialGuessControl"]
         initial_guess._action_fit()

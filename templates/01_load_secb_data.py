@@ -15,8 +15,7 @@ fpath = current_dir.parent / "tests" / "test_data" / "input" / "ecSecB_apo.csv"
 # Load the full .csv file
 df = read_dynamx(fpath)
 
-fd = {'state': 'Full deuteration control',
-      'exposure': {'value': 0.167, 'unit': 'min'}}
+fd = {"state": "Full deuteration control", "exposure": {"value": 0.167, "unit": "min"}}
 
 # Filter out peptides for the full deuteration control
 fd_df = filter_peptides(df, **fd)
@@ -28,7 +27,7 @@ peptides = filter_peptides(df, state="SecB WT apo")
 peptides_control = apply_control(peptides, fd_df)
 
 # Correct for N-terminal back exchanging residues and deuterium percentage of the buffer
-peptides_corrected = correct_d_uptake(peptides_control, drop_first=1, d_percentage=90.)
+peptides_corrected = correct_d_uptake(peptides_control, drop_first=1, d_percentage=90.0)
 
 sequence = "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA"
 temperature, pH = 273.15 + 30, 8.0
@@ -44,4 +43,3 @@ hdxm.coverage.protein.to_file(output_dir / "SecB_info.txt", fmt="pprint")
 
 
 #%%
-

@@ -31,21 +31,20 @@ def dataframe_intersection(
     return intersected
 
 
-A = TypeVar('A', npt.ArrayLike, pd.Series, pd.DataFrame)
+A = TypeVar("A", npt.ArrayLike, pd.Series, pd.DataFrame)
 
 
 def convert_time(
-    values: A,
-    src_unit: Literal["h", "min", "s"],
-    target_unit: Literal["h", "min", "s"]) -> A:
+    values: A, src_unit: Literal["h", "min", "s"], target_unit: Literal["h", "min", "s"]
+) -> A:
 
-    time_lut = {"h": 3600., "min": 60., "s": 1.}
+    time_lut = {"h": 3600.0, "min": 60.0, "s": 1.0}
     time_factor = time_lut[src_unit] / time_lut[target_unit]
 
     if isinstance(values, list):
-        return [v*time_factor for v in values]
+        return [v * time_factor for v in values]
     else:
-        return values*time_factor
+        return values * time_factor
 
 
 def make_tuple(item):
@@ -799,7 +798,7 @@ def select_config() -> None:
     for which config to use and subsequently loads it.
 
     """
-    pyhdx_dir = Path().home() / '.pyhdx'
+    pyhdx_dir = Path().home() / ".pyhdx"
     config_options = list(pyhdx_dir.glob("*.yaml"))
 
     if len(config_options) > 1:
@@ -819,6 +818,7 @@ def select_config() -> None:
 
 def pbar_decorator(pbar):
     """Wraps a progress bar around a function, updating the progress bar with each function call"""
+
     def func_wrapper(func):
         @wraps(func)
         def wrapper(*args, **kwargs):
@@ -827,6 +827,7 @@ def pbar_decorator(pbar):
             return result
 
         return wrapper
+
     return func_wrapper
 
 

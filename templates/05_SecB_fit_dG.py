@@ -28,7 +28,7 @@ parser = StateParser(hdx_spec, input_dir)
 
 #%%
 
-hdxm = parser.load_hdxm('SecB_tetramer')
+hdxm = parser.load_hdxm("SecB_tetramer")
 print(hdxm.timepoints)
 
 #%%
@@ -38,7 +38,9 @@ if guess:
     wt_avg_result = fit_rates_weighted_average(hdxm, client=client)
     init_guess = wt_avg_result.output
 else:
-    init_guess = csv_to_dataframe(current_dir.parent / "tests" / "test_data" / "output" / "ecSecB_guess.csv")
+    init_guess = csv_to_dataframe(
+        current_dir.parent / "tests" / "test_data" / "output" / "ecSecB_guess.csv"
+    )
 
 gibbs_guess = hdxm.guess_deltaG(init_guess["rate"])
 

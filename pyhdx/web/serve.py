@@ -33,9 +33,7 @@ def run_apps():
 
     log_root_dir = cfg.log_dir
     log_dir = log_root_dir / datetime.datetime.now().strftime("%Y%m%d")
-    log_dir.mkdir(
-        parents=True, exist_ok=True
-    )
+    log_dir.mkdir(parents=True, exist_ok=True)
     root_log = logging.getLogger("pyhdx")
     root_log.setLevel(logging.DEBUG)
 

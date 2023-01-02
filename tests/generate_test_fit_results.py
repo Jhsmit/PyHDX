@@ -18,7 +18,7 @@ from pyhdx.fitting import (
     fit_gibbs_global,
     fit_gibbs_global_batch,
     fit_gibbs_global_batch_aligned,
-    fit_d_uptake
+    fit_d_uptake,
 )
 from pyhdx.models import HDXMeasurementSet
 from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
@@ -44,8 +44,7 @@ guess = False
 df_apo = read_dynamx(input_dir / "ecSecB_apo.csv")
 df_dimer = read_dynamx(input_dir / "ecSecB_dimer.csv")
 
-fd = {'state': 'Full deuteration control',
-      'exposure': {'value': 0.167, 'unit': 'min'}}
+fd = {"state": "Full deuteration control", "exposure": {"value": 0.167, "unit": "min"}}
 fd_df = filter_peptides(df_apo, **fd)
 
 apo_peptides = filter_peptides(df_apo, state="SecB WT apo")
@@ -100,7 +99,7 @@ dataframe_to_file(output_dir / "ecSecB_data.csv", data_df)
 dataframe_to_file(output_dir / "ecSecB_data.txt", data_df, fmt="pprint")
 
 # Fit D-uptake per timepoint
-fr_d = fit_d_uptake(hdxm_apo, r1=1., repeats=3)
+fr_d = fit_d_uptake(hdxm_apo, r1=1.0, repeats=3)
 dataframe_to_file(output_dir / f"ecSecB_d_uptake.csv", fr_d.output)
 
 gibbs_guess = hdxm_apo.guess_deltaG(guess_output["rate"])
@@ -174,7 +173,10 @@ dataframe_to_file(
 
 dimer_red = dimer_corrected[dimer_corrected["end"] < 40]
 hdxm_reduced_dimer = HDXMeasurement(
-    dimer_red, temperature=temperature, pH=pH, c_term=155,
+    dimer_red,
+    temperature=temperature,
+    pH=pH,
+    c_term=155,
 )
 
 reduced_hdx_set = HDXMeasurementSet([hdxm_reduced, hdxm_reduced_dimer])

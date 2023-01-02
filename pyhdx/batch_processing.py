@@ -23,13 +23,13 @@ class DataFile(object):
 
     name: str
 
-    format: Literal['DynamX']
+    format: Literal["DynamX"]
 
     filepath_or_buffer: Union[Path, StringIO]
 
     @cached_property
     def data(self) -> pd.DataFrame:
-        if self.format == 'DynamX':
+        if self.format == "DynamX":
             data = read_dynamx(self.filepath_or_buffer)
         else:
             raise ValueError(f"Invalid format {self.format!r}")
@@ -64,11 +64,12 @@ class StateParser(object):
 
         if isinstance(data_src, (os.PathLike, str)):
             data_src = Path(data_src) or Path(".")
-            for name, spec in self.hdx_spec['data_files'].items():
-                datafile = DataFile(name=name,
-                                    filepath_or_buffer= data_src / spec['filename'],
-                                    **{k: v for k, v in spec.items() if k != 'filename'},
-                                    )
+            for name, spec in self.hdx_spec["data_files"].items():
+                datafile = DataFile(
+                    name=name,
+                    filepath_or_buffer=data_src / spec["filename"],
+                    **{k: v for k, v in spec.items() if k != "filename"},
+                )
                 self.data_files[name] = datafile
 
         elif isinstance(data_src, dict):
@@ -84,34 +85,46 @@ class StateParser(object):
 
     def load_peptides(self, state: Union[str, int], peptides: str) -> pd.DataFrame:
         state = self.states[state] if isinstance(state, int) else state
-        peptide_spec = self.hdx_spec["states"][state]['peptides'][peptides]
-        filter_fields = {'state', 'exposure', 'query', 'dropna'}
+        peptide_spec = self.hdx_spec["states"][state]["peptides"][peptides]
+        filter_fields = {"state", "exposure", "query", "dropna"}
 
-        df = self.data_files[peptide_spec['data_file']].data
-        peptide_df = filter_peptides(df, **{k: v for k, v in peptide_spec.items() if k in filter_fields})
+        df = self.data_files[peptide_spec["data_file"]].data
+        peptide_df = filter_peptides(
+            df, **{k: v for k, v in peptide_spec.items() if k in filter_fields}
+        )
 
         return peptide_df
 
     # -> function as monkey patch dataset parser; OR perhaps add them to internal dict of loaders ?
     def load_hdxm(self, state: Union[str, int]) -> HDXMeasurement:
         state = self.states[state] if isinstance(state, int) else state
-        peptide_spec = self.hdx_spec["states"][state]['peptides']
-        metadata = self.hdx_spec["states"][state]['metadata']
+        peptide_spec = self.hdx_spec["states"][state]["peptides"]
+        metadata = self.hdx_spec["states"][state]["metadata"]
 
-        peptides = self.load_peptides(state, 'experiment')
-        fd_peptides = self.load_peptides(state, 'FD_control') if 'FD_control' in peptide_spec else None
-        nd_peptides = self.load_peptides(state, 'ND_control') if 'ND_control' in peptide_spec else None
+        peptides = self.load_peptides(state, "experiment")
+        fd_peptides = (
+            self.load_peptides(state, "FD_control")
+            if "FD_control" in peptide_spec
+            else None
+        )
+        nd_peptides = (
+            self.load_peptides(state, "ND_control")
+            if "ND_control" in peptide_spec
+            else None
+        )
 
-        if fd_peptides is None and 'be_percent' in metadata:
+        if fd_peptides is None and "be_percent" in metadata:
             peptides = correct_d_uptake(peptides)
-            back_exchange = metadata['be_percent'] / 100.
-            peptides["rfu"] = peptides["uptake"] / ((1 - back_exchange) * peptides['ex_residues'])
+            back_exchange = metadata["be_percent"] / 100.0
+            peptides["rfu"] = peptides["uptake"] / (
+                (1 - back_exchange) * peptides["ex_residues"]
+            )
             peptides["uptake_corrected"] = peptides["uptake"] / (1 - back_exchange)
         elif isinstance(fd_peptides, pd.DataFrame):
             peptides = apply_control(peptides, fd_peptides, nd_peptides)
             peptides = correct_d_uptake(peptides, drop_first=cfg.analysis.drop_first)
 
-        global_metadata = self.hdx_spec.get('metadata', {})
+        global_metadata = self.hdx_spec.get("metadata", {})
         global_metadata.update(metadata)
         hdxm = HDXMeasurement(peptides, name=state, **global_metadata)
 
@@ -121,7 +134,7 @@ class StateParser(object):
     def correction_kwargs(self):
         kwargs = {
             "drop_first": cfg.analysis.drop_first,
-            "d_percentage": self.hdx_spec['metadata'].get("d_percentage", 100.)
+            "d_percentage": self.hdx_spec["metadata"].get("d_percentage", 100.0),
         }
 
         # todo:
@@ -132,4 +145,4 @@ class StateParser(object):
 
     @property
     def states(self) -> list[str]:
-        return list(self.hdx_spec['states'].keys())
+        return list(self.hdx_spec["states"].keys())

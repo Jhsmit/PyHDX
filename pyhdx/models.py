@@ -351,7 +351,7 @@ class Coverage(object):
     @property
     def avg_peptide_length(self) -> float:
         """Average length of the peptides"""
-        return (self.data['end'] - self.data['start']).mean()
+        return (self.data["end"] - self.data["start"]).mean()
 
     @property
     def Np(self) -> int:
@@ -456,19 +456,16 @@ class HDXMeasurement(object):
         self.timepoints = np.sort(np.unique(data["exposure"]))
 
         # todo sort happens twice now
-        data = data.sort_values(
-            ["start", "stop", "sequence", "exposure"]
-        )
+        data = data.sort_values(["start", "stop", "sequence", "exposure"])
 
         # Obtain the intersection of peptides per timepoint
-        df_list = [
-            (data[data["exposure"] == exposure])
-            for exposure in self.timepoints
-        ]
+        df_list = [(data[data["exposure"] == exposure]) for exposure in self.timepoints]
 
-        intersected_data = dataframe_intersection(df_list, by=['start', 'stop'])
+        intersected_data = dataframe_intersection(df_list, by=["start", "stop"])
 
-        cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ["c_term", "n_term", "sequence"]}
+        cov_kwargs = {
+            kwarg: metadata.get(kwarg) for kwarg in ["c_term", "n_term", "sequence"]
+        }
         self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
         # Create coverage object from the first time point (as all are now equal)

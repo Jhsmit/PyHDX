@@ -123,7 +123,7 @@ if not valid_config():
         # This will happen on conda-forge docker build.
         # When no config.yaml file is in home_dir / '.pyhdx',
         # ConfigurationSettings will use the hardcoded version (pyhdx/config.ini)
-        conf = OmegaConf.load(current_dir / 'config.yaml')
+        conf = OmegaConf.load(current_dir / "config.yaml")
         # (this is run twice due to import but should be OK since conf is singleton)
 else:
     conf = OmegaConf.load(config_file_path)

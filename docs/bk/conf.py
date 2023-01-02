@@ -72,9 +72,9 @@ source_suffix = ".rst"
 master_doc = "index"
 
 # General information about the project.
-project = u"PyHDX"
-copyright = u"2022, Jochem Smit"
-author = u"Jochem Smit"
+project = "PyHDX"
+copyright = "2022, Jochem Smit"
+author = "Jochem Smit"
 
 # The version info for the project you're documenting, acts as replacement
 # for |version| and |release|, also used in various other places throughout
@@ -150,7 +150,7 @@ latex_elements = {
 # (source start file, target name, title, author, documentclass
 # [howto, manual, or own class]).
 latex_documents = [
-    (master_doc, "pyhdx.tex", u"PyHDX Documentation", u"Jochem Smit", "manual"),
+    (master_doc, "pyhdx.tex", "PyHDX Documentation", "Jochem Smit", "manual"),
 ]
 
 
@@ -158,7 +158,7 @@ latex_documents = [
 
 # One entry per manual page. List of tuples
 # (source start file, name, description, authors, manual section).
-man_pages = [(master_doc, "pyhdx", u"PyHDX Documentation", [author], 1)]
+man_pages = [(master_doc, "pyhdx", "PyHDX Documentation", [author], 1)]
 
 
 # -- Options for Texinfo output ----------------------------------------
@@ -170,7 +170,7 @@ texinfo_documents = [
     (
         master_doc,
         "pyhdx",
-        u"PyHDX Documentation",
+        "PyHDX Documentation",
         author,
         "pyhdx",
         "Derive ΔG for single residues from HDX-MS data",

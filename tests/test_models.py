@@ -26,16 +26,22 @@ class TestHDXMeasurement(object):
         fpath = input_dir / "ecSecB_apo.csv"
         df = read_dynamx(fpath)
 
-        fd = {'state': 'Full deuteration control',
-            'exposure': {'value': 0.167, 'unit': 'min'}}
+        fd = {
+            "state": "Full deuteration control",
+            "exposure": {"value": 0.167, "unit": "min"},
+        }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
+        peptides = filter_peptides(
+            df, state="SecB WT apo"
+        )  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
 
         cls.temperature, cls.pH = 273.15 + 30, 8.0
-        cls.hdxm = HDXMeasurement(peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155)
+        cls.hdxm = HDXMeasurement(
+            peptides_corrected, temperature=cls.temperature, pH=cls.pH, c_term=155
+        )
 
     def test_dim(self):
         assert self.hdxm.Nt == len(self.hdxm.data["exposure"].unique())
@@ -80,11 +86,15 @@ class TestCoverage(object):
         fpath = input_dir / "ecSecB_apo.csv"
         df = read_dynamx(fpath)
 
-        fd = {'state': 'Full deuteration control',
-            'exposure': {'value': 0.167, 'unit': 'min'}}
+        fd = {
+            "state": "Full deuteration control",
+            "exposure": {"value": 0.167, "unit": "min"},
+        }
 
         fd_df = filter_peptides(df, **fd)
-        peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
+        peptides = filter_peptides(
+            df, state="SecB WT apo"
+        )  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
         #

@@ -23,6 +23,8 @@ reset_config()
 sys._excepthook = sys.excepthook
 
 import traceback as tb
+
+
 def my_exception_hook(exctype, value, traceback):
     # Print the error and traceback
     # https://stackoverflow.com/questions/43039048/pyqt5-fails-with-cryptic-message/43039363#43039363
@@ -37,6 +39,7 @@ def my_exception_hook(exctype, value, traceback):
     sys._excepthook(exctype, value, traceback)
     sys.exit(1)
 
+
 # Set the exception hook to our wrapping function
 sys.excepthook = my_exception_hook
 
@@ -45,19 +48,19 @@ ctrl, tmpl = rfu_app()
 
 cwd = Path(__file__).parent
 root_dir = cwd.parent.parent
-data_dir = root_dir / 'tests' / 'test_data' / 'input'
+data_dir = root_dir / "tests" / "test_data" / "input"
 
 
 # batch_fname = 'data_states.yaml' # standard secb apo / dimer dataset
 # batch_fname = 'data_states_red.yaml'  # reduced number of pepties
-batch_fname = 'PpiX_states.yaml' # secb apo / dimer but artificial delta C/N tail
+batch_fname = "PpiX_states.yaml"  # secb apo / dimer but artificial delta C/N tail
 
 state_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 
 
 def init_dashboard():
     n = 2  # change this to control the number of HDX measurements added
-    input_control = ctrl.control_panels['PeptideRFUFileInputControl']
+    input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
     for i, (k, v) in enumerate(state_spec.items()):
         if i == n:
             break
@@ -66,23 +69,26 @@ def init_dashboard():
 
     input_control._action_load_datasets()
 
-
-
     # if n > 1:
     #     diff = ctrl.control_panels['DifferentialControl']
     #     diff._action_add_comparison()
 
-#pn.state.onload(reload_dashboard)
-#pn.state.onload(reload_tables)
+
+# pn.state.onload(reload_dashboard)
+# pn.state.onload(reload_tables)
 pn.state.onload(init_dashboard)
-#pn.state.onload(init_batch)
+# pn.state.onload(init_batch)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)
-    pn.serve(tmpl, show=True, static_dirs={'pyhdx': STATIC_DIR, "assets": str(cfg.assets_dir)})
+    pn.serve(
+        tmpl,
+        show=True,
+        static_dirs={"pyhdx": STATIC_DIR, "assets": str(cfg.assets_dir)},
+    )
 
-elif __name__.startswith('bokeh_app'):
+elif __name__.startswith("bokeh_app"):
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)
     tmpl.servable()
 

@@ -17,7 +17,7 @@ hdx_spec = yaml.safe_load(yaml_stream)
 client = default_client()
 
 parser = StateParser(hdx_spec, data_src=data_dir)
-for name in hdx_spec['states'].keys():
+for name in hdx_spec["states"].keys():
     print(name)
     hdxm = parser.load_hdxm(name)
 

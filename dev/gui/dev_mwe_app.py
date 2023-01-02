@@ -56,12 +56,7 @@ elvis = GoldenElvis(
 views = {v: ctrl.views[v] for v in views_names}
 # [v.update() for v in views.values()]
 
-tmpl = elvis.compose(
-    elvis.row(
-        elvis.view("xy_scatter"),
-        elvis.view("xy_line")
-    )
-)
+tmpl = elvis.compose(elvis.row(elvis.view("xy_scatter"), elvis.view("xy_line")))
 
 
 def reload_tables():

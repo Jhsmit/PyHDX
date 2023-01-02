@@ -16,7 +16,8 @@ from pyhdx.fitting import (
     fit_gibbs_global_batch,
     fit_gibbs_global_batch_aligned,
     fit_rates_half_time_interpolate,
-    GenericFitResult, fit_d_uptake,
+    GenericFitResult,
+    fit_d_uptake,
 )
 from pyhdx.batch_processing import StateParser
 from pyhdx.models import HDXMeasurementSet
@@ -41,8 +42,10 @@ class TestSecBDataFit(object):
         df_apo = read_dynamx(fpath_apo)
         df_dimer = read_dynamx(fpath_dimer)
 
-        fd = {'state': 'Full deuteration control',
-            'exposure': {'value': 0.167, 'unit': 'min'}}
+        fd = {
+            "state": "Full deuteration control",
+            "exposure": {"value": 0.167, "unit": "min"},
+        }
 
         fd_df = filter_peptides(df_apo, **fd)
 

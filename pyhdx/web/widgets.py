@@ -229,6 +229,7 @@ class LoggingMarkdown(Markdown):
         self.contents = line + self.contents
         self.object = self.header + self.contents
 
+
 # todo should have a mixin making it a Viewable
 class ASyncProgressBar(param.Parameterized):
     completed = param.Integer(default=0, doc="Number of completed jobs")

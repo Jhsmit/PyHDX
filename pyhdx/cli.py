@@ -10,24 +10,19 @@ from omegaconf import OmegaConf
 app = typer.Typer()
 
 
-
 @app.command()
 def serve(
     scheduler_address: Optional[str] = typer.Option(
         None, help="Address for dask scheduler to use"
     ),
     config: Optional[Path] = typer.Option(
-        None,
-        exists=True,
-        help="Optional PyHDX .yaml config file to use"
-    )
-
+        None, exists=True, help="Optional PyHDX .yaml config file to use"
+    ),
 ):
     """Launch the PyHDX web application"""
 
     from pyhdx.config import cfg
     from pyhdx.local_cluster import verify_cluster, default_cluster
-
 
     if config is not None:
         conf = OmegaConf.create(config.read_text())
@@ -42,7 +37,6 @@ def serve(
             print("Invalid port, must be 0-65535")
             return
         cfg.cluster.scheduler_address = scheduler_address
-
 
     scheduler_address = cfg.cluster.scheduler_address
     if not verify_cluster(scheduler_address):

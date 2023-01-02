@@ -22,7 +22,7 @@ parser = StateParser(hdx_spec, input_dir)
 
 #%%
 # Load an HDX measurement by state name
-hdxm = parser.load_hdxm('SecB_tetramer')
+hdxm = parser.load_hdxm("SecB_tetramer")
 print(hdxm.timepoints)
 
 #%%
