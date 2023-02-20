@@ -1,0 +1,68 @@
+site_name: PyHDX
+site_description: Loading and parsing of HDX-MS datasets and associated metadata
+
+repo_url: https://github.com/jhsmit/pyhdx/
+edit_uri: edit/master/docs/
+
+
+theme:
+  name: "material"
+
+markdown_extensions:
+  - codehilite
+  - markdown.extensions.codehilite:
+      guess_lang: false
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:materialx.emoji.twemoji
+      emoji_generator: !!python/name:materialx.emoji.to_svg
+  - pymdownx.arithmatex:
+      generic: true
+
+nav:
+  - Overview: index.md
+  - Introduction: introduction.md
+  - Installation: installation.md
+  - Web Application: web_app.md
+  - Examples:
+      - Basic Usage: examples/01_basic_usage.ipynb
+      - Coverage and D-uptake fit: examples/02_coverage_and_d_uptake_fit.ipynb
+      - Fitting of ΔGs: examples/03_fitting.ipynb
+      # - Plotting output: examples/04_plot_output.ipynb (outdated)
+  - Citing and Resources: citing.md
+  - API Reference: reference/
+
+
+watch:
+  - pyhdx
+
+plugins:
+  - search
+  - gen-files:
+      scripts:
+        - docs/gen_ref_pages.py
+  - literate-nav:
+      nav_file: SUMMARY.md
+  - mkdocs-jupyter
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          options:
+            enable_inventory: true
+            show_signature_annotations: false
+          import:
+            - https://docs.python.org/3/objects.inv
+            - https://numpy.org/doc/stable/objects.inv
+            - https://docs.scipy.org/doc/scipy/objects.inv
+            - https://pandas.pydata.org/docs/objects.inv
+          paths: [pyhdx]
+
+extra_css:
+- css/codehilite.css
+- css/style.css
+
+extra_javascript:
+  - javascript/mathjax.js
+  - https://polyfill.io/v3/polyfill.min.js?features=es6
+  - https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js

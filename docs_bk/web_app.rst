@@ -6,6 +6,7 @@ parameter can be found in the web application reference docs :ref:`web-applicati
 a sidebar with controls and input, divided into sections, and a main view area with graphs and visualization. We will
 go through the functionality of the web interface per section.
 
+
 Settings
 ````````
 
@@ -31,7 +32,6 @@ to switch between input modes.
 
 When using 'Batch', multiple measurements can be added quickly through an `yaml` file specification.
 An example of an `yaml` file can be found in 'tests/test-data' on GitHub.
-
 
 When using 'Single', each measurement and experimental metadata must be input manually.
 Use the :guilabel:`Browse` button to select peptide data files to upload. These should be 'peptide master tables' which
