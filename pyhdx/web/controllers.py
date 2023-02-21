@@ -426,7 +426,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
         objects=["FD Sample", "Flat percentage"],
     )
 
-    fd_file = param.Selector(doc="File with FD control peptides")
+    fd_file = param.Selector(doc="File with FD control peptides", label="FD File")
 
     fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
 
@@ -439,7 +439,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
         label="Back exchange percentage",
     )
 
-    exp_file = param.Selector(doc="File with experiment peptides")
+    exp_file = param.Selector(doc="File with experiment peptides", label="Exp File")
 
     exp_state = param.Selector(doc="State for selected experiment", label="Experiment State")
 
