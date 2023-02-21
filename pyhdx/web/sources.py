@@ -41,7 +41,6 @@ class Source(param.Parameterized):
 
 
 class TableSource(Source):
-
     tables = param.Dict(default={}, doc="Dictionary of tables (pd.DataFrames)")
 
     hashes = param.Dict(default={}, doc="Dictionary of table hashes")
@@ -257,7 +256,6 @@ class PyHDXSource(TableSource):
 
 
 class PDBSource(Source):
-
     _type = "pdb"
 
     pdb_files = param.Dict({}, doc="Dictionary with id: pdb_string pdb file entries")

@@ -19,6 +19,7 @@ sys._excepthook = sys.excepthook
 
 import traceback as tb
 
+
 # Prevents failures without tracebacks
 def my_exception_hook(exctype, value, traceback):
     # Print the error and traceback

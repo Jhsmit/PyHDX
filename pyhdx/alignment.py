@@ -42,7 +42,6 @@ def parse_clustal_string(s: str, num_proteins: int, whitelines: int = 2, offset:
 
 # TODO should take dicts only
 def align_dataframes(dataframes, alignment, first_r_numbers=None):
-
     """
     Aligned dataframes based on an alignment.
 

@@ -1084,7 +1084,6 @@ class KineticsFitResult(object):
         return 1 / self.rate
 
     def get_output(self, names):
-
         # this does not seem to work:
         # df_dict = {name: getattr(self, name, self.get_param(name)) for name in names}
         df_dict = {}
@@ -1216,7 +1215,6 @@ class DUptakeFitResult:
 
 @dataclass
 class DUptakeFitResultSet(object):
-
     results: list[DUptakeFitResult]
 
     @property

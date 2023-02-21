@@ -152,7 +152,6 @@ class MarkDownFile(param.Parameterized):
 
     @property
     def panel(self):
-
         style = {"font-size": "16pt"}
 
         return pn.pane.Markdown(

@@ -20,7 +20,6 @@ temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}
 
 @dataclass(frozen=True)
 class DataFile(object):
-
     name: str
 
     format: Literal["DynamX"]
@@ -58,7 +57,6 @@ class StateParser(object):
         # filter_kwargs: Optional[dict[str, Any]] = None,
         # correction_kwargs: Optional[dict[str, Any]] = None,
     ) -> None:
-
         self.hdx_spec = hdx_spec
         self.data_files: dict[str, DataFile] = {}
 

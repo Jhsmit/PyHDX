@@ -12,6 +12,7 @@ from pyhdx.support import autowrap, make_tuple
 from pyhdx.web.sources import Source
 from pyhdx.web.cache import Cache
 
+
 # ABC
 class Transform(param.Parameterized):
     """Gets data and applies transform"""
@@ -80,7 +81,6 @@ class MultiTransform(Transform):
 
 
 class SelectTransform(MultiTransform):
-
     _type = "select"
 
     value = param.Selector()
@@ -200,7 +200,6 @@ class AppTransform(Transform):
 
 
 class CrossSectionTransform(AppTransform):
-
     _type = "cross_section"
 
     pd_function = "xs"
@@ -232,7 +231,6 @@ class CrossSectionTransform(AppTransform):
 
     @param.depends("source.updated", watch=True)
     def update(self):
-
         if self.update_hash():
             # todo remove watchers when new transforms are created?
             old_index = self.index
@@ -350,7 +348,6 @@ class CrossSectionTransform(AppTransform):
 
 
 class ApplyCmapOptTransform(AppTransform):
-
     _type = "apply_cmap_opt"
 
     opts = param.Selector(

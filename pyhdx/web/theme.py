@@ -15,7 +15,6 @@ custom_dark_json_theme["attrs"]["ColorBar"]["background_fill_alpha"] = 0
 
 
 class ExtendedGoldenDefaultTheme(pn.template.golden.GoldenDefaultTheme):
-
     css = param.Filename(
         default=pathlib.Path(__file__).parent / "static" / "extendedgoldentemplate" / "default.css"
     )
@@ -28,7 +27,6 @@ class ExtendedGoldenDefaultTheme(pn.template.golden.GoldenDefaultTheme):
 
 
 class ExtendedGoldenDarkTheme(pn.template.golden.GoldenDarkTheme):
-
     css = param.Filename(
         default=pathlib.Path(__file__).parent / "static" / "extendedgoldentemplate" / "dark.css"
     )

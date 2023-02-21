@@ -17,7 +17,6 @@ element_count = 0
 
 
 class AppConstructor(param.Parameterized):
-
     sources = param.Dict(default={})
 
     transforms = param.Dict(default={})

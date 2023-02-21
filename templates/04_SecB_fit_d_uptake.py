@@ -6,7 +6,7 @@ import yaml
 from pyhdx.batch_processing import StateParser
 from pyhdx.fitting import fit_d_uptake, DUptakeFitResultSet
 
-#%%
+# %%
 
 current_dir = Path(__file__).parent
 output_dir = current_dir / "output"
@@ -14,7 +14,7 @@ output_dir.mkdir(exist_ok=True)
 yaml_stream = Path(current_dir / "yaml_files" / "SecB.yaml").read_text()
 hdx_spec = yaml.safe_load(yaml_stream)
 
-#%%
+# %%
 # Modify the HDX spec to Limit the data to < 40. seconds exposure
 for state, state_spec in hdx_spec["states"].items():
     peptide_spec = state_spec["peptides"]
@@ -32,7 +32,7 @@ for hdxm in hdxm_set:
 
 results
 
-#%%
+# %%
 
 fr = DUptakeFitResultSet(results)
 fr.output

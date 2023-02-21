@@ -80,7 +80,6 @@ class TestHDXMeasurement(object):
 class TestCoverage(object):
     @classmethod
     def setup_class(cls):
-
         fpath = input_dir / "ecSecB_apo.csv"
         df = read_dynamx(fpath)
 

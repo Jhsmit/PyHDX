@@ -97,6 +97,7 @@ EXTENSIONS = [
     "xml",
 ]
 
+
 # todo remove
 class NGL(ReactiveHTML):
     """
@@ -274,7 +275,6 @@ class ASyncProgressBar(param.Parameterized):
 
 
 class CallbackProgress(pn.widgets.Progress):
-
     # this does not work as the worker is a different thread/process
     # see: https://distributed.readthedocs.io/en/latest/scheduling-state.html
     # and: https://stackoverflow.com/questions/44014988/how-to-get-information-about-a-particular-dask-task

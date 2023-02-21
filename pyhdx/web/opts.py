@@ -12,7 +12,6 @@ from pyhdx.support import apply_cmap
 
 # todo baseclass widget generating thingy
 class OptsBase(param.Parameterized):
-
     _type = None
 
     updated = param.Event()
@@ -49,7 +48,6 @@ class OptsBase(param.Parameterized):
 
 
 class GenericOpts(OptsBase):
-
     _type = "generic"
 
     hooks = param.List()
@@ -106,7 +104,6 @@ def rgetattr(obj, attr, *args):
 
 
 class HooksOpts(OptsBase):
-
     _type = "hooks"
 
     hooks = param.List()
@@ -128,7 +125,6 @@ class HooksOpts(OptsBase):
 
 
 class CmapOpts(OptsBase):
-
     _type = "cmap"
 
     cmap = param.ClassSelector(default=None, class_=Colormap)

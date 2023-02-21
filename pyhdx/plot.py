@@ -67,7 +67,6 @@ def peptide_coverage_figure(
     rect_kwargs: dict = None,
     **figure_kwargs,
 ) -> tuple:
-
     subplot_values = data[subplot_field].unique()
     sub_dfs = {value: data.query(f"`{subplot_field}` == {value}") for value in subplot_values}
 
@@ -617,7 +616,6 @@ def linear_bars(
     sort=False,
     **figure_kwargs,
 ):
-
     if data.columns.nlevels == 2:
         data = data.copy()
         columns = pd.MultiIndex.from_tuples(
@@ -1155,7 +1153,6 @@ def pymol_figures(
     additional_views=None,
     img_size=(640, 640),
 ):
-
     protein_states = data.columns.get_level_values(0).unique()
 
     if isinstance(reference, int):

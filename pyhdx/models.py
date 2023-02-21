@@ -250,7 +250,6 @@ class Coverage(object):
         c_term: Optional[int] = None,
         sequence: Optional[str] = None,
     ) -> None:
-
         for field in ["exposure", "state"]:
             if field in data and len(np.unique(data["exposure"])) != 1:
                 raise ValueError(f"Entries in field {field!r} must be unique")
@@ -1262,7 +1261,6 @@ class PeptideUptakeModel(object):
         k_close: float,
         **solver_options: Any,
     ):
-
         k_tot = k_open + k_close
         y0 = np.array([k_close / k_tot, k_open / k_tot, 0])
 

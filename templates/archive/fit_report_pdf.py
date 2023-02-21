@@ -13,7 +13,6 @@ tmp_dir = Path(__file__).parent / "temp"
 tmp_dir.mkdir(exist_ok=True)
 
 if __name__ == "__main__":
-
     report = FitReport(fit_result, temp_dir=tmp_dir)
     report.add_standard_figure("peptide_coverage_figure")
     report.add_standard_figure("residue_time_scatter_figure")

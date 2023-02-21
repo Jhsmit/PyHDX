@@ -29,7 +29,6 @@ def read_dynamx(
         "s",
     ),
 ) -> pd.DataFrame:
-
     """
     Reads DynamX .csv files and returns the resulting peptide table as a pandas DataFrame.
 

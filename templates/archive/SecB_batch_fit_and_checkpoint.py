@@ -3,7 +3,7 @@
 Example of using checkpoints to save model history
 
 """
-#%%
+# %%
 
 from pathlib import Path
 
@@ -25,7 +25,7 @@ from pyhdx.fitting_torch import CheckPoint
 from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 
 
-#%%
+# %%
 
 # Pycharm scientific mode
 if "__file__" not in locals():
@@ -36,7 +36,7 @@ output_dir = current_dir / "output"
 output_dir.mkdir(exist_ok=True)
 data_dir = current_dir.parent / "tests" / "test_data"
 
-#%%
+# %%
 
 data = read_dynamx(data_dir / "input" / "ecSecB_apo.csv", data_dir / "input" / "ecSecB_dimer.csv")
 pmt = PeptideMasterTable(data)
@@ -52,7 +52,7 @@ rates_df = pd.DataFrame({name: guess["rate"] for name in hdx_set.names})
 gibbs_guess = hdx_set.guess_deltaG(rates_df)
 
 
-#%%
+# %%
 # Example fit with only 5000 epochs and high learning rate
 # Checkpoint stores model history every `epoch_step` epochs
 checkpoint = CheckPoint(epoch_step=250)

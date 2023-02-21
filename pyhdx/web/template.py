@@ -17,7 +17,6 @@ SIDEBAR_WIDTH = 300
 
 
 class ExtendedGoldenTemplate(GoldenTemplate):
-
     pass
 
 

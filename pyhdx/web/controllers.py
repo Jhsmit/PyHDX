@@ -139,7 +139,6 @@ class AsyncControlPanel(ControlPanel):
         # self.src.param.trigger('updated')
 
     def do_stuff(self):
-
         async_execute(self.work_func)
 
     @param.depends("slider", watch=True)
@@ -153,7 +152,6 @@ class AsyncControlPanel(ControlPanel):
 
 
 class DevTestControl(ControlPanel):
-
     header = "Debug"
 
     _type = "dev"
@@ -235,7 +233,6 @@ class PyHDXControlPanel(ControlPanel):
 
 
 class GlobalSettingsControl(ControlPanel):
-
     _type = "global_settings"
 
     header = "Settings"
@@ -285,7 +282,6 @@ class GlobalSettingsControl(ControlPanel):
 
 
 class HDXSpecInputBase(PyHDXControlPanel):
-
     input_mode = param.Selector(default="Manual", objects=["Manual", "Batch"])
 
     input_files_label = param.String("Input files:")
@@ -1137,14 +1133,12 @@ class DUptakeFitControl(PyHDXControlPanel):
         return d
 
     async def _fit_d_uptake(self):
-
         name = self.fit_name
         num_samples = len(self.src.hdxm_objects)
         guess = None
 
         self.widgets["pbar"].num_tasks = num_samples
         async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
-
             futures = []
             for hdxm in self.src.hdxm_objects.values():
                 future = client.submit(
@@ -1311,7 +1305,6 @@ class InitialGuessControl(PyHDXControlPanel):
             self.parent.logger.info(f"Finished initial guess fit {self.guess_name}")
 
     async def _fit_rates(self, name):
-
         num_samples = len(self.src.hdxm_objects)
 
         self.widgets["pbar"].num_tasks = num_samples
@@ -2268,7 +2261,6 @@ class ColorTransformControl(PyHDXControlPanel):
 
 
 class ProteinControl(PyHDXControlPanel):
-
     _type = "protein"
 
     header = "Protein Control"
@@ -2477,7 +2469,6 @@ class FileExportControl(PyHDXControlPanel):
 
     @param.depends("table", "export_format", watch=True)
     def _table_updated(self):
-
         ext = ".csv" if self.export_format == "csv" else ".txt"
         self.widgets["export_tables"].filename = self.table + ext
 
@@ -2573,7 +2564,6 @@ class FileExportControl(PyHDXControlPanel):
 
 
 class FigureExportControl(PyHDXControlPanel):
-
     _type = "figure_export"
 
     header = "Figure Export"
@@ -2681,7 +2671,6 @@ class FigureExportControl(PyHDXControlPanel):
             self._excluded = ["ncols", "figure_selection"]
 
         elif self.figure == "scatter":
-
             # move to function
             df = self.plot_data
             options = list(df.columns.unique(level=0))

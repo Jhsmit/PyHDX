@@ -16,22 +16,22 @@ hdx_spec = yaml.safe_load(yaml_stream)
 
 input_dir = current_dir.parent / "tests" / "test_data" / "input"
 
-#%%
+# %%
 
 parser = StateParser(hdx_spec, input_dir)
 
-#%%
+# %%
 # Load an HDX measurement by state name
 hdxm = parser.load_hdxm("SecB_tetramer")
 print(hdxm.timepoints)
 
-#%%
+# %%
 
 # Load an HDX measurement by index of states in the spec
 hdxm = parser.load_hdxm(1)
 print(hdxm)
 
-#%%
+# %%
 
 # Load all HDX measurements as a HDX measurment set.
 hdxm_set = parser.load_hdxmset()

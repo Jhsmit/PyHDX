@@ -4,7 +4,7 @@ from pathlib import Path
 import numpy as np
 import matplotlib.pyplot as plt
 
-#%%
+# %%
 
 current_dir = Path(__file__).parent
 print(current_dir.parent / "tests" / "test_data" / "output" / "ecsecb_tetramer_dimer")
@@ -13,7 +13,7 @@ fit_result = load_fitresult(
     current_dir.parent / "tests" / "test_data" / "output" / "ecsecb_tetramer_dimer"
 )
 
-#%%
+# %%
 
 mse_df = fit_result.get_peptide_mse()
 

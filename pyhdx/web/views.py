@@ -130,7 +130,6 @@ class View(param.Parameterized):
 
 
 class hvView(View):
-
     source = param.ClassSelector(
         class_=(Source, Transform),
         constant=True,
@@ -441,7 +440,6 @@ class hvErrorBarsAppView(hvView):
     horizontal = param.Boolean(False, doc="error bar direction")
 
     def __init__(self, **params):
-
         # todo left and right cannot be none?
         super().__init__(**params)
         if self.horizontal:

@@ -37,7 +37,6 @@ A = TypeVar("A", npt.ArrayLike, pd.Series, pd.DataFrame)
 def convert_time(
     values: A, src_unit: Literal["h", "min", "s"], target_unit: Literal["h", "min", "s"]
 ) -> A:
-
     time_lut = {"h": 3600.0, "min": 60.0, "s": 1.0}
     time_factor = time_lut[src_unit] / time_lut[target_unit]
 
@@ -102,7 +101,6 @@ def multiindex_apply_function(
     args: Iterable = None,
     kwargs: Mapping = None,
 ) -> pd.MultiIndex:
-
     args = args or []
     kwargs = kwargs or {}
     new_index = index.set_levels(getattr(index.levels[level], func)(*args, **kwargs), level=level)

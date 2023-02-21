@@ -14,7 +14,6 @@ class Cache(param.Parameterized):
 
 
 class MemoryCache(Cache):
-
     _cache = param.Dict(default={})
 
     max_items = param.Integer(None, doc="Maximum number of items allowed in the cache")
