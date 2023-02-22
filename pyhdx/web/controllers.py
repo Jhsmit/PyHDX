@@ -2367,8 +2367,8 @@ class ProteinControl(PyHDXControlPanel):
 
     def _hdxm_added(self, *events):
         hdxm_object = next(reversed(self.src.hdxm_objects.values()))
-        self.n_term = min(self.n_term, hdxm_object.coverage.protein.n_term)
-        self.c_term = max(self.c_term, hdxm_object.coverage.protein.c_term)
+        self.n_term = min(self.n_term, hdxm_object.coverage.protein.index.min())
+        self.c_term = max(self.c_term, hdxm_object.coverage.protein.index.max())
 
         self.param["highlight_value"].bounds = (self.n_term, self.c_term)
         self.param["highlight_range"].bounds = (self.n_term, self.c_term)
