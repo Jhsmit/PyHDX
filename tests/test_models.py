@@ -112,9 +112,9 @@ class TestCoverage(object):
             if s != "X":
                 assert self.sequence[r - 1] == s
 
-        assert cov.protein.c_term == 155
+        assert cov.protein.index.max() == 155
         cov_seq = Coverage(data, sequence=self.sequence)
-        assert cov_seq.protein.c_term == len(self.sequence)
+        assert cov_seq.protein.index.max() == len(self.sequence)
 
         for r, s in zip(cov_seq.r_number, cov_seq["sequence"]):
             assert self.sequence[r - 1] == s
@@ -133,19 +133,3 @@ class TestCoverage(object):
 
         test_Z = np.genfromtxt(output_dir / "attributes" / "Z.txt")
         assert np.allclose(self.hdxm.coverage.Z, test_Z)
-
-
-# peptide model tests
-
-# k_open = 1e3
-# k_close = 3713812.5642894437
-# dG = 20e3
-#
-# k_op = sub_ctr._get_k_open(dG*1e-3, np.log10(k_close))
-# print(k_op)
-#
-# k_cl = sub_ctr._get_k_close(dG*1e-3, np.log10(k_open))
-# print(k_cl)
-#
-# dG = sub_ctr._get_dG(np.log10(k_open), np.log10(k_close))
-# print(dG)
