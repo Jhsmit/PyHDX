@@ -9,7 +9,7 @@ import yaml
 from pandas.testing import assert_series_equal, assert_frame_equal
 from pyhdx import HDXMeasurement
 from pyhdx.config import cfg
-from pyhdx.fileIO import read_dynamx, csv_to_protein, csv_to_dataframe
+from pyhdx.fileIO import read_dynamx, csv_to_dataframe
 from pyhdx.fitting import (
     fit_rates_weighted_average,
     fit_gibbs_global,
@@ -81,7 +81,7 @@ class TestSecBDataFit(object):
         output = result.output
 
         assert output.size == 100
-        check_rates = csv_to_protein(output_dir / "ecSecB_reduced_guess.csv")
+        check_rates = csv_to_dataframe(output_dir / "ecSecB_reduced_guess.csv")
         pd.testing.assert_series_equal(check_rates["rate"], output["rate"])
 
     def test_initial_guess_half_time_interpolate(self):
@@ -95,7 +95,7 @@ class TestSecBDataFit(object):
 
     @pytest.mark.skip(reason="Hangs on GitHub Actions on Ubuntu")
     def test_dtype_cuda(self):
-        check_deltaG = csv_to_protein(output_dir / "ecSecB_torch_fit.csv")
+        check_deltaG = csv_to_dataframe(output_dir / "ecSecB_torch_fit.csv")
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
         cfg.set("fitting", "device", "cuda")
@@ -151,7 +151,7 @@ class TestSecBDataFit(object):
 
         # assert t1 - t0 < 5  # Fails sometimes
         out_deltaG = fr_global.output
-        check_deltaG = csv_to_protein(output_dir / "ecSecB_torch_fit.csv")
+        check_deltaG = csv_to_dataframe(output_dir / "ecSecB_torch_fit.csv")
 
         for field in ["dG", "covariance", "k_obs"]:
             assert_series_equal(
@@ -166,7 +166,7 @@ class TestSecBDataFit(object):
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended(self):
-        check_deltaG = csv_to_protein(output_dir / "ecSecB_torch_fit_epochs_20000.csv")
+        check_deltaG = csv_to_dataframe(output_dir / "ecSecB_torch_fit_epochs_20000.csv")
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
         gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates["rate"])
 
@@ -227,14 +227,14 @@ class TestSecBDataFit(object):
 
         output = fr_global.output
 
-        check_protein = csv_to_protein(output_dir / "ecSecB_batch.csv")
+        check_df = csv_to_dataframe(output_dir / "ecSecB_batch.csv")
         states = ["SecB WT apo", "SecB his dimer apo"]
 
         for state in states:
             from pandas.testing import assert_series_equal
 
             result = output[state]["dG"]
-            test = check_protein[state]["dG"]
+            test = check_df[state]["dG"]
 
             assert_series_equal(result, test, rtol=0.1)
 
@@ -266,14 +266,14 @@ class TestSecBDataFit(object):
             hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000
         )
         output = aligned_result.output
-        check_protein = csv_to_protein(output_dir / "ecSecB_batch_aligned.csv")
+        check_df = csv_to_dataframe(output_dir / "ecSecB_batch_aligned.csv")
         states = ["SecB WT apo", "SecB his dimer apo"]
 
         for state in states:
             from pandas.testing import assert_series_equal
 
             result = output[state]["dG"]
-            test = check_protein[state]["dG"]
+            test = check_df[state]["dG"]
 
             assert_series_equal(result, test, rtol=0.1)
 

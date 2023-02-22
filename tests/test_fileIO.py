@@ -2,13 +2,12 @@ import pyhdx
 from pyhdx.fileIO import (
     read_dynamx,
     csv_to_dataframe,
-    csv_to_protein,
     dataframe_to_stringio,
     dataframe_to_file,
     save_fitresult,
     load_fitresult,
 )
-from pyhdx.models import Protein, HDXMeasurement, HDXMeasurementSet
+from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.fitting import fit_gibbs_global
 from pathlib import Path
 from io import StringIO
@@ -92,10 +91,6 @@ class TestFileIO(object):
         dataframe_to_file(fpath, df)
         df_read = csv_to_dataframe(fpath)
         pd.testing.assert_frame_equal(df, df_read)
-
-        protein = csv_to_protein(fpath)
-        assert protein.index.name == "r_number"
-        assert isinstance(protein, Protein)
 
         metadata = {
             "instrumuent": "LCMS",

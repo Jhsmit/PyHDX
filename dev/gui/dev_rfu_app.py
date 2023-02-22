@@ -12,7 +12,6 @@ import yaml
 
 from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
-from pyhdx.fileIO import csv_to_protein
 from pyhdx.web.apps import rfu_app
 from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.utils import load_state_rfu, fix_multiindex_dtypes

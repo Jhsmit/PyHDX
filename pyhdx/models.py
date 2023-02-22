@@ -23,192 +23,6 @@ from pyhdx.support import reduce_inter, dataframe_intersection, array_intersecti
 from pyhdx.config import cfg
 
 
-def protein_wrapper(func, *args, **kwargs):
-    warnings.warn("Protein wrapper and objects are deprecated", DeprecationWarning)
-    metadata = kwargs.pop("metadata", {})
-    [metadata.update(arg.metadata) for arg in args if isinstance(arg, Protein)]
-
-    df_args = [arg.df if isinstance(arg, Protein) else arg for arg in args]
-    return_value = func(*df_args, **kwargs)
-    if isinstance(return_value, pd.DataFrame):
-        return Protein(return_value, **metadata)
-
-    return return_value
-
-
-class Protein(object):
-    """Object describing a protein
-
-    Protein objects are based on panda's DataFrame's with added functionality
-
-    Parameters
-    ----------
-    data : :class:`~numpy.ndarray` or :obj:`dict` or :class:`~pandas.DataFrame`
-        data object to initiate the protein object from
-    index : :obj:`str`, optional
-        Name of the column with the residue number (index column)
-
-    **metadata
-        Dictionary of optional metadata.
-
-
-    """
-
-    def __init__(self, data, index=None, **metadata):
-        warnings.warn("Protein wrapper and objects are deprecated", DeprecationWarning)
-        self.metadata = metadata
-        if isinstance(data, dict) or isinstance(data, np.ndarray):
-            self.df = pd.DataFrame(data)
-            self.df.set_index(index, inplace=True)
-        elif isinstance(data, pd.DataFrame):
-            self.df = data.copy()
-            if not self.df.index.is_integer():
-                raise ValueError(
-                    f"Invalid index type {type(self.df.index)} for supplied DataFrame, must be integer index"
-                )
-
-        if not self.df.index.is_unique:
-            raise ValueError("Protein dataframe indices must be unique")
-
-        new_index = pd.RangeIndex(
-            start=self.df.index.min(), stop=self.df.index.max() + 1, name="r_number"
-        )
-        self.df = self.df.reindex(new_index)
-
-    def __str__(self):
-        s = self.df.__str__()
-        try:
-            full_s = f"Protein {self.metadata['name']}\n" + s
-            return full_s
-        except KeyError:
-            return s
-
-    def __len__(self):
-        return len(self.df)
-
-    def __getattr__(self, item):
-        attr = getattr(self.df, item)
-        if callable(attr):
-            return partial(protein_wrapper, attr, metadata=self.metadata)
-        else:
-            return attr
-
-    def __getstate__(self):
-        return self.__dict__
-
-    def __setstate__(self, d):
-        self.__dict__.update(d)
-
-    def _make_protein(self, df_out, other):
-        """Make a new :class:`~pyhdx.models.Protein` object and combine metadata with other metadata"""
-        metadata = {**self.metadata, **other.metadata}
-        protein_out = Protein(df_out, index=df_out.index.name, **metadata)
-        return protein_out
-
-    def to_file(
-        self,
-        file_path,
-        include_version=True,
-        include_metadata=True,
-        fmt="csv",
-        **kwargs,
-    ):
-        """
-        Write Protein data to file.
-
-
-        Parameters
-        ----------
-        file_path : :obj:`str`
-            File path to create and write to.
-        include_version : :obj:`bool`
-            Set ``True`` to include PyHDX version and current time/date
-        fmt : :obj:`str`
-            Formatting to use, options are 'csv' or 'pprint'
-        include_metadata : :obj:`bool`
-            If `True`, the objects' metadata is included
-        **kwargs : :obj:`dict`, optional
-            Optional additional keyword arguments passed to `df.to_csv`
-        Returns
-        -------
-        None
-
-        """
-
-        metadata = self.metadata if include_metadata else include_metadata
-        dataframe_to_file(
-            file_path,
-            self.df,
-            include_version=include_version,
-            include_metadata=metadata,
-            fmt=fmt,
-            **kwargs,
-        )
-
-    def get_k_int(self, temperature, pH, **kwargs):
-        """
-        Calculates the intrinsic rate of the sequence. Values of no coverage or prolines are assigned a value of -1
-        The rates run are for the first residue (1) up to the last residue that is covered by peptides
-
-        When the previous residue is unknown the current residue is also assigned a value of -1.g
-
-        Parameters
-        ----------
-        temperature : :obj:`float`
-            Temperature of the labelling reaction (Kelvin)
-        pH : :obj:`float`
-            pH of the labelling reaction
-
-        Returns
-        -------
-
-        k_int : :class:`~numpy.ndarray`
-            Array of intrisic exchange rates
-
-        """
-
-        if "sequence" not in self:
-            raise ValueError("No sequence data available to calculate intrinsic exchange rates.")
-
-        sequence = list(self["sequence"])  # Includes 'X' padding at cterm if cterm > last peptide
-        k_int_array = k_int_from_sequence(sequence, temperature, pH, **kwargs)
-        k_int = pd.Series(k_int_array, index=self.df.index)
-
-        return k_int
-
-    @property
-    def c_term(self):
-        return self.df.index.max()
-
-    @property
-    def n_term(self):
-        return self.df.index.min()
-
-    def __getitem__(self, item):
-        return self.df.__getitem__(item)
-
-    def __setitem__(self, index, value):
-        self.df.__setitem__(index, value)
-
-    def __contains__(self, item):
-        return self.df.__contains__(item)
-
-    def __sub__(self, other):
-        return protein_wrapper(self.df.subtract, other, metadata=self.metadata)
-
-    def __add__(self, other):
-        return protein_wrapper(self.df.add, other, metadata=self.metadata)
-
-    def __truediv__(self, other):
-        return protein_wrapper(self.df.truediv, other, metadata=self.metadata)
-
-    def __floordiv__(self, other):
-        return protein_wrapper(self.df.floordiv, other, metadata=self.metadata)
-
-    def __mul__(self, other):
-        return protein_wrapper(self.df.mul, other, metadata=self.metadata)
-
-
 class Coverage(object):
     """
     Object describing layout and coverage of peptides and generating the corresponding matrices.
@@ -273,7 +87,7 @@ class Coverage(object):
 
         # Inclusive, exclusive interval of peptides coverage across the whole protein
         self.interval = (np.min(self.data["_start"]), np.max(self.data["_stop"]))
-        self.protein = Protein(protein_df, index="r_number")
+        self.protein = protein_df
 
         # matrix dimensions N_peptides N_residues, dtype for PyTorch compatibility
         _exchanges = self["exchanges"]  # Array only on covered part
@@ -461,8 +275,13 @@ class HDXMeasurement(object):
         self.coverage = Coverage(intersected_data[0], **cov_kwargs)
 
         if self.temperature and self.pH:
-            k_int = self.coverage.protein.get_k_int(self.temperature, self.pH)
-            self.coverage.protein["k_int"] = k_int
+            # list(self.protein["sequence"])
+            k_int_array = k_int_from_sequence(
+                self.coverage.protein["sequence"], self.temperature, self.pH
+            )
+
+            # k_int = self.coverage.protein.get_k_int(self.temperature, self.pH)
+            self.coverage.protein["k_int"] = k_int_array
 
         self.data = pd.concat(intersected_data, axis=0, ignore_index=True).sort_values(
             ["start", "stop", "sequence", "exposure"]
@@ -689,8 +508,9 @@ class HDXMeasurement(object):
 
         deltaG.replace([np.inf, -np.inf], np.nan, inplace=True)
 
-        if correct_c_term and self.coverage.protein.c_term in deltaG.index:
-            deltaG.loc[self.coverage.protein.c_term] = deltaG.loc[self.coverage.protein.c_term - 1]
+        c_term = self.coverage.protein.index.max()
+        if correct_c_term and c_term in deltaG.index:
+            deltaG.loc[c_term] = deltaG.loc[c_term - 1]
 
         return deltaG
 
@@ -1055,7 +875,7 @@ class HDXMeasurementSet(object):
             default is [1, 1, ...] but specifiy here if alignments do not all start at residue 1
         :return:
         """
-        dfs = [hdxm.coverage.protein.df for hdxm in self.hdxm_list]
+        dfs = [hdxm.coverage.protein for hdxm in self.hdxm_list]
         self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
 
         df = self.aligned_dataframes["r_number"]
