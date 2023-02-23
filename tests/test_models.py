@@ -49,14 +49,7 @@ class TestHDXMeasurement(object):
 
     def test_tensors(self):
         tensors = self.hdxm.get_tensors()
-
         # assert ...
-
-    # def test_data(self):
-    #     data = self.hdxm.data
-    #     compare = csv_to_dataframe(output_dir / "ecSecB_data.csv")
-    #
-    #     assert_frame_equal(data, compare)
 
     def test_rfu(self):
         rfu_residues = self.hdxm.rfu_residues
@@ -92,11 +85,6 @@ class TestCoverage(object):
         peptides = filter_peptides(df, state="SecB WT apo")  # , query=["exposure != 0."])
         peptides_control = apply_control(peptides, fd_df)
         peptides_corrected = correct_d_uptake(peptides_control)
-        #
-        # fpath = input_dir / "ecSecB_apo.csv"
-        # cls.pmt = PeptideMasterTable(read_dynamx(fpath))
-        # data = cls.pmt.get_state("SecB WT apo")
-        #
 
         cls.hdxm = HDXMeasurement(peptides_corrected, c_term=155)
         cls.sequence = (

@@ -189,7 +189,7 @@ class TestSecBDataFit(object):
 
     @pytest.mark.skip(reason="Longer fit is not checked by default due to long computation times")
     def test_global_fit_extended_cuda(self):
-        check_deltaG = csv_to_protein(output_dir / "ecSecB_torch_fit_epochs_20000.csv")
+        check_deltaG = csv_to_dataframe(output_dir / "ecSecB_torch_fit_epochs_20000.csv")
         initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
         gibbs_guess = self.hdxm_apo.guess_deltaG(initial_rates["rate"])
 
