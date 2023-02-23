@@ -3,6 +3,7 @@
 from pathlib import Path
 import numpy as np
 from pyhdx import read_dynamx, HDXMeasurement
+from pyhdx.fileIO import dataframe_to_file
 from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 current_dir = Path(__file__).parent
@@ -37,7 +38,7 @@ hdxm = HDXMeasurement(peptides_corrected, sequence=sequence, pH=pH, temperature=
 
 
 # Output of general info such as if residues have coverage / exchange and intrinsic rate of exchange.
-hdxm.coverage.protein.to_file(output_dir / "SecB_info.txt", fmt="pprint")
+dataframe_to_file(output_dir / "SecB_info.txt", hdxm.coverage.protein, fmt="pprint")
 
 
 # %%

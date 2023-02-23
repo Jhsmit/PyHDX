@@ -23,7 +23,7 @@ from pyhdx.support import reduce_inter, dataframe_intersection, array_intersecti
 from pyhdx.config import cfg
 
 
-class Coverage(object):
+class Coverage():
     """
     Object describing layout and coverage of peptides and generating the corresponding matrices.
     Peptides should all belong to the same state and have the same exposure time.
@@ -176,13 +176,12 @@ class Coverage(object):
 
     @property
     def index(self) -> pd.RangeIndex:
-        """Pandas index numbers corresponding to the part of the protein covered by peptides"""
+        """Pandas index of residue numbers corresponding to the part of the protein covered by peptides."""
         return self.r_number
 
     @property
     def block_length(self) -> np.ndarray:
-        """:class:`~numpy.ndarary`: Lengths of unique blocks of residues in the peptides map,
-        along the `r_number` axis"""
+        """Lengths of unique blocks of residues in the peptides map, along the `r_number` axis"""
 
         # indices are start and stop values of blocks
         indices = np.sort(np.concatenate([self.data["_start"], self.data["_stop"]]))
@@ -194,12 +193,12 @@ class Coverage(object):
 
     @property
     def X_norm(self) -> np.ndarray:
-        """:class:`~numpy.ndarray`: `X` coefficient matrix normalized column wise."""
+        """`X` coefficient matrix normalized column-wise."""
         return self.X / np.sum(self.X, axis=0)[np.newaxis, :]
 
     @property
     def Z_norm(self) -> np.ndarray:
-        """:class:`~numpy.ndarray`: `Z` coefficient matrix normalized column wise."""
+        """`Z` Coefficient matrix normalized column-wise."""
         wts = self.Z**cfg.analysis.weight_exponent
         with warnings.catch_warnings():
             warnings.filterwarnings("ignore", category=RuntimeWarning)
@@ -225,40 +224,30 @@ class Coverage(object):
         return sections
 
 
-class HDXMeasurement(object):
+class HDXMeasurement():
     """Main HDX data object.
 
     This object has peptide data of a single state and with multiple timepoints.
-    Timepoint data is split into :class:`~pyhdx.models.PeptideMeasurements` objects for
-    each timepoint. Supplied data is made 'uniform' such that all timepoints have the same peptides
+    Timepoint data is split into [`HDXTimepoint`][models.HDXTimepoint] objects for
+    each timepoint. Supplied data is made 'uniform' such that all timepoints have the same peptides.
 
     Args:
         data: Dataframe with all peptides belonging to a single state.
         **metadata: Dictionary of optional metadata. By default, holds the `temperature` and `pH` parameters.
 
+    Attributes:
+        coverage: Coverage object describing peptide layout.
+        data: DataFrame with all peptides, taking only peptides present in all timepoints.
+        peptides: List of `HDXTimepoint` objects, one per exposure.
+        state: Protein state label for this HDX measurement.
+        timepoints: Deuterium exposure times.
     """
-
-    # TODO alphabetize?
-    data: pd.DataFrame
-    """Dataframe with all peptides"""
-
-    state: str
-    """Protein state label for this HDX measurement"""
-
-    timepoints: np.ndarray
-    """Deuterium exposure times"""
-
-    peptides: list[HDXTimepoint]
-    """List of :class:`.HDXTimepoint`, one per exposure timepoint"""
-
-    coverage: Coverage
-    """Coverage object describing peptide layout"""
 
     def __init__(self, data: pd.DataFrame, **metadata: Any):
         self.metadata = metadata
         assert len(data["state"].unique()) == 1
-        self.state = str(data["state"].iloc[0])
-        self.timepoints = np.sort(np.unique(data["exposure"]))
+        self.state: str = str(data["state"].iloc[0])
+        self.timepoints: np.ndarray = np.sort(np.unique(data["exposure"]))
 
         # todo sort happens twice now
         data = data.sort_values(["start", "stop", "sequence", "exposure"])
@@ -269,10 +258,10 @@ class HDXMeasurement(object):
         intersected_data = dataframe_intersection(df_list, by=["start", "stop"])
 
         cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ["c_term", "n_term", "sequence"]}
-        self.peptides = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
+        self.peptides: list[HDXTimepoint] = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
 
         # Create coverage object from the first time point (as all are now equal)
-        self.coverage = Coverage(intersected_data[0], **cov_kwargs)
+        self.coverage: Coverage = Coverage(intersected_data[0], **cov_kwargs)
 
         if self.temperature and self.pH:
             # list(self.protein["sequence"])
@@ -283,7 +272,7 @@ class HDXMeasurement(object):
             # k_int = self.coverage.protein.get_k_int(self.temperature, self.pH)
             self.coverage.protein["k_int"] = k_int_array
 
-        self.data = pd.concat(intersected_data, axis=0, ignore_index=True).sort_values(
+        self.data: pd.DataFrame = pd.concat(intersected_data, axis=0, ignore_index=True).sort_values(
             ["start", "stop", "sequence", "exposure"]
         )
         self.data["peptide_id"] = self.data.index % self.Np
@@ -331,7 +320,7 @@ class HDXMeasurement(object):
 
     @property
     def name(self) -> str:
-        """HDX Measurement name"""
+        """HDX Measurement name."""
         return self.metadata.get("name", self.state)
 
     @property
@@ -365,12 +354,6 @@ class HDXMeasurement(object):
         """Number of timepoints."""
         return len(self.timepoints)
 
-    def __len__(self) -> int:
-        import warnings
-
-        warnings.warn("Use hdxm.Nt instead", DeprecationWarning)
-        return len(self.timepoints)
-
     def __iter__(self):
         return self.peptides.__iter__()
 
@@ -381,7 +364,7 @@ class HDXMeasurement(object):
     def rfu_residues(self) -> pd.DataFrame:
         """Relative fractional uptake per residue.
 
-        Shape of the returned DataFrame is Nr (rows) x Nt (columns)
+        Shape of the returned DataFrame is `(Nr, Nt)`.
         """
         df = pd.concat([v.rfu_residues for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
@@ -392,7 +375,7 @@ class HDXMeasurement(object):
     def rfu_residues_sd(self) -> pd.DataFrame:
         """Standard deviations of relative fractional uptake per residue.
 
-        Shape of the returned DataFrame is Nr (rows) x Nt (columns)
+        Shape of the returned DataFrame is `(Nr, Nt)`.
         """
 
         df = pd.concat([v.rfu_residues_sd for v in self], keys=self.timepoints, axis=1)
@@ -404,7 +387,7 @@ class HDXMeasurement(object):
     def rfu_peptides(self) -> pd.DataFrame:
         """Relative fractional uptake per peptide.
 
-        Shape of the returned DataFrame is Np (rows) x Nt (columns)
+        Shape of the returned DataFrame is `(Np, Nt)`.
         """
         df = pd.concat([v.rfu_peptides for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
@@ -414,7 +397,7 @@ class HDXMeasurement(object):
     def d_exp(self) -> pd.DataFrame:
         """D-uptake values (corrected for back-exchange).
 
-        Shape of the returned DataFrame is Np (rows) x Nt (columns)
+        Shape of the returned DataFrame is `(Np, Nt)`.
         """
         df = pd.concat([v.d_exp for v in self], keys=self.timepoints, axis=1)
         df.columns.name = "exposure"
@@ -422,26 +405,25 @@ class HDXMeasurement(object):
 
     # todo check shapes of k_int and timepoints, compared to their shapes in hdxmeasurementset
     def get_tensors(
-        self, exchanges: bool = False, dtype: Optional[torch.dtype] = None
+        self, exchanges: bool = False, dtype: Optional[torch.dtype] = cfg.TORCH_DTYPE
     ) -> dict[str, torch.Tensor]:
         """Returns a dictionary of tensor variables for fitting HD kinetics.
 
-        Tensor variables are (shape):
-        Temperature (1 x 1)
-        X (Np x Nr)
-        k_int (Nr x 1)
-        timepoints (1 x Nt)
-        d_exp (D) (Np x Nt)
-
         Args:
-            exchanges: If ``True`` only returns tensor data describing residues which exchange
-                (ie have peptides and are not prolines)
+            exchanges: If `True` only returns tensor data describing residues which exchange
+                (ie have peptides and are not prolines).
             dtype: Optional Torch data type. Use torch.float32 for faster fitting of large data
-                sets, possibly at the expense of accuracy
+                sets, possibly at the expense of accuracy.
 
         Returns:
-            Dictionary with tensors
+            Dictionary with tensors.
 
+        Note: Tensor output and shapes:
+            * temperature `(1, 1)`
+            * X `(Np, Nr)`
+            * k_int `(Nr, 1)`
+            * timepoints `(1, Nt)`
+            * d_exp `(Np, Nt)`
         """
 
         if "k_int" not in self.coverage.protein:
@@ -485,8 +467,8 @@ class HDXMeasurement(object):
         set the c-terminal guess value equal to the value of the residue preceding it.
 
         Args:
-            rates: Apparent exchange rates (units s^-1). Series index is protein residue number.
-            correct_c_term: If ``True``, sets the guess value of the c-terminal residue to the
+            rates: Apparent exchange rates (units s^-1^). Series index is protein residue number.
+            correct_c_term: If `True`, sets the guess value of the c-terminal residue to the
                 value of the residue preceding it.
 
         Returns:
@@ -522,13 +504,14 @@ class HDXMeasurement(object):
         fmt: str = "csv",
         **kwargs: Any,
     ) -> None:
-        """Write the data in this :class:`.HDXMeasurement` to file.
+
+        """Write the data in this [HDXMeasurement][models.HDXMeasurement] to file.
 
         Args:
             file_path: File path to create and write to.
-            include_version: Set ``True`` to include PyHDX version and current time/date
+            include_version: Set to `True` to include PyHDX version and current time/date
             fmt: Formatting to use, options are 'csv' or 'pprint'
-            include_metadata: If ``True``, the objects' metadata is included
+            include_metadata: If `True`, the objects' metadata is included
             **kwargs: Optional additional keyword arguments passed to `df.to_csv`
 
         """
@@ -659,7 +642,7 @@ class HDXTimepoint(Coverage):
         return series
 
 
-class CoverageSet(object):
+class CoverageSet():
     """Coverage object for multiple :class:`.HDXMeasurement` objects.
 
     This objects finds the minimal interval of residue numbers which fit all :class:`.HDXMeasurement`s
@@ -749,42 +732,36 @@ class CoverageSet(object):
         return mask_dict
 
 
-class HDXMeasurementSet(object):
+class HDXMeasurementSet():
     """
-    Set of multiple :class:`~pyhdx.models.HDXMeasurement` s
+    Set of multiple [HDXMeasurement][models.HDXMeasurement] objects.
 
     Args:
-        hdxm_list: Input list of :class:`.HDXMeasurement`
+        hdxm_list: Input list of HDX measurements.
 
-    """
+    Attributes:
+        coverage: Coverage object for the set of measurements.
+        d_exp: Array with measured D-uptake values, padded with zeros. Shape  is `(Ns, Np, Nt)`.
+        timepoints: Array with timepoints, padded with zeros in case of samples with
+            unequal number of timepoints. Shape is `(Ns, Nt)`.
 
-    timepoints: np.ndarray
-    """
-    Array with timepoints, shape is Ns x Nt, padded with zeros in case of samples with
-    unequal number of timepoints
-    """
-
-    # TODO this is a property on HDXMeasurement
-    d_exp: np.ndarray
-    """
-    Array with measured D-uptake values, shape is Ns x Np x Nt, padded with zeros.
     """
 
     def __init__(self, hdxm_list: list[HDXMeasurement]) -> None:
         self.hdxm_list = hdxm_list
 
-        self.coverage = CoverageSet(hdxm_list)
+        self.coverage: CoverageSet = CoverageSet(hdxm_list)
         self.masks = self.coverage.get_masks()
 
         timepoints_values = np.concatenate([hdxm.timepoints for hdxm in self.hdxm_list])
-        self.timepoints = np.zeros((self.Ns, self.Nt))
+        self.timepoints: np.ndarray = np.zeros((self.Ns, self.Nt))
         self.timepoints[self.masks["st"]] = timepoints_values
 
         d_values = np.concatenate([hdxm.d_exp.to_numpy().flatten() for hdxm in self.hdxm_list])
-        self.d_exp = np.zeros((self.Ns, self.Np, self.Nt))
+        self.d_exp: np.ndarray = np.zeros((self.Ns, self.Np, self.Nt))
         self.d_exp[self.masks["spt"]] = d_values
 
-        # Index array of of shape Ns x y where indices apply to dG return aligned residues for
+        # Index array of shape Ns x y where indices apply to dG return aligned residues for
         self.aligned_indices = None
         self.aligned_dataframes = None
 
@@ -828,8 +805,8 @@ class HDXMeasurementSet(object):
     def rfu_residues(self) -> pd.DataFrame:
         """Relative fractional uptake per residue.
 
-        Shape of the returned DataFrame is Nr (rows) x Ns*Nt (columns) and is multiindexed
-        by columns (state, exposure, quantity)
+        Returned DataFrame has shape `(Nr, Ns*Nt)`, which is multiindex by columns (state, exposure, quantity).
+
         """
         rfu = pd.concat(
             [hdxm.rfu_residues for hdxm in self],
@@ -890,15 +867,19 @@ class HDXMeasurementSet(object):
     def get_tensors(self, dtype: Optional[torch.dtype] = None) -> dict[str, torch.Tensor]:
         """Returns a dictionary of tensor variables for fitting HD kinetics.
 
-        Tensor variables are (shape):
-        Temperature (Ns x 1 x 1)
-        X (Ns x Np x Nr)
-        k_int (Ns x Nr)
-        timepoints (Ns x 1 x Nt)
-        d_exp (D) (Ns x Np x Nt)
+        Args:
+            dtype: Optional Torch data type. Use torch.float32 for faster fitting of large data
+                sets, possibly at the expense of accuracy.
 
         Returns:
-            Dictionary with tensors
+            Dictionary with tensors.
+
+        Note: Tensor output and shapes:
+            * temperature `(Ns, 1, 1)`
+            * X `(Ns, Np, Nr)`
+            * k_int `(Ns, Nr, 1)`
+            * timepoints `(Ns, 1, Nt)`
+            * d_exp `(Ns, Np, Nt)`
 
         """
         # todo create correct shapes as per table in docstring for all
@@ -937,9 +918,7 @@ class HDXMeasurementSet(object):
 
     @property
     def exchanges(self) -> np.ndarray:
-        """Boolean mask ``True`` where there are residues which exchange
-
-        Shape of the returned array is Ns x Np
+        """Boolean mask for residues which exchange (shape `(Ns, Np)`)
 
         """
         values = np.concatenate([hdxm.coverage["exchanges"].to_numpy() for hdxm in self.hdxm_list])
@@ -1042,7 +1021,7 @@ def hdx_intersection(hdx_list: list[HDXMeasurement], fields: Optional[list[str]]
     return hdx_out
 
 
-class PeptideUptakeModel(object):
+class PeptideUptakeModel():
     def __init__(self, sequence: list[str], temperature: float, pH: float) -> None:
         self.peptide = sequence[1:]  #
         self.temperature = temperature

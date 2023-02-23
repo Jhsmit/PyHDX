@@ -389,7 +389,7 @@ class HDXSpecInputBase(PyHDXControlPanel):
             self.src.add(hdxm, state)
             self.parent.logger.info(
                 f"Loaded dataset {state} with experiment state {hdxm.state} "
-                f"({len(hdxm)} timepoints, {len(hdxm.coverage)} peptides each)"
+                f"({hdxm.Nt} timepoints, {len(hdxm.coverage)} peptides each)"
             )
             self.parent.logger.info(
                 f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "

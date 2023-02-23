@@ -13,6 +13,9 @@ markdown_extensions:
   - markdown.extensions.codehilite:
       guess_lang: false
   - attr_list
+  - pymdownx.caret # A^T^ for superscript
+  - pymdownx.mark # mark with ==text==
+  - pymdownx.tilde # H~2~O for subscript
   - pymdownx.emoji:
       emoji_index: !!python/name:materialx.emoji.twemoji
       emoji_generator: !!python/name:materialx.emoji.to_svg
