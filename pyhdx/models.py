@@ -531,11 +531,11 @@ class HDXMeasurement():
 
 
 class HDXTimepoint(Coverage):
-    """Class with subset of peptides corresponding to only one state and exposure
+    """Class with subset of peptides corresponding to only one state and exposure.
 
     Args:
-        data: Dataframe with input data
-        **kwargs:
+        data: Dataframe with input data.
+        **kwargs: Additional keyword arguments passed to [Coverage][models.Coverage].
 
     """
 
@@ -643,13 +643,13 @@ class HDXTimepoint(Coverage):
 
 
 class CoverageSet():
-    """Coverage object for multiple :class:`.HDXMeasurement` objects.
+    """Coverage object for multiple [HDXMeasurement][models.HDXMeasurement] objects.
 
     This objects finds the minimal interval of residue numbers which fit all :class:`.HDXMeasurement`s
 
 
     Args:
-        hdxm_list: List of input :class:`.HDXMeasurment objects.
+        hdxm_list: List of input HDXMeasurment objects.
 
     """
 
@@ -693,26 +693,25 @@ class CoverageSet():
 
         return covered_slice
 
-    @property
-    def s_r_mask(self) -> np.ndarray:
-        """Sample-residue mask
 
-        Boolean array where entries `ij` are ``True`` if residue `j` is covered by peptides of
-        sample `i` (Coverage aps not taken into account)
-        """
-
-        mask = np.zeros((self.Ns, self.Nr), dtype=bool)
-        for i, hdxm in enumerate(self.hdxm_list):
-            interval_sample = hdxm.coverage.interval
-            i0 = interval_sample[0] - self.interval[0]
-            i1 = interval_sample[1] - self.interval[0]
-
-            mask[i, i0:i1] = True
-
-        return mask
 
     def get_masks(self) -> dict[str, np.ndarray]:
-        """mask of shape NsxNr with True entries covered by hdx measurements (exluding gaps)"""
+        """Get boolean masks along the different data dimensions which are `True` at elements
+            which have measured data.
+
+        The masks can be used to assign values to the quantity tensors (k_int, X, D_exp, ect) used
+        for calculating D-uptake from ΔG.
+
+        Returns:
+            Dictionary of boolean masks spanning the various data dimensions.
+
+        Note: Returned masks and shapes:
+            * sr_mask: `(Ns, Nr)`
+            * st_mask: `(Ns, Nt)`
+            * spt_mask: `(Ns, Np, Nr)`
+            * spt_mask: `(Ns, Np, Nt)`
+
+        """
         sr_mask = np.zeros((self.Ns, self.Nr), dtype=bool)
         st_mask = np.zeros((self.Ns, self.Nt), dtype=bool)
         spr_mask = np.zeros((self.Ns, self.Np, self.Nr), dtype=bool)
@@ -724,8 +723,8 @@ class CoverageSet():
 
             sr_mask[i, i0:i1] = True
             st_mask[i, -hdxm.Nt :] = True
-            spr_mask[i, 0 : hdxm.Np, i0:i1] = True
-            spt_mask[i, 0 : hdxm.Np, -hdxm.Nt :] = True
+            spr_mask[i, 0: hdxm.Np, i0:i1] = True
+            spt_mask[i, 0: hdxm.Np, -hdxm.Nt :] = True
 
         mask_dict = {"sr": sr_mask, "st": st_mask, "spr": spr_mask, "spt": spt_mask}
 
@@ -772,33 +771,47 @@ class HDXMeasurementSet():
         return self.hdxm_list.__getitem__(item)
 
     def get(self, name: str) -> HDXMeasurement:
-        """find a HDXMeasurement by name"""
+        """
+        Get HDXMeasurement object by name.
+
+        Args:
+            name: Name of the HDXMeasurement object.
+
+        Returns:
+            The HDXMeasurement object
+        """
 
         idx = self.names.index(name)
         return self[idx]
 
     @property
     def Ns(self) -> int:
+        """Number of samples"""
         return len(self.hdxm_list)
 
     @property
     def Nr(self) -> int:
+        """Number of residues"""
         return self.coverage.Nr
 
     @property
     def Np(self) -> int:
+        """Number of peptides"""
         return np.max([hdxm.Np for hdxm in self.hdxm_list])
 
     @property
     def Nt(self) -> int:
+        """Number of timepoints"""
         return np.max([hdxm.Nt for hdxm in self.hdxm_list])
 
     @property
     def temperature(self) -> np.ndarray:
+        """Array of temperature values for each measurement"""
         return np.array([hdxm.temperature for hdxm in self.hdxm_list])
 
     @property
     def names(self) -> list[str]:
+        """List of names of the measurement"""
         return [hdxm.name for hdxm in self.hdxm_list]
 
     @property
@@ -829,10 +842,10 @@ class HDXMeasurementSet():
         Args:
             rates_df: Pandas dataframe apparent exchange rates (units s^-1). Column names must
                 correspond to HDX measurement names.
-            **kwargs: Additional keyword arguments passed to :meth:`.HDXMeasurement.guess_deltaG`
+            **kwargs: Additional keyword arguments passed to [guess_deltaG][models.HDXMeasurementSet.guess_deltaG].
 
         Returns:
-            ΔG guess values (units kJ/mol)
+            ΔG guess values (units J/mol).
 
         """
 
@@ -843,15 +856,17 @@ class HDXMeasurementSet():
 
         return deltaG
 
+
     # TODO alignment should be given as dict
-    def add_alignment(self, alignment, first_r_numbers=None):
+    def add_alignment(self, alignment, first_r_numbers=None) -> None:
         """
 
-        :param alignment: list
-        :param first_r_numbers:
-            default is [1, 1, ...] but specifiy here if alignments do not all start at residue 1
-        :return:
+        Args:
+            alignment: FASTA alignments.
+            first_r_numbers: default is [1, 1, ...] but specifiy here if alignments do not all start at residue 1
+
         """
+
         dfs = [hdxm.coverage.protein for hdxm in self.hdxm_list]
         self.aligned_dataframes = align_dataframes(dfs, alignment, first_r_numbers)
 
@@ -990,45 +1005,26 @@ def contiguous_regions(condition):
     return idx
 
 
-def hdx_intersection(hdx_list: list[HDXMeasurement], fields: Optional[list[str]] = None):
-    """
-    Finds the intersection between peptides.
-
-    Peptides are supplied as :class:`.HDXMeasurement` objects. After the intersection of
-    peptides is found, new objects are returned where all peptides (coverage, exposure)
-    between the measurements are identical.
-
-    Optionally intersections by custom fields can be made.
+class PeptideUptakeModel():
+    """Model D-uptake in a single peptide.
 
     Args:
-        hdx_list: Input list of :class:`.HDXMeasurement`
-        fields: By which fields to take the intersections. Default is ['_start', '_end', 'exposure']
+        sequence: FASTA sequence as list of strings.
+        temperature: Temperature of the H/D exchange reaction in Kelvin.
+        pH: pH of the H/D exchange reaction.
 
-    Returns:
-        hdx_out: Output list of :class:`.HDXMeasurement`
+    Attributes:
+        k_int: Array of intrinsic exchanges rates
+
+
     """
-
-    raise warnings.warn("'hdx_intersection' method is outdated", NotImplementedError)
-
-    fields = fields or ["_start", "_end", "exposure"]
-
-    full_arrays = [data_obj.full_data for data_obj in hdx_list]
-    selected = array_intersection(full_arrays, fields=fields)
-
-    hdx_out = [
-        HDXMeasurement(data, **data_obj.metadata) for data, data_obj in zip(selected, hdx_list)
-    ]
-    return hdx_out
-
-
-class PeptideUptakeModel():
     def __init__(self, sequence: list[str], temperature: float, pH: float) -> None:
         self.peptide = sequence[1:]  #
         self.temperature = temperature
         self.pH = pH
         padded_sequence = ["X"] + sequence + ["X"]
         k_int = k_int_from_sequence(padded_sequence, temperature, pH)
-        self.k_int = k_int[2:-1]
+        self.k_int: np.array = k_int[2:-1]
 
     def eval_analytical(
         self, timepoints: np.ndarray, k_open: np.ndarray, k_close: np.ndarray
