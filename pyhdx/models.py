@@ -23,7 +23,7 @@ from pyhdx.support import reduce_inter, dataframe_intersection, array_intersecti
 from pyhdx.config import cfg
 
 
-class Coverage():
+class Coverage:
     """
     Object describing layout and coverage of peptides and generating the corresponding matrices.
     Peptides should all belong to the same state and have the same exposure time.
@@ -220,7 +220,7 @@ class Coverage():
         return sections
 
 
-class HDXMeasurement():
+class HDXMeasurement:
     """Main HDX data object.
 
     This object has peptide data of a single state and with multiple timepoints.
@@ -254,7 +254,9 @@ class HDXMeasurement():
         intersected_data = dataframe_intersection(df_list, by=["start", "stop"])
 
         cov_kwargs = {kwarg: metadata.get(kwarg) for kwarg in ["c_term", "n_term", "sequence"]}
-        self.peptides: list[HDXTimepoint] = [HDXTimepoint(df, **cov_kwargs) for df in intersected_data]
+        self.peptides: list[HDXTimepoint] = [
+            HDXTimepoint(df, **cov_kwargs) for df in intersected_data
+        ]
 
         # Create coverage object from the first time point (as all are now equal)
         self.coverage: Coverage = Coverage(intersected_data[0], **cov_kwargs)
@@ -268,9 +270,9 @@ class HDXMeasurement():
             # k_int = self.coverage.protein.get_k_int(self.temperature, self.pH)
             self.coverage.protein["k_int"] = k_int_array
 
-        self.data: pd.DataFrame = pd.concat(intersected_data, axis=0, ignore_index=True).sort_values(
-            ["start", "stop", "sequence", "exposure"]
-        )
+        self.data: pd.DataFrame = pd.concat(
+            intersected_data, axis=0, ignore_index=True
+        ).sort_values(["start", "stop", "sequence", "exposure"])
         self.data["peptide_id"] = self.data.index % self.Np
         self.data.index.name = (
             "peptide_index"  # index is original index which continues along exposures
@@ -500,7 +502,6 @@ class HDXMeasurement():
         fmt: str = "csv",
         **kwargs: Any,
     ) -> None:
-
         """Write the data in this [HDXMeasurement][models.HDXMeasurement] to file.
 
         Args:
@@ -638,7 +639,7 @@ class HDXTimepoint(Coverage):
         return series
 
 
-class CoverageSet():
+class CoverageSet:
     """Coverage object for multiple [HDXMeasurement][models.HDXMeasurement] objects.
 
     This objects finds the minimal interval of residue numbers which fit all :class:`.HDXMeasurement`s
@@ -689,8 +690,6 @@ class CoverageSet():
 
         return covered_slice
 
-
-
     def get_masks(self) -> dict[str, np.ndarray]:
         """Get boolean masks along the different data dimensions which are `True` at elements
             which have measured data.
@@ -719,15 +718,15 @@ class CoverageSet():
 
             sr_mask[i, i0:i1] = True
             st_mask[i, -hdxm.Nt :] = True
-            spr_mask[i, 0: hdxm.Np, i0:i1] = True
-            spt_mask[i, 0: hdxm.Np, -hdxm.Nt :] = True
+            spr_mask[i, 0 : hdxm.Np, i0:i1] = True
+            spt_mask[i, 0 : hdxm.Np, -hdxm.Nt :] = True
 
         mask_dict = {"sr": sr_mask, "st": st_mask, "spr": spr_mask, "spt": spt_mask}
 
         return mask_dict
 
 
-class HDXMeasurementSet():
+class HDXMeasurementSet:
     """
     Set of multiple [HDXMeasurement][models.HDXMeasurement] objects.
 
@@ -846,7 +845,8 @@ class HDXMeasurementSet():
         """
 
         guesses = [
-            hdxm.guess_deltaG(rates_df[name], correct_c_term=correct_c_term) for hdxm, name in zip(self, self.names)
+            hdxm.guess_deltaG(rates_df[name], correct_c_term=correct_c_term)
+            for hdxm, name in zip(self, self.names)
         ]
         deltaG = pd.concat(guesses, keys=self.names, axis=1)
 
@@ -927,9 +927,7 @@ class HDXMeasurementSet():
 
     @property
     def exchanges(self) -> np.ndarray:
-        """Boolean mask for residues which exchange (shape `(Ns, Np)`)
-
-        """
+        """Boolean mask for residues which exchange (shape `(Ns, Np)`)"""
         values = np.concatenate([hdxm.coverage["exchanges"].to_numpy() for hdxm in self.hdxm_list])
         exchanges = np.zeros((self.Ns, self.Nr), dtype=bool)
         exchanges[self.masks["sr"]] = values
@@ -999,7 +997,7 @@ def contiguous_regions(condition):
     return idx
 
 
-class PeptideUptakeModel():
+class PeptideUptakeModel:
     """Model D-uptake in a single peptide.
 
     Args:
@@ -1012,6 +1010,7 @@ class PeptideUptakeModel():
 
 
     """
+
     def __init__(self, sequence: list[str], temperature: float, pH: float) -> None:
         self.peptide = sequence[1:]  #
         self.temperature = temperature

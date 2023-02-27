@@ -7,13 +7,17 @@ import shutil
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Union, Literal, Tuple, List, TextIO, Optional
-
+from typing import Union, Literal, Tuple, List, TextIO, Optional, TYPE_CHECKING
+from importlib import import_module
+import torch.nn as nn
+import torch as t
 import pandas as pd
 import yaml
 
 import pyhdx
-from pyhdx.fitting_torch import TorchFitResult, TorchFitResultSet
+
+if TYPE_CHECKING:
+    from pyhdx.fitting_torch import TorchFitResult, TorchFitResultSet
 
 # Dtype of fields in peptide table data
 PEPTIDE_DTYPES = {"start": int, "end": int, "stop": int, "_start": int, "_stop": int}
@@ -289,7 +293,9 @@ def dataframe_to_file(
         shutil.copyfileobj(sio, f)
 
 
-def save_fitresult(output_dir: os.PathLike, fit_result: TorchFitResult, log_lines: Optional[list[str]] = None) -> None:
+def save_fitresult(
+    output_dir: os.PathLike, fit_result: TorchFitResult, log_lines: Optional[list[str]] = None
+) -> None:
     """
     Save a fit result object to the specified directory with associated metadata
 

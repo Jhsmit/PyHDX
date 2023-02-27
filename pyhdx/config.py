@@ -44,6 +44,7 @@ class PyHDXConfig(metaclass=Singleton):
     Attributes:
         conf: OmegaConf DictConfig object.
     """
+
     __slots__ = ["conf"]
 
     def __init__(self) -> None:
@@ -106,7 +107,7 @@ class PyHDXConfig(metaclass=Singleton):
 
 def valid_config() -> bool:
     """Checks if the current config file in the user home directory is a valid config
-        file for the current pyhdx version.
+    file for the current pyhdx version.
 
     """
     if not config_file_path.exists():
