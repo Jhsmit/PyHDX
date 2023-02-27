@@ -30,10 +30,6 @@ class Coverage():
 
     Args:
         data: DataFrame with input peptides
-        weight_exponent: Value of the exponent for weighted averaging used in converting
-            peptide RFU values to residue-level RFU values. Default value is 1., corresponding
-            to weighted averaging where weights are the inverse of peptide length. Generally,
-            weights are 1/(peptide_length)**exponent.
         n_term: Residue index of the N-terminal residue. Default value is 1, can be
             negative to accommodate for N-terminal purification tags
         c_term: Residue index number of the C-terminal residue (where first residue has
@@ -836,31 +832,29 @@ class HDXMeasurementSet():
 
         return rfu
 
-    def guess_deltaG(self, rates_df: pd.DataFrame, **kwargs) -> pd.DataFrame:
+    def guess_deltaG(self, rates_df: pd.DataFrame, correct_c_term: bool = True) -> pd.DataFrame:
         """Obtain ΔG initial guesses from apparent H/D exchange rates.
 
         Args:
             rates_df: Pandas dataframe apparent exchange rates (units s^-1). Column names must
                 correspond to HDX measurement names.
-            **kwargs: Additional keyword arguments passed to [guess_deltaG][models.HDXMeasurementSet.guess_deltaG].
+            correct_c_term: If `True`, sets the guess value of the c-terminal residue to the
+                value of the residue preceding it.
 
         Returns:
             ΔG guess values (units J/mol).
-
         """
 
         guesses = [
-            hdxm.guess_deltaG(rates_df[name], **kwargs) for hdxm, name in zip(self, self.names)
+            hdxm.guess_deltaG(rates_df[name], correct_c_term=correct_c_term) for hdxm, name in zip(self, self.names)
         ]
         deltaG = pd.concat(guesses, keys=self.names, axis=1)
 
         return deltaG
 
-
     # TODO alignment should be given as dict
     def add_alignment(self, alignment, first_r_numbers=None) -> None:
         """
-
         Args:
             alignment: FASTA alignments.
             first_r_numbers: default is [1, 1, ...] but specifiy here if alignments do not all start at residue 1

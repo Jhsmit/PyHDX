@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from os import PathLike
 from pathlib import Path
-from typing import Union, Dict, Any
+from typing import Union, Dict, Any, Optional
 
 import torch
 from omegaconf import OmegaConf, DictConfig, DictKeyType
@@ -12,8 +12,8 @@ from packaging import version
 PACKAGE_NAME = "pyhdx"
 
 
-def reset_config():
-    """create a new config.yaml file in the user home dir/.pyhdx folder"""
+def reset_config() -> None:
+    """create a new config.yaml file in the `~home/.pyhdx` folder"""
 
     with open(config_file_path, "w") as target:
         from pyhdx.__version__ import __version__
@@ -39,10 +39,15 @@ class Singleton(type):
 
 
 class PyHDXConfig(metaclass=Singleton):
+    """PyHDX configuration class
+
+    Attributes:
+        conf: OmegaConf DictConfig object.
+    """
     __slots__ = ["conf"]
 
     def __init__(self) -> None:
-        self.conf = None
+        self.conf: Optional[DictConfig] = None
 
     def __getattr__(self, item: str) -> Any:
         return getattr(self.conf, item)
@@ -67,6 +72,7 @@ class PyHDXConfig(metaclass=Singleton):
 
     @property
     def assets_dir(self) -> Path:
+        """PyHDX server assets directory"""
         spec_path = self.conf.server.assets_dir
         assets_dir = Path(spec_path.replace("~", str(Path().home())))
 
@@ -74,6 +80,7 @@ class PyHDXConfig(metaclass=Singleton):
 
     @property
     def log_dir(self) -> Path:
+        """PyHDX server log directory"""
         spec_path = self.conf.server.log_dir
         log_dir = Path(spec_path.replace("~", str(Path().home())))
 
@@ -81,6 +88,7 @@ class PyHDXConfig(metaclass=Singleton):
 
     @property
     def TORCH_DTYPE(self) -> Union[torch.float64, torch.float32]:
+        """PyTorch dtype used for ΔG calculations"""
         dtype = self.conf.fitting.dtype
         if dtype in ["float64", "double"]:
             return torch.float64
@@ -91,13 +99,14 @@ class PyHDXConfig(metaclass=Singleton):
 
     @property
     def TORCH_DEVICE(self) -> torch.device:
+        """PyTorch device used for ΔG calculations"""
         device = self.conf.fitting.device
         return torch.device(device)
 
 
 def valid_config() -> bool:
     """Checks if the current config file in the user home directory is a valid config
-    file for the current pyhdx version
+        file for the current pyhdx version.
 
     """
     if not config_file_path.exists():
