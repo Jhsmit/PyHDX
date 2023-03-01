@@ -17,12 +17,13 @@ When using the different modules offered by PyHDX, please consider citing the fo
 
 See [HDXrate](https://github.com/Jhsmit/HDXrate) for a python implementation of the Englander xls sheets for intrinsic exchange rate calculation.
 
-**PDBe MolStar protein viewer:**
+**MolStar protein viewer:**
 
 - Sehnal, D.; Bittrich, S.; Deshpande, M.; Svobodová, R.; Berka, K.; Bazgier, V.; Velankar, S.; Burley, S. K.; Koča, J.; Rose, A. S. Mol* Viewer: Modern Web App for 3D Visualization and Analysis of Large Biomolecular Structures. _Nucleic Acids Research_ **2021**, _49_ (W1), W431–W437. [https://doi.org/10.1093/nar/gkab314](https://doi.org/10.1093/nar/gkab314).
 
 ## Publications using PyHDX  
 
+- Bademosi, A. T.; Decet, M.; Kuenen, S.; Calatayud, C.; Swerts, J.; Gallego, S. F.; Schoovaerts, N.; Karamanou, S.; Louros, N.; Martin, E.; Sibarita, J.-B.; Vints, K.; Gounko, N. V.; Meunier, F. A.; Economou, A.; Versées, W.; Rousseau, F.; Schymkowitz, J.; Soukup, S.-F.; Verstreken, P. EndophilinA-Dependent Coupling between Activity-Induced Calcium Influx and Synaptic Autophagy Is Disrupted by a Parkinson-Risk Mutation. _Neuron_ **2023**. [https://doi.org/10.1016/j.neuron.2023.02.001](https://doi.org/10.1016/j.neuron.2023.02.001).
 - Krishnamurthy, S.; Eleftheriadis, N.; Karathanou, K.; Smit, J. H.; Portaliou, A. G.; Chatzi, K. E.; Karamanou, S.; Bondar, A.-N.; Gouridis, G.; Economou, A. A Nexus of Intrinsic Dynamics Underlies Translocase Priming. _Structure_ **2021**, _29_ (8), 846-858.e7. [https://doi.org/10.1016/j.str.2021.03.015](https://doi.org/10.1016/j.str.2021.03.015).
 - Yuan, B.; Portaliou, A. G.; Parakra, R.; Smit, J. H.; Wald, J.; Li, Y.; Srinivasu, B.; Loos, M. S.; Dhupar, H. S.; Fahrenkamp, D.; Kalodimos, C. G.; Duong van Hoa, F.; Cordes, T.; Karamanou, S.; Marlovits, T. C.; Economou, A. Structural Dynamics of the Functional Nonameric Type III Translocase Export Gate. *Journal of Molecular Biology* **2021**, 433 (21), 167188. https://doi.org/10.1016/j.jmb.2021.167188.
 - Krishnamurthy, S.; Sardis, M.-F.; Eleftheriadis, N.; Chatzi, K. E.; Smit, J. H.; Karathanou, K.; Gouridis, G.; Portaliou, A. G.; Bondar, A.-N.; Karamanou, S.; Economou, A. Preproteins Couple the Intrinsic Dynamics of SecA to Its ATPase Cycle to Translocate via a Catch and Release Mechanism. _Cell Reports_ **2022**, _38_ (6). [https://doi.org/10.1016/j.celrep.2022.110346](https://doi.org/10.1016/j.celrep.2022.110346).
@@ -42,14 +43,14 @@ See [HDXrate](https://github.com/Jhsmit/HDXrate) for a python implementation of 
 
 - [YouTube](https://www.youtube.com/channel/UCTro6Iv1BhvjUPYZNu5TJWg)
 - [Paper code](https://github.com/Jhsmit/PyHDX-paper)
-- [BioRxiv v1](https://www.biorxiv.org/content/10.1101/2020.09.30.320887v1)
+- [BioRxiv v1](https://www.biorxiv.org/content/10.1101/2020.09.30.320887v1)  
 - [BioRxiv v2](https://www.biorxiv.org/content/10.1101/2020.09.30.320887v2)
 
 **General HDX-MS resources:**
-
-- [Hadexversum HDX-MS-resources](https://github.com/hadexversum/HDX-MS-resources)
+  
+- [Hadexversum HDX-MS-resources](https://github.com/hadexversum/HDX-MS-resources)  
 - [HDXMS.net resources](http://hdxms.net/resources/)
   
-**HDX-MS datasets (alpha):**  
+**HDX-MS datasets (alpha):**
 
 - [hdxms-datasets on GitHub](https://github.com/Jhsmit/hdxms-datasets)
