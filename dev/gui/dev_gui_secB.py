@@ -19,6 +19,12 @@ from pyhdx.web.base import STATIC_DIR
 from pyhdx.web.utils import load_state, fix_multiindex_dtypes
 from pyhdx.config import cfg, reset_config
 
+
+CONFIG_NAME = 'config_beta.yaml'
+cfg_pth = Path().home() / ".pyhdx" / CONFIG_NAME
+
+cfg.load_config(cfg_pth)
+
 # def printfunc(args):
 # 1/0
 
@@ -78,7 +84,7 @@ def reload_tables():
     src = ctrl.sources["main"]
     src.add_table("peptides", csv_to_dataframe(web_data_dir / "peptides.csv"))
     src.add_table("d_uptake", csv_to_dataframe(web_data_dir / "d_uptake.csv"))
-    src.add_table("rfu", csv_to_dataframe(web_data_dir / "rfu.csv"))
+    # src.add_table("rfu", csv_to_dataframe(web_data_dir / "rfu.csv"))  # is missing rfu sd's
     src.add_table("dG", csv_to_dataframe(web_data_dir / "dG.csv"))
     src.add_table("ddG_comparison", csv_to_dataframe(web_data_dir / "ddG_comparison.csv"))
     src.add_table("rates", csv_to_dataframe(web_data_dir / "rates.csv"))
@@ -199,9 +205,9 @@ def init_manual():
 
 
 # pn.state.onload(reload_dashboard)
-# pn.state.onload(reload_tables)
+pn.state.onload(reload_tables)
 # pn.state.onload(init_dashboard)
-pn.state.onload(init_batch)
+# pn.state.onload(init_batch)
 # pn.state.onload(init_manual)
 
 if __name__ == "__main__":
