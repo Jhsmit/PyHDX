@@ -1953,13 +1953,12 @@ class ColorTransformControl(PyHDXControlPanel):
             self.parent.logger.info(f"Table corresponding to {self.quantity!r} is empty")
             return None
 
-        field = self.opts[self.quantity].field
         if isinstance(table.columns, pd.MultiIndex):
-            df = table.xs(field, level=-1, axis=1)
+            df = table.xs(self.quantity, level=-1, axis=1)
         else:
-            df = table[field]
+            df = table[self.quantity]
 
-        opt = self.opts[self.quantity]
+        opt = self.opts[TABLE_INFO[self.quantity]['cmap_opt']]
 
         return df * opt.sclf
 
@@ -2753,16 +2752,17 @@ class FigureExportControl(PyHDXControlPanel):
     def figure_export_callback(self):
         self.widgets["export_figure"].loading = True
 
+        #TODO use TABLE_INFO to get the correct cmap opt
         if self.figure == "scatter":
             sub_df = self.plot_data[self.figure_selection]
             if self.reference is None:
-                opts = self.opts["dG"]
+                opts = self.opts["dG_cmap"]
                 fig, axes, cbars = dG_scatter_figure(
                     sub_df, cmap=opts.cmap, norm=opts.norm, **self.figure_kwargs
                 )
 
             else:
-                opts = self.opts["ddG"]
+                opts = self.opts["ddG_cmap"]
                 fig, axes, cbar = ddG_scatter_figure(
                     sub_df,
                     reference=self.reference,
@@ -2772,11 +2772,11 @@ class FigureExportControl(PyHDXControlPanel):
                 )
         elif self.figure == "linear_bars":
             if self.table == "dG":
-                opts = self.opts["ddG"] if self.reference else self.opts["dG"]
+                opts = self.opts["ddG_cmap"] if self.reference else self.opts["dG_cmap"]
                 field = "dG"
             elif self.table == "rfu":
                 opts = (
-                    self.opts["drfu"] if self.reference else self.opts["rfu"]
+                    self.opts["drfu_cmap"] if self.reference else self.opts["rfu_cmap"]
                 )  # TODO update to drfu
                 field = "rfu"
 
@@ -2790,7 +2790,7 @@ class FigureExportControl(PyHDXControlPanel):
             )
         elif self.figure == "rainbowclouds":
             sub_df = self.plot_data[self.figure_selection]
-            opts = self.opts["ddG"] if self.reference else self.opts["dG"]
+            opts = self.opts["ddG_cmap"] if self.reference else self.opts["dG_cmap"]
             fig, axes, cbar = rainbowclouds_figure(
                 sub_df, reference=self.reference, cmap=opts.cmap, norm=opts.norm
             )

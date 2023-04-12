@@ -84,15 +84,15 @@ opts:
   rfu_cmap:
     type: cmap
     field: rfu
+  drfu_cmap:
+    type: cmap
+    field: drfu
   d_uptake_cmap:
     type: cmap
     field: d_uptake
   dd_uptake_cmap:
     type: cmap
     field: dd_uptake
-  drfu_cmap:
-    type: cmap
-    field: drfu
   dG_cmap:
     type: cmap
     field: dG
