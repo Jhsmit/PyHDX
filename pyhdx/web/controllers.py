@@ -75,6 +75,9 @@ from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
 
 from pyhdx._version import get_versions
 
+import matplotlib
+matplotlib.use('agg')
+
 __version__ = get_versions()["version"]
 del get_versions
 
@@ -2807,7 +2810,7 @@ class FigureExportControl(PyHDXControlPanel):
     def figure_kwargs(self):
         kwargs = {
             "width": self.width,
-            "aspect": self.aspect,
+            "refaspect": self.aspect,
         }
         if self.figure == "scatter":
             kwargs["ncols"] = self.ncols
