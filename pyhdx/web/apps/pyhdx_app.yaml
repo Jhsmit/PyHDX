@@ -706,7 +706,7 @@ modules:
         n_levels: 1
 
 controllers:
-  - dev
+  # - dev
   - global_settings
   - peptide_file_input
   - d_uptake_fit
