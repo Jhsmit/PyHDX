@@ -50,7 +50,7 @@ bokeh = { version = "2.4.3", optional = true }
 holoviews = { version = "^1.15.3", optional = true }
 colorcet = { version = "^3.0.1", optional = true }
 hvplot = { version = "^0.8.2", optional = true }
-proplot = { version = "0.9.3", optional = true }
+proplot = { version = "0.9.7", optional = true }
 pylatex = { version = "^1.4.1", optional = true }
 
 [tool.poetry.extras]
