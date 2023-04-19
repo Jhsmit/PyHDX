@@ -3,6 +3,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 import torch
+import yaml
 from distributed.utils_test import cluster
 import pandas as pd
 
@@ -11,7 +12,8 @@ from pyhdx.config import cfg
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.process import filter_peptides, apply_control, correct_d_uptake
 from pyhdx.support import hash_dataframe, hash_array
-from pyhdx.web.apps import main_app
+from pyhdx.web.apps import main_app, rfu_app
+from pyhdx.web.utils import load_state_rfu
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
@@ -28,6 +30,9 @@ test_port = 55432
 np.random.seed(43)
 torch.manual_seed(43)
 
+@pytest.fixture
+def ppix_spec() -> dict:
+    return yaml.safe_load(Path(input_dir / "PpiX_states.yaml").read_text())
 
 class TestMainGUISecB(object):
     @classmethod
@@ -225,3 +230,37 @@ class TestMainGUISecB(object):
         # cov_figure = ctrl.figure_panels['CoverageFigure']
         # renderer = cov_figure.figure.renderers[0]
         # assert renderer.data_source.name == f'coverage_{self.series.state}'
+
+
+def test_rfu(ppix_spec):
+    """Test the RFU app"""
+    ctrl, tmpl = rfu_app()
+
+    file_input = ctrl.control_panels["PeptideRFUFileInputControl"]
+    states = ['PpiA_Folding', 'PpiB_Folding']
+    load_state_rfu(file_input, ppix_spec, data_dir = input_dir, states=states)
+
+    file_input._action_load_datasets()
+    assert len(file_input.src.hdxm_objects) == 2
+
+    file_export = ctrl.control_panels["FileExportControl"]
+
+    # check table outpuy
+    file_export.table = 'peptides'
+    sio = file_export.table_export_callback()
+    sio.seek(0)
+    lines_test = sio.read().split("\n")
+    lines_ref = (output_dir / 'rfu_web' / 'peptides.csv').read_text().split("\n")
+
+    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
+        assert lt == lr
+
+    # check rfu table output
+    file_export.table = 'rfu'
+    sio = file_export.table_export_callback()
+    sio.seek(0)
+    lines_test = sio.read().split("\n")
+    lines_ref = (output_dir / 'rfu_web' / 'rfu.csv').read_text().split("\n")
+
+    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
+        assert lt == lr
