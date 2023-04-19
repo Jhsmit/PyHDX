@@ -9,7 +9,7 @@ import yaml
 
 from pyhdx.web.utils import load_state_rfu
 
-#%%
+# %%
 
 sys._excepthook = sys.excepthook
 
@@ -35,36 +35,37 @@ def my_exception_hook(exctype, value, traceback):
 sys.excepthook = my_exception_hook
 
 
-#%%
-ctrl, tmpl = rfu_app()
+# %%
 
 cwd = Path(__file__).parent
 root_dir = cwd.parent.parent
 data_dir = root_dir / "tests" / "test_data" / "input"
 
-
 batch_fname = "PpiX_states.yaml"  # secb apo / dimer but artificial delta C/N tail
 hdx_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 
-#%%
+# %%
+# create controller / app and load data
+ctrl, tmpl = rfu_app()
+
 file_input = ctrl.control_panels["PeptideRFUFileInputControl"]
-#states = ['PpiA_Folding']
-states = ['PpiB_Folding']
-load_state_rfu(file_input, hdx_spec, data_dir = data_dir, states=states)
+# states = ['PpiA_Folding']
+# states = ['PpiB_Folding']
+states = ["PpiA_Folding", "PpiB_Folding"]
+# load_state_rfu(file_input, hdx_spec, data_dir = data_dir, states=states)
+#
+# file_input._action_load_datasets()
 
-#%%
-print(file_input.state_spec)
-print(file_input.exp_exposures)
+print(file_input.nd_control)
+# %%
 
-#%%
+# len(file_input.src.hdxm_objects)
 
-for exp in file_input.exp_exposures:
-    print(f" - {exp}")
 
-#%%
+# %%
 
 # file_input._add_single_dataset_spec()
-#%%
+# %%
 
 # input_files = [data_dir / f_dict['filename'] for f_dict in hdx_spec["data_files"].values()]
 # f_bytes = [f.read_bytes() for f in input_files]

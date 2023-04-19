@@ -112,7 +112,11 @@ class StateParser(object):
             peptides["uptake_corrected"] = peptides["uptake"] / (1 - back_exchange)
         elif isinstance(fd_peptides, pd.DataFrame):
             peptides = apply_control(peptides, fd_peptides, nd_peptides)
-            peptides = correct_d_uptake(peptides, drop_first=cfg.analysis.drop_first, d_percentage=metadata.get("d_percentage", 100.0))
+            peptides = correct_d_uptake(
+                peptides,
+                drop_first=cfg.analysis.drop_first,
+                d_percentage=metadata.get("d_percentage", 100.0),
+            )
 
         global_metadata = self.hdx_spec.get("metadata", {})
         global_metadata.update(metadata)

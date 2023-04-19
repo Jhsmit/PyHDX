@@ -773,7 +773,9 @@ def rainbowclouds_figure(
     figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     refaspect = figure_kwargs.pop("refaspect", cfg.plotting.rainbowclouds_aspect)
 
-    fig, axes = pplt.subplots(nrows=nrows, ncols=ncols, width=figure_width, refaspect=refaspect, hspace=0)
+    fig, axes = pplt.subplots(
+        nrows=nrows, ncols=ncols, width=figure_width, refaspect=refaspect, hspace=0
+    )
     ax = axes[0]
 
     cbar = rainbowclouds(

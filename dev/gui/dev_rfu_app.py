@@ -59,11 +59,10 @@ hdx_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 def init_dashboard():
     n = 2  # change this to control the number of HDX measurements added
     # states = ['PpiA_Folding']
-    states = ['PpiB_Folding']
-
-    #states = ['PpiA_Folding', 'PpiB_Folding']
+    # states = ['PpiB_Folding']
+    states = ["PpiA_Folding", "PpiB_Folding"]
     input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
-    load_state_rfu(input_control, hdx_spec, data_dir=data_dir,states=states)
+    load_state_rfu(input_control, hdx_spec, data_dir=data_dir, states=states)
 
     input_control._action_load_datasets()
 

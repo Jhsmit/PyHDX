@@ -70,7 +70,9 @@ def apply_control(
         nd_control["uptake"] = 0
         nd_control["uptake_sd"] = 0
 
-    intersected = dataframe_intersection([experiment, fd_control, nd_control], ['start', 'stop'], reset_index=False)
+    intersected = dataframe_intersection(
+        [experiment, fd_control, nd_control], ["start", "stop"], reset_index=False
+    )
 
     # select out uptake (u; experiment), FD uptake (f) and ND uptake (n), as well as their sd's
     u, f, n = (
@@ -190,10 +192,14 @@ def verify_sequence(
 
     r_number = pd.RangeIndex(n_term, c_term + 1, name="r_number")
 
-    if df['start'].min() < n_term:
-        raise ValueError(f"Peptide dataframe contains peptides with start residue number below supplied 'n_term' ({n_term})")
-    if df['end'].max() > c_term:
-        raise ValueError(f"Peptide dataframe contains peptides with end residue number above supplied 'c_term' ({c_term})")
+    if df["start"].min() < n_term:
+        raise ValueError(
+            f"Peptide dataframe contains peptides with start residue number below supplied 'n_term' ({n_term})"
+        )
+    if df["end"].max() > c_term:
+        raise ValueError(
+            f"Peptide dataframe contains peptides with end residue number above supplied 'c_term' ({c_term})"
+        )
 
     seq_full = pd.Series(index=r_number, dtype="U").fillna("X")
     seq_reconstruct = pd.Series(index=r_number, dtype="U").fillna("X")

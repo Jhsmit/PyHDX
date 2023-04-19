@@ -22,7 +22,9 @@ from pyhdx.config import cfg
 
 
 def dataframe_intersection(
-    dataframes: list[pd.DataFrame], by: Union[list, str], reset_index: bool = True,
+    dataframes: list[pd.DataFrame],
+    by: Union[list, str],
+    reset_index: bool = True,
 ) -> list[pd.DataFrame]:
     """Return a list of dataframes whos entries are limited to the intersection of rows of selected columns.
 

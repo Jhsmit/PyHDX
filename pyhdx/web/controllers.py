@@ -63,7 +63,8 @@ from pyhdx.support import (
     multiindex_astype,
     multiindex_set_categories,
     clean_types,
-    array_intersection, dataframe_intersection,
+    array_intersection,
+    dataframe_intersection,
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.main_controllers import MainController
@@ -76,7 +77,8 @@ from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
 from pyhdx._version import get_versions
 
 import matplotlib
-matplotlib.use('agg')
+
+matplotlib.use("agg")
 
 __version__ = get_versions()["version"]
 del get_versions
@@ -180,8 +182,6 @@ class DevTestControl(ControlPanel):
         print(f"{input_ctrl.measurement_name=}")
         print(input_ctrl.exp_file)
         print(f"{input_ctrl.exp_state=}")
-
-
 
     def _action_test(self):
         src = self.sources["metadata"]
@@ -297,7 +297,9 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
 
     batch_file = param.Parameter(doc="Batch file input:")
 
-    nd_control = param.Boolean(default=False, precedence=-1, doc="Whether to allow users to input a ND control")
+    nd_control = param.Boolean(
+        default=False, precedence=-1, doc="Whether to allow users to input a ND control"
+    )
 
     show_pH = param.Boolean(default=True, precedence=-1)
 
@@ -573,7 +575,6 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
 
     @param.depends("input_files", watch=True)
     def _read_files(self):
-
         if self.input_files:
             self.data_files = {
                 name: DataFile(
@@ -684,7 +685,7 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
         dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **fd_spec))
         dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **nd_spec))
 
-        intersected = dataframe_intersection(dataframes, by=['start', 'stop'])
+        intersected = dataframe_intersection(dataframes, by=["start", "stop"])
         states = list(np.unique(intersected[0]["state"]))
 
         self.param["exp_state"].objects = states
@@ -752,7 +753,7 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
             }
 
         # rfu input doesnt have FD sample as option, should always be set to FD_sample
-#         if self.be_mode == "FD Sample":
+        #         if self.be_mode == "FD Sample":
         fd_spec = {
             "data_file": self.fd_file,
             "state": self.fd_state,
@@ -1681,7 +1682,7 @@ class ColorTransformControl(PyHDXControlPanel):
         else:
             df = table[self.quantity]
 
-        opt = self.opts[TABLE_INFO[self.quantity]['cmap_opt']]
+        opt = self.opts[TABLE_INFO[self.quantity]["cmap_opt"]]
 
         return df * opt.sclf
 
@@ -2475,7 +2476,7 @@ class FigureExportControl(PyHDXControlPanel):
     def figure_export_callback(self):
         self.widgets["export_figure"].loading = True
 
-        #TODO use TABLE_INFO to get the correct cmap opt
+        # TODO use TABLE_INFO to get the correct cmap opt
         if self.figure == "scatter":
             sub_df = self.plot_data[self.figure_selection]
             if self.reference is None:

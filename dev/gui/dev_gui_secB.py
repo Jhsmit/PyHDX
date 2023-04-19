@@ -16,11 +16,11 @@ from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import STATIC_DIR
-from pyhdx.web.utils import load_state, fix_multiindex_dtypes
+from pyhdx.web.utils import fix_multiindex_dtypes, load_state_rfu
 from pyhdx.config import cfg, reset_config
 
 
-CONFIG_NAME = 'config_beta.yaml'
+CONFIG_NAME = "config_beta.yaml"
 cfg_pth = Path().home() / ".pyhdx" / CONFIG_NAME
 
 cfg.load_config(cfg_pth)
@@ -75,7 +75,7 @@ file_dict = {fname: (input_data_dir / fname).read_bytes() for fname in filenames
 batch_fname = "data_states.yaml"  #
 
 
-state_spec = yaml.safe_load(Path(input_data_dir / batch_fname).read_text())
+hdx_spec = yaml.safe_load(Path(input_data_dir / batch_fname).read_text())
 # pdb_string = (web_data_dir / '1qyn.pdb').read_text()
 pdb_string = (web_data_dir / "5JTR_mod.pdb").read_text()
 
@@ -136,13 +136,10 @@ def init_batch():
 
 def init_dashboard():
     n = 2  # change this to control the number of HDX measurements added
-    input_control = ctrl.control_panels["PeptideFileInputControl"]
-
-    for i, (k, v) in enumerate(state_spec.items()):
-        if i == n:
-            break
-        load_state(ctrl, v, data_dir=input_data_dir, name=k)
-        input_control._add_single_dataset_spec()
+    input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
+    # states = ["SecB_tetramer"]
+    states = ["SecB_tetramer", "SecB_dimer"]
+    load_state_rfu(input_control, hdx_spec, data_dir=input_data_dir, states=states)
 
     input_control._action_load_datasets()
 
@@ -205,10 +202,11 @@ def init_manual():
 
 
 # pn.state.onload(reload_dashboard)
-pn.state.onload(reload_tables)
-# pn.state.onload(init_dashboard)
+# pn.state.onload(reload_tables)
+pn.state.onload(init_dashboard)
 # pn.state.onload(init_batch)
 # pn.state.onload(init_manual)
+
 
 if __name__ == "__main__":
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)

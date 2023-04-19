@@ -30,9 +30,11 @@ test_port = 55432
 np.random.seed(43)
 torch.manual_seed(43)
 
+
 @pytest.fixture
 def ppix_spec() -> dict:
     return yaml.safe_load(Path(input_dir / "PpiX_states.yaml").read_text())
+
 
 @pytest.fixture
 def secb_spec() -> dict:
@@ -154,7 +156,7 @@ def test_web_load(secb_spec):
     ctrl, tmpl = main_app()
 
     file_input = ctrl.control_panels["PeptideRFUFileInputControl"]
-    states = ['SecB_tetramer', 'SecB_dimer']
+    states = ["SecB_tetramer", "SecB_dimer"]
     load_state_rfu(file_input, secb_spec, data_dir=input_dir, states=states)
 
     file_input._action_load_datasets()
@@ -163,41 +165,42 @@ def test_web_load(secb_spec):
     file_export = ctrl.control_panels["FileExportControl"]
 
     # check table output
-    file_export.table = 'peptides'
+    file_export.table = "peptides"
     sio = file_export.table_export_callback()
     sio.seek(0)
     lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / 'main_web' / 'peptides.csv').read_text().split("\n")
+    lines_ref = (output_dir / "main_web" / "peptides.csv").read_text().split("\n")
 
     for lt, lr in zip(lines_test[2:], lines_ref[2:]):
         assert lt == lr
 
     # check rfu table output
-    file_export.table = 'rfu'
+    file_export.table = "rfu"
     sio = file_export.table_export_callback()
     sio.seek(0)
     lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / 'main_web' / 'rfu.csv').read_text().split("\n")
+    lines_ref = (output_dir / "main_web" / "rfu.csv").read_text().split("\n")
 
     for lt, lr in zip(lines_test[2:], lines_ref[2:]):
         assert lt == lr
 
-    #check color table output
+    # check color table output
     sio = file_export.color_export_callback()
     sio.seek(0)
     lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / 'main_web' / 'rfu_colors.csv').read_text().split("\n")
+    lines_ref = (output_dir / "main_web" / "rfu_colors.csv").read_text().split("\n")
 
     for lt, lr in zip(lines_test[2:], lines_ref[2:]):
         assert lt == lr
+
 
 def test_rfu(ppix_spec):
     """Test the RFU app"""
     ctrl, tmpl = rfu_app()
 
     file_input = ctrl.control_panels["PeptideRFUFileInputControl"]
-    states = ['PpiA_Folding', 'PpiB_Folding']
-    load_state_rfu(file_input, ppix_spec, data_dir = input_dir, states=states)
+    states = ["PpiA_Folding", "PpiB_Folding"]
+    load_state_rfu(file_input, ppix_spec, data_dir=input_dir, states=states)
 
     file_input._action_load_datasets()
     assert len(file_input.src.hdxm_objects) == 2
@@ -205,27 +208,24 @@ def test_rfu(ppix_spec):
     file_export = ctrl.control_panels["FileExportControl"]
 
     # check table output
-    file_export.table = 'peptides'
+    file_export.table = "peptides"
     sio = file_export.table_export_callback()
     sio.seek(0)
     lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / 'rfu_web' / 'peptides.csv').read_text().split("\n")
+    lines_ref = (output_dir / "rfu_web" / "peptides.csv").read_text().split("\n")
 
     for lt, lr in zip(lines_test[2:], lines_ref[2:]):
         assert lt == lr
 
     # check rfu table output
-    file_export.table = 'rfu'
+    file_export.table = "rfu"
     sio = file_export.table_export_callback()
     sio.seek(0)
     lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / 'rfu_web' / 'rfu.csv').read_text().split("\n")
+    lines_ref = (output_dir / "rfu_web" / "rfu.csv").read_text().split("\n")
 
     for lt, lr in zip(lines_test[2:], lines_ref[2:]):
         assert lt == lr
-
-
-
 
         # with cluster() as (s, [a, b]):
         #     conf.set("cluster", "scheduler_address", s["address"])

@@ -26,24 +26,29 @@ def get_view(
 
 
 def load_state_rfu(
-        file_input: PeptideRFUFileInputControl, hdx_spec: Dict, data_dir: Path, states: Optional[List[str]] = None, names: Optional[List[str]] = None) -> None:
+    file_input: PeptideRFUFileInputControl,
+    hdx_spec: Dict,
+    data_dir: Path,
+    states: Optional[List[str]] = None,
+    names: Optional[List[str]] = None,
+) -> None:
     """Loader counterpart for RFU app. Even more experimental than `load_state`"""
 
-    input_files = [data_dir / f_dict['filename'] for f_dict in hdx_spec["data_files"].values()]
+    input_files = [data_dir / f_dict["filename"] for f_dict in hdx_spec["data_files"].values()]
     file_input.widgets["input_files"].filename = [f.name for f in input_files]
     f_bytes = [f.read_bytes() for f in input_files]
     file_input.input_files = f_bytes
 
     # file_input._read_files()
-    state_spec = hdx_spec['states']
+    state_spec = hdx_spec["states"]
     states = states or list(state_spec.keys())
     names = names or states
 
     for state, name in zip(states, names):
-        peptide_spec = state_spec[state]['peptides']
-        data_spec = hdx_spec['data_files']
+        peptide_spec = state_spec[state]["peptides"]
+        data_spec = hdx_spec["data_files"]
 
-        file_input.fd_file = data_spec[peptide_spec['FD_control']['data_file']]['filename']
+        file_input.fd_file = data_spec[peptide_spec["FD_control"]["data_file"]]["filename"]
         file_input.fd_state = peptide_spec["FD_control"]["state"]
         file_input.fd_exposure = (
             peptide_spec["FD_control"]["exposure"]["value"]
@@ -51,14 +56,14 @@ def load_state_rfu(
         )
 
         if "ND_control" in peptide_spec:
-            file_input.nd_file = data_spec[peptide_spec['ND_control']['data_file']]['filename']
+            file_input.nd_file = data_spec[peptide_spec["ND_control"]["data_file"]]["filename"]
             file_input.nd_state = peptide_spec["ND_control"]["state"]
             file_input.nd_exposure = (
                 peptide_spec["ND_control"]["exposure"]["value"]
                 * time_factors[peptide_spec["ND_control"]["exposure"]["unit"]]
             )
 
-        file_input.exp_file = data_spec[peptide_spec['experiment']['data_file']]['filename']
+        file_input.exp_file = data_spec[peptide_spec["experiment"]["data_file"]]["filename"]
         file_input.exp_state = peptide_spec["experiment"]["state"]
         try:
             exp_vals = peptide_spec["experiment"]["exposure"]["values"]
@@ -67,15 +72,15 @@ def load_state_rfu(
         except KeyError:
             pass
 
-        #TODO exp exposures
+        # TODO exp exposures
         file_input.measurement_name = name
 
-        metadata = state_spec[state]['metadata']
-        file_input.pH = metadata['pH']
+        metadata = state_spec[state]["metadata"]
+        file_input.pH = metadata["pH"]
 
         file_input.temperature = (
-                metadata["temperature"]["value"]
-                + temperature_offsets[metadata["temperature"]["unit"].lower()]
+            metadata["temperature"]["value"]
+            + temperature_offsets[metadata["temperature"]["unit"].lower()]
         )
 
         file_input.d_percentage = metadata["d_percentage"]
