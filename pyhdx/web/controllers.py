@@ -275,7 +275,18 @@ class GlobalSettingsControl(ControlPanel):
         cfg.analysis.weight_exponent = self.weight_exponent
 
 
-class HDXSpecInputBase(PyHDXControlPanel):
+class PeptideRFUFileInputControl(PyHDXControlPanel):
+    """
+    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
+    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
+    analysis.
+
+    """
+
+    _type = "peptide_rfu_file_input"
+
+    header = "Peptide Input"
+
     input_mode = param.Selector(default="Manual", objects=["Manual", "Batch"])
 
     input_files_label = param.String("Input files:")
@@ -285,6 +296,73 @@ class HDXSpecInputBase(PyHDXControlPanel):
     batch_file_label = param.String("Batch file (yaml)")
 
     batch_file = param.Parameter(doc="Batch file input:")
+
+    nd_control = param.Boolean(default=False, precedence=-1, doc="Whether to allow users to input a ND control")
+
+    show_pH = param.Boolean(default=True, precedence=-1)
+
+    show_temperature = param.Boolean(default=True, precedence=-1)
+
+    show_d_percentage = param.Boolean(default=True, precedence=-1)
+
+    fd_file = param.Selector()
+
+    fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
+
+    fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
+
+    nd_file = param.Selector()
+
+    nd_state = param.Selector(doc="State used to normalize uptake", label="ND State")
+
+    nd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="ND Exposure")
+
+    exp_file = param.Selector(doc="File with experiment peptides", label="Exp File")
+
+    exp_state = param.Selector(doc="State for selected experiment", label="Experiment State")
+
+    exp_exposures = param.ListSelector(
+        default=[],
+        objects=[""],
+        label="Experiment Exposures",
+        doc="Selected exposure time to use",
+    )
+
+    d_percentage = param.Number(
+        90.0,
+        bounds=(0, 100),
+        doc="Percentage of deuterium in the labelling buffer",
+        label="Deuterium percentage",
+    )
+
+    temperature = param.Number(
+        293.15,
+        bounds=(273.15, 373.15),
+        doc="Temperature of the D-labelling reaction",
+        label="Temperature (K)",
+    )
+
+    pH = param.Number(
+        7.5,
+        bounds=(2.0, 14.0),
+        doc="pH of the D-labelling reaction, as read from pH meter",
+        label="pH read",
+    )
+
+    n_term = param.Integer(
+        1,
+        doc="Index of the n terminal residue in the protein. Can be set to negative values to "
+        "accommodate for purification tags. Used in the determination of intrinsic rate of exchange",
+    )
+
+    c_term = param.Integer(
+        0,
+        bounds=(0, None),
+        doc="Index of the c terminal residue in the protein. Used for generating pymol export script"
+        "and determination of intrinsic rate of exchange for the C-terminal residue",
+    )
+
+    sequence = param.String("", doc="Optional FASTA protein sequence")
 
     measurement_name = param.String(doc="Label for the current HDX measurement")
 
@@ -304,8 +382,10 @@ class HDXSpecInputBase(PyHDXControlPanel):
         doc="Parse specified HDX measurements apply back-exchange correction",
     )
 
-    def __init__(self, parent: MainController, **params):
-        super(HDXSpecInputBase, self).__init__(parent, **params)
+    def __init__(self, parent, **params):
+        excluded = ["batch_file", "batch_file_label"]
+        super(PeptideRFUFileInputControl, self).__init__(parent, _excluded=excluded, **params)
+        self._update_mode()
         self.update_box()
 
         # Dictionary with input files
@@ -315,6 +395,64 @@ class HDXSpecInputBase(PyHDXControlPanel):
         self.state_spec = {}
         # Dictionary of accumulated HDX data file specifications
         self.data_spec = {}
+
+    def make_dict(self):
+        text_area = pn.widgets.TextAreaInput(
+            name="Sequence (optional)",
+            placeholder="Enter sequence in FASTA format",
+            max_length=10000,
+            width=300,
+            height=100,
+            height_policy="fixed",
+            width_policy="fixed",
+        )
+        widgets = self.generate_widgets(
+            input_files_label=pn.widgets.StaticText(value=self.input_files_label),
+            input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
+            batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
+            batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
+            be_percent=pn.widgets.FloatInput,
+            d_percentage=pn.widgets.FloatInput,
+            sequence=text_area,
+        )
+
+        # Add hdx spec download button
+        download = pn.widgets.FileDownload(
+            label="Download HDX spec", callback=self.spec_download_callback
+        )
+        widgets["download_spec_button"] = download
+
+        widget_order = [
+            "input_mode",
+            "input_files_label",
+            "input_files",
+            "batch_file_label",
+            "batch_file",
+            "fd_file",
+            "fd_state",
+            "fd_exposure",
+            "nd_file",
+            "nd_state",
+            "nd_exposure",
+            "exp_file",
+            "exp_state",
+            "exp_exposures",
+            "d_percentage",
+            "temperature",
+            "pH",
+            "n_term",
+            "c_term",
+            "sequence",
+            "measurement_name",
+            "add_dataset_button",
+            "download_spec_button",
+            "hdxm_list",
+            "load_dataset_button",
+        ]
+
+        sorted_widgets = {k: widgets[k] for k in widget_order}
+
+        return sorted_widgets
 
     @property
     def hdx_spec(self) -> dict[str, Any]:
@@ -397,149 +535,6 @@ class HDXSpecInputBase(PyHDXControlPanel):
         sio = self.parent.hdx_spec_callback()
         return sio
 
-
-class PeptideRFUFileInputControl(HDXSpecInputBase):
-    """
-    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
-    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
-    analysis.
-
-    """
-
-    _type = "peptide_rfu_file_input"
-
-    header = "Peptide Input"
-
-    nd_control = param.Boolean(default=False, precedence=-1, doc="Whether to allow users to input a ND control")
-
-    show_pH = param.Boolean(default=True, precedence=-1)
-
-    show_temperature = param.Boolean(default=True, precedence=-1)
-
-    show_d_percentage = param.Boolean(default=True, precedence=-1)
-
-    fd_file = param.Selector()
-
-    fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
-
-    fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
-
-    nd_file = param.Selector()
-
-    nd_state = param.Selector(doc="State used to normalize uptake", label="ND State")
-
-    nd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="ND Exposure")
-
-    exp_file = param.Selector(doc="File with experiment peptides", label="Exp File")
-
-    exp_state = param.Selector(doc="State for selected experiment", label="Experiment State")
-
-    exp_exposures = param.ListSelector(
-        default=[],
-        objects=[""],
-        label="Experiment Exposures",
-        doc="Selected exposure time to use",
-    )
-
-    d_percentage = param.Number(
-        90.0,
-        bounds=(0, 100),
-        doc="Percentage of deuterium in the labelling buffer",
-        label="Deuterium percentage",
-    )
-
-    temperature = param.Number(
-        293.15,
-        bounds=(273.15, 373.15),
-        doc="Temperature of the D-labelling reaction",
-        label="Temperature (K)",
-    )
-
-    pH = param.Number(
-        7.5,
-        bounds=(2.0, 14.0),
-        doc="pH of the D-labelling reaction, as read from pH meter",
-        label="pH read",
-    )
-
-    n_term = param.Integer(
-        1,
-        doc="Index of the n terminal residue in the protein. Can be set to negative values to "
-        "accommodate for purification tags. Used in the determination of intrinsic rate of exchange",
-    )
-
-    c_term = param.Integer(
-        0,
-        bounds=(0, None),
-        doc="Index of the c terminal residue in the protein. Used for generating pymol export script"
-        "and determination of intrinsic rate of exchange for the C-terminal residue",
-    )
-
-    sequence = param.String("", doc="Optional FASTA protein sequence")
-
-    def __init__(self, parent, **params):
-        excluded = ["batch_file", "batch_file_label"]
-        super(PeptideRFUFileInputControl, self).__init__(parent, _excluded=excluded, **params)
-        self._update_mode()
-
-    def make_dict(self):
-        text_area = pn.widgets.TextAreaInput(
-            name="Sequence (optional)",
-            placeholder="Enter sequence in FASTA format",
-            max_length=10000,
-            width=300,
-            height=100,
-            height_policy="fixed",
-            width_policy="fixed",
-        )
-        widgets = self.generate_widgets(
-            input_files_label=pn.widgets.StaticText(value=self.input_files_label),
-            input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
-            batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
-            batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
-            be_percent=pn.widgets.FloatInput,
-            d_percentage=pn.widgets.FloatInput,
-            sequence=text_area,
-        )
-
-        # Add hdx spec download button
-        download = pn.widgets.FileDownload(
-            label="Download HDX spec", callback=self.spec_download_callback
-        )
-        widgets["download_spec_button"] = download
-
-        widget_order = [
-            "input_mode",
-            "input_files_label",
-            "input_files",
-            "batch_file_label",
-            "batch_file",
-            "fd_file",
-            "fd_state",
-            "fd_exposure",
-            "nd_file",
-            "nd_state",
-            "nd_exposure",
-            "exp_file",
-            "exp_state",
-            "exp_exposures",
-            "d_percentage",
-            "temperature",
-            "pH",
-            "n_term",
-            "c_term",
-            "sequence",
-            "measurement_name",
-            "add_dataset_button",
-            "download_spec_button",
-            "hdxm_list",
-            "load_dataset_button",
-        ]
-
-        sorted_widgets = {k: widgets[k] for k in widget_order}
-
-        return sorted_widgets
-
     @param.depends("input_mode", watch=True)
     def _update_mode(self):
         excluded = set()
@@ -578,7 +573,28 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     @param.depends("input_files", watch=True)
     def _read_files(self):
-        super()._read_files()  # sets self.data_files
+
+        if self.input_files:
+            self.data_files = {
+                name: DataFile(
+                    name=name,
+                    filepath_or_buffer=StringIO(byte_content.decode("UTF-8")),
+                    format="DynamX",
+                )
+                for name, byte_content in zip(
+                    self.widgets["input_files"].filename, self.input_files
+                )
+            }
+
+            lens = [len(data_file.data) for data_file in self.data_files.values()]
+
+            self.parent.logger.info(
+                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
+                f"of {sum(lens)} peptides"
+            )
+        else:
+            self.data_files = {}
+
         self.c_term = 0
 
         self._update_fd_file()
