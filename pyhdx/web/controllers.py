@@ -63,7 +63,7 @@ from pyhdx.support import (
     multiindex_astype,
     multiindex_set_categories,
     clean_types,
-    array_intersection,
+    array_intersection, dataframe_intersection,
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.main_controllers import MainController
@@ -763,13 +763,19 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     header = "Peptide Input"
 
+    fd_file = param.Selector()
+
     fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
 
     fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
 
+    nd_file = param.Selector()
+
     nd_state = param.Selector(doc="State used to normalize uptake", label="ND State")
 
     nd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="ND Exposure")
+
+    exp_file = param.Selector(doc="File with experiment peptides", label="Exp File")
 
     exp_state = param.Selector(doc="State for selected experiment", label="Experiment State")
 
@@ -839,10 +845,13 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             "input_files",
             "batch_file_label",
             "batch_file",
+            "fd_file",
             "fd_state",
             "fd_exposure",
+            "nd_file",
             "nd_state",
             "nd_exposure",
+            "exp_file",
             "exp_state",
             "exp_exposures",
             "d_percentage",
@@ -888,18 +897,30 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     @param.depends("input_files", watch=True)
     def _read_files(self):
-        super()._read_files()
+        super()._read_files()  # sets self.data_files
         self.c_term = 0
+
+        self._update_fd_file()
         self._update_fd_state()
         self._update_fd_exposure()
+
+        self._update_nd_file()
         self._update_nd_state()
         self._update_nd_exposure()
+
+        self._update_exp_file()
         self._update_exp_state()
         self._update_exp_exposure()
 
+    def _update_fd_file(self):
+        objects = list(self.data_files.keys())
+        self.param["fd_file"].objects = objects
+        self.fd_file = objects[0]
+
+    @param.depends("fd_file", watch=True)
     def _update_fd_state(self):
-        if self._df is not None:
-            states = list(self._df["state"].unique())
+        if self.data_files:
+            states = list(self.data_files[self.fd_file].data["state"].unique())
             self.param["fd_state"].objects = states
             self.fd_state = states[0]
         else:
@@ -907,8 +928,10 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     @param.depends("fd_state", watch=True)
     def _update_fd_exposure(self):
-        if self._df is not None:
-            fd_entries = self._df[self._df["state"] == self.fd_state]
+        if self.data_files:
+            df = self.data_files[self.fd_file].data
+            # Get peptides only which belong to selected state
+            fd_entries = df[df["state"] == self.fd_state]
             exposures = list(np.unique(fd_entries["exposure"]))
         else:
             exposures = []
@@ -916,18 +939,26 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         if exposures:
             self.fd_exposure = exposures[0]
 
+    def _update_nd_file(self):
+        objects = list(self.data_files.keys())
+        self.param["nd_file"].objects = objects
+        self.nd_file = objects[0]
+
+    @param.depends("nd_file", watch=True)
     def _update_nd_state(self):
-        if self._df is not None:
-            states = list(self._df["state"].unique())
+        if self.data_files:
+            states = list(self.data_files[self.nd_file].data["state"].unique())
             self.param["nd_state"].objects = states
             self.nd_state = states[0]
         else:
-            self.param["fd_state"].objects = []
+            self.param["nd_state"].objects = []
 
     @param.depends("nd_state", watch=True)
     def _update_nd_exposure(self):
-        if self._df is not None:
-            nd_entries = self._df[self._df["state"] == self.nd_state]
+        if self.data_files:
+            df = self.data_files[self.nd_file].data
+            # Get peptides only which belong to selected state
+            nd_entries = df[df["state"] == self.nd_state]
             exposures = list(np.unique(nd_entries["exposure"]))
         else:
             exposures = []
@@ -935,60 +966,44 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         if exposures:
             self.nd_exposure = exposures[0]
 
+    def _update_exp_file(self):
+        objects = list(self.data_files.keys())
+        self.param["exp_file"].objects = objects
+        self.exp_file = objects[0]
+
+    @param.depends("exp_file", "fd_state", "fd_exposure", "nd_state", "nd_exposure", watch=True)
     def _update_exp_state(self):
-        self._update_exp_state_fd()
-        self._update_exp_state_nd()
+        """Find the peptides which are both in the FD and ND states datasets, then from there determine the states which are present in the experiment dataset"""
+        if not self.exp_file in self.data_files:
+            self.param["exp_state"].objects = []
+            return
 
-    @param.depends("fd_state", "fd_exposure", watch=True)
-    def _update_exp_state_fd(self):
-        if self._df is not None:
-            # Booleans of data entries which are in the selected control
-            fd_bools = np.logical_and(
-                self._df["state"] == self.fd_state,
-                self._df["exposure"] == self.fd_exposure,
-            )
+        # IF self.has_nd... etc
+        fd_spec = {"state": self.fd_state, "exposure": {"value": self.fd_exposure, "unit": "s"}}
+        nd_spec = {"state": self.nd_state, "exposure": {"value": self.nd_exposure, "unit": "s"}}
 
-            control_data = self._df[fd_bools].to_records()
-            other_data = self._df[~fd_bools].to_records()
+        # Get the peptides which are in both the FD and ND states
+        dataframes = [self.data_files[self.exp_file].data]
+        dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **fd_spec))
+        dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **nd_spec))
 
-            intersection = array_intersection(
-                [control_data, other_data], fields=["start", "end"]
-            )  # sequence?
-            states = list(np.unique(intersection[1]["state"]))
-        else:
-            states = []
+        intersected = dataframe_intersection(dataframes, by=['start', 'stop'])
+        states = list(np.unique(intersected[0]["state"]))
 
         self.param["exp_state"].objects = states
-        if states:
-            self.exp_state = states[0] if not self.exp_state else self.exp_state
 
-    @param.depends("nd_state", "nd_exposure", watch=True)
-    def _update_exp_state_nd(self):
-        if self._df is not None:
-            # Booleans of data entries which are in the selected control
-            fd_bools = np.logical_and(
-                self._df["state"] == self.nd_state,
-                self._df["exposure"] == self.nd_exposure,
-            )
+        # todo probably its best to clear all child selectors and then redo everything
+        if self.exp_state in states:
+            self._update_exp_exposure()
 
-            control_data = self._df[fd_bools].to_records()
-            other_data = self._df[~fd_bools].to_records()
-
-            intersection = array_intersection(
-                [control_data, other_data], fields=["start", "end"]
-            )  # sequence?
-            states = list(np.unique(intersection[1]["state"]))
-        else:
-            states = []
-
-        self.param["exp_state"].objects = states
-        if states:
-            self.exp_state = states[0] if not self.exp_state else self.exp_state
+        elif states:
+            self.exp_state = states[0]
 
     @param.depends("exp_state", watch=True)
     def _update_exp_exposure(self):
-        if self._df is not None:
-            exp_entries = self._df[self._df["state"] == self.exp_state]
+        if self.exp_file in self.data_files:
+            df = self.data_files[self.exp_file].data
+            exp_entries = df[df["state"] == self.exp_state]
             exposures = list(np.unique(exp_entries["exposure"]))
             exposures.sort()
         else:
@@ -997,8 +1012,8 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         self.param["exp_exposures"].objects = exposures
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
-        if not self.measurement_name or self.measurement_name in self.param["exp_state"].objects:
-            self.measurement_name = self.exp_state
+        # Set default measurmenet name to the name of the state
+        self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
@@ -1016,12 +1031,14 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             "filenames": self.widgets["input_files"].filename,
         }
 
+        # TODO Properties ?
         fd_spec = {
             "state": self.fd_state,
             "exposure": {"value": self.fd_exposure, "unit": "s"},
         }
         state_spec["FD_control"] = fd_spec
 
+        # TODO properties ?
         nd_spec = {
             "state": self.nd_state,
             "exposure": {"value": self.nd_exposure, "unit": "s"},
