@@ -708,7 +708,8 @@ modules:
 controllers:
   # - dev
   global_settings:
-  peptide_file_input:
+  peptide_rfu_file_input:
+      nd_control: False
   d_uptake_fit:
   initial_guess:
   fit:

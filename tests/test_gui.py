@@ -34,6 +34,7 @@ torch.manual_seed(43)
 def ppix_spec() -> dict:
     return yaml.safe_load(Path(input_dir / "PpiX_states.yaml").read_text())
 
+
 class TestMainGUISecB(object):
     @classmethod
     def setup_class(cls):
@@ -61,7 +62,7 @@ class TestMainGUISecB(object):
 
         ctrl, tmpl = main_app()
         src = ctrl.sources["main"]
-        input_control = ctrl.control_panels["PeptideFileInputControl"]
+        input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
 
         input_control.widgets["input_files"].filename = ["ecSecB_apo.csv"]
         input_control.input_files = [binary]
@@ -92,7 +93,7 @@ class TestMainGUISecB(object):
 
         ctrl, tmpl = main_app()
 
-        input_control = ctrl.control_panels["PeptideFileInputControl"]
+        input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
         input_control.input_mode = "Batch"
         input_control.widgets["input_files"].filename = list(file_dict.keys())
         input_control.input_files = list(file_dict.values())
@@ -112,7 +113,7 @@ class TestMainGUISecB(object):
 
         ctrl, tmpl = main_app()
 
-        input_control = ctrl.control_panels["PeptideFileInputControl"]
+        input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
         # input_control.input_mode = "Batch"
         input_control.widgets["input_files"].filename = list(file_dict.keys())
         input_control.input_files = list(file_dict.values())

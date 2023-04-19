@@ -754,7 +754,8 @@ class PeptideFileInputControl(HDXSpecInputBase):
             "datasets"
         )  # Manual trigger as key assignment does not trigger the param
 
-
+# TODO boolean toogles for ND control, FD control
+# if neither, flat percentage ?
 class PeptideRFUFileInputControl(HDXSpecInputBase):
     """
     This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
@@ -767,7 +768,13 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     header = "Peptide Input"
 
-    nd_control = param.Boolean(default=False, precedence=-1)
+    nd_control = param.Boolean(default=False, precedence=-1, doc="Whether to allow users to input a ND control")
+
+    show_pH = param.Boolean(default=True, precedence=-1)
+
+    show_temperature = param.Boolean(default=True, precedence=-1)
+
+    show_d_percentage = param.Boolean(default=True, precedence=-1)
 
     fd_file = param.Selector()
 
@@ -797,6 +804,20 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         bounds=(0, 100),
         doc="Percentage of deuterium in the labelling buffer",
         label="Deuterium percentage",
+    )
+
+    temperature = param.Number(
+        293.15,
+        bounds=(273.15, 373.15),
+        doc="Temperature of the D-labelling reaction",
+        label="Temperature (K)",
+    )
+
+    pH = param.Number(
+        7.5,
+        bounds=(2.0, 14.0),
+        doc="pH of the D-labelling reaction, as read from pH meter",
+        label="pH read",
     )
 
     n_term = param.Integer(
@@ -844,7 +865,6 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
         )
         widgets["download_spec_button"] = download
 
-        # TODO: sort by precedence?
         widget_order = [
             "input_mode",
             "input_files_label",
@@ -897,6 +917,16 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
                 "measurement_name",
                 "download_spec_button",
             }
+
+        if not self.nd_control:
+            excluded |= {"nd_file", "nd_state", "nd_exposure"}
+
+        if not self.show_pH:
+            excluded |= {"pH"}
+        if not self.show_temperature:
+            excluded |= {"temperature"}
+        if not self.show_d_percentage:
+            excluded |= {"d_percentage"}
 
         self._excluded = list(excluded)
         self.update_box()
@@ -1068,15 +1098,13 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             "exposure": {"value": self.fd_exposure, "unit": "s"},
         }
         peptide_spec["FD_control"] = fd_spec
-        # IF self.has_nd... etc
-        nd_spec = {
-            "data_file": self.nd_file,
-            "state": self.nd_state,
-            "exposure": {"value": self.nd_exposure, "unit": "s"},
-        }
-        peptide_spec["ND_control"] = nd_spec
-        # elif self.be_mode == "Flat percentage":
-        #     metadata["be_percent"] = self.be_percent
+        if self.nd_control:
+            nd_spec = {
+                "data_file": self.nd_file,
+                "state": self.nd_state,
+                "exposure": {"value": self.nd_exposure, "unit": "s"},
+            }
+            peptide_spec["ND_control"] = nd_spec
 
         metadata["pH"] = self.pH
         metadata["temperature"] = {"value": self.temperature, "unit": "K"}
