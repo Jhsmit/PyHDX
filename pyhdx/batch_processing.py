@@ -106,13 +106,13 @@ class StateParser(object):
         )
 
         if fd_peptides is None and "be_percent" in metadata:
-            peptides = correct_d_uptake(peptides)
+            peptides = correct_d_uptake(peptides, d_percentage=metadata.get("d_percentage", 100.0))
             back_exchange = metadata["be_percent"] / 100.0
             peptides["rfu"] = peptides["uptake"] / ((1 - back_exchange) * peptides["ex_residues"])
             peptides["uptake_corrected"] = peptides["uptake"] / (1 - back_exchange)
         elif isinstance(fd_peptides, pd.DataFrame):
             peptides = apply_control(peptides, fd_peptides, nd_peptides)
-            peptides = correct_d_uptake(peptides, drop_first=cfg.analysis.drop_first)
+            peptides = correct_d_uptake(peptides, drop_first=cfg.analysis.drop_first, d_percentage=metadata.get("d_percentage", 100.0))
 
         global_metadata = self.hdx_spec.get("metadata", {})
         global_metadata.update(metadata)
