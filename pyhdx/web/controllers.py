@@ -838,6 +838,7 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
     def __init__(self, parent, **params):
         excluded = ["batch_file", "batch_file_label"]
         super(PeptideRFUFileInputControl, self).__init__(parent, _excluded=excluded, **params)
+        self._update_mode()
 
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(
@@ -881,6 +882,8 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
             "exp_state",
             "exp_exposures",
             "d_percentage",
+            "temperature",
+            "pH",
             "n_term",
             "c_term",
             "sequence",
