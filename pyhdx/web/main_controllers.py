@@ -1,8 +1,10 @@
+from __future__ import annotations
+
 import logging
 import warnings
 from io import StringIO
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Tuple, List, Dict, Type, TYPE_CHECKING
 
 import param
 import yaml
@@ -10,6 +12,9 @@ from omegaconf import OmegaConf
 from pyhdx.config import cfg
 from pyhdx.support import clean_types
 import pyhdx
+
+if TYPE_CHECKING:
+    from pyhdx.web.base import ControlPanel
 
 
 class MainController(param.Parameterized):
@@ -50,10 +55,10 @@ class MainController(param.Parameterized):
 
     loggers = param.Dict({}, doc="Dictionary of loggers")
 
-    def __init__(self, control_panels, **params):
+    def __init__(self, control_panels: List[Tuple[Type[ControlPanel], Dict]], **params):
         super(MainController, self).__init__(**params)
 
-        self.control_panels = {ctrl.name: ctrl(self) for ctrl in control_panels}  # todo as param?
+        self.control_panels = {ctrl.name: ctrl(self, **kwargs) for ctrl, kwargs in control_panels}  # todo as param?
 
         self.template = None  # Panel template (remove?)
 

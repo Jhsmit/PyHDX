@@ -92,4 +92,4 @@ views:
 #      - aa
 
 controllers:
-  - peptide
+  peptide:

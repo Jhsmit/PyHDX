@@ -767,6 +767,8 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     header = "Peptide Input"
 
+    nd_control = param.Boolean(default=False, precedence=-1)
+
     fd_file = param.Selector()
 
     fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
@@ -2513,7 +2515,7 @@ class FileExportControl(PyHDXControlPanel):
             self.widgets["export_pml"].disabled = True
             self.widgets["export_colors"].disabled = True
 
-    @pn.depends("table")  # param.depends?
+    @pn.depends("table")
     def table_export_callback(self):
         if self.table:
             df = self.sources["main"].tables[self.table]

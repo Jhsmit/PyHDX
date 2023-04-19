@@ -707,15 +707,15 @@ modules:
 
 controllers:
   # - dev
-  - global_settings
-  - peptide_file_input
-  - d_uptake_fit
-  - initial_guess
-  - fit
-  - diff
-  - color_transform
-  - protein  #rename: NGL?
-  - graph
-  - file_export
-  - figure_export
-  - session_manager
+  global_settings:
+  peptide_file_input:
+  d_uptake_fit:
+  initial_guess:
+  fit:
+  diff:
+  color_transform:
+  protein:
+  graph:
+  file_export:
+  figure_export:
+  session_manager:
