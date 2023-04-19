@@ -176,21 +176,12 @@ class DevTestControl(ControlPanel):
         views = self.views
         opts = self.opts
 
-        t = transforms["d_uptake_select"]
-        df = t.get()
+        input_ctrl: PeptideFileInputControl = self.parent.control_panels["PeptideFileInputControl"]
+        print(f"{input_ctrl.measurement_name=}")
+        print(input_ctrl.exp_file)
+        print(f"{input_ctrl.exp_state=}")
 
-        print(t)
-        print(df)
 
-        input_ctrl = self.parent.control_panels["PeptideFileInputControl"]
-        print(input_ctrl.data_files)
-        print("break")
-
-        t_rfu = transforms["rfu_select"]
-        df_rfu = t.get()
-
-        print(t_rfu)
-        print(df_rfu)
 
     def _action_test(self):
         src = self.sources["metadata"]
@@ -683,9 +674,8 @@ class PeptideFileInputControl(HDXSpecInputBase):
         self.param["exp_exposures"].objects = exposures
         self.exp_exposures = [e for e in exposures if e != 0.0]
 
-        # Set default measurmenet name if not set already
-        if not self.measurement_name or self.measurement_name in self.param["exp_state"].objects:
-            self.measurement_name = self.exp_state
+        # Set default measurmenet name to the name of the state
+        self.measurement_name = self.exp_state
 
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
