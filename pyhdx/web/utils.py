@@ -1,4 +1,5 @@
 from pathlib import Path
+from typing import Optional, Dict, List
 
 import pandas as pd
 
@@ -82,35 +83,70 @@ def load_state(ctrl, state_spec, data_dir, name=None):
     # file_input._action_load_datasets()
 
 
-def load_state_rfu(ctrl, state_spec, data_dir, name=None):
+def load_state_rfu(
+        file_input, hdx_spec: Dict, data_dir: Path, states: Optional[List[str]] = None, names: Optional[List[str]] = None):
     """Loader counterpart for RFU app. Even more experimental than `load_state`"""
 
-    if data_dir is not None:
-        input_files = [Path(data_dir) / fname for fname in state_spec["filenames"]]
-    else:
-        input_files = [Path(p) for p in state_spec["filenames"]]
+    input_files = [data_dir / f_dict['filename'] for f_dict in hdx_spec["data_files"].values()]
+    file_input.widgets["input_files"].filename = [f.name for f in input_files]
+    f_bytes = [f.read_bytes() for f in input_files]
+    file_input.input_files = f_bytes
 
-    files = [f.read_bytes() for f in input_files]
+    # file_input._read_files()
+    state_spec = hdx_spec['states']
+    states = states or list(state_spec.keys())
+    names = names or states
 
-    file_input = ctrl.control_panels["PeptideRFUFileInputControl"]
-    file_input.input_files = files
-    file_input.widgets["input_files"].filename = state_spec["filenames"]
+    for state, name in zip(states, names):
+        peptide_spec = state_spec[state]['peptides']
+        data_spec = hdx_spec['data_files']
 
-    file_input.fd_state = state_spec["FD_control"]["state"]
-    file_input.fd_exposure = (
-        state_spec["FD_control"]["exposure"]["value"]
-        * time_factors[state_spec["FD_control"]["exposure"]["unit"]]
-    )
+        file_input.fd_file = data_spec[peptide_spec['FD_control']['data_file']]['filename']
+        file_input.fd_state = peptide_spec["FD_control"]["state"]
+        file_input.fd_exposure = (
+            peptide_spec["FD_control"]["exposure"]["value"]
+            * time_factors[peptide_spec["FD_control"]["exposure"]["unit"]]
+        )
 
-    file_input.nd_state = state_spec["ND_control"]["state"]
-    file_input.nd_exposure = (
-        state_spec["ND_control"]["exposure"]["value"]
-        * time_factors[state_spec["ND_control"]["exposure"]["unit"]]
-    )
+        file_input.nd_file = data_spec[peptide_spec['ND_control']['data_file']]['filename']
+        file_input.nd_state = peptide_spec["ND_control"]["state"]
+        file_input.nd_exposure = (
+            peptide_spec["ND_control"]["exposure"]["value"]
+            * time_factors[peptide_spec["ND_control"]["exposure"]["unit"]]
+        )
 
-    file_input.d_percentage = state_spec["d_percentage"]
-    file_input.exp_state = state_spec["experiment"]["state"]
-    file_input.measurement_name = name or state_spec["experiment"]["state"]
+        file_input.exp_file = data_spec[peptide_spec['experiment']['data_file']]['filename']
+        file_input.exp_state = peptide_spec["experiment"]["state"]
+        try:
+            exp_vals = peptide_spec["experiment"]["exposure"]["values"]
+            f = time_factors[peptide_spec["experiment"]["exposure"]["unit"]]
+            file_input.exp_exposures = [v * f for v in exp_vals]
+        except KeyError:
+            pass
+
+        #TODO exp exposures
+        file_input.measurement_name = name
+
+        metadata = state_spec[state]['metadata']
+        file_input.pH = metadata['pH']
+
+        file_input.temperature = (
+                metadata["temperature"]["value"]
+                + temperature_offsets[metadata["temperature"]["unit"].lower()]
+        )
+
+        file_input.d_percentage = metadata["d_percentage"]
+
+        # todo exp_exposures
+
+        if "n_term" in metadata:
+            file_input.n_term = metadata["n_term"]
+        if "c_term" in metadata:
+            file_input.c_term = metadata["c_term"]
+        if "sequence" in metadata:
+            file_input.sequence = metadata["sequence"]
+
+        file_input._add_single_dataset_spec()
 
 
 def fix_multiindex_dtypes(index: pd.MultiIndex) -> pd.MultiIndex:

@@ -1,46 +1,104 @@
 
-PpiA_Folding:
-  filenames:
-    - PpiA_folding.csv
-  FD_control:
-    state: Native
-    exposure:
-      value: 86400
-      unit: s
-  ND_control:
-    state: FD
-    exposure:
-      value: 0.6
-      unit: s
-  experiment:
-    state: Folding
-  temperature:
-    value: 25.
-    unit: Celsius
-  d_percentage: 90.
-  n_term: 1
-  c_term: 163
-  author: Foo Bar
+data_files:
+  PpiA_folding:
+    filename: PpiA_folding.csv
+    format: DynamX
 
-PpiB_Folding:
-  filenames:
-    - PpiB_folding.csv
-  FD_control:
-    state: Native
-    exposure:
-      value: 1800
-      unit: s
-  ND_control:
-    state: FD
-    exposure:
-      value: 0.6
-      unit: s
-  experiment:
-    state: Folding
-  temperature:
-    value: 25.
-    unit: Celsius
-  d_percentage: 90.
-  n_term: 1
-  c_term: 173
-  author: Foo Bar
+  PpiB_folding:
+    filename: PpiB_folding.csv
+    format: DynamX
+
+states:
+  PpiA_Folding:
+    peptides:
+      experiment:
+        data_file: PpiA_folding
+        state: Folding
+        exposure:
+          values:
+           - 4.98
+           - 10.020000000000001
+           - 19.98
+           - 30.0
+           - 40.02
+           - 60.0
+           - 150.0
+           - 300.0
+           - 600.0
+           - 900.0
+           - 1200.0
+           - 1800.00012
+           - 2700.0
+           - 3600.0
+           - 10800.0
+           - 57600.0
+           - 86400.0
+          unit: s
+      FD_control:
+        data_file: PpiA_folding
+        state: Native
+        exposure:
+          value: 86400
+          unit: s
+      ND_control:
+        data_file: PpiA_folding
+        state: FD
+        exposure:
+          value: 0.6
+          unit: s
+    metadata:
+      pH: 8.
+      d_percentage: 90.
+      temperature:
+        value: 25.
+        unit: Celsius
+      n_term: 0
+      c_term: 163
+      author: Foo Bar
+
+  PpiB_Folding:
+    peptides:
+      experiment:
+        data_file: PpiB_folding
+        state: Folding
+        exposure:
+          values:
+            - 4.98
+            - 10.020000000000001
+            - 19.98
+            - 30.0
+            - 40.02
+            - 60.0
+            - 150.0
+            - 300.0
+            - 600.0
+            - 900.0
+            - 1200.0
+            - 1800.0
+          unit: s
+      FD_control:
+        data_file: PpiB_folding
+        state: Native
+        exposure:
+          value: 1800
+          unit: s
+      ND_control:
+        data_file: PpiB_folding
+        state: FD
+        exposure:
+          value: 0.6
+          unit: s
+    FD_control:
+      state: Native
+      exposure:
+        value: 1800
+        unit: s
+    metadata:
+      pH: 8.
+      d_percentage: 90.
+      temperature:
+        value: 25.
+        unit: Celsius
+      n_term: 1
+      c_term: 173
+      author: Foo Bar

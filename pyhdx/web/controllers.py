@@ -684,10 +684,14 @@ class PeptideFileInputControl(HDXSpecInputBase):
         """Adds the specifications of a single HDX Measurement to the `state_spec` / `data_spec` dictionaries"""
         if not self.data_files:
             self.parent.logger.info("No data loaded")
+            print('nope')
             return
         elif self.measurement_name in self.src.hdxm_objects.keys():
             self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
+            print('in use')
             return
+
+        print('here')
 
         metadata = {}
         peptide_spec = {}
@@ -1020,53 +1024,71 @@ class PeptideRFUFileInputControl(HDXSpecInputBase):
 
     def _add_single_dataset_spec(self):
         """Adds the spec of a single HDX Measurement to the `state_spec` dictionary"""
-        if self._df is None:
+        """Adds the specifications of a single HDX Measurement to the `state_spec` / `data_spec` dictionaries"""
+        if not self.data_files:
             self.parent.logger.info("No data loaded")
             return
         elif self.measurement_name in self.src.hdxm_objects.keys():
             self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
-        state_spec = {
-            "filenames": self.widgets["input_files"].filename,
-        }
+        metadata = {}
+        peptide_spec = {}
 
-        # TODO Properties ?
-        fd_spec = {
-            "state": self.fd_state,
-            "exposure": {"value": self.fd_exposure, "unit": "s"},
-        }
-        state_spec["FD_control"] = fd_spec
-
-        # TODO properties ?
-        nd_spec = {
-            "state": self.nd_state,
-            "exposure": {"value": self.nd_exposure, "unit": "s"},
-        }
-        state_spec["ND_control"] = nd_spec
         exp_spec = {
             "state": self.exp_state,
             "exposure": {"values": self.exp_exposures, "unit": "s"},
         }
-        state_spec["experiment"] = exp_spec
 
-        state_spec["d_percentage"] = self.d_percentage
-        state_spec["n_term"] = self.n_term
-        state_spec["c_term"] = self.c_term
+        peptide_spec["experiment"] = exp_spec
+
+        df = self.data_files[self.exp_file].data
+        peptides = filter_peptides(df, **exp_spec)
+        corrected = correct_d_uptake(peptides)  # remove this step when _sequence field is removed
+        exp_spec["data_file"] = self.exp_file
+        try:
+            verify_sequence(corrected, self.sequence, self.n_term, self.c_term)
+        except ValueError as e:
+            self.parent.logger.info(f"Cannot add dataset: {e}")
+            return
+
+        if Path(self.exp_file).stem not in self.data_files:
+            self.data_spec[Path(self.exp_file).stem] = {
+                "filename": self.exp_file,
+                "format": "DynamX",
+            }
+
+        # rfu input doesnt have FD sample as option, should always be set to FD_sample
+#         if self.be_mode == "FD Sample":
+        fd_spec = {
+            "data_file": self.fd_file,
+            "state": self.fd_state,
+            "exposure": {"value": self.fd_exposure, "unit": "s"},
+        }
+        peptide_spec["FD_control"] = fd_spec
+        # IF self.has_nd... etc
+        nd_spec = {
+            "data_file": self.nd_file,
+            "state": self.nd_state,
+            "exposure": {"value": self.nd_exposure, "unit": "s"},
+        }
+        peptide_spec["ND_control"] = nd_spec
+        # elif self.be_mode == "Flat percentage":
+        #     metadata["be_percent"] = self.be_percent
+
+        metadata["pH"] = self.pH
+        metadata["temperature"] = {"value": self.temperature, "unit": "K"}
+        metadata["d_percentage"] = self.d_percentage
+        metadata["n_term"] = self.n_term
+        metadata["c_term"] = self.c_term
         if self.sequence:
-            state_spec["sequence"] = self.sequence
+            metadata["sequence"] = self.sequence
 
-        ios = {
-            name: StringIO(byte_content.decode("UTF-8"))
-            for name, byte_content in zip(self.widgets["input_files"].filename, self.input_files)
+        self.state_spec[self.measurement_name] = {
+            "peptides": peptide_spec,
+            "metadata": metadata,
         }
 
-        if overlap := self.data_stringIO.keys() & ios.keys():
-            self.parent.logger.info(f"Data files already loaded: {', '.join(overlap)}, overwriting")
-
-        self.data_stringIO.update(ios)
-
-        self.state_spec[self.measurement_name] = state_spec
         obj = self.param["hdxm_list"].objects or []
         self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
