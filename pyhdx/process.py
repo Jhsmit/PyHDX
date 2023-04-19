@@ -190,6 +190,11 @@ def verify_sequence(
 
     r_number = pd.RangeIndex(n_term, c_term + 1, name="r_number")
 
+    if df['start'].min() < n_term:
+        raise ValueError(f"Peptide dataframe contains peptides with start residue number below supplied 'n_term' ({n_term})")
+    if df['end'].max() > c_term:
+        raise ValueError(f"Peptide dataframe contains peptides with end residue number above supplied 'c_term' ({c_term})")
+
     seq_full = pd.Series(index=r_number, dtype="U").fillna("X")
     seq_reconstruct = pd.Series(index=r_number, dtype="U").fillna("X")
 
