@@ -583,7 +583,7 @@ class HDXTimepoint(Coverage):
     def rfu_residues_sd(self) -> pd.Series:
         """Error propagated standard deviations of RFU per residue."""
 
-        return self.propagate_errors("rfu sd")
+        return self.propagate_errors("rfu_sd")
 
     # todo allow pd.Series?
     def calc_rfu(self, residue_rfu: np.ndarray) -> np.ndarray:

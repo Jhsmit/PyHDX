@@ -22,13 +22,27 @@ from pyhdx.config import cfg
 
 
 def dataframe_intersection(
-    dataframes: list[pd.DataFrame], by: Union[list, str]
+    dataframes: list[pd.DataFrame], by: Union[list, str], reset_index: bool = True,
 ) -> list[pd.DataFrame]:
+    """Return a list of dataframes whos entries are limited to the intersection of rows of selected columns.
+
+    Args:
+        dataframes: List of dataframes to intersect
+        by: Column name or list of column names to intersect on.
+        reset_index: If True, the index is reset to a default integer index.
+
+    Returns:
+        List of dataframes with intersected rows
+
+    """
     set_index = [d.set_index(by) for d in dataframes]
     index_intersection = reduce(pd.Index.intersection, (d.index for d in set_index))
-    intersected = [df.loc[index_intersection].reset_index() for df in set_index]
+    intersected = [df.loc[index_intersection] for df in set_index]
 
-    return intersected
+    if reset_index:
+        return [df.reset_index() for df in intersected]
+    else:
+        return intersected
 
 
 A = TypeVar("A", npt.ArrayLike, pd.Series, pd.DataFrame)
