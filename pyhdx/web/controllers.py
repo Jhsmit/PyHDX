@@ -416,6 +416,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
             batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
             batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
             be_percent=pn.widgets.FloatInput,
+            pH=pn.widgets.FloatInput,
+            temperature=pn.widgets.FloatInput,
             d_percentage=pn.widgets.FloatInput,
             sequence=text_area,
         )
