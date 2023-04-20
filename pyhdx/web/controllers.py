@@ -307,13 +307,13 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     show_d_percentage = param.Boolean(default=True, precedence=-1)
 
-    fd_file = param.Selector()
+    fd_file = param.Selector(doc="File used for FD control", label="FD File")
 
     fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
 
     fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
 
-    nd_file = param.Selector()
+    nd_file = param.Selector(doc="File used for ND control", label="ND File")
 
     nd_state = param.Selector(doc="State used to normalize uptake", label="ND State")
 
@@ -474,14 +474,18 @@ class PeptideFileInputControl(PyHDXControlPanel):
             excluded |= {"batch_file", "batch_file_label"}
         elif self.input_mode == "Batch":
             excluded |= {
+                "fd_file",
                 "fd_state",
                 "fd_exposure",
                 "nd_state",
                 "nd_exposure",
+                "exp_file",
                 "exp_state",
                 "exp_exposures",
                 "drop_first",
                 "d_percentage",
+                "pH",
+                "temperature",
                 "n_term",
                 "c_term",
                 "sequence",
