@@ -275,7 +275,7 @@ class GlobalSettingsControl(ControlPanel):
         cfg.analysis.weight_exponent = self.weight_exponent
 
 
-class PeptideRFUFileInputControl(PyHDXControlPanel):
+class PeptideFileInputControl(PyHDXControlPanel):
     """
     This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
     Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
@@ -283,7 +283,7 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
 
     """
 
-    _type = "peptide_rfu_file_input"
+    _type = "peptide_file_input"
 
     header = "Peptide Input"
 
@@ -386,7 +386,7 @@ class PeptideRFUFileInputControl(PyHDXControlPanel):
 
     def __init__(self, parent, **params):
         excluded = ["batch_file", "batch_file_label"]
-        super(PeptideRFUFileInputControl, self).__init__(parent, _excluded=excluded, **params)
+        super(PeptideFileInputControl, self).__init__(parent, _excluded=excluded, **params)
         self._update_mode()
         self.update_box()
 

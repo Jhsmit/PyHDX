@@ -8,7 +8,7 @@ import pandas as pd
 from pyhdx.support import multiindex_set_categories, multiindex_astype
 
 if TYPE_CHECKING:
-    from pyhdx.web.controllers import PeptideRFUFileInputControl
+    from pyhdx.web.controllers import PeptideFileInputControl
 
 # todo merge with batch_processing
 time_factors = {"s": 1, "m": 60.0, "min": 60.0, "h": 3600, "d": 86400}
@@ -26,7 +26,7 @@ def get_view(
 
 
 def load_state_rfu(
-    file_input: PeptideRFUFileInputControl,
+    file_input: PeptideFileInputControl,
     hdx_spec: Dict,
     data_dir: Path,
     states: Optional[List[str]] = None,

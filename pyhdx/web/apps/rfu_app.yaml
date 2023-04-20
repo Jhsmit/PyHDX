@@ -316,7 +316,7 @@ modules:
 
 controllers:
   global_settings:
-  peptide_rfu_file_input:
+  peptide_file_input:
       nd_control: True
       show_pH: False
       show_temperature: False
