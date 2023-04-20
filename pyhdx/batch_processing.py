@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from functools import cached_property
 from io import StringIO
 from pathlib import Path
-from typing import Union, Literal
+from typing import Union, Literal, Optional
 
 import pandas as pd
 
@@ -13,6 +13,7 @@ from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.process import correct_d_uptake, apply_control, filter_peptides
+
 
 time_factors = {"s": 1, "m": 60.0, "min": 60.0, "h": 3600, "d": 86400}
 temperature_offsets = {"c": 273.15, "celsius": 273.15, "k": 0, "kelvin": 0}

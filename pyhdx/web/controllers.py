@@ -680,14 +680,16 @@ class PeptideFileInputControl(PyHDXControlPanel):
         peptides = filter_peptides(df, **exp_spec)
         corrected = correct_d_uptake(peptides)  # remove this step when _sequence field is removed
         exp_spec["data_file"] = self.exp_file
+
         try:
             verify_sequence(corrected, self.sequence, self.n_term, self.c_term)
         except ValueError as e:
             self.parent.logger.info(f"Cannot add dataset: {e}")
             return
 
-        if Path(self.exp_file).stem not in self.data_files:
-            self.data_spec[Path(self.exp_file).stem] = {
+        # Add the data file to the data spec
+        if self.exp_file not in self.data_spec:
+            self.data_spec[self.exp_file] = {
                 "filename": self.exp_file,
                 "format": "DynamX",
             }
