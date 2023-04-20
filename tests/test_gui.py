@@ -38,6 +38,7 @@ def ppix_file_dict() -> dict:
 
     return file_dict
 
+
 @pytest.fixture
 def secb_spec() -> dict:
     return yaml.safe_load(Path(input_dir / "data_states.yaml").read_text())
