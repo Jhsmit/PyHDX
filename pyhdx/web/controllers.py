@@ -2231,7 +2231,7 @@ class FileExportControl(PyHDXControlPanel):
 
     def hdx_spec_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets["download_state_spec"].filename = f"PyHDX_state_spec_{timestamp}.yaml"
+        self.widgets["download_state_spec"].filename = f"PyHDX_hdx_spec_{timestamp}.yaml"
 
         sio = self.parent.hdx_spec_callback()
         return sio
