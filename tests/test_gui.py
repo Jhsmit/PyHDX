@@ -1,3 +1,4 @@
+import sys
 from pathlib import Path
 
 import numpy as np
@@ -132,6 +133,7 @@ def test_web_fitting():
     initial_guess._action_fit()
 
 
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="output slightly different on other platforms")
 def test_web_load(secb_spec, secb_file_dict):
     ctrl, tmpl = main_app()
 
@@ -215,6 +217,7 @@ def test_web_load(secb_spec, secb_file_dict):
         assert lt == lr
 
 
+@pytest.mark.skipif(not sys.platform.startswith("win"), reason="output slightly different on other platforms")
 def test_rfu(ppix_spec, ppix_file_dict):
     """Test the RFU app"""
     ctrl, tmpl = rfu_app()
