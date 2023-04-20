@@ -32,6 +32,13 @@ def secb_file_dict() -> dict:
 
 
 @pytest.fixture
+def ppix_file_dict() -> dict:
+    filenames = ["PpiA_folding.csv", "PpiB_folding.csv"]
+    file_dict = {fname: (input_dir / fname).read_bytes() for fname in filenames}
+
+    return file_dict
+
+@pytest.fixture
 def secb_spec() -> dict:
     return yaml.safe_load(Path(input_dir / "data_states.yaml").read_text())
 
@@ -207,7 +214,7 @@ def test_web_load(secb_spec, secb_file_dict):
         assert lt == lr
 
 
-def test_rfu(ppix_spec):
+def test_rfu(ppix_spec, ppix_file_dict):
     """Test the RFU app"""
     ctrl, tmpl = rfu_app()
 
@@ -240,89 +247,131 @@ def test_rfu(ppix_spec):
     for lt, lr in zip(lines_test[2:], lines_ref[2:]):
         assert lt == lr
 
-        # with cluster() as (s, [a, b]):
-        #     conf.set("cluster", "scheduler_address", s["address"])
-        #
-        #     fit_control = ctrl.control_panels["FitControl"]
-        #     fit_control.fit_mode = "Batch"
-        #     fit_control.epochs = 10
-        #
-        #     fit_control.fit_name = "testfit_1"
-        #     fit_control._action_fit()
-        #
-        #     table_names = [
-        #         "loss",
-        #         "peptide_mse",
-        #         "rates",
-        #         "dG_fits",
-        #         "rfu_residues",
-        #         "peptides",
-        #         "d_calc",
-        #     ]
-        #     for name in table_names:
-        #         ref = csv_to_dataframe(output_dir / "gui" / f"{name}.csv")
-        #         test = ctrl.sources["main"].get_table(name)
-        #
-        #         for test_col, ref_col in zip(test.columns, ref.columns):
-        #             test_values = test[test_col].to_numpy()
-        #             if np.issubdtype(test_values.dtype, np.number):
-        #                 assert np.allclose(
-        #                     test_values, ref[ref_col].to_numpy(), equal_nan=True
-        #                 )
-        #
-        #     fit_control.guess_mode = "One-to-many"
-        #     fit_control.fit_name = "testfit_2"
-        #     fit_control._action_fit()
-        #
-        #     fit_control.fit_mode = "Single"
-        #     fit_control.guess_mode = "One-to-one"
-        #     fit_control.fit_name = "testfit_3"
-        #     fit_control._action_fit()
-        #
-        #     fit_control.initial_guess = "testfit_2"
-        #     fit_control.guess_mode = "One-to-many"
-        #     fit_control.guess_state = "testname_123"
-        #     fit_control.fit_name = "testfit_4"
-        #     fit_control._action_fit()
-        #
-        # color_transform_control = ctrl.control_panels["ColorTransformControl"]
-        # color_transform_control._action_otsu()
-        #
-        # fit_result = ctrl.sources["main"].get_table("dG_fits")
-        # values = fit_result["testfit_1"]["testname_123"]["dG"]
-        # color_transform_control.quantity = "dG"
-        # cmap, norm = color_transform_control.get_cmap_and_norm()
-        # colors = cmap(norm(values), bytes=True)
-        #
-        # h = hash_array(colors, method="md5")
-        # assert h == "bac3602f877a53abd94be8bb5f9b72ec"
-        #
-        # color_transform_control.mode = "Continuous"
-        # color_transform_control._action_linear()
-        #
-        # cmap, norm = color_transform_control.get_cmap_and_norm()
-        # colors = cmap(norm(values), bytes=True)
-        #
-        # h = hash_array(colors, method="md5")
-        #
-        # assert h == "123085ba16b3a9374595b734f9e675e6"
-        #
-        # value_widget = color_transform_control.widgets["value_1"]
-        # value_widget.value = 25
-        # cmap, norm = color_transform_control.get_cmap_and_norm()
-        # assert norm.vmin == 25
-        #
-        # color_transform_control.mode = "Colormap"
-        # color_transform_control.library = "colorcet"
-        # color_transform_control.colormap = "CET_C1"
-        # cmap, norm = color_transform_control.get_cmap_and_norm()
-        #
-        # colors = cmap(norm(values), bytes=True)
-        #
-        # h = hash_array(colors, method="md5")
-        # assert h == "0628b46e7975ed57490e84c169bc81ad"
+    # Download HDX spec file
+    sio_hdx_spec = file_export.hdx_spec_callback()
 
-        # Future tests: check if renderers are present in figures
-        # cov_figure = ctrl.figure_panels['CoverageFigure']
-        # renderer = cov_figure.figure.renderers[0]
-        # assert renderer.data_source.name == f'coverage_{self.series.state}'
+    del ctrl
+    del file_export
+    del file_input
+
+    # creata new app, input the same data via batch input
+    new_ctrl, tmpl = rfu_app()
+    input_control = new_ctrl.control_panels["PeptideFileInputControl"]
+
+    sio_hdx_spec.seek(0)
+    input_control.input_mode = "Batch"
+    input_control.widgets["input_files"].filename = list(ppix_file_dict.keys())
+    input_control.input_files = list(ppix_file_dict.values())
+
+    input_control.batch_file = sio_hdx_spec.read().encode("utf-8")
+    input_control._action_load_datasets()
+
+    file_export = new_ctrl.control_panels["FileExportControl"]
+
+    # check rfu table output
+    file_export.table = "rfu"
+    sio = file_export.table_export_callback()
+    sio.seek(0)
+    lines_test = sio.read().split("\n")
+    lines_ref = (output_dir / "rfu_web" / "rfu.csv").read_text().split("\n")
+
+    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
+        assert lt == lr
+
+    # check table output
+    file_export.table = "peptides"
+    sio = file_export.table_export_callback()
+    sio.seek(0)
+    lines_test = sio.read().split("\n")
+    lines_ref = (output_dir / "rfu_web" / "peptides.csv").read_text().split("\n")
+
+    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
+        assert lt == lr
+
+
+# with cluster() as (s, [a, b]):
+#     conf.set("cluster", "scheduler_address", s["address"])
+#
+#     fit_control = ctrl.control_panels["FitControl"]
+#     fit_control.fit_mode = "Batch"
+#     fit_control.epochs = 10
+#
+#     fit_control.fit_name = "testfit_1"
+#     fit_control._action_fit()
+#
+#     table_names = [
+#         "loss",
+#         "peptide_mse",
+#         "rates",
+#         "dG_fits",
+#         "rfu_residues",
+#         "peptides",
+#         "d_calc",
+#     ]
+#     for name in table_names:
+#         ref = csv_to_dataframe(output_dir / "gui" / f"{name}.csv")
+#         test = ctrl.sources["main"].get_table(name)
+#
+#         for test_col, ref_col in zip(test.columns, ref.columns):
+#             test_values = test[test_col].to_numpy()
+#             if np.issubdtype(test_values.dtype, np.number):
+#                 assert np.allclose(
+#                     test_values, ref[ref_col].to_numpy(), equal_nan=True
+#                 )
+#
+#     fit_control.guess_mode = "One-to-many"
+#     fit_control.fit_name = "testfit_2"
+#     fit_control._action_fit()
+#
+#     fit_control.fit_mode = "Single"
+#     fit_control.guess_mode = "One-to-one"
+#     fit_control.fit_name = "testfit_3"
+#     fit_control._action_fit()
+#
+#     fit_control.initial_guess = "testfit_2"
+#     fit_control.guess_mode = "One-to-many"
+#     fit_control.guess_state = "testname_123"
+#     fit_control.fit_name = "testfit_4"
+#     fit_control._action_fit()
+#
+# color_transform_control = ctrl.control_panels["ColorTransformControl"]
+# color_transform_control._action_otsu()
+#
+# fit_result = ctrl.sources["main"].get_table("dG_fits")
+# values = fit_result["testfit_1"]["testname_123"]["dG"]
+# color_transform_control.quantity = "dG"
+# cmap, norm = color_transform_control.get_cmap_and_norm()
+# colors = cmap(norm(values), bytes=True)
+#
+# h = hash_array(colors, method="md5")
+# assert h == "bac3602f877a53abd94be8bb5f9b72ec"
+#
+# color_transform_control.mode = "Continuous"
+# color_transform_control._action_linear()
+#
+# cmap, norm = color_transform_control.get_cmap_and_norm()
+# colors = cmap(norm(values), bytes=True)
+#
+# h = hash_array(colors, method="md5")
+#
+# assert h == "123085ba16b3a9374595b734f9e675e6"
+#
+# value_widget = color_transform_control.widgets["value_1"]
+# value_widget.value = 25
+# cmap, norm = color_transform_control.get_cmap_and_norm()
+# assert norm.vmin == 25
+#
+# color_transform_control.mode = "Colormap"
+# color_transform_control.library = "colorcet"
+# color_transform_control.colormap = "CET_C1"
+# cmap, norm = color_transform_control.get_cmap_and_norm()
+#
+# colors = cmap(norm(values), bytes=True)
+#
+# h = hash_array(colors, method="md5")
+# assert h == "0628b46e7975ed57490e84c169bc81ad"
+
+# Future tests: check if renderers are present in figures
+# cov_figure = ctrl.figure_panels['CoverageFigure']
+# renderer = cov_figure.figure.renderers[0]
+# assert renderer.data_source.name == f'coverage_{self.series.state}'

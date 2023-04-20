@@ -61,7 +61,7 @@ def init_dashboard():
     # states = ['PpiA_Folding']
     # states = ['PpiB_Folding']
     states = ["PpiA_Folding", "PpiB_Folding"]
-    input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
+    input_control = ctrl.control_panels["PeptideFileInputControl"]
     load_state(input_control, hdx_spec, data_dir=data_dir, states=states)
 
     input_control._action_load_datasets()

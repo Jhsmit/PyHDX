@@ -655,8 +655,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
     def hdx_spec(self) -> dict[str, Any]:
         return {"data_files": self.data_spec, "states": self.state_spec}
 
+    # triggered from 'add measurement' button
     def _add_single_dataset_spec(self):
-        """Adds the spec of a single HDX Measurement to the `state_spec` dictionary"""
         """Adds the specifications of a single HDX Measurement to the `state_spec` / `data_spec` dictionaries"""
         if not self.data_files:
             self.parent.logger.info("No data loaded")
@@ -693,8 +693,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 "format": "DynamX",
             }
 
-        # rfu input doesnt have FD sample as option, should always be set to FD_sample
-        #         if self.be_mode == "FD Sample":
+        # Add the controls
         fd_spec = {
             "data_file": self.fd_file,
             "state": self.fd_state,
