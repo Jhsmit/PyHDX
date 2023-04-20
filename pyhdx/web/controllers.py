@@ -390,8 +390,10 @@ class PeptideFileInputControl(PyHDXControlPanel):
         self._update_mode()
         self.update_box()
 
-        # Dictionary with input files
+        # Dictionary with current input files
         self.data_files: dict[str, DataFile] = {}
+        # Dict with all files, keeps files after clearing input
+        self.data_file_history: dict[str, DataFile] = {}
 
         # Dictionary of accumulated HDX state specifications:
         self.state_spec = {}
@@ -455,80 +457,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
         sorted_widgets = {k: widgets[k] for k in widget_order}
 
         return sorted_widgets
-
-    @property
-    def hdx_spec(self) -> dict[str, Any]:
-        return {"data_files": self.data_spec, "states": self.state_spec}
-
-    @param.depends("input_files", watch=True)
-    def _read_files(self) -> None:
-        if self.input_files:
-            self.data_files = {
-                name: DataFile(
-                    name=name,
-                    filepath_or_buffer=StringIO(byte_content.decode("UTF-8")),
-                    format="DynamX",
-                )
-                for name, byte_content in zip(
-                    self.widgets["input_files"].filename, self.input_files
-                )
-            }
-
-            lens = [len(data_file.data) for data_file in self.data_files.values()]
-
-            self.parent.logger.info(
-                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
-                f"of {sum(lens)} peptides"
-            )
-        else:
-            self.data_files = {}
-
-    def _action_load_datasets(self) -> None:
-        """Load all specified HDX measurements"""
-        if self.input_mode == "Manual":
-            data_src = self.data_files
-        elif self.input_mode == "Batch":
-            if self.hdxm_list:
-                self.parent.logger.info("Cannot add data in batch after manually inputting data")
-                return
-
-            hdx_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
-
-            # Convert loaded data_files to data src with correct keys
-            data_src = {}
-            for data_file, data_file_spec in hdx_spec["data_files"].items():
-                data_src[data_file] = self.data_files[data_file_spec["filename"]]
-
-            self.param["hdxm_list"].objects = list(hdx_spec.keys())
-
-            # store state spec for export
-            self.state_spec = hdx_spec["states"]
-            self.data_spec = hdx_spec["data_files"]
-
-            self.param["hdxm_list"].objects = list(self.state_spec.keys())
-
-        # Disable input and changing config settings after loading data
-        self.widgets["load_dataset_button"].disabled = True
-        try:
-            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
-            config_ctrl.widgets["drop_first"].disabled = True
-            config_ctrl.widgets["weight_exponent"].disabled = True
-        except KeyError:
-            pass
-
-        parser = StateParser(self.hdx_spec, data_src=data_src)
-
-        for state in self.state_spec.keys():
-            hdxm = parser.load_hdxm(state)
-            self.src.add(hdxm, state)
-            self.parent.logger.info(
-                f"Loaded dataset {state} with experiment state {hdxm.state} "
-                f"({hdxm.Nt} timepoints, {len(hdxm.coverage)} peptides each)"
-            )
-            self.parent.logger.info(
-                f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "
-                f"Redundancy: {hdxm.coverage.redundancy:.2}"
-            )
 
     def spec_download_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
@@ -595,6 +523,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
             )
         else:
             self.data_files = {}
+
+        self.data_file_history |= self.data_files
 
         self.c_term = 0
 
@@ -716,6 +646,10 @@ class PeptideFileInputControl(PyHDXControlPanel):
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
 
+    @property
+    def hdx_spec(self) -> dict[str, Any]:
+        return {"data_files": self.data_spec, "states": self.state_spec}
+
     def _add_single_dataset_spec(self):
         """Adds the spec of a single HDX Measurement to the `state_spec` dictionary"""
         """Adds the specifications of a single HDX Measurement to the `state_spec` / `data_spec` dictionaries"""
@@ -784,14 +718,52 @@ class PeptideFileInputControl(PyHDXControlPanel):
         obj = self.param["hdxm_list"].objects or []
         self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
-    def _action_remove_datasets(self):
-        raise NotImplementedError("Removing datasets not implemented")
-        for name in self.hdxm_list:
-            self.parent.datasets.pop(name)
+    def _action_load_datasets(self) -> None:
+        """Load all specified HDX measurements"""
+        if self.input_mode == "Manual":
+            data_src = self.data_file_history
+        elif self.input_mode == "Batch":
+            if self.hdxm_list:
+                self.parent.logger.info("Cannot add data in batch after manually inputting data")
+                return
 
-        self.parent.param.trigger(
-            "datasets"
-        )  # Manual trigger as key assignment does not trigger the param
+            hdx_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
+
+            # Convert loaded data_files to data src with correct keys
+            data_src = {}
+            for data_file, data_file_spec in hdx_spec["data_files"].items():
+                data_src[data_file] = self.data_files[data_file_spec["filename"]]
+
+            self.param["hdxm_list"].objects = list(hdx_spec.keys())
+
+            # store state spec for export
+            self.state_spec = hdx_spec["states"]
+            self.data_spec = hdx_spec["data_files"]
+
+            self.param["hdxm_list"].objects = list(self.state_spec.keys())
+
+        # Disable input and changing config settings after loading data
+        self.widgets["load_dataset_button"].disabled = True
+        try:
+            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            config_ctrl.widgets["drop_first"].disabled = True
+            config_ctrl.widgets["weight_exponent"].disabled = True
+        except KeyError:
+            pass
+
+        parser = StateParser(self.hdx_spec, data_src=data_src)
+
+        for state in self.state_spec.keys():
+            hdxm = parser.load_hdxm(state)
+            self.src.add(hdxm, state)
+            self.parent.logger.info(
+                f"Loaded dataset {state} with experiment state {hdxm.state} "
+                f"({hdxm.Nt} timepoints, {len(hdxm.coverage)} peptides each)"
+            )
+            self.parent.logger.info(
+                f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "
+                f"Redundancy: {hdxm.coverage.redundancy:.2}"
+            )
 
 
 class DUptakeFitControl(PyHDXControlPanel):
