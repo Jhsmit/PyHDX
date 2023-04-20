@@ -709,9 +709,14 @@ class PeptideFileInputControl(PyHDXControlPanel):
             }
             peptide_spec["ND_control"] = nd_spec
 
-        metadata["pH"] = self.pH
-        metadata["temperature"] = {"value": self.temperature, "unit": "K"}
-        metadata["d_percentage"] = self.d_percentage
+        # Optionally add ph/temperature/d_percentage if this was input by the user
+        if self.show_pH:
+            metadata["pH"] = self.pH
+        if self.show_temperature:
+            metadata["temperature"] = {"value": self.temperature, "unit": "K"}
+        if self.show_d_percentage:
+            metadata["d_percentage"] = self.d_percentage
+
         metadata["n_term"] = self.n_term
         metadata["c_term"] = self.c_term
         if self.sequence:
