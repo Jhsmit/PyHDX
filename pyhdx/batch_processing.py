@@ -148,6 +148,7 @@ class StateParser(object):
     def states(self) -> list[str]:
         return list(self.hdx_spec["states"].keys())
 
+
 # borrowed from hdxms-datasets
 def batch_filter_peptides(
     df: pd.DataFrame,

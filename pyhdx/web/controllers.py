@@ -5,7 +5,6 @@ import sys
 import uuid
 import zipfile
 from io import StringIO, BytesIO
-from pathlib import Path
 from typing import Any
 
 import colorcet

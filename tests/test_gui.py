@@ -24,6 +24,14 @@ def ppix_spec() -> dict:
 
 
 @pytest.fixture
+def secb_file_dict() -> dict:
+    filenames = ["ecSecB_apo.csv", "ecSecB_dimer.csv"]
+    file_dict = {fname: (input_dir / fname).read_bytes() for fname in filenames}
+
+    return file_dict
+
+
+@pytest.fixture
 def secb_spec() -> dict:
     return yaml.safe_load(Path(input_dir / "data_states.yaml").read_text())
 
@@ -59,16 +67,14 @@ def test_load_single_file():
 
     assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.6335831166442542)
 
-def test_batch_input():
-    filenames = ["ecSecB_apo.csv", "ecSecB_dimer.csv"]
-    file_dict = {fname: (input_dir / fname).read_bytes() for fname in filenames}
 
+def test_batch_input(secb_file_dict):
     ctrl, tmpl = main_app()
 
     input_control = ctrl.control_panels["PeptideFileInputControl"]
     input_control.input_mode = "Batch"
-    input_control.widgets["input_files"].filename = list(file_dict.keys())
-    input_control.input_files = list(file_dict.values())
+    input_control.widgets["input_files"].filename = list(secb_file_dict.keys())
+    input_control.input_files = list(secb_file_dict.values())
 
     input_control.batch_file = Path(input_dir / "data_states.yaml").read_bytes()
 
@@ -78,7 +84,7 @@ def test_batch_input():
     assert len(src.hdxm_objects) == 2
     # ... additional tests
 
-# @pytest.mark.skip(reason="Fails in GitHub Actions")
+
 def test_web_fitting():
     filenames = ["ecSecB_apo.csv", "ecSecB_dimer.csv"]
     file_dict = {fname: (input_dir / fname).read_bytes() for fname in filenames}
@@ -118,7 +124,7 @@ def test_web_fitting():
     initial_guess._action_fit()
 
 
-def test_web_load(secb_spec):
+def test_web_load(secb_spec, secb_file_dict):
     ctrl, tmpl = main_app()
 
     file_input = ctrl.control_panels["PeptideFileInputControl"]
@@ -155,6 +161,47 @@ def test_web_load(secb_spec):
     sio.seek(0)
     lines_test = sio.read().split("\n")
     lines_ref = (output_dir / "main_web" / "rfu_colors.csv").read_text().split("\n")
+
+    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
+        assert lt == lr
+
+    # Download HDX spec file
+    sio_hdx_spec = file_export.hdx_spec_callback()
+
+    del ctrl
+    del file_export
+    del file_input
+
+    # load a new instance of the main app, reload previous data through batch input
+    new_ctrl, tmpl = main_app()
+    input_control = new_ctrl.control_panels["PeptideFileInputControl"]
+
+    sio_hdx_spec.seek(0)
+    input_control.input_mode = "Batch"
+    input_control.widgets["input_files"].filename = list(secb_file_dict.keys())
+    input_control.input_files = list(secb_file_dict.values())
+
+    input_control.batch_file = sio_hdx_spec.read().encode("utf-8")
+    input_control._action_load_datasets()
+
+    file_export = new_ctrl.control_panels["FileExportControl"]
+
+    # check rfu table output
+    file_export.table = "rfu"
+    sio = file_export.table_export_callback()
+    sio.seek(0)
+    lines_test = sio.read().split("\n")
+    lines_ref = (output_dir / "main_web" / "rfu.csv").read_text().split("\n")
+
+    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
+        assert lt == lr
+
+    # check table output
+    file_export.table = "peptides"
+    sio = file_export.table_export_callback()
+    sio.seek(0)
+    lines_test = sio.read().split("\n")
+    lines_ref = (output_dir / "main_web" / "peptides.csv").read_text().split("\n")
 
     for lt, lr in zip(lines_test[2:], lines_ref[2:]):
         assert lt == lr

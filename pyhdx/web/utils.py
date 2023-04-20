@@ -86,7 +86,6 @@ def load_state(
 
         file_input.d_percentage = metadata["d_percentage"]
 
-
         if "n_term" in metadata:
             file_input.n_term = metadata["n_term"]
         if "c_term" in metadata:
