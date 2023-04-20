@@ -2,10 +2,12 @@ import sys
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import pytest
 import torch
 import yaml
 
+from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.web.apps import main_app, rfu_app
 from pyhdx.web.utils import load_state
 
@@ -148,34 +150,25 @@ def test_web_load(secb_spec, secb_file_dict):
 
     file_export = ctrl.control_panels["FileExportControl"]
 
-    # check table output
+    # Check table output
     file_export.table = "peptides"
     sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "main_web" / "peptides.csv").read_text().split("\n")
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "main_web" / "peptides.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
-
-    # check rfu table output
+    # Check rfu table output
     file_export.table = "rfu"
     sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "main_web" / "rfu.csv").read_text().split("\n")
-
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "main_web" / "rfu.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
     # check color table output
     sio = file_export.color_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "main_web" / "rfu_colors.csv").read_text().split("\n")
-
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "main_web" / "rfu_colors.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
     # Download HDX spec file
     sio_hdx_spec = file_export.hdx_spec_callback()
@@ -201,23 +194,16 @@ def test_web_load(secb_spec, secb_file_dict):
     # check rfu table output
     file_export.table = "rfu"
     sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "main_web" / "rfu.csv").read_text().split("\n")
-
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "main_web" / "rfu.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
     # check table output
     file_export.table = "peptides"
     sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "main_web" / "peptides.csv").read_text().split("\n")
-
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
-
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "main_web" / "peptides.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
 @pytest.mark.skipif(
     not sys.platform.startswith("win"), reason="output slightly different on other platforms"
@@ -238,22 +224,16 @@ def test_rfu(ppix_spec, ppix_file_dict):
     # check table output
     file_export.table = "peptides"
     sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "rfu_web" / "peptides.csv").read_text().split("\n")
-
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "rfu_web" / "peptides.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
     # check rfu table output
     file_export.table = "rfu"
     sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "rfu_web" / "rfu.csv").read_text().split("\n")
-
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "rfu_web" / "rfu.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
     # Download HDX spec file
     sio_hdx_spec = file_export.hdx_spec_callback()
@@ -276,25 +256,22 @@ def test_rfu(ppix_spec, ppix_file_dict):
 
     file_export = new_ctrl.control_panels["FileExportControl"]
 
-    # check rfu table output
-    file_export.table = "rfu"
-    sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "rfu_web" / "rfu.csv").read_text().split("\n")
-
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
-
     # check table output
     file_export.table = "peptides"
     sio = file_export.table_export_callback()
-    sio.seek(0)
-    lines_test = sio.read().split("\n")
-    lines_ref = (output_dir / "rfu_web" / "peptides.csv").read_text().split("\n")
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "rfu_web" / "peptides.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
 
-    for lt, lr in zip(lines_test[2:], lines_ref[2:]):
-        assert lt == lr
+    # check rfu table output
+    file_export.table = "rfu"
+    sio = file_export.table_export_callback()
+    df_test = csv_to_dataframe(sio)
+    df_ref = csv_to_dataframe(output_dir / "rfu_web" / "rfu.csv")
+    pd.testing.assert_frame_equal(df_test, df_ref)
+
+
+
 
 
 # with cluster() as (s, [a, b]):
