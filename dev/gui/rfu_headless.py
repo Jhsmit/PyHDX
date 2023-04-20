@@ -7,7 +7,7 @@ import panel as pn
 from pyhdx.web.apps import rfu_app
 import yaml
 
-from pyhdx.web.utils import load_state_rfu
+from pyhdx.web.utils import load_state
 
 # %%
 

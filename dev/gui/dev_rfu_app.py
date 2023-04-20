@@ -14,7 +14,7 @@ from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.web.apps import rfu_app
 from pyhdx.web.base import STATIC_DIR
-from pyhdx.web.utils import load_state_rfu, fix_multiindex_dtypes
+from pyhdx.web.utils import load_state, fix_multiindex_dtypes
 from pyhdx.config import cfg, reset_config
 
 reset_config()
@@ -62,7 +62,7 @@ def init_dashboard():
     # states = ['PpiB_Folding']
     states = ["PpiA_Folding", "PpiB_Folding"]
     input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
-    load_state_rfu(input_control, hdx_spec, data_dir=data_dir, states=states)
+    load_state(input_control, hdx_spec, data_dir=data_dir, states=states)
 
     input_control._action_load_datasets()
 

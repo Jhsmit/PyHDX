@@ -6,7 +6,7 @@ import torch
 import yaml
 
 from pyhdx.web.apps import main_app, rfu_app
-from pyhdx.web.utils import load_state_rfu
+from pyhdx.web.utils import load_state
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
@@ -123,7 +123,7 @@ def test_web_load(secb_spec):
 
     file_input = ctrl.control_panels["PeptideFileInputControl"]
     states = ["SecB_tetramer", "SecB_dimer"]
-    load_state_rfu(file_input, secb_spec, data_dir=input_dir, states=states)
+    load_state(file_input, secb_spec, data_dir=input_dir, states=states)
 
     file_input._action_load_datasets()
     assert len(file_input.src.hdxm_objects) == 2
@@ -166,7 +166,7 @@ def test_rfu(ppix_spec):
 
     file_input = ctrl.control_panels["PeptideFileInputControl"]
     states = ["PpiA_Folding", "PpiB_Folding"]
-    load_state_rfu(file_input, ppix_spec, data_dir=input_dir, states=states)
+    load_state(file_input, ppix_spec, data_dir=input_dir, states=states)
 
     file_input._action_load_datasets()
     assert len(file_input.src.hdxm_objects) == 2

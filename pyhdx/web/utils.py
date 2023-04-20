@@ -25,21 +25,21 @@ def get_view(
         return widget
 
 
-def load_state_rfu(
+def load_state(
     file_input: PeptideFileInputControl,
     hdx_spec: Dict,
     data_dir: Path,
     states: Optional[List[str]] = None,
     names: Optional[List[str]] = None,
 ) -> None:
-    """Loader counterpart for RFU app. Even more experimental than `load_state`"""
+    """Loader method for `PeptideFileInputControl` from a HDX-MS state specification."""
 
     input_files = [data_dir / f_dict["filename"] for f_dict in hdx_spec["data_files"].values()]
     file_input.widgets["input_files"].filename = [f.name for f in input_files]
     f_bytes = [f.read_bytes() for f in input_files]
     file_input.input_files = f_bytes
 
-    # file_input._read_files()
+    # file_input._read_files() # triggered by setting input files
     state_spec = hdx_spec["states"]
     states = states or list(state_spec.keys())
     names = names or states
@@ -65,6 +65,8 @@ def load_state_rfu(
 
         file_input.exp_file = data_spec[peptide_spec["experiment"]["data_file"]]["filename"]
         file_input.exp_state = peptide_spec["experiment"]["state"]
+
+        # Set experiment exposures if specified, otherwise leave default selection
         try:
             exp_vals = peptide_spec["experiment"]["exposure"]["values"]
             f = time_factors[peptide_spec["experiment"]["exposure"]["unit"]]
@@ -72,7 +74,6 @@ def load_state_rfu(
         except KeyError:
             pass
 
-        # TODO exp exposures
         file_input.measurement_name = name
 
         metadata = state_spec[state]["metadata"]
@@ -85,7 +86,6 @@ def load_state_rfu(
 
         file_input.d_percentage = metadata["d_percentage"]
 
-        # todo exp_exposures
 
         if "n_term" in metadata:
             file_input.n_term = metadata["n_term"]

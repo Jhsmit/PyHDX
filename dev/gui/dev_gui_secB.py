@@ -16,7 +16,7 @@ from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import STATIC_DIR
-from pyhdx.web.utils import fix_multiindex_dtypes, load_state_rfu
+from pyhdx.web.utils import fix_multiindex_dtypes, load_state
 from pyhdx.config import cfg, reset_config
 
 
@@ -139,7 +139,7 @@ def init_dashboard():
     input_control = ctrl.control_panels["PeptideFileInputControl"]
     # states = ["SecB_tetramer"]
     states = ["SecB_tetramer", "SecB_dimer"]
-    load_state_rfu(input_control, hdx_spec, data_dir=input_data_dir, states=states)
+    load_state(input_control, hdx_spec, data_dir=input_data_dir, states=states)
 
     input_control._action_load_datasets()
 
