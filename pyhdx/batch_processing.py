@@ -82,10 +82,16 @@ class StateParser(object):
     def load_peptides(self, state: Union[str, int], peptides: str) -> pd.DataFrame:
         state = self.states[state] if isinstance(state, int) else state
         peptide_spec = self.hdx_spec["states"][state]["peptides"][peptides]
-        filter_fields = {"state", "exposure", "query", "dropna"}
 
         df = self.data_files[peptide_spec["data_file"]].data
-        peptide_df = filter_peptides(
+
+        # filter_fields = {"state", "exposure", "query", "dropna"}
+        # peptide_df = filter_peptides(
+        #     df, **{k: v for k, v in peptide_spec.items() if k in filter_fields}
+        # )
+
+        filter_fields = {"state", "exposure", "query", "dropna"}
+        peptide_df = batch_filter_peptides(
             df, **{k: v for k, v in peptide_spec.items() if k in filter_fields}
         )
 
@@ -140,3 +146,76 @@ class StateParser(object):
     @property
     def states(self) -> list[str]:
         return list(self.hdx_spec["states"].keys())
+
+# borrowed from hdxms-datasets
+def batch_filter_peptides(
+    df: pd.DataFrame,
+    state: Optional[str] = None,
+    exposure: Optional[dict] = None,
+    query: Optional[list[str]] = None,
+    dropna: bool = True,
+) -> pd.DataFrame:
+    """
+    Convenience function to filter a peptides DataFrame. .
+
+    Args:
+        df: Input dataframe.
+        state: Name of protein state to select.
+        exposure: Exposure value(s) to select. Exposure is given as a :obj:`dict`, with keys "value" or "values" for
+            exposure value, and "unit" for the time unit.
+        query: Additional queries to pass to [pandas.DataFrame.query][].
+        dropna: Drop rows with `NaN` uptake entries.
+
+    Examples:
+        Filter peptides for a specific protein state and exposure time:
+
+        >>> d = {"state", "SecB WT apo", "exposure": {"value": 0.167, "unit": "min"}
+        >>> filtered_df = filter_peptides(df, **d)
+
+    Returns:
+        Filtered dataframe.
+    """
+
+    if state is not None:
+        df = df[df["state"] == state]
+
+    if exposure is not None:
+        t_val = batch_convert_time(exposure, target_unit="s")
+        if isinstance(t_val, list):
+            df = df[df["exposure"].isin(t_val)]
+        else:
+            df = df[df["exposure"] == t_val]
+
+    if query:
+        for q in query:
+            df = df.query(q)
+
+    if dropna:
+        df = df.dropna(subset=["uptake"])
+
+    return df
+
+
+def batch_convert_time(
+    time_dict: dict, target_unit: Literal["s", "min", "h"] = "s"
+) -> Union[float, list[float]]:
+    """
+    Convenience function to convert time values.
+
+    Args:
+        time_dict: Dictionary with time value(s) and unit.
+        target_unit: Target unit for time.
+
+    Returns:
+        Converted time value(s).
+    """
+
+    src_unit = time_dict["unit"]
+
+    time_factor = time_factors[src_unit] / time_factors[target_unit]
+    if values := time_dict.get("values"):
+        return [v * time_factor for v in values]
+    elif value := time_dict.get("value"):
+        return value * time_factor
+    else:
+        raise ValueError("Invalid time dictionary")
