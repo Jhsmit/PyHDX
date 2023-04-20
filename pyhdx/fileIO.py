@@ -222,7 +222,7 @@ def dataframe_to_stringio(
         for k, v in json_header.items():
             if v:
                 sio.write(f"# <{k}>{json.dumps(v)}</{k}>\n")
-        df.to_csv(sio, line_terminator="\n", **kwargs)
+        df.to_csv(sio, lineterminator="\n", **kwargs)
     elif fmt == "pprint":
         if include_version:
             sio.write("\n")

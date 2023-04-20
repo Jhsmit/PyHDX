@@ -14,7 +14,7 @@ from pyhdx.batch_processing import StateParser
 from pyhdx.fileIO import csv_to_dataframe, load_fitresult
 from pyhdx.web.apps import rfu_app
 from pyhdx.web.base import STATIC_DIR
-from pyhdx.web.utils import load_state_rfu, fix_multiindex_dtypes
+from pyhdx.web.utils import load_state, fix_multiindex_dtypes
 from pyhdx.config import cfg, reset_config
 
 reset_config()
@@ -53,18 +53,16 @@ data_dir = root_dir / "tests" / "test_data" / "input"
 # batch_fname = 'data_states.yaml' # standard secb apo / dimer dataset
 # batch_fname = 'data_states_red.yaml'  # reduced number of pepties
 batch_fname = "PpiX_states.yaml"  # secb apo / dimer but artificial delta C/N tail
-
-state_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
+hdx_spec = yaml.safe_load(Path(data_dir / batch_fname).read_text())
 
 
 def init_dashboard():
     n = 2  # change this to control the number of HDX measurements added
-    input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
-    for i, (k, v) in enumerate(state_spec.items()):
-        if i == n:
-            break
-        load_state_rfu(ctrl, v, data_dir=data_dir, name=k)
-        input_control._add_single_dataset_spec()
+    # states = ['PpiA_Folding']
+    # states = ['PpiB_Folding']
+    states = ["PpiA_Folding", "PpiB_Folding"]
+    input_control = ctrl.control_panels["PeptideFileInputControl"]
+    load_state(input_control, hdx_spec, data_dir=data_dir, states=states)
 
     input_control._action_load_datasets()
 
@@ -78,6 +76,8 @@ def init_dashboard():
 pn.state.onload(init_dashboard)
 # pn.state.onload(init_batch)
 
+
+print(__name__)
 
 if __name__ == "__main__":
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)

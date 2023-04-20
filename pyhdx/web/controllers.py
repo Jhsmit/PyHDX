@@ -5,7 +5,6 @@ import sys
 import uuid
 import zipfile
 from io import StringIO, BytesIO
-from pathlib import Path
 from typing import Any
 
 import colorcet
@@ -64,6 +63,7 @@ from pyhdx.support import (
     multiindex_set_categories,
     clean_types,
     array_intersection,
+    dataframe_intersection,
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
 from pyhdx.web.main_controllers import MainController
@@ -76,7 +76,8 @@ from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
 from pyhdx._version import get_versions
 
 import matplotlib
-matplotlib.use('agg')
+
+matplotlib.use("agg")
 
 __version__ = get_versions()["version"]
 del get_versions
@@ -181,8 +182,6 @@ class DevTestControl(ControlPanel):
         print(input_ctrl.exp_file)
         print(f"{input_ctrl.exp_state=}")
 
-
-
     def _action_test(self):
         src = self.sources["metadata"]
         d = src.get("user_settings")
@@ -275,130 +274,7 @@ class GlobalSettingsControl(ControlPanel):
         cfg.analysis.weight_exponent = self.weight_exponent
 
 
-class HDXSpecInputBase(PyHDXControlPanel):
-    input_mode = param.Selector(default="Manual", objects=["Manual", "Batch"])
-
-    input_files_label = param.String("Input files:")
-
-    input_files = param.List(doc="HDX input files. Currently only supports DynamX format")
-
-    batch_file_label = param.String("Batch file (yaml)")
-
-    batch_file = param.Parameter(doc="Batch file input:")
-
-    measurement_name = param.String(doc="Label for the current HDX measurement")
-
-    add_dataset_button = param.Action(  # -> refactor measurement
-        lambda self: self._add_single_dataset_spec(),
-        label="Add measurement",
-        doc="Add single HDX measurement specification for loading",
-    )
-
-    hdxm_list = param.ListSelector(
-        label="HDX Measurements", doc="Lists added HDX-MS measurements", constant=True
-    )
-
-    load_dataset_button = param.Action(
-        lambda self: self._action_load_datasets(),
-        label="Load dataset",
-        doc="Parse specified HDX measurements apply back-exchange correction",
-    )
-
-    def __init__(self, parent: MainController, **params):
-        super(HDXSpecInputBase, self).__init__(parent, **params)
-        self.update_box()
-
-        # Dictionary with input files
-        self.data_files: dict[str, DataFile] = {}
-
-        # Dictionary of accumulated HDX state specifications:
-        self.state_spec = {}
-        # Dictionary of accumulated HDX data file specifications
-        self.data_spec = {}
-
-    @property
-    def hdx_spec(self) -> dict[str, Any]:
-        return {"data_files": self.data_spec, "states": self.state_spec}
-
-    @param.depends("input_files", watch=True)
-    def _read_files(self) -> None:
-        if self.input_files:
-            self.data_files = {
-                name: DataFile(
-                    name=name,
-                    filepath_or_buffer=StringIO(byte_content.decode("UTF-8")),
-                    format="DynamX",
-                )
-                for name, byte_content in zip(
-                    self.widgets["input_files"].filename, self.input_files
-                )
-            }
-
-            lens = [len(data_file.data) for data_file in self.data_files.values()]
-
-            self.parent.logger.info(
-                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
-                f"of {sum(lens)} peptides"
-            )
-        else:
-            self.data_files = {}
-
-    def _action_load_datasets(self) -> None:
-        """Load all specified HDX measurements"""
-        if self.input_mode == "Manual":
-            data_src = self.data_files
-        elif self.input_mode == "Batch":
-            if self.hdxm_list:
-                self.parent.logger.info("Cannot add data in batch after manually inputting data")
-                return
-
-            hdx_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
-
-            # Convert loaded data_files to data src with correct keys
-            data_src = {}
-            for data_file, data_file_spec in hdx_spec["data_files"].items():
-                data_src[data_file] = self.data_files[data_file_spec["filename"]]
-
-            self.param["hdxm_list"].objects = list(hdx_spec.keys())
-
-            # store state spec for export
-            self.state_spec = hdx_spec["states"]
-            self.data_spec = hdx_spec["data_files"]
-
-            self.param["hdxm_list"].objects = list(self.state_spec.keys())
-
-        # Disable input and changing config settings after loading data
-        self.widgets["load_dataset_button"].disabled = True
-        try:
-            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
-            config_ctrl.widgets["drop_first"].disabled = True
-            config_ctrl.widgets["weight_exponent"].disabled = True
-        except KeyError:
-            pass
-
-        parser = StateParser(self.hdx_spec, data_src=data_src)
-
-        for state in self.state_spec.keys():
-            hdxm = parser.load_hdxm(state)
-            self.src.add(hdxm, state)
-            self.parent.logger.info(
-                f"Loaded dataset {state} with experiment state {hdxm.state} "
-                f"({hdxm.Nt} timepoints, {len(hdxm.coverage)} peptides each)"
-            )
-            self.parent.logger.info(
-                f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "
-                f"Redundancy: {hdxm.coverage.redundancy:.2}"
-            )
-
-    def spec_download_callback(self) -> StringIO:
-        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets["download_spec_button"].filename = f"PyHDX_state_spec_{timestamp}.yaml"
-
-        sio = self.parent.hdx_spec_callback()
-        return sio
-
-
-class PeptideFileInputControl(HDXSpecInputBase):
+class PeptideFileInputControl(PyHDXControlPanel):
     """
     This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
     Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
@@ -410,24 +286,37 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
     header = "Peptide Input"
 
-    be_mode = param.Selector(
-        doc="Select method of back exchange correction",
-        label="Back exchange correction method",
-        objects=["FD Sample", "Flat percentage"],
+    input_mode = param.Selector(default="Manual", objects=["Manual", "Batch"])
+
+    input_files_label = param.String("Input files:")
+
+    input_files = param.List(doc="HDX input files. Currently only supports DynamX format")
+
+    batch_file_label = param.String("Batch file (yaml)")
+
+    batch_file = param.Parameter(doc="Batch file input:")
+
+    nd_control = param.Boolean(
+        default=False, precedence=-1, doc="Whether to allow users to input a ND control"
     )
 
-    fd_file = param.Selector(doc="File with FD control peptides", label="FD File")
+    show_pH = param.Boolean(default=True, precedence=-1)
+
+    show_temperature = param.Boolean(default=True, precedence=-1)
+
+    show_d_percentage = param.Boolean(default=True, precedence=-1)
+
+    fd_file = param.Selector(doc="File used for FD control", label="FD File")
 
     fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
 
     fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
 
-    be_percent = param.Number(
-        28.0,
-        bounds=(0, 100),
-        doc="Global percentage of back-exchange",
-        label="Back exchange percentage",
-    )
+    nd_file = param.Selector(doc="File used for ND control", label="ND File")
+
+    nd_state = param.Selector(doc="State used to normalize uptake", label="ND State")
+
+    nd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="ND Exposure")
 
     exp_file = param.Selector(doc="File with experiment peptides", label="Exp File")
 
@@ -476,12 +365,40 @@ class PeptideFileInputControl(HDXSpecInputBase):
 
     sequence = param.String("", doc="Optional FASTA protein sequence")
 
-    def __init__(self, parent, **params):
-        _excluded = ["be_percent", "batch_file", "batch_file_label"]
-        super(PeptideFileInputControl, self).__init__(parent, _excluded=_excluded, **params)
+    measurement_name = param.String(doc="Label for the current HDX measurement")
 
-    # TODO this should be eaiser subclassable by accumulating kwargs and then calling
-    # generate widgets OR partially generate widgets
+    add_dataset_button = param.Action(  # -> refactor measurement
+        lambda self: self._add_single_dataset_spec(),
+        label="Add measurement",
+        doc="Add single HDX measurement specification for loading",
+    )
+
+    hdxm_list = param.ListSelector(
+        label="HDX Measurements", doc="Lists added HDX-MS measurements", constant=True
+    )
+
+    load_dataset_button = param.Action(
+        lambda self: self._action_load_datasets(),
+        label="Load dataset",
+        doc="Parse specified HDX measurements apply back-exchange correction",
+    )
+
+    def __init__(self, parent, **params):
+        excluded = ["batch_file", "batch_file_label"]
+        super(PeptideFileInputControl, self).__init__(parent, _excluded=excluded, **params)
+        self._update_mode()
+        self.update_box()
+
+        # Dictionary with current input files
+        self.data_files: dict[str, DataFile] = {}
+        # Dict with all files, keeps files after clearing input
+        self.data_file_history: dict[str, DataFile] = {}
+
+        # Dictionary of accumulated HDX state specifications:
+        self.state_spec = {}
+        # Dictionary of accumulated HDX data file specifications
+        self.data_spec = {}
+
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(
             name="Sequence (optional)",
@@ -497,9 +414,9 @@ class PeptideFileInputControl(HDXSpecInputBase):
             input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
             batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
             batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
+            be_percent=pn.widgets.FloatInput,
             pH=pn.widgets.FloatInput,
             temperature=pn.widgets.FloatInput,
-            be_percent=pn.widgets.FloatInput,
             d_percentage=pn.widgets.FloatInput,
             sequence=text_area,
         )
@@ -516,11 +433,12 @@ class PeptideFileInputControl(HDXSpecInputBase):
             "input_files",
             "batch_file_label",
             "batch_file",
-            "be_mode",
-            "be_percent",
             "fd_file",
             "fd_state",
             "fd_exposure",
+            "nd_file",
+            "nd_state",
+            "nd_exposure",
             "exp_file",
             "exp_state",
             "exp_exposures",
@@ -532,39 +450,41 @@ class PeptideFileInputControl(HDXSpecInputBase):
             "sequence",
             "measurement_name",
             "add_dataset_button",
+            "download_spec_button",
             "hdxm_list",
             "load_dataset_button",
-            "download_spec_button",
         ]
 
         sorted_widgets = {k: widgets[k] for k in widget_order}
 
         return sorted_widgets
 
-    @param.depends("be_mode", "input_mode", watch=True)
+    def spec_download_callback(self) -> StringIO:
+        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
+        self.widgets["download_spec_button"].filename = f"PyHDX_hdx_spec_{timestamp}.yaml"
+
+        sio = self.parent.hdx_spec_callback()
+        return sio
+
+    @param.depends("input_mode", watch=True)
     def _update_mode(self):
         excluded = set()
-        if self.be_mode == "FD Sample":
-            excluded |= {"be_percent"}
-        elif self.be_mode == "Flat percentage":
-            excluded |= {"fd_file", "fd_state", "fd_exposure"}
-
         if self.input_mode == "Manual":
             excluded |= {"batch_file", "batch_file_label"}
         elif self.input_mode == "Batch":
             excluded |= {
-                "be_mode",
                 "fd_file",
                 "fd_state",
                 "fd_exposure",
-                "be_percent",
+                "nd_state",
+                "nd_exposure",
                 "exp_file",
                 "exp_state",
                 "exp_exposures",
                 "drop_first",
                 "d_percentage",
-                "temperature",
                 "pH",
+                "temperature",
                 "n_term",
                 "c_term",
                 "sequence",
@@ -573,20 +493,55 @@ class PeptideFileInputControl(HDXSpecInputBase):
                 "download_spec_button",
             }
 
+        if not self.nd_control:
+            excluded |= {"nd_file", "nd_state", "nd_exposure"}
+
+        if not self.show_pH:
+            excluded |= {"pH"}
+        if not self.show_temperature:
+            excluded |= {"temperature"}
+        if not self.show_d_percentage:
+            excluded |= {"d_percentage"}
+
         self._excluded = list(excluded)
         self.update_box()
 
     @param.depends("input_files", watch=True)
     def _read_files(self):
-        super()._read_files()
+        if self.input_files:
+            self.data_files = {
+                name: DataFile(
+                    name=name,
+                    filepath_or_buffer=StringIO(byte_content.decode("UTF-8")),
+                    format="DynamX",
+                )
+                for name, byte_content in zip(
+                    self.widgets["input_files"].filename, self.input_files
+                )
+            }
+
+            lens = [len(data_file.data) for data_file in self.data_files.values()]
+
+            self.parent.logger.info(
+                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
+                f"of {sum(lens)} peptides"
+            )
+        else:
+            self.data_files = {}
+
+        self.data_file_history |= self.data_files
 
         self.c_term = 0
-        self._update_fd_file()
-        self._update_exp_file()
 
+        self._update_fd_file()
         self._update_fd_state()
         self._update_fd_exposure()
 
+        self._update_nd_file()
+        self._update_nd_state()
+        self._update_nd_exposure()
+
+        self._update_exp_file()
         self._update_exp_state()
         self._update_exp_exposure()
 
@@ -617,40 +572,56 @@ class PeptideFileInputControl(HDXSpecInputBase):
         if exposures:
             self.fd_exposure = exposures[0]
 
+    def _update_nd_file(self):
+        objects = list(self.data_files.keys())
+        self.param["nd_file"].objects = objects
+        self.nd_file = objects[0]
+
+    @param.depends("nd_file", watch=True)
+    def _update_nd_state(self):
+        if self.data_files:
+            states = list(self.data_files[self.nd_file].data["state"].unique())
+            self.param["nd_state"].objects = states
+            self.nd_state = states[0]
+        else:
+            self.param["nd_state"].objects = []
+
+    @param.depends("nd_state", watch=True)
+    def _update_nd_exposure(self):
+        if self.data_files:
+            df = self.data_files[self.nd_file].data
+            # Get peptides only which belong to selected state
+            nd_entries = df[df["state"] == self.nd_state]
+            exposures = list(np.unique(nd_entries["exposure"]))
+        else:
+            exposures = []
+        self.param["nd_exposure"].objects = exposures
+        if exposures:
+            self.nd_exposure = exposures[0]
+
     def _update_exp_file(self):
         objects = list(self.data_files.keys())
         self.param["exp_file"].objects = objects
         self.exp_file = objects[0]
 
-    @param.depends("exp_file", "fd_state", "fd_exposure", watch=True)
+    @param.depends("exp_file", "fd_state", "fd_exposure", "nd_state", "nd_exposure", watch=True)
     def _update_exp_state(self):
-        if self.exp_file in self.data_files:
-            df = self.data_files[self.exp_file].data
+        """Find the peptides which are both in the FD and ND states datasets, then from there determine the states which are present in the experiment dataset"""
+        if not self.exp_file in self.data_files:
+            self.param["exp_state"].objects = []
+            return
 
-            # Booleans of data entries which are in the selected control
-            fd_df = self.data_files[self.fd_file].data
-            control_bools = np.logical_and(
-                fd_df["state"] == self.fd_state,
-                fd_df["exposure"] == self.fd_exposure,
-            )
+        # IF self.has_nd... etc
+        fd_spec = {"state": self.fd_state, "exposure": {"value": self.fd_exposure, "unit": "s"}}
+        nd_spec = {"state": self.nd_state, "exposure": {"value": self.nd_exposure, "unit": "s"}}
 
-            # currently selected FD control peptides
-            control_data = fd_df[control_bools].to_records()
+        # Get the peptides which are in both the FD and ND states
+        dataframes = [self.data_files[self.exp_file].data]
+        dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **fd_spec))
+        dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **nd_spec))
 
-            # if taking experimental data from the same file, remove control entries from DataFrame
-            if self.exp_file == self.fd_file:
-                other_data = fd_df[~control_bools].to_records()
-            # otherwise, take the full dataframe
-            else:
-                other_data = df.to_records()
-
-            # TODO probably this can be replaced with dataframe_intersection now
-            intersection = array_intersection(
-                [control_data, other_data], fields=["start", "end"]
-            )  # sequence?
-            states = list(np.unique(intersection[1]["state"]))
-        else:
-            states = []
+        intersected = dataframe_intersection(dataframes, by=["start", "stop"])
+        states = list(np.unique(intersected[0]["state"]))
 
         self.param["exp_state"].objects = states
 
@@ -662,7 +633,7 @@ class PeptideFileInputControl(HDXSpecInputBase):
             self.exp_state = states[0]
 
     @param.depends("exp_state", watch=True)
-    def _update_exp_exposure(self) -> None:
+    def _update_exp_exposure(self):
         if self.exp_file in self.data_files:
             df = self.data_files[self.exp_file].data
             exp_entries = df[df["state"] == self.exp_state]
@@ -680,7 +651,12 @@ class PeptideFileInputControl(HDXSpecInputBase):
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
 
-    def _add_single_dataset_spec(self) -> None:
+    @property
+    def hdx_spec(self) -> dict[str, Any]:
+        return {"data_files": self.data_spec, "states": self.state_spec}
+
+    # triggered from 'add measurement' button
+    def _add_single_dataset_spec(self):
         """Adds the specifications of a single HDX Measurement to the `state_spec` / `data_spec` dictionaries"""
         if not self.data_files:
             self.parent.logger.info("No data loaded")
@@ -703,31 +679,43 @@ class PeptideFileInputControl(HDXSpecInputBase):
         peptides = filter_peptides(df, **exp_spec)
         corrected = correct_d_uptake(peptides)  # remove this step when _sequence field is removed
         exp_spec["data_file"] = self.exp_file
+
         try:
             verify_sequence(corrected, self.sequence, self.n_term, self.c_term)
         except ValueError as e:
             self.parent.logger.info(f"Cannot add dataset: {e}")
             return
 
-        if Path(self.exp_file).stem not in self.data_files:
-            self.data_spec[Path(self.exp_file).stem] = {
+        # Add the data file to the data spec
+        if self.exp_file not in self.data_spec:
+            self.data_spec[self.exp_file] = {
                 "filename": self.exp_file,
                 "format": "DynamX",
             }
 
-        if self.be_mode == "FD Sample":
-            fd_spec = {
-                "data_file": self.fd_file,
-                "state": self.fd_state,
-                "exposure": {"value": self.fd_exposure, "unit": "s"},
+        # Add the controls
+        fd_spec = {
+            "data_file": self.fd_file,
+            "state": self.fd_state,
+            "exposure": {"value": self.fd_exposure, "unit": "s"},
+        }
+        peptide_spec["FD_control"] = fd_spec
+        if self.nd_control:
+            nd_spec = {
+                "data_file": self.nd_file,
+                "state": self.nd_state,
+                "exposure": {"value": self.nd_exposure, "unit": "s"},
             }
-            peptide_spec["FD_control"] = fd_spec
-        elif self.be_mode == "Flat percentage":
-            metadata["be_percent"] = self.be_percent
+            peptide_spec["ND_control"] = nd_spec
 
-        metadata["pH"] = self.pH
-        metadata["temperature"] = {"value": self.temperature, "unit": "K"}
-        metadata["d_percentage"] = self.d_percentage
+        # Optionally add ph/temperature/d_percentage if this was input by the user
+        if self.show_pH:
+            metadata["pH"] = self.pH
+        if self.show_temperature:
+            metadata["temperature"] = {"value": self.temperature, "unit": "K"}
+        if self.show_d_percentage:
+            metadata["d_percentage"] = self.d_percentage
+
         metadata["n_term"] = self.n_term
         metadata["c_term"] = self.c_term
         if self.sequence:
@@ -741,326 +729,52 @@ class PeptideFileInputControl(HDXSpecInputBase):
         obj = self.param["hdxm_list"].objects or []
         self.param["hdxm_list"].objects = obj + [self.measurement_name]
 
-    def _action_remove_datasets(self):
-        raise NotImplementedError("Removing datasets not implemented")
-        for name in self.hdxm_list:
-            self.parent.datasets.pop(name)
-
-        self.parent.param.trigger(
-            "datasets"
-        )  # Manual trigger as key assignment does not trigger the param
-
-
-class PeptideRFUFileInputControl(HDXSpecInputBase):
-    """
-    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
-    Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
-    analysis.
-
-    """
-
-    _type = "peptide_rfu_file_input"
-
-    header = "Peptide Input"
-
-    fd_state = param.Selector(doc="State used to normalize uptake", label="FD State")
-
-    fd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="FD Exposure")
-
-    nd_state = param.Selector(doc="State used to normalize uptake", label="ND State")
-
-    nd_exposure = param.Selector(doc="Exposure used to normalize uptake", label="ND Exposure")
-
-    exp_state = param.Selector(doc="State for selected experiment", label="Experiment State")
-
-    exp_exposures = param.ListSelector(
-        default=[],
-        objects=[""],
-        label="Experiment Exposures",
-        doc="Selected exposure time to use",
-    )
-
-    d_percentage = param.Number(
-        90.0,
-        bounds=(0, 100),
-        doc="Percentage of deuterium in the labelling buffer",
-        label="Deuterium percentage",
-    )
-
-    n_term = param.Integer(
-        1,
-        doc="Index of the n terminal residue in the protein. Can be set to negative values to "
-        "accommodate for purification tags. Used in the determination of intrinsic rate of exchange",
-    )
-
-    c_term = param.Integer(
-        0,
-        bounds=(0, None),
-        doc="Index of the c terminal residue in the protein. Used for generating pymol export script"
-        "and determination of intrinsic rate of exchange for the C-terminal residue",
-    )
-
-    sequence = param.String("", doc="Optional FASTA protein sequence")
-
-    def __init__(self, parent, **params):
-        excluded = ["batch_file", "batch_file_label"]
-        super(PeptideRFUFileInputControl, self).__init__(parent, _excluded=excluded, **params)
-
-    def make_dict(self):
-        text_area = pn.widgets.TextAreaInput(
-            name="Sequence (optional)",
-            placeholder="Enter sequence in FASTA format",
-            max_length=10000,
-            width=300,
-            height=100,
-            height_policy="fixed",
-            width_policy="fixed",
-        )
-        widgets = self.generate_widgets(
-            input_files_label=pn.widgets.StaticText(value=self.input_files_label),
-            input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
-            batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
-            batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
-            be_percent=pn.widgets.FloatInput,
-            d_percentage=pn.widgets.FloatInput,
-            sequence=text_area,
-        )
-
-        # Add hdx spec download button
-        download = pn.widgets.FileDownload(
-            label="Download HDX spec", callback=self.spec_download_callback
-        )
-        widgets["download_spec_button"] = download
-
-        # TODO: sort by precedence?
-        widget_order = [
-            "input_mode",
-            "input_files_label",
-            "input_files",
-            "batch_file_label",
-            "batch_file",
-            "fd_state",
-            "fd_exposure",
-            "nd_state",
-            "nd_exposure",
-            "exp_state",
-            "exp_exposures",
-            "d_percentage",
-            "n_term",
-            "c_term",
-            "sequence",
-            "measurement_name",
-            "add_dataset_button",
-            "download_spec_button",
-            "hdxm_list",
-            "load_dataset_button",
-        ]
-
-        sorted_widgets = {k: widgets[k] for k in widget_order}
-
-        return sorted_widgets
-
-    @param.depends("input_mode", watch=True)
-    def _update_mode(self):
-        excluded = set()
+    def _action_load_datasets(self) -> None:
+        """Load all specified HDX measurements"""
         if self.input_mode == "Manual":
-            excluded |= {"batch_file", "batch_file_label"}
+            data_src = self.data_file_history
         elif self.input_mode == "Batch":
-            excluded |= {
-                "fd_state",
-                "fd_exposure",
-                "nd_state",
-                "nd_exposure",
-                "exp_state",
-                "exp_exposures",
-                "drop_first",
-                "d_percentage",
-                "n_term",
-                "c_term",
-                "sequence",
-                "add_dataset_button",
-                "measurement_name",
-                "download_spec_button",
-            }
+            if self.hdxm_list:
+                self.parent.logger.info("Cannot add data in batch after manually inputting data")
+                return
 
-        self._excluded = list(excluded)
-        self.update_box()
+            hdx_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
 
-    @param.depends("input_files", watch=True)
-    def _read_files(self):
-        super()._read_files()
-        self.c_term = 0
-        self._update_fd_state()
-        self._update_fd_exposure()
-        self._update_nd_state()
-        self._update_nd_exposure()
-        self._update_exp_state()
-        self._update_exp_exposure()
+            # Convert loaded data_files to data src with correct keys
+            data_src = {}
+            for data_file, data_file_spec in hdx_spec["data_files"].items():
+                data_src[data_file] = self.data_files[data_file_spec["filename"]]
 
-    def _update_fd_state(self):
-        if self._df is not None:
-            states = list(self._df["state"].unique())
-            self.param["fd_state"].objects = states
-            self.fd_state = states[0]
-        else:
-            self.param["fd_state"].objects = []
+            self.param["hdxm_list"].objects = list(hdx_spec.keys())
 
-    @param.depends("fd_state", watch=True)
-    def _update_fd_exposure(self):
-        if self._df is not None:
-            fd_entries = self._df[self._df["state"] == self.fd_state]
-            exposures = list(np.unique(fd_entries["exposure"]))
-        else:
-            exposures = []
-        self.param["fd_exposure"].objects = exposures
-        if exposures:
-            self.fd_exposure = exposures[0]
+            # store state spec for export
+            self.state_spec = hdx_spec["states"]
+            self.data_spec = hdx_spec["data_files"]
 
-    def _update_nd_state(self):
-        if self._df is not None:
-            states = list(self._df["state"].unique())
-            self.param["nd_state"].objects = states
-            self.nd_state = states[0]
-        else:
-            self.param["fd_state"].objects = []
+            self.param["hdxm_list"].objects = list(self.state_spec.keys())
 
-    @param.depends("nd_state", watch=True)
-    def _update_nd_exposure(self):
-        if self._df is not None:
-            nd_entries = self._df[self._df["state"] == self.nd_state]
-            exposures = list(np.unique(nd_entries["exposure"]))
-        else:
-            exposures = []
-        self.param["nd_exposure"].objects = exposures
-        if exposures:
-            self.nd_exposure = exposures[0]
+        # Disable input and changing config settings after loading data
+        self.widgets["load_dataset_button"].disabled = True
+        try:
+            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            config_ctrl.widgets["drop_first"].disabled = True
+            config_ctrl.widgets["weight_exponent"].disabled = True
+        except KeyError:
+            pass
 
-    def _update_exp_state(self):
-        self._update_exp_state_fd()
-        self._update_exp_state_nd()
+        parser = StateParser(self.hdx_spec, data_src=data_src)
 
-    @param.depends("fd_state", "fd_exposure", watch=True)
-    def _update_exp_state_fd(self):
-        if self._df is not None:
-            # Booleans of data entries which are in the selected control
-            fd_bools = np.logical_and(
-                self._df["state"] == self.fd_state,
-                self._df["exposure"] == self.fd_exposure,
+        for state in self.state_spec.keys():
+            hdxm = parser.load_hdxm(state)
+            self.src.add(hdxm, state)
+            self.parent.logger.info(
+                f"Loaded dataset {state} with experiment state {hdxm.state} "
+                f"({hdxm.Nt} timepoints, {len(hdxm.coverage)} peptides each)"
             )
-
-            control_data = self._df[fd_bools].to_records()
-            other_data = self._df[~fd_bools].to_records()
-
-            intersection = array_intersection(
-                [control_data, other_data], fields=["start", "end"]
-            )  # sequence?
-            states = list(np.unique(intersection[1]["state"]))
-        else:
-            states = []
-
-        self.param["exp_state"].objects = states
-        if states:
-            self.exp_state = states[0] if not self.exp_state else self.exp_state
-
-    @param.depends("nd_state", "nd_exposure", watch=True)
-    def _update_exp_state_nd(self):
-        if self._df is not None:
-            # Booleans of data entries which are in the selected control
-            fd_bools = np.logical_and(
-                self._df["state"] == self.nd_state,
-                self._df["exposure"] == self.nd_exposure,
+            self.parent.logger.info(
+                f"Average coverage: {hdxm.coverage.percent_coverage:.3}%, "
+                f"Redundancy: {hdxm.coverage.redundancy:.2}"
             )
-
-            control_data = self._df[fd_bools].to_records()
-            other_data = self._df[~fd_bools].to_records()
-
-            intersection = array_intersection(
-                [control_data, other_data], fields=["start", "end"]
-            )  # sequence?
-            states = list(np.unique(intersection[1]["state"]))
-        else:
-            states = []
-
-        self.param["exp_state"].objects = states
-        if states:
-            self.exp_state = states[0] if not self.exp_state else self.exp_state
-
-    @param.depends("exp_state", watch=True)
-    def _update_exp_exposure(self):
-        if self._df is not None:
-            exp_entries = self._df[self._df["state"] == self.exp_state]
-            exposures = list(np.unique(exp_entries["exposure"]))
-            exposures.sort()
-        else:
-            exposures = []
-
-        self.param["exp_exposures"].objects = exposures
-        self.exp_exposures = [e for e in exposures if e != 0.0]
-
-        if not self.measurement_name or self.measurement_name in self.param["exp_state"].objects:
-            self.measurement_name = self.exp_state
-
-        if not self.c_term and exposures:
-            self.c_term = int(np.max(exp_entries["end"]))
-
-    def _add_single_dataset_spec(self):
-        """Adds the spec of a single HDX Measurement to the `state_spec` dictionary"""
-        if self._df is None:
-            self.parent.logger.info("No data loaded")
-            return
-        elif self.measurement_name in self.src.hdxm_objects.keys():
-            self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
-            return
-
-        state_spec = {
-            "filenames": self.widgets["input_files"].filename,
-        }
-
-        fd_spec = {
-            "state": self.fd_state,
-            "exposure": {"value": self.fd_exposure, "unit": "s"},
-        }
-        state_spec["FD_control"] = fd_spec
-
-        nd_spec = {
-            "state": self.nd_state,
-            "exposure": {"value": self.nd_exposure, "unit": "s"},
-        }
-        state_spec["ND_control"] = nd_spec
-        exp_spec = {
-            "state": self.exp_state,
-            "exposure": {"values": self.exp_exposures, "unit": "s"},
-        }
-        state_spec["experiment"] = exp_spec
-
-        state_spec["d_percentage"] = self.d_percentage
-        state_spec["n_term"] = self.n_term
-        state_spec["c_term"] = self.c_term
-        if self.sequence:
-            state_spec["sequence"] = self.sequence
-
-        ios = {
-            name: StringIO(byte_content.decode("UTF-8"))
-            for name, byte_content in zip(self.widgets["input_files"].filename, self.input_files)
-        }
-
-        if overlap := self.data_stringIO.keys() & ios.keys():
-            self.parent.logger.info(f"Data files already loaded: {', '.join(overlap)}, overwriting")
-
-        self.data_stringIO.update(ios)
-
-        self.state_spec[self.measurement_name] = state_spec
-        obj = self.param["hdxm_list"].objects or []
-        self.param["hdxm_list"].objects = obj + [self.measurement_name]
-
-    def _action_remove_datasets(self):
-        raise NotImplementedError("Removing datasets not implemented")
-        for name in self.hdxm_list:
-            self.parent.datasets.pop(name)
-
-        self.parent.param.trigger(
-            "datasets"
-        )  # Manual trigger as key assignment does not trigger the param
 
 
 class DUptakeFitControl(PyHDXControlPanel):
@@ -1951,7 +1665,7 @@ class ColorTransformControl(PyHDXControlPanel):
         else:
             df = table[self.quantity]
 
-        opt = self.opts[TABLE_INFO[self.quantity]['cmap_opt']]
+        opt = self.opts[TABLE_INFO[self.quantity]["cmap_opt"]]
 
         return df * opt.sclf
 
@@ -2474,7 +2188,7 @@ class FileExportControl(PyHDXControlPanel):
             self.widgets["export_pml"].disabled = True
             self.widgets["export_colors"].disabled = True
 
-    @pn.depends("table")  # param.depends?
+    @pn.depends("table")
     def table_export_callback(self):
         if self.table:
             df = self.sources["main"].tables[self.table]
@@ -2528,7 +2242,7 @@ class FileExportControl(PyHDXControlPanel):
 
     def hdx_spec_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets["download_state_spec"].filename = f"PyHDX_state_spec_{timestamp}.yaml"
+        self.widgets["download_state_spec"].filename = f"PyHDX_hdx_spec_{timestamp}.yaml"
 
         sio = self.parent.hdx_spec_callback()
         return sio
@@ -2745,7 +2459,7 @@ class FigureExportControl(PyHDXControlPanel):
     def figure_export_callback(self):
         self.widgets["export_figure"].loading = True
 
-        #TODO use TABLE_INFO to get the correct cmap opt
+        # TODO use TABLE_INFO to get the correct cmap opt
         if self.figure == "scatter":
             sub_df = self.plot_data[self.figure_selection]
             if self.reference is None:

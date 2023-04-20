@@ -6,7 +6,7 @@ from typing import Optional, Literal, Union
 import pandas as pd
 import numpy as np
 
-from pyhdx.support import convert_time
+from pyhdx.support import convert_time, dataframe_intersection
 
 
 def parse_temperature(value: float, unit: Literal["Celsius", "C", "Kelvin", "K"]):
@@ -24,7 +24,7 @@ COLUMN_ORDER = [
     "exposure",
     "uptake_corrected",
     "uptake",
-    "uptake sd",
+    "uptake_sd",
     "maxuptake",
     "ex_residues",
     "fd_uptake",
@@ -70,10 +70,9 @@ def apply_control(
         nd_control["uptake"] = 0
         nd_control["uptake_sd"] = 0
 
-    set_index = [d.set_index(["start", "stop"]) for d in [experiment, fd_control, nd_control]]
-
-    index_intersection = reduce(pd.Index.intersection, (d.index for d in set_index))
-    intersected = [df.loc[index_intersection] for df in set_index]
+    intersected = dataframe_intersection(
+        [experiment, fd_control, nd_control], ["start", "stop"], reset_index=False
+    )
 
     # select out uptake (u; experiment), FD uptake (f) and ND uptake (n), as well as their sd's
     u, f, n = (
@@ -89,7 +88,7 @@ def apply_control(
 
     out_df = intersected[0].copy(deep=deepcopy)
     out_df["rfu"] = (u - n) / (f - n)
-    out_df["rfu sd"] = np.sqrt(
+    out_df["rfu_sd"] = np.sqrt(
         (1 / (f - n)) ** 2 * u_sd**2
         + ((u - f) / (f - n) ** 2) ** 2 * n_sd**2
         + ((n - u) / (f - n) ** 2) ** 2 * f_sd**2
@@ -192,6 +191,15 @@ def verify_sequence(
         c_term = len(sequence) + n_term - 1
 
     r_number = pd.RangeIndex(n_term, c_term + 1, name="r_number")
+
+    if df["start"].min() < n_term:
+        raise ValueError(
+            f"Peptide dataframe contains peptides with start residue number below supplied 'n_term' ({n_term})"
+        )
+    if df["end"].max() > c_term:
+        raise ValueError(
+            f"Peptide dataframe contains peptides with end residue number above supplied 'c_term' ({c_term})"
+        )
 
     seq_full = pd.Series(index=r_number, dtype="U").fillna("X")
     seq_reconstruct = pd.Series(index=r_number, dtype="U").fillna("X")

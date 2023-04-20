@@ -45,13 +45,15 @@ class AppConstructor(param.Parameterized):
             self._parse_sections(dic)
 
         d = yaml_dict["controllers"]
-        controllers = {name: self._resolve_class(name, "controller") for name in d}
+        controllers = [
+            (self._resolve_class(name, "controller"), kwargs or {}) for name, kwargs in d.items()
+        ]
 
         main_ctrl = yaml_dict["main_controller"]
         _type = main_ctrl.pop("type")
         main_ctrl_class = self._resolve_class(_type, "main")
         ctrl = main_ctrl_class(
-            controllers.values(),
+            controllers,
             sources=self.sources,
             transforms=self.transforms,
             opts=self.opts,

@@ -95,7 +95,7 @@ class Coverage:
             i0, i1 = self.r_number.get_loc(start), self.r_number.get_loc(end - 1)
             # i0, i1 = np.searchsorted(self.r_number, (entry['start'], entry['end']))
             self.X[row][i0 : i1 + 1] = 1
-            self.Z[row][i0 : i1 + 1] = _exchanges[i0 : i1 + 1]
+            self.Z[row][i0 : i1 + 1] = _exchanges.iloc[i0 : i1 + 1]
         self.Z = self.Z / self.data["ex_residues"].to_numpy()[:, np.newaxis]
 
     def __len__(self) -> int:
@@ -583,7 +583,7 @@ class HDXTimepoint(Coverage):
     def rfu_residues_sd(self) -> pd.Series:
         """Error propagated standard deviations of RFU per residue."""
 
-        return self.propagate_errors("rfu sd")
+        return self.propagate_errors("rfu_sd")
 
     # todo allow pd.Series?
     def calc_rfu(self, residue_rfu: np.ndarray) -> np.ndarray:
