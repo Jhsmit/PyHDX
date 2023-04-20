@@ -205,6 +205,7 @@ def test_web_load(secb_spec, secb_file_dict):
     df_ref = csv_to_dataframe(output_dir / "main_web" / "peptides.csv")
     pd.testing.assert_frame_equal(df_test, df_ref)
 
+
 @pytest.mark.skipif(
     not sys.platform.startswith("win"), reason="output slightly different on other platforms"
 )
@@ -269,9 +270,6 @@ def test_rfu(ppix_spec, ppix_file_dict):
     df_test = csv_to_dataframe(sio)
     df_ref = csv_to_dataframe(output_dir / "rfu_web" / "rfu.csv")
     pd.testing.assert_frame_equal(df_test, df_ref)
-
-
-
 
 
 # with cluster() as (s, [a, b]):
