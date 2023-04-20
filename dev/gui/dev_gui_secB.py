@@ -136,7 +136,7 @@ def init_batch():
 
 def init_dashboard():
     n = 2  # change this to control the number of HDX measurements added
-    input_control = ctrl.control_panels["PeptideRFUFileInputControl"]
+    input_control = ctrl.control_panels["PeptideFileInputControl"]
     # states = ["SecB_tetramer"]
     states = ["SecB_tetramer", "SecB_dimer"]
     load_state_rfu(input_control, hdx_spec, data_dir=input_data_dir, states=states)
