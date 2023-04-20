@@ -62,7 +62,8 @@ Next, specify the percentage of deuterium in the labelling solution in the field
 percentage should be as high as possible; typically >=90%.
 
 Use the fields `Temperature (K)`:material-form-textbox: and `pH read`:material-form-textbox: to specify the temperature 
-and pH at which the D-labelling was done. The pH is the value as read from the pH meter without any correction.
+and pH at which the D-labelling was done. The pH is the value as read from the pH meter without any correction. Temperature
+units are Kelvin.
 
 The next fields `N term`:material-form-textbox: and `C term`:material-form-textbox: specify the residue number indices 
 of the N-terminal and C-terminal residues, respectively. For the
@@ -73,9 +74,10 @@ last residue included in any peptide and as the C-term exhibits different intrin
 taken into account. A sequence for the full protein (in the N-term to C-term range as specified) can be added to provide
 additional sequence information, but this is optional.
 
-Finally, specify a name of the dataset, by default equal to the `Experiment State`:material-form-dropdown: value and 
+Finally, specify a name for the measurement, by default equal to the `Experiment State`:material-form-dropdown: value and 
 press `Add Measurement` to add the measurement with the current specifications. Repeat the process to add additional 
-measurements. The `Download HDX spec`:material-button-cursor: can be used to download a `.yaml` file with the full state 
+measurements, either starting by adding a new file or changing the selection on the current file. The 
+`Download HDX spec`:material-button-cursor: can be used to download a `.yaml` file with the full state 
 specification, and this file can then in future sessions be used when using `Batch` input mode, by setting 
 `Input mode`:material-form-dropdown: to '_Batch_'.
 
