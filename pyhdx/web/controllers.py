@@ -460,7 +460,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     def spec_download_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets["download_spec_button"].filename = f"PyHDX_state_spec_{timestamp}.yaml"
+        self.widgets["download_spec_button"].filename = f"PyHDX_hdx_spec_{timestamp}.yaml"
 
         sio = self.parent.hdx_spec_callback()
         return sio
