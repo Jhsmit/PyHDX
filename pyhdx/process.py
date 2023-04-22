@@ -71,7 +71,7 @@ def apply_control(
         nd_control["uptake_sd"] = 0
 
     intersected = dataframe_intersection(
-        [experiment, fd_control, nd_control], ["start", "stop"], reset_index=False
+        [experiment, fd_control, nd_control], ["start", "stop"]
     )
 
     # select out uptake (u; experiment), FD uptake (f) and ND uptake (n), as well as their sd's
