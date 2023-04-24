@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import io
 import json
 import os
 import re
@@ -7,7 +8,7 @@ import shutil
 from datetime import datetime
 from io import StringIO
 from pathlib import Path
-from typing import Union, Literal, Tuple, List, TextIO, Optional, TYPE_CHECKING
+from typing import Union, Literal, Tuple, List, TextIO, Optional, TYPE_CHECKING, Any
 from importlib import import_module
 import torch.nn as nn
 import torch as t
@@ -76,7 +77,18 @@ def read_header(file_obj: TextIO, comment: str = "#") -> List[str]:
     return header
 
 
-def parse_header(filepath_or_buffer, comment="#"):
+def parse_header(filepath_or_buffer: Union[Path[str], str, StringIO], comment: str = "#") -> dict:
+    """
+    Reads the header from a file and returns JSON metadata from header lines marked as comment.
+
+    Args:
+        filepath_or_buffer: File path of the .csv file or [io.StringIO][] object.
+        comment: Character indicating a comment line.
+
+    Returns:
+        Dictionary of read metadata.
+    """
+
     if isinstance(filepath_or_buffer, StringIO):
         header = read_header(filepath_or_buffer, comment=comment)
         filepath_or_buffer.seek(0)
@@ -97,24 +109,22 @@ def parse_header(filepath_or_buffer, comment="#"):
     return header_dict
 
 
-def csv_to_dataframe(filepath_or_buffer, comment="#", **kwargs):
+def csv_to_dataframe(
+    filepath_or_buffer: Union[Path[str], str, StringIO], comment: str = "#", **kwargs: Any
+) -> pd.DataFrame:
     """
-    Reads a .csv file or buffer into a :pandas:`DataFrame` object.
+    Reads a .csv file or buffer into a [pd.DataFrame][pandas.DataFrame] object.
     Comment lines are parsed where json dictionaries marked by tags are read.
-    The <pandas_kwargs> marked json dict is used as kwargs for `pd.read_csv`
-    The <metadata> marked json dict is stored in the returned dataframe object as `df.attrs['metadata'].
+    The `<pandas_kwargs>` marked json dict is used as kwargs for [pd.read_csv][pandas.read_csv].
+    The `<metadata>` marked json dict is stored in the returned dataframe object as `df.attrs['metadata']`.
 
-    Parameters
-    ----------
-    filepath_or_buffer : :obj:`str`, pathlib.Path or io.StringIO
-        Filepath or StringIO buffer to read.
-    comment : :obj:`str`
-        Indicates which lines are comments.
-    kwargs
-        Optional additional keyword arguments passed to `pd.read_csv`
-    Returns
-    -------
-    df: pd.DataFrame
+    Args:
+        filepath_or_buffer: File path of the .csv file or [io.StringIO][] object.
+        comment: Character indicating a comment line.
+        **kwargs: Optional additional keyword arguments passed to [pd.read_csv][pandas.read_csv]
+
+    Returns:
+        df: The read dataframe.
     """
 
     if comment is not None:
@@ -130,23 +140,21 @@ def csv_to_dataframe(filepath_or_buffer, comment="#", **kwargs):
     return df
 
 
-def csv_to_hdxm(filepath_or_buffer, comment="#", **kwargs):
+def csv_to_hdxm(
+    filepath_or_buffer: Union[Path[str], str, StringIO], comment: str = "#", **kwargs: Any
+) -> pyhdx.models.HDXMeasurement:
     """
-    Reads a pyhdx .csv file or buffer into a  pyhdx.models.HDXMeasurement or pyhdx.models.HDXMeasurementSet
+    Reads a pyhdx .csv file or buffer into a [HDXMeasurement][models.HDXMeasurement] or [HDXMeasurementSet][models.HDXMeasurementSet]
     object.
 
-    Parameters
-    ----------
-    filepath_or_buffer : :obj:`str` or pathlib.Path or io.StringIO
-        Filepath or StringIO buffer to read.
-    comment : :obj:`str`
-        Indicates which lines are comments.
-    **kwargs : :obj:`dict`, optional
-        Optional additional keyword arguments passed to `pd.read_csv`
-    Returns
-    -------
-    protein : pyhdx.models.HDXMeasurement
-        Resulting HDXMeasurement object with `r_number` as index
+    Args:
+        filepath_or_buffer: File path of the .csv file or [io.StringIO][] object.
+        comment: Character indicating a comment line.
+        **kwargs: Optional additional keyword arguments passed to [pd.read_csv][pandas.read_csv]
+
+    Returns:
+        data_obj: The read HDXMeasurement or HDXMeasurementSet object.
+
     """
 
     df = csv_to_dataframe(filepath_or_buffer, comment=comment, **kwargs)
@@ -169,34 +177,32 @@ def csv_to_hdxm(filepath_or_buffer, comment="#", **kwargs):
 
 
 def dataframe_to_stringio(
-    df, sio=None, fmt="csv", include_metadata=True, include_version=True, **kwargs
-):
+    df: pd.DataFrame,
+    sio: Optional[io.StringIO] = None,
+    fmt: str = "csv",
+    include_metadata: Union[bool, dict] = True,
+    include_version: bool = True,
+    **kwargs: Any,
+) -> io.StringIO:
     """
-    Save a pd.DataFrame to an io.StringIO object. Kwargs to read the resulting .csv object with pd.read_csv to
-    get the original pd.DataFrame back are included in the comments.
+    Save a [pd.DataFrame][pandas.DataFrame] to an [io.StringIO][] object. Kwargs to read the resulting .csv object with
+    [pd.read_csv][pandas.read_csv] to get the original dataframe back are included in the comments.
     Optionally additional metadata or the version of PyHDX used can be included in the comments.
 
-    Parameters
-    ----------
-    df: pd.DataFrame
-        The pandas dataframe to write to the io.StringIO object.
-    sio: `io.StringIO`, optional
-        The `io.StringIO` object to write to. If `None`, a new `io.StringIO` object is created.
-    fmt: :obj:`str`
-        Specify the formatting of the output. Options are 'csv' (machine readable) or 'pprint' (human readable)
-    include_metadata: :obj:`bool` or :obj:`dict`
-        If `True`, the metadata in df.attrs['metadata'] is included. If :obj:`dict`, this dictionary is used as the
-        metadata. If `False`, no metadata is included.
-    include_version : :obj:`bool`
-        `True` to include PyHDX version information.
-    **kwargs : :obj:`dict`, optional
-            Optional additional keyword arguments passed to `df.to_csv`
+    Convert to Google style docstrings, using mkdocstrings for referring to other objects.
 
 
-    Returns
-    -------
-    sio: io.StringIO
-        Resulting io.StringIO object.
+    Args:
+        df: The [pd.DataFrame][pandas.DataFrame] to write.
+        sio: Optional [io.StringIO][] object to write to. If `None`, a new object is created.
+        fmt: Specify the formatting of the output. Options are `csv` (machine readable) or `pprint` (human readable).
+        include_metadata: If `True`, the metadata in `df.attrs['metadata']` is included. If a [dict][] is given, this
+            dictionary is used as the metadata. Otherwise, no metadata is included.
+        include_version: Set to `True` to include PyHDX version information.
+        **kwargs: Optional additional keyword arguments passed to [df.to_csv][pandas.DataFrame.to_csv].
+
+    Returns:
+        sio: Resulting [io.StringIO][] object.
 
     """
     sio = sio or StringIO()
@@ -208,9 +214,9 @@ def dataframe_to_stringio(
         sio.write(prefix + f'{now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
 
     json_header = {}
-    if include_metadata and "metadata" in df.attrs:
+    if include_metadata == True and "metadata" in df.attrs:
         json_header["metadata"] = df.attrs["metadata"]
-    elif isinstance(include_metadata, dict):
+    elif include_metadata and isinstance(include_metadata, dict):
         json_header["metadata"] = include_metadata
 
     if fmt == "csv":
@@ -251,34 +257,26 @@ def dataframe_to_stringio(
 
 
 def dataframe_to_file(
-    file_path, df, fmt="csv", include_metadata=True, include_version=False, **kwargs
-):
+    file_path: os.PathLike,
+    df: pd.DataFrame,
+    fmt: str = "csv",
+    include_metadata: Union[bool, dict] = True,
+    include_version: bool = False,
+    **kwargs: Any,
+) -> None:
     """
-    Save a pd.DataFrame to an io.StringIO object. Kwargs to read the resulting .csv object with pd.read_csv to
+    Save a [pd.DataFrame][pandas.DataFrame] to a file. Kwargs to read the resulting .csv object with pd.read_csv to
     get the original pd.DataFrame back are included in the comments.
     Optionally additional metadata or the version of PyHDX used can be included in the comments.
 
-    Parameters
-    ----------
-    file_path: :obj:`str` or `pathlib.Path`
-        File path of the target file to write.
-    df: pd.DataFrame
-        The pandas dataframe to write to the file.
-    fmt: :obj:`str`
-        Specify the formatting of the output. Options are '.csv' (machine readable) or 'pprint' (human readable)
-    include_metadata: :obj:`bool` or :obj:`dict`
-        If `True`, the metadata in df.attrs['metadata'] is included. If :obj:`dict`, this dictionary is used as the
-        metadata. If `False`, no metadata is included.
-    include_version : :obj:`bool`
-        `True` to include PyHDX version information.
-    **kwargs : :obj:`dict`, optional
-            Optional additional keyword arguments passed to `df.to_csv`
-
-
-    Returns
-    -------
-    sio: io.StringIO
-        Resulting io.StringIO object.
+    Args:
+        file_path: Path write to.
+        df: The [pd.DataFrame][pandas.DataFrame] to write.
+        fmt: Specify the formatting of the output. Options are `csv` (machine readable) or `pprint` (human readable).
+        include_metadata: If `True`, the metadata in `df.attrs['metadata']` is included. If a [dict][] is given, this
+            dictionary is used as the metadata. Otherwise, no metadata is included.
+        include_version: Set to `True` to include PyHDX version information.
+        **kwargs: Optional additional keyword arguments passed to [df.to_csv][pandas.DataFrame.to_csv].
 
     """
     sio = dataframe_to_stringio(
@@ -288,7 +286,7 @@ def dataframe_to_file(
         include_version=include_version,
         **kwargs,
     )
-    with open(file_path, "w") as f:
+    with open(str(file_path), "w") as f:
         sio.seek(0)
         shutil.copyfileobj(sio, f)
 

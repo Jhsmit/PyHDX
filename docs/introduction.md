@@ -8,7 +8,7 @@ An interactive web server is available where users can upload HDX-MS data and ob
 How to use the web app is described on the [PyHDX web applicaton](web_app.md) page.
 
 PyHDX analysis can also be run headless from python scripts. The 'templates' directory on GitHub lists several examples.
-Additional examples can be found in the [Examples](examples.md) section .
+Additional examples can be found in the _Examples_ section.
 
 
 For more information, please have a look at [publication](https://doi.org/10.1021/acs.analchem.1c02155) in Analytical Chemistry.
