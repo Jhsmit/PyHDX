@@ -71,5 +71,9 @@ def run_apps():
 
 
 if __name__ == "__main__":
-    select_config()
+
+    if (cfg_file := Path().cwd() / 'pyhdx.yaml').exists():
+        print('Loading local config file pyhdx.yaml')
+    else:
+        select_config()
     run_apps()

@@ -59,22 +59,9 @@ def serve(
             loop = False
 
 
-@app.command()
-def process(
-    jobfile: Path = typer.Argument(..., help="Path to .yaml jobfile"),
-    cwd: Optional[Path] = typer.Option(None, help="Optional path to working directory"),
-):
-    """
-    Process a HDX dataset according to a jobfile
-    """
-
-    from pyhdx.batch_processing import JobParser
-
-    job_spec = yaml.safe_load(jobfile.read_text())
-    parser = JobParser(job_spec, cwd=cwd)
-
-    parser.execute()
-
+@app.callback()
+def callback():
+    pass
 
 if __name__ == "__main__":
     app()
