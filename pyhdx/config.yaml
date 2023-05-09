@@ -15,14 +15,13 @@ analysis:
   weight_exponent: 1.0
 
 plotting:
-# Sizes are in mm
+  # Sizes are in mm
   ncols: 2
   page_width: 160
   cbar_width: 2.5
   peptide_coverage_aspect: 3
   peptide_mse_aspect: 3
   residue_scatter_aspect: 3
-  #scatter_aspect?
   dG_aspect: 2.5
   linear_bars_aspect: 30
   loss_aspect: 2.5

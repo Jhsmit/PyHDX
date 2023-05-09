@@ -13,6 +13,7 @@ markdown_extensions:
   - markdown.extensions.codehilite:
       guess_lang: false
   - attr_list
+  - pymdownx.snippets
   - pymdownx.caret # A^T^ for superscript
   - pymdownx.mark # mark with ==text==
   - pymdownx.tilde # H~2~O for subscript
@@ -27,6 +28,7 @@ nav:
   - Introduction: introduction.md
   - Installation: installation.md
   - Web Application: web_app.md
+  - Configuration: configuration.md
   - Examples:
       - Basic Usage: examples/01_basic_usage.ipynb
       - Coverage and D-uptake fit: examples/02_coverage_and_d_uptake_fit.ipynb

@@ -39,7 +39,9 @@ class Singleton(type):
 
 
 class PyHDXConfig(metaclass=Singleton):
-    """PyHDX configuration class
+    """PyHDX configuration class.
+
+    This object is a singleton, thus always the same instance is returned upon creation.
 
     Attributes:
         conf: OmegaConf DictConfig object.
@@ -61,8 +63,26 @@ class PyHDXConfig(metaclass=Singleton):
         else:
             raise AttributeError(f"Config has no attribute {key}")
 
-    def load_config(self, config_file: PathLike[str]):
-        conf = OmegaConf.create(Path(config_file).read_text())
+    def load_config(self, config_file: PathLike[str]) -> None:
+        """Load a config file and merge with the current config.
+
+        Args:
+            config_file: Path to the config file to load.
+
+        """
+        conf_new = OmegaConf.create(Path(config_file).read_text())
+        self.merge_config(conf_new)
+
+    def merge_config(self, conf: Union[DictConfig, dict]) -> None:
+        """Merge a new config with the current config.
+
+        Args:
+            conf: New config to merge with current config.
+
+        """
+        if isinstance(conf, dict):
+            conf = OmegaConf.create(conf)
+        conf = OmegaConf.merge(self.conf, conf)
         self.set_config(conf)
 
     def set_config(self, conf: DictConfig) -> None:
@@ -141,7 +161,7 @@ if not valid_config():
     except FileNotFoundError:
         # This will happen on conda-forge docker build.
         # When no config.yaml file is in home_dir / '.{PACKAGE_NAME}>',
-        # ConfigurationSettings will use the hardcoded version (pyhdx/config.ini)
+        # ConfigurationSettings will use the hardcoded version (pyhdx/config.yaml)
         conf = OmegaConf.load(conf_src_pth)
         # (this is run twice due to import but should be OK since conf is singleton)
 else:

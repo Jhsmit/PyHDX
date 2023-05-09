@@ -189,8 +189,6 @@ def dataframe_to_stringio(
     [pd.read_csv][pandas.read_csv] to get the original dataframe back are included in the comments.
     Optionally additional metadata or the version of PyHDX used can be included in the comments.
 
-    Convert to Google style docstrings, using mkdocstrings for referring to other objects.
-
 
     Args:
         df: The [pd.DataFrame][pandas.DataFrame] to write.
