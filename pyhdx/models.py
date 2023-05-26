@@ -329,9 +329,7 @@ class HDXMeasurement:
             return temperature
         elif isinstance(temperature, dict):
             return parse_temperature(**temperature)
-
-        return self.metadata.get("temperature", None)
-
+        
     @property
     def pH(self) -> Optional[float]:
         """pH of the H/D exchange reaction."""
