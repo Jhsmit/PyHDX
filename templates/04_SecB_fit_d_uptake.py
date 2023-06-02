@@ -23,7 +23,7 @@ for state, state_spec in hdx_spec["states"].items():
     peptide_spec["experiment"]["query"] = ["exposure < 40."]
 
 input_dir = current_dir.parent / "tests" / "test_data" / "input"
-dataset = HDXDataSet.from_spec(hdx_spec, data_pth=input_dir)
+dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
 
 # load all hdx measurements, fit individually the D-uptake and then combine into one fit result
 hdxm_set = HDXMeasurementSet.from_dataset(dataset)

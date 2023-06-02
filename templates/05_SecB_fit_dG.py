@@ -25,7 +25,7 @@ hdx_spec = yaml.safe_load(yaml_stream)
 # %%
 
 input_dir = current_dir.parent / "tests" / "test_data" / "input"
-dataset = HDXDataSet.from_spec(hdx_spec, data_pth=input_dir)
+dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
 
 # %%
 hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer")

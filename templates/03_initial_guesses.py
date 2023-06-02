@@ -17,7 +17,7 @@ hdx_spec = yaml.safe_load(yaml_stream)
 
 dataset = HDXDataSet.from_spec(
     hdx_spec,
-    data_pth=data_dir,
+    data_dir=data_dir,
 )
 
 # Requires local_cluster.py to be running (or other Dask client on default address in config)

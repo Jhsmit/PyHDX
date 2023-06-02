@@ -21,7 +21,7 @@ input_dir = current_dir.parent / "tests" / "test_data" / "input"
 
 dataset = HDXDataSet.from_spec(
     hdx_spec,
-    data_pth=input_dir,
+    data_dir=input_dir,
 )
 
 print(dataset.describe())
