@@ -6,6 +6,7 @@ from functools import cached_property
 from io import StringIO
 from pathlib import Path
 from typing import Union, Literal, Optional
+import warnings
 
 import pandas as pd
 
@@ -26,6 +27,9 @@ class DataFile(object):
     format: Literal["DynamX"]
 
     filepath_or_buffer: Union[Path, StringIO]
+
+    def __post_init__(self):
+        warnings.warn("Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning)
 
     @cached_property
     def data(self) -> pd.DataFrame:
@@ -58,6 +62,8 @@ class StateParser(object):
         # filter_kwargs: Optional[dict[str, Any]] = None,
         # correction_kwargs: Optional[dict[str, Any]] = None,
     ) -> None:
+
+        warnings.warn("Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning)
         self.hdx_spec = hdx_spec
         self.data_files: dict[str, DataFile] = {}
 
@@ -177,6 +183,7 @@ def batch_filter_peptides(
     Returns:
         Filtered dataframe.
     """
+    warnings.warn("Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning)
 
     if state is not None:
         df = df[df["state"] == state]
@@ -212,6 +219,7 @@ def batch_convert_time(
         Converted time value(s).
     """
 
+    warnings.warn("Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning)
     src_unit = time_dict["unit"]
 
     time_factor = time_factors[src_unit] / time_factors[target_unit]
