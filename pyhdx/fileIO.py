@@ -43,6 +43,8 @@ def read_dynamx(
         Peptide table as a pandas DataFrame.
     """
 
+    warnings.warn("Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning)
+
     if isinstance(filepath_or_buffer, StringIO):
         hdr = filepath_or_buffer.readline().strip("# \n\t")
         filepath_or_buffer.seek(0)
