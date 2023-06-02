@@ -2,7 +2,9 @@
 
 # %%
 from pathlib import Path
-from pyhdx.batch_processing import StateParser
+
+from pyhdx.datasets import HDXDataSet
+from pyhdx.models import HDXMeasurement
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
 from pyhdx.fileIO import csv_to_dataframe, save_fitresult
 from pyhdx.local_cluster import default_client
@@ -14,7 +16,6 @@ guess = False  # Set to True to redo initial guesses
 fit_kwargs = {"epochs": 10000, "lr": 1e4, "stop_loss": 1e-6}
 
 # %%
-
 current_dir = Path(__file__).parent
 output_dir = current_dir / "output"
 output_dir.mkdir(exist_ok=True)
@@ -24,11 +25,10 @@ hdx_spec = yaml.safe_load(yaml_stream)
 # %%
 
 input_dir = current_dir.parent / "tests" / "test_data" / "input"
-parser = StateParser(hdx_spec, input_dir)
+dataset = HDXDataSet.from_spec(hdx_spec, data_pth=input_dir)
 
 # %%
-
-hdxm = parser.load_hdxm("SecB_tetramer")
+hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer")
 print(hdxm.timepoints)
 
 # %%

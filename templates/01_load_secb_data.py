@@ -4,7 +4,8 @@ from pathlib import Path
 import numpy as np
 from pyhdx import read_dynamx, HDXMeasurement
 from pyhdx.fileIO import dataframe_to_file
-from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
+from pyhdx.process import apply_control, correct_d_uptake
+from pyhdx.datasets import filter_peptides
 
 current_dir = Path(__file__).parent
 output_dir = current_dir / "output"
