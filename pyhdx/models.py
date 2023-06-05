@@ -807,8 +807,8 @@ class HDXMeasurementSet:
         return self.hdxm_list.__getitem__(item)
 
     @classmethod
-    def from_dataset(self, dataset: HDXDataSet) -> HDXMeasurementSet:
-        hdxm_list = [HDXMeasurement.from_dataset(dataset, state) for state in dataset.states]
+    def from_dataset(self, dataset: HDXDataSet, **metadata) -> HDXMeasurementSet:
+        hdxm_list = [HDXMeasurement.from_dataset(dataset, state, **metadata) for state in dataset.states]
 
         return HDXMeasurementSet(hdxm_list)
 
