@@ -326,7 +326,6 @@ class HDXMeasurement:
 
         return HDXMeasurement(peptides, name=state, **metadata)
 
-
     def __str__(self) -> str:
         """String representation of this HDX measurement object.
 
