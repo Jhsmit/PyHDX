@@ -109,6 +109,14 @@ class PyHDXConfig(metaclass=Singleton):
         return log_dir
 
     @property
+    def database_dir(self) -> Path:
+        """HDXMS-datasets database directory"""
+        spec_path = self.conf.server.database_dir
+        database_dir = Path(spec_path.replace("~", str(Path().home())))
+
+        return database_dir
+
+    @property
     def TORCH_DTYPE(self) -> Union[torch.float64, torch.float32]:
         """PyTorch dtype used for ΔG calculations"""
         dtype = self.conf.fitting.dtype

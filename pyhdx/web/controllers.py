@@ -25,9 +25,8 @@ from scipy.constants import R
 from skimage.filters import threshold_multiotsu
 
 import pyhdx
-from pyhdx.batch_processing import StateParser, DataFile
 from pyhdx.config import cfg
-from pyhdx.fileIO import read_dynamx, csv_to_dataframe, dataframe_to_stringio
+from pyhdx.fileIO import csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import (
     fit_rates_weighted_average,
     fit_rates_half_time_interpolate,
@@ -44,9 +43,10 @@ from pyhdx.fitting import (
     fit_d_uptake,
     DUptakeFitResultSet,
 )
+from pyhdx.datasets import HDXDataSet, DataVault, DataFile
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
-    PeptideUptakeModel,
+    PeptideUptakeModel, HDXMeasurement,
 )
 from pyhdx.plot import (
     dG_scatter_figure,
@@ -286,7 +286,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     header = "Peptide Input"
 
-    input_mode = param.Selector(default="Manual", objects=["Manual", "Batch"])
+    input_mode = param.Selector(default="Manual", objects=["Manual", "Batch", "Database"])
 
     input_files_label = param.String("Input files:")
 
@@ -295,6 +295,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
     batch_file_label = param.String("Batch file (yaml)")
 
     batch_file = param.Parameter(doc="Batch file input:")
+
+    dataset_id = param.Selector(label="Dataset ID", doc="Dataset ID to load from hdxms-datasets database")
 
     nd_control = param.Boolean(
         default=False, precedence=-1, doc="Whether to allow users to input a ND control"
@@ -399,6 +401,11 @@ class PeptideFileInputControl(PyHDXControlPanel):
         # Dictionary of accumulated HDX data file specifications
         self.data_spec = {}
 
+        self.data_vault = DataVault(cache_dir=cfg.database_dir)
+        self.param['dataset_id'].objects = self.data_vault.datasets
+        if self.data_vault.datasets:
+            self.dataset_id = self.data_vault.datasets[0]
+
     def make_dict(self):
         text_area = pn.widgets.TextAreaInput(
             name="Sequence (optional)",
@@ -433,6 +440,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             "input_files",
             "batch_file_label",
             "batch_file",
+            "dataset_id",
             "fd_file",
             "fd_state",
             "fd_exposure",
@@ -469,10 +477,14 @@ class PeptideFileInputControl(PyHDXControlPanel):
     @param.depends("input_mode", watch=True)
     def _update_mode(self):
         excluded = set()
-        if self.input_mode == "Manual":
-            excluded |= {"batch_file", "batch_file_label"}
-        elif self.input_mode == "Batch":
-            excluded |= {
+
+        # dictionary of widgets/params needed per input mode setting
+        # inverse to find which widgets to exclude
+
+        widget_dict = {
+            "Manual": {
+                "input_files_label",
+                "input_files",
                 "fd_file",
                 "fd_state",
                 "fd_exposure",
@@ -491,11 +503,72 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 "add_dataset_button",
                 "measurement_name",
                 "download_spec_button",
+            },
+            "Batch": {
+                "input_files_label",
+                "input_files",
+                "batch_file",
+                "batch_file_label"
+            },
+            "Database": {
+                "dataset_id",
             }
+        }
 
+        #widget_dict.pop(self.input_mode)
+        excluded = set.union(*(v for k, v in widget_dict.items() if k != self.input_mode)) - widget_dict[self.input_mode]
+        #
+        #
+        # if self.input_mode == "Manual":
+        #     excluded |= {"batch_file", "batch_file_label"}
+        # elif self.input_mode == "Batch":
+        #     excluded |= {
+        #         "fd_file",
+        #         "fd_state",
+        #         "fd_exposure",
+        #         "nd_state",
+        #         "nd_exposure",
+        #         "exp_file",
+        #         "exp_state",
+        #         "exp_exposures",
+        #         "drop_first",
+        #         "d_percentage",
+        #         "pH",
+        #         "temperature",
+        #         "n_term",
+        #         "c_term",
+        #         "sequence",
+        #         "add_dataset_button",
+        #         "measurement_name",
+        #         "download_spec_button",
+        #     }
+        # elif self.input_mode == "Database":
+        #     excluded |= {
+        #         "fd_file",
+        #         "fd_state",
+        #         "fd_exposure",
+        #         "nd_state",
+        #         "nd_exposure",
+        #         "exp_file",
+        #         "exp_state",
+        #         "exp_exposures",
+        #         "drop_first",
+        #         "d_percentage",
+        #         "pH",
+        #         "temperature",
+        #         "n_term",
+        #         "c_term",
+        #         "sequence",
+        #         "add_dataset_button",
+        #         "measurement_name",
+        #         "download_spec_button",
+        #     }
+
+        # RFU mode input takes additional ND control
         if not self.nd_control:
             excluded |= {"nd_file", "nd_state", "nd_exposure"}
 
+        # 'main' input mode takes additional HD labelling experiment parameters
         if not self.show_pH:
             excluded |= {"pH"}
         if not self.show_temperature:
@@ -733,6 +806,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
         """Load all specified HDX measurements"""
         if self.input_mode == "Manual":
             data_src = self.data_file_history
+            dataset = HDXDataSet(data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec)
         elif self.input_mode == "Batch":
             if self.hdxm_list:
                 self.parent.logger.info("Cannot add data in batch after manually inputting data")
@@ -745,13 +819,20 @@ class PeptideFileInputControl(PyHDXControlPanel):
             for data_file, data_file_spec in hdx_spec["data_files"].items():
                 data_src[data_file] = self.data_files[data_file_spec["filename"]]
 
-            self.param["hdxm_list"].objects = list(hdx_spec.keys())
-
             # store state spec for export
             self.state_spec = hdx_spec["states"]
             self.data_spec = hdx_spec["data_files"]
 
-            self.param["hdxm_list"].objects = list(self.state_spec.keys())
+            dataset = HDXDataSet(data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec)
+            self.param["hdxm_list"].objects = dataset.states
+        elif self.input_mode == "Database":
+            if self.dataset_id is None:
+                return
+            dataset = self.data_vault.load_dataset(self.dataset_id)
+            self.param["hdxm_list"].objects = dataset.states
+
+        else:
+            raise ValueError("Invalid input mode")
 
         # Disable input and changing config settings after loading data
         self.widgets["load_dataset_button"].disabled = True
@@ -762,10 +843,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
         except KeyError:
             pass
 
-        parser = StateParser(self.hdx_spec, data_src=data_src)
-
-        for state in self.state_spec.keys():
-            hdxm = parser.load_hdxm(state)
+        for state in dataset.states:
+            hdxm = HDXMeasurement.from_dataset(dataset, state)
             self.src.add(hdxm, state)
             self.parent.logger.info(
                 f"Loaded dataset {state} with experiment state {hdxm.state} "

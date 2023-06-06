@@ -5,6 +5,7 @@ cluster:
 server:
   assets_dir: ~/.pyhdx/assets
   log_dir: ~/.pyhdx/logs
+  database_dir : ~/.hdxms_datasets/datasets
 
 fitting:
   dtype: float64
