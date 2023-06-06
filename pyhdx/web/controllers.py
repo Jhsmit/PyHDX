@@ -838,7 +838,15 @@ class PeptideFileInputControl(PyHDXControlPanel):
             except KeyError:
                 pass
 
-
+            publications = dataset.metadata.get('publications', [])
+            if publications:
+                for pub in publications:
+                    pub_str = pub['title']
+                    if 'DOI' in pub:
+                        pub_str += f' ([{pub["DOI"]}](https://doi.org/{pub["DOI"]}))'
+                    elif 'URL' in pub:
+                        pub_str += f' ([URL]({pub["URL"]}))'
+                    self.parent.logger.info("Publication: " + pub_str)
         else:
             raise ValueError("Invalid input mode")
 
