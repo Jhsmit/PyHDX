@@ -830,6 +830,14 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 return
             dataset = self.data_vault.load_dataset(self.dataset_id)
             self.param["hdxm_list"].objects = dataset.states
+            self.parent.logger.info(f"Loaded dataset {dataset.data_id} from hdxms database")
+
+            try:
+                authors = ", ".join([author['name'] for author in dataset.metadata['authors']])
+                self.parent.logger.info(f"Author(s): {authors}")
+            except KeyError:
+                pass
+
 
         else:
             raise ValueError("Invalid input mode")
@@ -847,7 +855,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             hdxm = HDXMeasurement.from_dataset(dataset, state)
             self.src.add(hdxm, state)
             self.parent.logger.info(
-                f"Loaded dataset {state} with experiment state {hdxm.state} "
+                f"Loaded experiment peptides state {hdxm.state} "
                 f"({hdxm.Nt} timepoints, {len(hdxm.coverage)} peptides each)"
             )
             self.parent.logger.info(
