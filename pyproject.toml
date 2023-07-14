@@ -45,6 +45,7 @@ packaging = "^22.0"
 param = "^1.12.3"
 pyyaml = "^6.0"
 omegaconf = "^2.3.0"
+hdxms-datasets = "^0.1.2"
 panel = { version = "^0.14.2", optional = true }
 bokeh = { version = "2.4.3", optional = true }
 holoviews = { version = "^1.15.3", optional = true }
@@ -52,12 +53,10 @@ colorcet = { version = "^3.0.1", optional = true }
 hvplot = { version = "^0.8.2", optional = true }
 proplot = { version = "0.9.7", optional = true }
 pylatex = { version = "^1.4.1", optional = true }
-hdxms-datasets = {path = "../hdxms-datasets", optional = true, develop = true}
 
 [tool.poetry.extras]
 web = ["panel", "bokeh", "holoviews", "colorcet", "hvplot", "proplot"]
 pdf = ["pylatex", "proplot"]
-datasets = ["hdxms-datasets"]
 
 [tool.poetry.group.dev.dependencies]
 black = {extras = ["jupyter"], version = "^23.1.0"}

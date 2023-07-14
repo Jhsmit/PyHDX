@@ -826,24 +826,22 @@ async = ["aiofiles (>=0.7,<1.0)"]
 
 [[package]]
 name = "hdxms-datasets"
-version = "0.4.2.post30.dev0"
+version = "0.1.2"
 description = "Download and parse curated HDX-MS datasets"
 category = "main"
-optional = true
-python-versions = "^3.9"
-files = []
-develop = true
+optional = false
+python-versions = ">=3.9,<4.0"
+files = [
+    {file = "hdxms_datasets-0.1.2-py3-none-any.whl", hash = "sha256:ae534a76c201c32404476e064c0ada7f3d5e5181af4e565421aeaa4d7eeeb114"},
+    {file = "hdxms_datasets-0.1.2.tar.gz", hash = "sha256:894ede87ba1bfda92a69024678bf85dd5e13d810fa76b1468647d83829753c48"},
+]
 
 [package.dependencies]
-omegaconf = "^2.3.0"
-packaging = "^22.0"
-pandas = "^1.5.2"
-PyYAML = "^6.0"
-requests = "^2.28.1"
-
-[package.source]
-type = "directory"
-url = "../hdxms-datasets"
+omegaconf = ">=2.3.0,<3.0.0"
+packaging = ">=22.0,<23.0"
+pandas = ">=1.5.2,<2.0.0"
+PyYAML = ">=6.0,<7.0"
+requests = ">=2.28.1,<3.0.0"
 
 [[package]]
 name = "hdxrate"
@@ -4228,4 +4226,4 @@ web = ["panel", "bokeh", "holoviews", "colorcet", "hvplot", "proplot"]
 [metadata]
 lock-version = "2.0"
 python-versions = "3.9.*"
-content-hash = "67beee3eca67456c3f1cd4d8f6aa47a9877ff4ead48abaae21ff838b49a19c3a"
+content-hash = "71032a8804b962fc87a124c5e86d3d418bb2cc657f6ddde549a77a7bd4a0e96a"
