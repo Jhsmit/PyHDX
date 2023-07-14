@@ -401,6 +401,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
         # Dictionary of accumulated HDX data file specifications
         self.data_spec = {}
 
+        # create database dir if it does not exist
+        cfg.database_dir.mkdir(parents=True, exist_ok=True)
         self.data_vault = DataVault(cache_dir=cfg.database_dir)
         self.param['dataset_id'].objects = self.data_vault.datasets
         if self.data_vault.datasets:
