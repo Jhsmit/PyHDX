@@ -4,12 +4,13 @@ from pathlib import Path
 
 import typer
 from ipaddress import ip_address
-import yaml
 from omegaconf import OmegaConf
+from tqdm.auto import tqdm
+
+from pyhdx.config import cfg
+from pyhdx.datasets import DataVault
 
 app = typer.Typer()
-
-
 @app.command()
 def serve(
     scheduler_address: Optional[str] = typer.Option(None, help="Address for dask scheduler to use"),
@@ -58,6 +59,27 @@ def serve(
             print("Interrupted")
             loop = False
 
+
+datasets_app = typer.Typer(help="Manage HDX datasets")
+@datasets_app.command()
+def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to download")):
+    """Update the datasets from the PyHDX repository"""
+    vault = DataVault(cache_dir=cfg.database_dir)
+    missing_datasets = set(vault.remote_index) - set(vault.datasets)
+
+    if missing_datasets:
+        todo = list(missing_datasets)[:num]
+        for data_id in tqdm(todo):
+            vault.fetch_dataset(data_id)
+
+@datasets_app.command()
+def clear():
+    """Clear the local dataset cache"""
+    vault = DataVault(cache_dir=cfg.database_dir)
+    vault.clear_cache()
+
+
+app.add_typer(datasets_app, name="datasets")
 
 @app.callback()
 def callback():
