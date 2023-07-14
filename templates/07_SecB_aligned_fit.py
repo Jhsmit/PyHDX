@@ -1,5 +1,7 @@
 """Load two HDX-MS datasets and guesses and perform fitting in batch with a second regualizer and mock alignment"""
 
+raise DeprecationWarning("Outdated example")
+
 from pathlib import Path
 
 from pyhdx.batch_processing import StateParser

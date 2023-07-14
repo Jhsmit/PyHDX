@@ -641,7 +641,7 @@ def fit_gibbs_global(
     optimizer="SGD",
     callbacks=None,
     **optimizer_kwargs,
-):
+) -> TorchFitResult:
     """
     Fit Gibbs free energies globally to all D-uptake data in the supplied hdxm
 

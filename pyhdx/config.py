@@ -1,8 +1,9 @@
 from __future__ import annotations
 
+from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
-from typing import Union, Dict, Any, Optional
+from typing import Union, Dict, Any, Optional, Generator
 
 import torch
 from omegaconf import OmegaConf, DictConfig, DictKeyType
@@ -108,6 +109,14 @@ class PyHDXConfig(metaclass=Singleton):
         return log_dir
 
     @property
+    def database_dir(self) -> Path:
+        """HDXMS-datasets database directory"""
+        spec_path = self.conf.server.database_dir
+        database_dir = Path(spec_path.replace("~", str(Path().home())))
+
+        return database_dir
+
+    @property
     def TORCH_DTYPE(self) -> Union[torch.float64, torch.float32]:
         """PyTorch dtype used for ΔG calculations"""
         dtype = self.conf.fitting.dtype
@@ -124,6 +133,18 @@ class PyHDXConfig(metaclass=Singleton):
         device = self.conf.fitting.device
         return torch.device(device)
 
+    @contextmanager
+    def context(self, settings: dict) -> Generator[PyHDXConfig, None, None]:
+        from pyhdx.support import rsetattr
+
+        original_config = self.conf.copy()
+
+        try:
+            for attr, value in settings.items():
+                rsetattr(cfg, attr, value)
+            yield cfg
+        finally:
+            cfg.conf = original_config
 
 def valid_config() -> bool:
     """Checks if the current config file in the user home directory is a valid config

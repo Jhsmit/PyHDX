@@ -3,8 +3,10 @@
 from pathlib import Path
 import yaml
 
-from pyhdx.batch_processing import StateParser
+from pyhdx import HDXMeasurementSet
+from pyhdx.datasets import HDXDataSet
 from pyhdx.fitting import fit_d_uptake, DUptakeFitResultSet
+
 
 # %%
 
@@ -21,12 +23,14 @@ for state, state_spec in hdx_spec["states"].items():
     peptide_spec["experiment"]["query"] = ["exposure < 40."]
 
 input_dir = current_dir.parent / "tests" / "test_data" / "input"
-parser = StateParser(hdx_spec, input_dir)
+dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
 
 # load all hdx measurements, fit individually the D-uptake and then combine into one fit result
-hdxm_set = parser.load_hdxmset()
+hdxm_set = HDXMeasurementSet.from_dataset(dataset)
 results = []
 for hdxm in hdxm_set:
+    print(hdxm)
+
     result = fit_d_uptake(hdxm, repeats=2)
     results.append(result)
 

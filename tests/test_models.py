@@ -1,8 +1,9 @@
 import pytest
 import os
 from pyhdx import HDXTimepoint, HDXMeasurement
+from pyhdx.datasets import read_dynamx
 from pyhdx.models import Coverage
-from pyhdx.fileIO import read_dynamx, csv_to_hdxm, csv_to_dataframe
+from pyhdx.fileIO import csv_to_hdxm, csv_to_dataframe
 import numpy as np
 from functools import reduce
 from operator import add

@@ -45,6 +45,7 @@ packaging = "^22.0"
 param = "^1.12.3"
 pyyaml = "^6.0"
 omegaconf = "^2.3.0"
+hdxms-datasets = "^0.1.2"
 panel = { version = "^0.14.2", optional = true }
 bokeh = { version = "2.4.3", optional = true }
 holoviews = { version = "^1.15.3", optional = true }

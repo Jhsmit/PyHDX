@@ -287,7 +287,6 @@ class HDXMeasurement:
         )
 
     @classmethod
-    def from_dataset(cls, dataset: HDXDataSet, state: str | int) -> HDXMeasurement:
         """Create an HDXMeasurement object from a HDXDataSet object.
 
         Args:
@@ -302,10 +301,6 @@ class HDXMeasurement:
         state = dataset.states[state] if isinstance(state, int) else state
         peptide_spec = dataset.hdx_spec["states"][state]["peptides"]
 
-        # take globally defined metadata and update with state specific metadata
-        metadata = dataset.hdx_spec.get("metadata", {})
-        metadata.update(dataset.hdx_spec["states"][state]["metadata"])
-
         peptides = dataset.load_peptides(state, "experiment")
         fd_peptides = (
             dataset.load_peptides(state, "FD_control") if "FD_control" in peptide_spec else None
@@ -313,6 +308,12 @@ class HDXMeasurement:
         nd_peptides = (
             dataset.load_peptides(state, "ND_control") if "ND_control" in peptide_spec else None
         )
+
+        # take globally defined metadata and update with state specific metadata
+        spec_metadata = dataset.hdx_spec.get("metadata", {})
+        spec_metadata.update(dataset.hdx_spec["states"][state]["metadata"])
+
+        metadata = {**spec_metadata, **metadata}
 
         peptides = apply_control(peptides, fd_peptides, nd_peptides)
         peptides = correct_d_uptake(
@@ -322,7 +323,6 @@ class HDXMeasurement:
         )
 
         return HDXMeasurement(peptides, name=state, **metadata)
-
 
     def __str__(self) -> str:
         """String representation of this HDX measurement object.
@@ -805,8 +805,8 @@ class HDXMeasurementSet:
         return self.hdxm_list.__getitem__(item)
 
     @classmethod
-    def from_dataset(self, dataset: HDXDataSet) -> HDXMeasurementSet:
-        hdxm_list = [HDXMeasurement.from_dataset(dataset, state) for state in dataset.states]
+    def from_dataset(self, dataset: HDXDataSet, **metadata) -> HDXMeasurementSet:
+        hdxm_list = [HDXMeasurement.from_dataset(dataset, state, **metadata) for state in dataset.states]
 
         return HDXMeasurementSet(hdxm_list)
 
