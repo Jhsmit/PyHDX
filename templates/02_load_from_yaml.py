@@ -3,7 +3,7 @@
 from pathlib import Path
 import yaml
 
-from hdxms_datasets import HDXDataSet
+from pyhdx.datasets import HDXDataSet
 
 from pyhdx import HDXMeasurement, HDXMeasurementSet
 

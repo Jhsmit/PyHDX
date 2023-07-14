@@ -1,6 +1,5 @@
 """Load HDX-MS data from yaml spec and perform initial guess of exchange rates"""
 from pyhdx import HDXMeasurement
-from pyhdx.batch_processing import StateParser
 from pyhdx.datasets import HDXDataSet
 from pathlib import Path
 from pyhdx.fitting import fit_rates_weighted_average
