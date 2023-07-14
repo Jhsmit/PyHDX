@@ -825,6 +825,25 @@ colorama = ">=0.4"
 async = ["aiofiles (>=0.7,<1.0)"]
 
 [[package]]
+name = "hdxms-datasets"
+version = "0.1.2"
+description = "Download and parse curated HDX-MS datasets"
+category = "main"
+optional = false
+python-versions = ">=3.9,<4.0"
+files = [
+    {file = "hdxms_datasets-0.1.2-py3-none-any.whl", hash = "sha256:ae534a76c201c32404476e064c0ada7f3d5e5181af4e565421aeaa4d7eeeb114"},
+    {file = "hdxms_datasets-0.1.2.tar.gz", hash = "sha256:894ede87ba1bfda92a69024678bf85dd5e13d810fa76b1468647d83829753c48"},
+]
+
+[package.dependencies]
+omegaconf = ">=2.3.0,<3.0.0"
+packaging = ">=22.0,<23.0"
+pandas = ">=1.5.2,<2.0.0"
+PyYAML = ">=6.0,<7.0"
+requests = ">=2.28.1,<3.0.0"
+
+[[package]]
 name = "hdxrate"
 version = "0.2.0"
 description = "Calculate HDX intrinsic exchange rates."
@@ -4203,10 +4222,11 @@ docs = ["furo", "jaraco.packaging (>=9)", "jaraco.tidelift (>=1.4)", "rst.linker
 testing = ["flake8 (<5)", "func-timeout", "jaraco.functools", "jaraco.itertools", "more-itertools", "pytest (>=6)", "pytest-black (>=0.3.7)", "pytest-checkdocs (>=2.4)", "pytest-cov", "pytest-enabler (>=1.3)", "pytest-flake8", "pytest-mypy (>=0.9.1)"]
 
 [extras]
+datasets = ["hdxms-datasets"]
 pdf = ["pylatex", "proplot"]
 web = ["panel", "bokeh", "holoviews", "colorcet", "hvplot", "proplot"]
 
 [metadata]
 lock-version = "2.0"
 python-versions = "3.9.*"
-content-hash = "a9d7c24e03d31365505483c14395bb1d60142283022c63bd514c6cc2f3472011"
+content-hash = "71032a8804b962fc87a124c5e86d3d418bb2cc657f6ddde549a77a7bd4a0e96a"

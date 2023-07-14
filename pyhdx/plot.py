@@ -615,6 +615,11 @@ def linear_bars(
     sort=False,
     **figure_kwargs,
 ):
+
+    # input data should always be 3 levels
+    # grouping is done by the first level
+    # second level gives each bar
+    # third level should have columns with the specified 'field'
     if data.columns.nlevels == 2:
         data = data.copy()
         columns = pd.MultiIndex.from_tuples(
@@ -622,6 +627,7 @@ def linear_bars(
         )
         data.columns = columns
 
+    # todo this should be done by the 'user'
     data = data.xs(level=-1, key=field, drop_level=False, axis=1)
 
     groupby = groupby or data.columns.names[0]

@@ -1,5 +1,5 @@
 from copy import copy
-from functools import partial, reduce
+from functools import partial
 
 import panel as pn
 import param
@@ -7,7 +7,7 @@ import proplot as pplt
 from matplotlib.colors import Colormap, Normalize
 
 from pyhdx.plot import CMAP_NORM_DEFAULTS
-from pyhdx.support import apply_cmap
+from pyhdx.support import apply_cmap, rsetattr
 
 
 # todo baseclass widget generating thingy
@@ -88,19 +88,6 @@ class GenericOpts(OptsBase):
 # https://stackoverflow.com/questions/27049998/convert-a-mixed-nested-list-to-a-nested-tuple/27050037#27050037
 def to_tuple(lst):
     return tuple(to_tuple(i) if isinstance(i, list) else i for i in lst)
-
-
-# https://stackoverflow.com/questions/31174295/getattr-and-setattr-on-nested-subobjects-chained-properties
-def rsetattr(obj, attr, val):
-    pre, _, post = attr.rpartition(".")
-    return setattr(rgetattr(obj, pre) if pre else obj, post, val)
-
-
-def rgetattr(obj, attr, *args):
-    def _getattr(obj, attr):
-        return getattr(obj, attr, *args)
-
-    return reduce(_getattr, [obj] + attr.split("."))
 
 
 class HooksOpts(OptsBase):

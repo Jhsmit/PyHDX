@@ -847,3 +847,15 @@ def array_intersection(arrays: Iterable[np.ndarray], fields: Iterable[str]) -> l
     selected = [elem[np.isin(fields_view(elem, fields), intersection)] for elem in arrays]
 
     return selected
+
+# https://stackoverflow.com/questions/31174295/getattr-and-setattr-on-nested-subobjects-chained-properties
+def rsetattr(obj, attr, val):
+    pre, _, post = attr.rpartition(".")
+    return setattr(rgetattr(obj, pre) if pre else obj, post, val)
+
+
+def rgetattr(obj, attr, *args):
+    def _getattr(obj, attr):
+        return getattr(obj, attr, *args)
+
+    return reduce(_getattr, [obj] + attr.split("."))

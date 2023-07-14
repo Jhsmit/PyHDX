@@ -5,7 +5,7 @@ import textwrap
 import warnings
 from functools import partial
 from numbers import Number
-from typing import Optional, Any, Union
+from typing import Optional, Any, Union, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -18,9 +18,12 @@ from scipy.integrate import solve_ivp
 
 from pyhdx.alignment import align_dataframes
 from pyhdx.fileIO import dataframe_to_file
-from pyhdx.process import verify_sequence, parse_temperature
+from pyhdx.process import verify_sequence, parse_temperature, correct_d_uptake, apply_control
 from pyhdx.support import reduce_inter, dataframe_intersection, array_intersection
 from pyhdx.config import cfg
+
+if TYPE_CHECKING:
+    from hdxms_datasets import HDXDataSet
 
 
 class Coverage:
@@ -283,6 +286,46 @@ class HDXMeasurement:
             .sort_index(axis=1, level=0, sort_remaining=False)
         )
 
+    @classmethod
+    def from_dataset(cls, dataset: HDXDataSet, state: str | int, **metadata) -> HDXMeasurement:
+        """Create an HDXMeasurement object from a HDXDataSet object.
+
+        Args:
+            dataset: HDXDataSet object
+            state: State label or index for measurement in the dataset
+
+
+        Returns:
+            HDXMeasurement object.
+
+        """
+
+        state = dataset.states[state] if isinstance(state, int) else state
+        peptide_spec = dataset.hdx_spec["states"][state]["peptides"]
+
+        peptides = dataset.load_peptides(state, "experiment")
+        fd_peptides = (
+            dataset.load_peptides(state, "FD_control") if "FD_control" in peptide_spec else None
+        )
+        nd_peptides = (
+            dataset.load_peptides(state, "ND_control") if "ND_control" in peptide_spec else None
+        )
+
+        # take globally defined metadata and update with state specific metadata
+        spec_metadata = dataset.hdx_spec.get("metadata", {})
+        spec_metadata.update(dataset.hdx_spec["states"][state]["metadata"])
+
+        metadata = {**spec_metadata, **metadata}
+
+        peptides = apply_control(peptides, fd_peptides, nd_peptides)
+        peptides = correct_d_uptake(
+            peptides,
+            drop_first=cfg.analysis.drop_first,
+            d_percentage=metadata.get("d_percentage", 100.0),
+        )
+
+        return HDXMeasurement(peptides, name=state, **metadata)
+
     def __str__(self) -> str:
         """String representation of this HDX measurement object.
 
@@ -329,9 +372,7 @@ class HDXMeasurement:
             return temperature
         elif isinstance(temperature, dict):
             return parse_temperature(**temperature)
-
-        return self.metadata.get("temperature", None)
-
+        
     @property
     def pH(self) -> Optional[float]:
         """pH of the H/D exchange reaction."""
@@ -764,6 +805,12 @@ class HDXMeasurementSet:
 
     def __getitem__(self, item: int) -> HDXMeasurement:
         return self.hdxm_list.__getitem__(item)
+
+    @classmethod
+    def from_dataset(self, dataset: HDXDataSet, **metadata) -> HDXMeasurementSet:
+        hdxm_list = [HDXMeasurement.from_dataset(dataset, state, **metadata) for state in dataset.states]
+
+        return HDXMeasurementSet(hdxm_list)
 
     def get(self, name: str) -> HDXMeasurement:
         """
