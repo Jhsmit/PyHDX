@@ -287,6 +287,7 @@ class HDXMeasurement:
         )
 
     @classmethod
+    def from_dataset(cls, dataset: HDXDataSet, state: str | int, **metadata) -> HDXMeasurement:
         """Create an HDXMeasurement object from a HDXDataSet object.
 
         Args:
