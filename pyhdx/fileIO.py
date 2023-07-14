@@ -6,9 +6,9 @@ import os
 import re
 import shutil
 from datetime import datetime
-from io import StringIO
+from io import StringIO, BytesIO
 from pathlib import Path
-from typing import Union, Literal, Tuple, List, TextIO, Optional, TYPE_CHECKING, Any
+from typing import Union, Literal, Tuple, List, TextIO, Optional, TYPE_CHECKING, Any, BinaryIO
 from importlib import import_module
 import torch.nn as nn
 import torch as t
@@ -67,7 +67,7 @@ def read_dynamx(
     return df
 
 
-def read_header(file_obj: TextIO, comment: str = "#") -> List[str]:
+def read_header(file_obj: Union[TextIO, BinaryIO], comment: str = "#") -> List[str]:
     header = []
 
     while True:
@@ -80,7 +80,7 @@ def read_header(file_obj: TextIO, comment: str = "#") -> List[str]:
     return header
 
 
-def parse_header(filepath_or_buffer: Union[Path[str], str, StringIO], comment: str = "#") -> dict:
+def parse_header(filepath_or_buffer: Union[Path[str], str, StringIO, BytesIO], comment: str = "#") -> dict:
     """
     Reads the header from a file and returns JSON metadata from header lines marked as comment.
 
@@ -92,7 +92,7 @@ def parse_header(filepath_or_buffer: Union[Path[str], str, StringIO], comment: s
         Dictionary of read metadata.
     """
 
-    if isinstance(filepath_or_buffer, StringIO):
+    if isinstance(filepath_or_buffer, (StringIO, BytesIO)):
         header = read_header(filepath_or_buffer, comment=comment)
         filepath_or_buffer.seek(0)
     else:

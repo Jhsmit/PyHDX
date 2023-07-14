@@ -2691,8 +2691,10 @@ class SessionManagerControl(PyHDXControlPanel):
         names = set(session_zip.namelist())
         accepted_names = {
             "rfu.csv",
+            "drfu.csv",
             "rates.csv",
             "d_uptake.csv",
+            "dd_uptake.csv",
             "peptides.csv",
             "dG.csv",
             "ddG.csv",
