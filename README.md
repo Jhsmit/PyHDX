@@ -53,12 +53,12 @@ Please refer to the [docs](https://pyhdx.readthedocs.io/en/stable/) for more det
 ## Web Application
 
 The PyHDX web application is currently hosted at:
-http://pyhdx.jhsmit.org
+~~http://pyhdx.jhsmit.org~~ https://gather-mega-fioricet-ruled.trycloudflare.com/
 
 A test file can be downloaded from [here](https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/input/ecSecB_apo.csv) and [here](https://raw.githubusercontent.com/Jhsmit/PyHDX/master/tests/test_data/input/ecSecB_dimer.csv>) (right click, save as).
 
 A beta version might be available at:
-http://pyhdx-beta.jhsmit.org
+~~http://pyhdx-beta.jhsmit.org~~ https://risk-percentage-hacker-birds.trycloudflare.com/
 
 The latest beta docs are found [here](https://pyhdx.readthedocs.io/en/latest/)
 
