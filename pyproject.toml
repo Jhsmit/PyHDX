@@ -39,7 +39,7 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-web = ["panel", "bokeh", "holoviews", "colorcet", "hvplot", "proplot"]
+web = ["panel<1.0.0", "bokeh", "holoviews", "colorcet", "hvplot", "proplot"]
 pdf = ["pylatex", "proplot"]
 docs = ["mkdocs", "mkdocstrings[python]", "mkdocs-material", "pygments", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-jupyter"]
 dev = ["black[jupyter]"]
