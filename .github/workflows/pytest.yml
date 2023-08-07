@@ -33,11 +33,6 @@ jobs:
       - name: Install test requirements
         run: pip install .[test]
 
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: |
-          poetry install --no-interaction --no-root --all-extras
-
       - name: Run tests
         run: |
           pytest tests/
