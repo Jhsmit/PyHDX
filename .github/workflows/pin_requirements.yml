@@ -26,8 +26,12 @@ jobs:
       - name: Generate requirements file
         run: pip-compile --extra web --output-file requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt pyproject.toml
 
-      - name: Upload requirements file
+  upload-artifacts:
+    needs: generate-requirements
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload requirements files
         uses: actions/upload-artifact@v3
         with:
-          name: requirements-${{ matrix.os }}-${{ matrix.python-version }}
-          path: requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt
+          name: requirements
+          path: requirements-*.txt
