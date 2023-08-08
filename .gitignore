@@ -84,7 +84,7 @@ celerybeat-schedule
 .env
 
 # virtualenv
-.venv
+.venv*
 venv/
 ENV/
 
@@ -106,6 +106,5 @@ ENV/
 # Dask
 dask-worker-space/
 
-
-# Generated conda requirements file
-_req-*.txt
+# Hatch-vcs generated version file
+_version.py

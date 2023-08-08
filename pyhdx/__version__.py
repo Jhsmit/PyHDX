@@ -1,11 +1,17 @@
-# placeholder version number
-__version__ = "0.0.0"
-
-# when we are on editable install from source, the _version file is present
-# and we can get a version from there
+# Adapted from: https://github.com/maresb/hatch-vcs-footgun-example
+# Define the variable '__version__':
 try:
-    from . import _version
+    # If we are in an editable install, the _versioneer file exist and we can use it to find the version
+    from pyhdx._versioneer import get_versions
 
-    __version__ = _version.get_versions()["version"]
+    # This will fail with LookupError if the package is not installed in
+    # editable mode or if Git is not installed.
+    __version__ = get_versions()["version"]
 except ImportError:
-    pass
+    # If the project build with hatch, there should be a _version.py file
+    try:
+        from pyhdx._version import __version__  # noqa: F401 # type: ignore
+    except ModuleNotFoundError:
+        # The user is probably trying to run this without having installed
+        # the package, so complain.
+        raise RuntimeError("PyHDX is not correctly installed. Please install it with pip.")

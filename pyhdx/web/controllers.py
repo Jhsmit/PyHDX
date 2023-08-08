@@ -74,14 +74,10 @@ from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
 
-from pyhdx._version import get_versions
-
+from pyhdx.__version__ import __version__
 import matplotlib
 
 matplotlib.use("agg")
-
-__version__ = get_versions()["version"]
-del get_versions
 
 
 def blocking_function(duration):
