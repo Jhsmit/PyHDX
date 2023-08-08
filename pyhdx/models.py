@@ -303,9 +303,9 @@ class HDXMeasurement:
         peptide_spec = dataset.hdx_spec["states"][state]["peptides"]
 
         peptides = dataset.load_peptides(state, "experiment")
-        fd_peptides = (
-            dataset.load_peptides(state, "FD_control") if "FD_control" in peptide_spec else None
-        )
+        if "FD_control" not in peptide_spec:
+            raise ValueError("Dataset does not contain a FD_control state")
+        fd_peptides = dataset.load_peptides(state, "FD_control")
         nd_peptides = (
             dataset.load_peptides(state, "ND_control") if "ND_control" in peptide_spec else None
         )
@@ -371,7 +371,7 @@ class HDXMeasurement:
             return temperature
         elif isinstance(temperature, dict):
             return parse_temperature(**temperature)
-        
+
     @property
     def pH(self) -> Optional[float]:
         """pH of the H/D exchange reaction."""
@@ -646,6 +646,7 @@ class HDXTimepoint(Coverage):
         return rfu
 
     def weighted_average(self, field: str) -> pd.Series:
+        # TODO this should be functional; remove coverage object as a whole
         """
         Calculate per-residue weighted average of values in data column
 
@@ -807,7 +808,9 @@ class HDXMeasurementSet:
 
     @classmethod
     def from_dataset(self, dataset: HDXDataSet, **metadata) -> HDXMeasurementSet:
-        hdxm_list = [HDXMeasurement.from_dataset(dataset, state, **metadata) for state in dataset.states]
+        hdxm_list = [
+            HDXMeasurement.from_dataset(dataset, state, **metadata) for state in dataset.states
+        ]
 
         return HDXMeasurementSet(hdxm_list)
 
