@@ -24,4 +24,4 @@ build:
 
 python:
   install:
-  - requirements: requirements/requirements-ubuntu-latest.txt
+  - requirements: requirements/requirements-ubuntu-latest-3.9.txt
