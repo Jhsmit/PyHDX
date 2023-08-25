@@ -62,11 +62,11 @@ This will start a Dask cluster on the scheduler address as specified in the PyHD
 ## Install from source
 
 
-Create a new conda environment:
+Create a new conda environment in a local `.venv` folder:
 
 ```bash
-conda create --name py39_pyhdx python=3.9
-conda activate py39_pyhdx
+conda create --prefix ./.venv python=3.9
+conda activate ./.venv
 ```
 
 Clone the GitHub repository:
@@ -75,13 +75,17 @@ git clone https://github.com/Jhsmit/PyHDX
 cd PyHDX
 ```
 
-Dependencies can then be installed with `poetry`
+You can install the dependencies from the pinned requirement files for your OS with pip: 
 
 ```bash
-    $ poetry install --all-extras
+$ pip install -r requirements/requirements-<operating-system>-3.9.txt
 ```
 
-Use `--all-extras` if you plan to use the web interface. 
+Then to editable install PyHDX:
+
+```bash
+$ pip install -e .
+```
 
 
 ### Running from source
