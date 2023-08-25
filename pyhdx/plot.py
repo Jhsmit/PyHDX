@@ -615,7 +615,6 @@ def linear_bars(
     sort=False,
     **figure_kwargs,
 ):
-
     # input data should always be 3 levels
     # grouping is done by the first level
     # second level gives each bar
@@ -1140,6 +1139,7 @@ class ColorTransforms(object):
             return self[item]
         except KeyError:
             return default
+
 
 # should be a frozen dataclas
 CMAP_NORM_DEFAULTS = ColorTransforms()

@@ -255,7 +255,9 @@ def filter_peptides(
 
     """
 
-    warnings.warn("`filter_peptides` will be moved to the `hdxms-datasets` package", DeprecationWarning)
+    warnings.warn(
+        "`filter_peptides` will be moved to the `hdxms-datasets` package", DeprecationWarning
+    )
     if state:
         df = df[df["state"] == state]
 

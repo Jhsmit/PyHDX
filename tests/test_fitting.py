@@ -43,8 +43,8 @@ def dataset() -> HDXDataSet:
     hdx_spec = yaml.safe_load(yaml_pth.read_text())
 
     # add truncated tetramer state
-    hdx_spec['states']['SecB_tetramer_red'] = copy.deepcopy(hdx_spec['states']['SecB_tetramer'])
-    hdx_spec['states']['SecB_tetramer_red']['peptides']['experiment']['query'] = ["stop < 40"]
+    hdx_spec["states"]["SecB_tetramer_red"] = copy.deepcopy(hdx_spec["states"]["SecB_tetramer"])
+    hdx_spec["states"]["SecB_tetramer_red"]["peptides"]["experiment"]["query"] = ["stop < 40"]
 
     dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
 
@@ -53,24 +53,24 @@ def dataset() -> HDXDataSet:
 
 @pytest.fixture()
 def hdxm_apo(dataset: HDXDataSet) -> HDXMeasurement:
-    with cfg.context({'analysis.drop_first': 1}):
-        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer", d_percentage=100.)
+    with cfg.context({"analysis.drop_first": 1}):
+        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer", d_percentage=100.0)
 
     return hdxm
 
 
 @pytest.fixture()
 def hdxm_dimer(dataset: HDXDataSet) -> HDXMeasurement:
-    with cfg.context({'analysis.drop_first': 1}):
-        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_dimer", d_percentage=100.)
+    with cfg.context({"analysis.drop_first": 1}):
+        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_dimer", d_percentage=100.0)
 
     return hdxm
 
 
 @pytest.fixture()
 def hdxm_apo_red(dataset: HDXDataSet) -> HDXMeasurement:
-    with cfg.context({'analysis.drop_first': 1}):
-        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer_red", d_percentage=100.)
+    with cfg.context({"analysis.drop_first": 1}):
+        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer_red", d_percentage=100.0)
 
     return hdxm
 
@@ -260,16 +260,28 @@ def test_batch_fit(hdxm_apo: HDXMeasurement, hdxm_dimer: HDXMeasurement, tmp_pat
     assert errors.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
 
     test = fr_global.get_peptide_mse().fillna(-1)
-    name_mapping = {'SecB his dimer apo': 'SecB_dimer', 'SecB WT apo': 'SecB_tetramer'}
-    ref = csv_to_dataframe(output_dir / "ecSecB_batch_peptide_mse.csv").fillna(-1).rename(columns=name_mapping)
+    name_mapping = {"SecB his dimer apo": "SecB_dimer", "SecB WT apo": "SecB_tetramer"}
+    ref = (
+        csv_to_dataframe(output_dir / "ecSecB_batch_peptide_mse.csv")
+        .fillna(-1)
+        .rename(columns=name_mapping)
+    )
     assert_frame_equal(test, ref, atol=1e-1, rtol=5e-1)
 
     test = fr_global.get_residue_mse().fillna(-1)
-    ref = csv_to_dataframe(output_dir / "ecSecB_batch_residue_mse.csv").fillna(-1).rename(columns=name_mapping)
+    ref = (
+        csv_to_dataframe(output_dir / "ecSecB_batch_residue_mse.csv")
+        .fillna(-1)
+        .rename(columns=name_mapping)
+    )
     assert_frame_equal(test, ref, atol=1e-1, rtol=5e-1)
 
     test = fr_global.losses.fillna(-1)
-    ref = csv_to_dataframe(output_dir / "ecSecB_batch_loss.csv").fillna(-1).rename(columns=name_mapping)
+    ref = (
+        csv_to_dataframe(output_dir / "ecSecB_batch_loss.csv")
+        .fillna(-1)
+        .rename(columns=name_mapping)
+    )
     assert_frame_equal(test, ref, atol=1e-3, rtol=1e-2)
 
     # test alignment fit
@@ -281,11 +293,11 @@ def test_batch_fit(hdxm_apo: HDXMeasurement, hdxm_dimer: HDXMeasurement, tmp_pat
     hdx_set.add_alignment(list(mock_alignment.values()))
 
     gibbs_guess = hdx_set[0].guess_deltaG(guess["rate"])  # Guesses from first measurement
-    aligned_result = fit_gibbs_global_batch_aligned(
-        hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000
-    )
+    aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
     output = aligned_result.output
-    check_df = csv_to_dataframe(output_dir / "ecSecB_batch_aligned.csv").rename(columns=name_mapping)
+    check_df = csv_to_dataframe(output_dir / "ecSecB_batch_aligned.csv").rename(
+        columns=name_mapping
+    )
     states = ["SecB_tetramer", "SecB_dimer"]
 
     for state in states:
