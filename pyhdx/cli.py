@@ -11,6 +11,8 @@ from pyhdx.config import cfg
 from pyhdx.datasets import DataVault
 
 app = typer.Typer()
+
+
 @app.command()
 def serve(
     scheduler_address: Optional[str] = typer.Option(None, help="Address for dask scheduler to use"),
@@ -61,6 +63,8 @@ def serve(
 
 
 datasets_app = typer.Typer(help="Manage HDX datasets")
+
+
 @datasets_app.command()
 def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to download")):
     """Update the datasets from the PyHDX repository"""
@@ -72,6 +76,7 @@ def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to
         for data_id in tqdm(todo):
             vault.fetch_dataset(data_id)
 
+
 @datasets_app.command()
 def clear():
     """Clear the local dataset cache"""
@@ -80,6 +85,7 @@ def clear():
 
 
 app.add_typer(datasets_app, name="datasets")
+
 
 @app.callback()
 def callback():

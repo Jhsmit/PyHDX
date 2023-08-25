@@ -29,7 +29,9 @@ class DataFile(object):
     filepath_or_buffer: Union[Path, StringIO]
 
     def __post_init__(self):
-        warnings.warn("Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning)
+        warnings.warn(
+            "Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning
+        )
 
     @cached_property
     def data(self) -> pd.DataFrame:
@@ -62,8 +64,9 @@ class StateParser(object):
         # filter_kwargs: Optional[dict[str, Any]] = None,
         # correction_kwargs: Optional[dict[str, Any]] = None,
     ) -> None:
-
-        warnings.warn("Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning)
+        warnings.warn(
+            "Will be removed in favour of the `hdxms-datasets` package ", DeprecationWarning
+        )
         self.hdx_spec = hdx_spec
         self.data_files: dict[str, DataFile] = {}
 

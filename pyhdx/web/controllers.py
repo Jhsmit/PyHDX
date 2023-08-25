@@ -47,7 +47,8 @@ from pyhdx.fitting import (
 from pyhdx.datasets import HDXDataSet, DataVault, DataFile
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
-    PeptideUptakeModel, HDXMeasurement,
+    PeptideUptakeModel,
+    HDXMeasurement,
 )
 from pyhdx.plot import (
     dG_scatter_figure,
@@ -293,7 +294,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     batch_file = param.Parameter(doc="Batch file input:")
 
-    dataset_id = param.Selector(label="Dataset ID", doc="Dataset ID to load from hdxms-datasets database")
+    dataset_id = param.Selector(
+        label="Dataset ID", doc="Dataset ID to load from hdxms-datasets database"
+    )
 
     nd_control = param.Boolean(
         default=False, precedence=-1, doc="Whether to allow users to input a ND control"
@@ -410,7 +413,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             todo = list(missing_datasets)[:num]
             for data_id in tqdm(todo):
                 self.data_vault.fetch_dataset(data_id)
-        self.param['dataset_id'].objects = self.data_vault.datasets
+        self.param["dataset_id"].objects = self.data_vault.datasets
         if self.data_vault.datasets:
             self.dataset_id = self.data_vault.datasets[0]
 
@@ -512,19 +515,17 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 "measurement_name",
                 "download_spec_button",
             },
-            "Batch": {
-                "input_files_label",
-                "input_files",
-                "batch_file",
-                "batch_file_label"
-            },
+            "Batch": {"input_files_label", "input_files", "batch_file", "batch_file_label"},
             "Database": {
                 "dataset_id",
-            }
+            },
         }
 
-        #widget_dict.pop(self.input_mode)
-        excluded = set.union(*(v for k, v in widget_dict.items() if k != self.input_mode)) - widget_dict[self.input_mode]
+        # widget_dict.pop(self.input_mode)
+        excluded = (
+            set.union(*(v for k, v in widget_dict.items() if k != self.input_mode))
+            - widget_dict[self.input_mode]
+        )
         #
         #
         # if self.input_mode == "Manual":
@@ -814,7 +815,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
         """Load all specified HDX measurements"""
         if self.input_mode == "Manual":
             data_src = self.data_file_history
-            dataset = HDXDataSet(data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec)
+            dataset = HDXDataSet(
+                data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec
+            )
         elif self.input_mode == "Batch":
             if self.hdxm_list:
                 self.parent.logger.info("Cannot add data in batch after manually inputting data")
@@ -831,7 +834,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self.state_spec = hdx_spec["states"]
             self.data_spec = hdx_spec["data_files"]
 
-            dataset = HDXDataSet(data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec)
+            dataset = HDXDataSet(
+                data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec
+            )
             self.param["hdxm_list"].objects = dataset.states
         elif self.input_mode == "Database":
             if self.dataset_id is None:
@@ -841,18 +846,18 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self.parent.logger.info(f"Loaded dataset {dataset.data_id} from hdxms database")
 
             try:
-                authors = ", ".join([author['name'] for author in dataset.metadata['authors']])
+                authors = ", ".join([author["name"] for author in dataset.metadata["authors"]])
                 self.parent.logger.info(f"Author(s): {authors}")
             except KeyError:
                 pass
 
-            publications = dataset.metadata.get('publications', [])
+            publications = dataset.metadata.get("publications", [])
             if publications:
                 for pub in publications:
-                    pub_str = pub['title']
-                    if 'DOI' in pub:
+                    pub_str = pub["title"]
+                    if "DOI" in pub:
                         pub_str += f' ([{pub["DOI"]}](https://doi.org/{pub["DOI"]}))'
-                    elif 'URL' in pub:
+                    elif "URL" in pub:
                         pub_str += f' ([URL]({pub["URL"]}))'
                     self.parent.logger.info("Publication: " + pub_str)
         else:

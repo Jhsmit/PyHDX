@@ -40,9 +40,7 @@ def hdxm() -> HDXMeasurement:
     peptides_corrected = correct_d_uptake(peptides_control)
 
     temperature, pH = 273.15 + 30, 8.0
-    hdxm = HDXMeasurement(
-        peptides_corrected, temperature=temperature, pH=pH, c_term=155
-    )
+    hdxm = HDXMeasurement(peptides_corrected, temperature=temperature, pH=pH, c_term=155)
 
     return hdxm
 
@@ -121,6 +119,7 @@ def test_read_write_tables(tmp_path):
     lines = Path(fpath).read_text().split("\n")
     assert len(lines) == 38
     assert lines[0].strip() == pyhdx.VERSION_STRING
+
 
 def test_load_save_fitresult(tmp_path, fit_result: TorchFitResult, hdxm: HDXMeasurement):
     # todo missing read batch result test
