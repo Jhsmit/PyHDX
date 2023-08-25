@@ -1141,7 +1141,7 @@ class ColorTransforms(object):
         except KeyError:
             return default
 
-
+# should be a frozen dataclas
 CMAP_NORM_DEFAULTS = ColorTransforms()
 
 
