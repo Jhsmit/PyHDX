@@ -80,7 +80,9 @@ def read_header(file_obj: Union[TextIO, BinaryIO], comment: str = "#") -> List[s
     return header
 
 
-def parse_header(filepath_or_buffer: Union[Path[str], str, StringIO, BytesIO], comment: str = "#") -> dict:
+def parse_header(
+    filepath_or_buffer: Union[Path[str], str, StringIO, BytesIO], comment: str = "#"
+) -> dict:
     """
     Reads the header from a file and returns JSON metadata from header lines marked as comment.
 

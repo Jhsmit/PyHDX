@@ -146,6 +146,7 @@ class PyHDXConfig(metaclass=Singleton):
         finally:
             cfg.conf = original_config
 
+
 def valid_config() -> bool:
     """Checks if the current config file in the user home directory is a valid config
     file for the current pyhdx version.

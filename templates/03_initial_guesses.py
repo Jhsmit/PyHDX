@@ -27,7 +27,9 @@ for name in dataset.states:
     hdxm = HDXMeasurement.from_dataset(dataset, state=name)
 
     # Save sequence info + intrinsic rates
-    dataframe_to_file(output_dir / f"{name}_intrinsic_rates.csv", hdxm.coverage.protein, fmt='pprint')
+    dataframe_to_file(
+        output_dir / f"{name}_intrinsic_rates.csv", hdxm.coverage.protein, fmt="pprint"
+    )
 
     fr = fit_rates_weighted_average(hdxm, client=client)
     dataframe_to_file(output_dir / f"{name}_rates_guess.csv", fr.output)

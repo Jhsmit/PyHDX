@@ -17,7 +17,7 @@ certifi==2023.7.22
     # via requests
 charset-normalizer==3.2.0
     # via requests
-click==8.1.6
+click==8.1.7
     # via
     #   dask
     #   distributed
@@ -33,21 +33,21 @@ colorcet==3.0.1
     #   pyhdx (pyproject.toml)
 cycler==0.11.0
     # via matplotlib
-dask==2023.8.0
+dask==2023.8.1
     # via
     #   distributed
     #   pyhdx (pyproject.toml)
-distributed==2023.8.0
+distributed==2023.8.1
     # via pyhdx (pyproject.toml)
 filelock==3.12.2
     # via torch
 fsspec==2023.6.0
     # via dask
-hdxms-datasets==0.1.2
+hdxms-datasets==0.1.3
     # via pyhdx (pyproject.toml)
 hdxrate==0.2.0
     # via pyhdx (pyproject.toml)
-holoviews==1.17.0
+holoviews==1.17.1
     # via
     #   hvplot
     #   pyhdx (pyproject.toml)
@@ -66,7 +66,7 @@ jinja2==3.1.2
     #   bokeh
     #   distributed
     #   torch
-kiwisolver==1.4.4
+kiwisolver==1.4.5
     # via matplotlib
 lazy-loader==0.3
     # via scikit-image
@@ -110,7 +110,7 @@ omegaconf==2.3.0
     # via
     #   hdxms-datasets
     #   pyhdx (pyproject.toml)
-packaging==22.0
+packaging==23.1
     # via
     #   bokeh
     #   dask
@@ -120,7 +120,7 @@ packaging==22.0
     #   hvplot
     #   pyhdx (pyproject.toml)
     #   scikit-image
-pandas==1.5.3
+pandas==2.0.3
     # via
     #   hdxms-datasets
     #   holoviews
@@ -163,7 +163,7 @@ python-dateutil==2.8.2
     #   pandas
 pytz==2023.3
     # via pandas
-pyviz-comms==2.3.2
+pyviz-comms==3.0.0
     # via
     #   holoviews
     #   panel
@@ -183,7 +183,7 @@ requests==2.31.0
     #   panel
 scikit-image==0.21.0
     # via pyhdx (pyproject.toml)
-scipy==1.11.1
+scipy==1.11.2
     # via
     #   pyhdx (pyproject.toml)
     #   scikit-image
@@ -202,7 +202,7 @@ sympy==1.12
     #   torch
 tblib==2.0.0
     # via distributed
-tifffile==2023.7.18
+tifffile==2023.8.12
     # via scikit-image
 toolz==0.12.0
     # via
@@ -213,11 +213,11 @@ toposort==1.10
     # via symfit
 torch==2.0.1
     # via pyhdx (pyproject.toml)
-tornado==6.3.2
+tornado==6.3.3
     # via
     #   bokeh
     #   distributed
-tqdm==4.65.0
+tqdm==4.66.1
     # via
     #   panel
     #   pyhdx (pyproject.toml)
@@ -229,6 +229,8 @@ typing-extensions==4.7.1
     #   panel
     #   torch
     #   typer
+tzdata==2023.3
+    # via pandas
 urllib3==2.0.4
     # via
     #   distributed
