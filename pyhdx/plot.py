@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from copy import copy
 from pathlib import Path
-from typing import Type, Union
+from typing import Optional, Type, Union
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -869,16 +869,16 @@ def rainbowclouds(
 # todo this should also take Pd.Series?
 def colorbar_scatter(
     ax,
-    data,
-    y="dG",
-    yerr="covariance",
+    data: pd.DataFrame,
+    y:str="dG",
+    yerr:str="covariance",
     cmap=None,
     norm=None,
-    cbar=True,
-    cbar_kwargs=None,
-    invert_yaxis=None,
-    symmetric=False,
-    sclf=1e-3,
+    cbar:bool=True,
+    cbar_kwargs:Optional[dict]=None,
+    invert_yaxis:bool=False,
+    symmetric:bool=False,
+    sclf:float=1e-3,
     **kwargs,
 ):
     # todo make error bars optional
@@ -903,9 +903,9 @@ def colorbar_scatter(
     ax.scatter(data.index, data[y] * sclf, color=colors, **scatter_kwargs)
     with autoscale_turned_off(ax):
         ax.errorbar(
-            data.index,
-            data[y] * sclf,
-            yerr=data[yerr] * sclf,
+            np.array(data.index),
+            np.array(data[y] * sclf),
+            yerr=np.array(data[yerr] * sclf),
             zorder=-1,
             **errorbar_kwargs,
         )
