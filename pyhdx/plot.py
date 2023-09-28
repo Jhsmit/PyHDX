@@ -1,7 +1,7 @@
 from contextlib import contextmanager
 from copy import copy
 from pathlib import Path
-from typing import Optional, Type, Union
+from typing import Optional, Type, Union, Tuple
 
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -14,6 +14,7 @@ from scipy.stats import kde
 from tqdm import tqdm
 import colorcet as cc
 
+from matplotlib.colorbar import Colorbar
 from pyhdx.config import cfg
 from pyhdx.fileIO import load_fitresult
 from pyhdx.support import (
@@ -870,17 +871,18 @@ def rainbowclouds(
 def colorbar_scatter(
     ax,
     data: pd.DataFrame,
-    y:str="dG",
-    yerr:str="covariance",
+    y: str = "dG",
+    yerr: str = "covariance",
     cmap=None,
     norm=None,
-    cbar:bool=True,
-    cbar_kwargs:Optional[dict]=None,
-    invert_yaxis:bool=False,
-    symmetric:bool=False,
-    sclf:float=1e-3,
+    cbar: bool = True,
+    cbar_kwargs: Optional[dict] = None,
+    invert_yaxis: bool = False,
+    symmetric: bool = False,
+    ylim: Optional[Tuple[float, float]] = None,  # overridees invert / symmetric
+    sclf: float = 1e-3,
     **kwargs,
-):
+) -> Optional[Colorbar]:
     # todo make error bars optional
     # todo custom ylims? scaling?
     try:
@@ -917,15 +919,18 @@ def colorbar_scatter(
 
     # todo this function should be more general and should take `invert_yaxis` and `symmetric` kwargs
 
-    ylim = ax.get_ylim()
-    if (ylim[0] < ylim[1]) and invert_yaxis and symmetric:
-        ylim = np.max(np.abs(ylim))
-        ax.set_ylim(ylim, -ylim)
-    elif (ylim[0] < ylim[1]) and invert_yaxis:
-        ax.set_ylim(*ylim[::-1])
-    elif y == "ddG":
-        ylim = np.max(np.abs(ylim))
-        ax.set_ylim(ylim, -ylim)
+    if ylim is not None:
+        ax.set_ylim(*ylim)
+    else:
+        ylim = ax.get_ylim()
+        if (ylim[0] < ylim[1]) and invert_yaxis and symmetric:
+            ylim = np.max(np.abs(ylim))
+            ax.set_ylim(ylim, -ylim)
+        elif (ylim[0] < ylim[1]) and invert_yaxis:
+            ax.set_ylim(*ylim[::-1])
+        elif y == "ddG":
+            ylim = np.max(np.abs(ylim))
+            ax.set_ylim(ylim, -ylim)
 
     if cbar:
         cbar_norm = copy(norm)
