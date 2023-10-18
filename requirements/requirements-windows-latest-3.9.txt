@@ -235,7 +235,7 @@ typing-extensions==4.7.1
     #   typer
 tzdata==2023.3
     # via pandas
-urllib3==2.0.6
+urllib3==2.0.7
     # via
     #   distributed
     #   requests
