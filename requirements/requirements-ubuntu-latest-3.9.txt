@@ -172,7 +172,7 @@ param==1.13.0
     #   pyviz-comms
 partd==1.4.0
     # via dask
-pillow==10.0.0
+pillow==10.0.1
     # via
     #   bokeh
     #   imageio
@@ -266,7 +266,7 @@ typing-extensions==4.7.1
     #   typer
 tzdata==2023.3
     # via pandas
-urllib3==2.0.4
+urllib3==2.0.7
     # via
     #   distributed
     #   requests
