@@ -1557,7 +1557,7 @@ class DifferentialControl(PyHDXControlPanel):
         names = ["comparison_name", "comparison_state", "exposure", "quantity"]
 
         # Take rfu entries from df, to calculate drfu
-        reference_rfu = rfu_df.xs(key=[self.reference_state, "rfu"], level=[0, 2], axis=1)
+        reference_rfu = rfu_df.xs(key=(self.reference_state, "rfu"), level=[0, 2], axis=1)
         test_rfu = rfu_df.drop(self.reference_state, axis=1, level=0).xs("rfu", level=2, axis=1)
 
         drfu = test_rfu.sub(reference_rfu, level="exposure").dropna(how="all", axis=1)
