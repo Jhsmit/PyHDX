@@ -2487,6 +2487,7 @@ class FigureExportControl(PyHDXControlPanel):
             self.aspect = cfg.plotting[f"{self.figure}_aspect"]
             self._excluded = ["ncols", "figure_selection"]
 
+        # scatter plot is DG only
         elif self.figure == "scatter":
             # move to function
             df = self.plot_data
