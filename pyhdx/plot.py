@@ -608,7 +608,6 @@ def linear_bars_figure(
     if norm is None:
         raise ValueError("No valid Norm found")
 
-
     reduced = data.xs(level=-1, key=field, axis=1)
 
     if groupby:
@@ -619,7 +618,7 @@ def linear_bars_figure(
 
     flat = reduced.columns.to_flat_index().tolist()
     series_list = [reduced[col] for col in reduced.columns]
-    
+
     # nest the individual pandas series in a dict according to grp / bar level
     result = defaultdict(dict)
     for tup, series in zip(flat, series_list):
@@ -645,7 +644,6 @@ def linear_bars_figure(
     return fig, axes, cbar
 
 
-
 def linear_bars(
     data: dict[str, dict[str, pd.Series]],
     norm,
@@ -669,7 +667,6 @@ def linear_bars(
         cbar: The colorbar object.
     """
 
-
     hspace = [elem for v in data.values() for elem in [0] * (len(v) - 1) + [None]][:-1]
     ncols = 1
     nrows = len(hspace) + 1
@@ -688,20 +685,28 @@ def linear_bars(
             ax = next(axes_iter)
             rmin, rmax = values.index.min(), values.index.max()
             r_edges = pplt.arange(rmin - 0.5, rmax + 0.5, 1)
-            ax.pcolormesh(r_edges, y_edges, values.to_numpy().reshape(1, -1), cmap=cmap, norm=norm)
+            ax.pcolormesh(
+                r_edges,
+                y_edges,
+                values.to_numpy().reshape(1, -1),
+                cmap=cmap,
+                vmin=norm.vmin,
+                vmax=norm.vmax,
+                levels=256,
+            )
             ax.format(yticks=[])
 
             ax.text(
-                    1.02,
-                    0.5,
-                    label,
-                    horizontalalignment="left",
-                    verticalalignment="center",
-                    transform=ax.transAxes,
-                )
-            
+                1.02,
+                0.5,
+                label,
+                horizontalalignment="left",
+                verticalalignment="center",
+                transform=ax.transAxes,
+            )
+
             if i == 0:
-                    ax.format(title=top_level)
+                ax.format(title=top_level)
 
     axes.format(xlabel=r_xlabel)
 
@@ -953,7 +958,9 @@ def redundancy(ax, hdxm, cmap=None, norm=None):
         img,
         extend="max",
         cmap=cmap,
-        norm=norm,
+        vmin=norm.vmin,
+        vmax=norm.vmax,
+        levels=256,
     )
     ax.format(yticks=[], title="Redundancy")
     return collection
@@ -976,7 +983,9 @@ def resolution(ax, hdxm, cmap=None, norm=None):
         img,
         extend="max",
         cmap=cmap,
-        norm=norm,
+        vmin=norm.vmin,
+        vmax=norm.vmax,
+        levels=256,
     )
     ax.format(yticks=[], title="Resolution")
     return collection
@@ -993,7 +1002,16 @@ def single_linear_bar(ax, x, z, cmap, norm, **kwargs):
 
     img = np.expand_dims(z, 0)
 
-    collection = ax.pcolormesh(pplt.edges(x), np.array([0, 1]), img, cmap=cmap, norm=norm, **kwargs)
+    collection = ax.pcolormesh(
+        pplt.edges(x),
+        np.array([0, 1]),
+        img,
+        cmap=cmap,
+        vmin=norm.vmin,
+        vmax=norm.vmax,
+        levels=256,
+        **kwargs,
+    )
     ax.format(yticks=[])
 
     return collection
