@@ -1,5 +1,5 @@
 import time
-from typing import Union, Optional
+from typing import Optional
 from pathlib import Path
 
 import typer
