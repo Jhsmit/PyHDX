@@ -1,9 +1,9 @@
 import time
-from typing import Optional
+from ipaddress import ip_address
 from pathlib import Path
+from typing import Optional
 
 import typer
-from ipaddress import ip_address
 from omegaconf import OmegaConf
 from tqdm.auto import tqdm
 
@@ -23,7 +23,7 @@ def serve(
     """Launch the PyHDX web application"""
 
     from pyhdx.config import cfg
-    from pyhdx.local_cluster import verify_cluster, default_cluster
+    from pyhdx.local_cluster import default_cluster, verify_cluster
 
     if config is not None:
         conf = OmegaConf.create(config.read_text())
