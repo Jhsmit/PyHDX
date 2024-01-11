@@ -22,8 +22,10 @@ and increasing the value increases the relative weight of shorter peptides.
 
 ## Peptide Input
 
-Peptide d-uptake data can be added into the web application either in '_Batch_' or '_Manual_' mode. Use `Input Mode`:material-form-dropdown:
-to switch between input modes.
+Use `Input Mode`:material-form-dropdown:
+to switch between input modes. When selecting '_Database_' HDX-MS datasets can be downloaded from the HDX-MS database (currently hosted on GitHub [here](https://github.com/Jhsmit/HDX-MS-datasets/)) and directly loaded into PyHDX. 
+
+You can load your own Peptide d-uptake data into the web application either in '_Batch_' or '_Manual_' mode. 
 
 When using '_Batch_', multiple measurements can be added quickly through an `.yaml` file specification.
 An example of an `.yaml` file can be found in `tests/test-data` on GitHub ([here](https://github.com/Jhsmit/PyHDX/blob/master/tests/test_data/input/data_states.yaml)).
