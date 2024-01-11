@@ -72,10 +72,17 @@ def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to
     missing_datasets = list(set(vault.remote_index) - set(vault.datasets))
     missing_datasets = [data_id for data_id in missing_datasets if data_id]
 
+    failed = []
     if missing_datasets:
         todo = list(missing_datasets)[:num]
         for data_id in tqdm(todo):
-            vault.fetch_dataset(data_id)
+            try:
+                vault.fetch_dataset(data_id)
+            except Exception:
+                failed.append(data_id)
+
+    if failed:
+        print(f"Failed to download: {' ,'.join(failed)}")
 
 
 @datasets_app.command()
