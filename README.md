@@ -10,7 +10,7 @@
 
 PyHDX is python project which can be used to derive Gibbs free energy from HDX-MS data.
 
-
+[PyHDX web](http://pyhdx.jhsmit.org)
 
 [PyHDX latest documentation](https://pyhdx.readthedocs.io/en/latest/)
 
