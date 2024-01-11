@@ -46,7 +46,6 @@ To run PyHDX server using the IP address and port number of your dask cluster:
 pyhdx serve --scheduler_address <ip>:<port>
 ```
 
-
 If no dask cluster is found at the specified address, a LocalCluster will be started (on localhost) using the
 specified port number.
 
@@ -57,6 +56,16 @@ python local_cluster.py
 ```
 
 This will start a Dask cluster on the scheduler address as specified in the PyHDX config.
+
+## Downloading datasets
+
+You can download public datasets from the HDX-MS database to directly load into PyHDX web. 
+
+To download up to 5 available datasets from the repository:
+
+```bash
+pyhdx datasets fetch 5
+``` 
 
 
 ## Install from source
