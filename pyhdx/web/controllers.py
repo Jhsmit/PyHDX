@@ -405,14 +405,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
         cfg.database_dir.mkdir(parents=True, exist_ok=True)
         self.data_vault = DataVault(cache_dir=cfg.database_dir)
 
-        # download up to `num` datasets from the database
-        num = 10
-        missing_datasets = set(self.data_vault.remote_index) - set(self.data_vault.datasets)
-
-        if missing_datasets:
-            todo = list(missing_datasets)[:num]
-            for data_id in tqdm(todo):
-                self.data_vault.fetch_dataset(data_id)
         self.param["dataset_id"].objects = self.data_vault.datasets
         if self.data_vault.datasets:
             self.dataset_id = self.data_vault.datasets[0]
@@ -1577,9 +1569,7 @@ class DifferentialControl(PyHDXControlPanel):
             "rfu_sd", level=2, axis=1
         )
 
-        drfu_sd = (
-            ((test_rfu_sd**2).add((reference_rfu_sd**2))).pow(0.5).dropna(how="all", axis=1)
-        )
+        drfu_sd = ((test_rfu_sd**2).add((reference_rfu_sd**2))).pow(0.5).dropna(how="all", axis=1)
 
         # Expand multiindex level and set 'comparison_state' level as category
         columns = pd.MultiIndex.from_tuples(
