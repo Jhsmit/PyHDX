@@ -666,7 +666,7 @@ def make_monomer(input_file, output_file):
                 if line.startswith("COMPND") and "CHAIN" in line:
                     res = re.findall(":(.*);", line)[0]
                     line = line.replace(res + ";", " A;" + " " * (len(res) - 2))
-                if line.startswith("ATOM") and not " A " in line:
+                if line.startswith("ATOM") and " A " not in line:
                     continue
                 elif line.startswith("HETATM") and "HOH" in line:
                     continue

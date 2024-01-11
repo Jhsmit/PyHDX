@@ -2,10 +2,7 @@ from pathlib import Path
 import yaml
 from pyhdx.config import (
     PyHDXConfig,
-    config_file_path,
-    reset_config,
 )
-import pytest
 from omegaconf import OmegaConf
 
 directory = Path(__file__).parent

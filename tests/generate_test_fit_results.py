@@ -96,13 +96,13 @@ dataframe_to_file(output_dir / "ecSecB_data.txt", data_df, fmt="pprint")
 
 # Fit D-uptake per timepoint
 fr_d = fit_d_uptake(hdxm_apo, r1=1.0, repeats=3)
-dataframe_to_file(output_dir / f"ecSecB_d_uptake.csv", fr_d.output)
+dataframe_to_file(output_dir / "ecSecB_d_uptake.csv", fr_d.output)
 
 gibbs_guess = hdxm_apo.guess_deltaG(guess_output["rate"])
 fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs, r1=2)
 
-dataframe_to_file(output_dir / f"ecSecB_torch_fit.csv", fr_torch.output)
-dataframe_to_file(output_dir / f"ecSecB_torch_fit.txt", fr_torch.output, fmt="pprint")
+dataframe_to_file(output_dir / "ecSecB_torch_fit.csv", fr_torch.output)
+dataframe_to_file(output_dir / "ecSecB_torch_fit.txt", fr_torch.output, fmt="pprint")
 
 fr_torch = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=epochs_long, r1=2)
 dataframe_to_file(output_dir / f"ecSecB_torch_fit_epochs_{epochs_long}.csv", fr_torch.output)

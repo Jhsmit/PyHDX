@@ -2,7 +2,6 @@ import collections
 
 from distributed import Client
 
-from pyhdx.local_cluster import default_client
 from pyhdx.support import gen_subclasses
 from pyhdx.web.controllers import *
 from pyhdx.web.main_controllers import MainController

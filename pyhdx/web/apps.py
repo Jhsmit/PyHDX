@@ -8,9 +8,9 @@ import re
 from pyhdx import VERSION_STRING
 from pyhdx.web.constructor import AppConstructor
 from pyhdx.web.log import logger
-from pyhdx.web.cache import MemoryCache, HybridHDFCache
+from pyhdx.web.cache import MemoryCache
 from pyhdx.web.template import GoldenElvis, ExtendedGoldenTemplate
-from pyhdx.web.theme import ExtendedGoldenDefaultTheme, ExtendedGoldenDarkTheme
+from pyhdx.web.theme import ExtendedGoldenDefaultTheme
 
 cache = MemoryCache(max_items=2000)
 

@@ -86,9 +86,9 @@ def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to
         print("All datasets already downloaded")
 
     if failed:
-        print(f"Failed to download: {' ,'.join(failed)}")
+        print(f"Failed to download: {', '.join(failed)}")
     if success:
-        print(f"Downloaded: {' ,'.join(success)}")
+        print(f"Downloaded: {', '.join(success)}")
 
 
 @datasets_app.command()

@@ -51,7 +51,7 @@ for k, (new_result, fixed_result) in comparisons.items():
         print("No differences")
     else:
         print(f"Sizes: {len(new)} ({len(old)}):")
-        print(f"Differences")
+        print("Differences")
         for s in ["mean", "median", "min", "max", "std"]:
             value = getattr(abs_diffs, s)()
             perc = getattr(rel_diffs, s)()

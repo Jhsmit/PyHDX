@@ -3,7 +3,7 @@ Automagically plot all available figures from a fit result
 """
 
 from pyhdx.fileIO import load_fitresult
-from pyhdx.plot import FitResultPlot, linear_bars_figure
+from pyhdx.plot import linear_bars_figure
 from pathlib import Path
 import pandas as pd
 import matplotlib.pyplot as plt

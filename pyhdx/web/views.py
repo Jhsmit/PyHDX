@@ -6,7 +6,7 @@ import time
 from functools import partial
 from itertools import groupby, count
 import re
-from typing import Optional, Union
+from typing import Union
 
 import holoviews as hv
 import numpy as np

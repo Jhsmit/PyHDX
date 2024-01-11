@@ -3,7 +3,6 @@ from __future__ import annotations
 import os
 import textwrap
 import warnings
-from functools import partial
 from numbers import Number
 from typing import Optional, Any, Union, TYPE_CHECKING
 
@@ -19,7 +18,7 @@ from scipy.integrate import solve_ivp
 from pyhdx.alignment import align_dataframes
 from pyhdx.fileIO import dataframe_to_file
 from pyhdx.process import verify_sequence, parse_temperature, correct_d_uptake, apply_control
-from pyhdx.support import reduce_inter, dataframe_intersection, array_intersection
+from pyhdx.support import reduce_inter, dataframe_intersection
 from pyhdx.config import cfg
 
 if TYPE_CHECKING:

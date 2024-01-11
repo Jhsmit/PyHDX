@@ -1,14 +1,11 @@
 """Perform fitting with a range of regularizers"""
-from pyhdx.batch_processing import yaml_to_hdxmset, StateParser
+from pyhdx.batch_processing import StateParser
 from pathlib import Path
 from pyhdx.fitting import fit_gibbs_global_batch
 import yaml
 import time
 from datetime import datetime
-from pyhdx.local_cluster import default_client
 from pyhdx.fileIO import csv_to_protein
-from pyhdx.models import HDXMeasurementSet
-from pyhdx.support import pprint_df_to_file
 from pyhdx import VERSION_STRING
 
 current_dir = Path(__file__).parent
@@ -29,7 +26,7 @@ rates_list = [
 ]
 gibbs_guess = hdx_set.guess_deltaG(rates_list)
 
-log_file = output_dir / f"fitting_log.txt"
+log_file = output_dir / "fitting_log.txt"
 now = datetime.now()
 date = f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())})'
 

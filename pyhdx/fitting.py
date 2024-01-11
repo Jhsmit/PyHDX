@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections import namedtuple
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from functools import partial
 from typing import Union, Optional, Any, Literal
 

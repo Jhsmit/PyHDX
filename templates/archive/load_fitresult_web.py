@@ -1,11 +1,8 @@
 """Load a fit result from a directory directly ino the web interface"""
 from pyhdx.fileIO import load_fitresult
 from pathlib import Path
-import numpy as np
-import matplotlib.pyplot as plt
 from pyhdx.web.apps import main_app
 from pyhdx.web.base import STATIC_DIR
-import sys
 import panel as pn
 
 current_dir = Path(__file__).parent

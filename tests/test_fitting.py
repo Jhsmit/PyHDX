@@ -1,3 +1,4 @@
+import copy
 import time
 from pathlib import Path
 
@@ -6,25 +7,22 @@ import pandas as pd
 import pytest
 import torch
 import yaml
-import copy
 from hdxms_datasets import HDXDataSet
-from pandas.testing import assert_series_equal, assert_frame_equal
+from pandas.testing import assert_frame_equal, assert_series_equal
+
 from pyhdx import HDXMeasurement
 from pyhdx.config import cfg
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.fitting import (
-    fit_rates_weighted_average,
+    GenericFitResult,
+    fit_d_uptake,
     fit_gibbs_global,
     fit_gibbs_global_batch,
     fit_gibbs_global_batch_aligned,
     fit_rates_half_time_interpolate,
-    GenericFitResult,
-    fit_d_uptake,
+    fit_rates_weighted_average,
 )
-from pyhdx.batch_processing import StateParser
 from pyhdx.models import HDXMeasurementSet
-from pyhdx.process import apply_control, correct_d_uptake
-from pyhdx.datasets import filter_peptides, read_dynamx
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"

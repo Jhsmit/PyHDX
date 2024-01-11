@@ -23,9 +23,7 @@ from panel.io.server import async_execute
 from proplot import to_hex
 from scipy.constants import R
 from skimage.filters import threshold_multiotsu
-from tqdm.auto import tqdm
 
-import pyhdx
 from pyhdx.config import cfg
 from pyhdx.fileIO import csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import (
@@ -63,12 +61,9 @@ from pyhdx.support import (
     apply_cmap,
     multiindex_astype,
     multiindex_set_categories,
-    clean_types,
-    array_intersection,
     dataframe_intersection,
 )
 from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
-from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.sources import TABLE_INFO
 from pyhdx.web.transforms import CrossSectionTransform
@@ -681,7 +676,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
     @param.depends("exp_file", "fd_state", "fd_exposure", "nd_state", "nd_exposure", watch=True)
     def _update_exp_state(self):
         """Find the peptides which are both in the FD and ND states datasets, then from there determine the states which are present in the experiment dataset"""
-        if not self.exp_file in self.data_files:
+        if self.exp_file not in self.data_files:
             self.param["exp_state"].objects = []
             return
 

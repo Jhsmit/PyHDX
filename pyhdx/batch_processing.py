@@ -13,7 +13,7 @@ import pandas as pd
 from pyhdx.config import cfg
 from pyhdx.fileIO import read_dynamx
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
-from pyhdx.process import correct_d_uptake, apply_control, filter_peptides
+from pyhdx.process import correct_d_uptake, apply_control
 
 
 time_factors = {"s": 1, "m": 60.0, "min": 60.0, "h": 3600, "d": 86400}

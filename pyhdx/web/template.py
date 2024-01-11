@@ -1,4 +1,3 @@
-import os
 import pathlib
 import string
 
@@ -6,10 +5,8 @@ import panel as pn
 
 from panel.template import GoldenTemplate
 
-from panel.util import url_path
 from param.parameterized import default_label_formatter
 
-from pyhdx.web.widgets import HTMLTitle
 
 dist_path = "/pyhdx/"
 

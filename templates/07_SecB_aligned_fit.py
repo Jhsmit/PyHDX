@@ -5,8 +5,6 @@ raise DeprecationWarning("Outdated example")
 from pathlib import Path
 
 from pyhdx.batch_processing import StateParser
-from pyhdx.fileIO import read_dynamx
-from pyhdx.models import PeptideMasterTable, HDXMeasurement, HDXMeasurementSet
 from pyhdx.fitting import fit_gibbs_global_batch_aligned
 from pyhdx.fileIO import csv_to_protein
 import yaml

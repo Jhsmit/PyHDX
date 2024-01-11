@@ -10,7 +10,6 @@ from pathlib import Path
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
-from matplotlib import cm
 import pandas as pd
 
 from pyhdx.fileIO import (
@@ -18,7 +17,6 @@ from pyhdx.fileIO import (
     read_dynamx,
     dataframe_to_file,
     save_fitresult,
-    csv_to_dataframe,
 )
 from pyhdx.fitting import fit_gibbs_global_batch
 from pyhdx.fitting_torch import CheckPoint

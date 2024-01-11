@@ -7,7 +7,6 @@ import torch.nn as nn
 from scipy import constants, linalg
 
 from pyhdx.fileIO import dataframe_to_file
-from pyhdx.config import cfg
 
 
 # TORCH_DTYPE = t.double
