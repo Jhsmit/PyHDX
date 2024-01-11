@@ -73,16 +73,22 @@ def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to
     missing_datasets = [data_id for data_id in missing_datasets if data_id]
 
     failed = []
+    success = []
     if missing_datasets:
         todo = list(missing_datasets)[:num]
         for data_id in tqdm(todo):
             try:
                 vault.fetch_dataset(data_id)
+                success.append(data_id)
             except Exception:
                 failed.append(data_id)
+    else:
+        print("All datasets already downloaded")
 
     if failed:
         print(f"Failed to download: {' ,'.join(failed)}")
+    if success:
+        print(f"Downloaded: {' ,'.join(success)}")
 
 
 @datasets_app.command()
