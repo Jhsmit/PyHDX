@@ -1119,8 +1119,8 @@ class ColorTransforms(object):
         )
 
         self.norms = {
-            "dG": pplt.Norm("linear", 1e4, 4e4),
-            "ddG": pplt.Norm("linear", -1e4, 1e4),
+            "dG": pplt.Norm("linear", 1e4, 4e4, clip=True),
+            "ddG": pplt.Norm("linear", -1e4, 1e4, clip=True),
             "rfu": pplt.Norm("linear", 0, 1.0, clip=True),
             "drfu": pplt.Norm("linear", -0.5, 0.5, clip=True),
             "d_uptake": pplt.Norm("linear", 0.0, 1.0, clip=True),
