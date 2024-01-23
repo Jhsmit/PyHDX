@@ -51,24 +51,27 @@ def dataset() -> HDXDataSet:
 
 @pytest.fixture()
 def hdxm_apo(dataset: HDXDataSet) -> HDXMeasurement:
-    with cfg.context({"analysis.drop_first": 1}):
-        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer", d_percentage=100.0)
+    hdxm = HDXMeasurement.from_dataset(
+        dataset, state="SecB_tetramer", d_percentage=100.0, drop_first=1
+    )
 
     return hdxm
 
 
 @pytest.fixture()
 def hdxm_dimer(dataset: HDXDataSet) -> HDXMeasurement:
-    with cfg.context({"analysis.drop_first": 1}):
-        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_dimer", d_percentage=100.0)
+    hdxm = HDXMeasurement.from_dataset(
+        dataset, state="SecB_dimer", d_percentage=100.0, drop_first=1
+    )
 
     return hdxm
 
 
 @pytest.fixture()
 def hdxm_apo_red(dataset: HDXDataSet) -> HDXMeasurement:
-    with cfg.context({"analysis.drop_first": 1}):
-        hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer_red", d_percentage=100.0)
+    hdxm = HDXMeasurement.from_dataset(
+        dataset, state="SecB_tetramer_red", d_percentage=100.0, drop_first=1
+    )
 
     return hdxm
 
