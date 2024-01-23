@@ -172,7 +172,7 @@ param==1.13.0
     #   pyviz-comms
 partd==1.4.0
     # via dask
-pillow==10.0.1
+pillow==10.2.0
     # via
     #   bokeh
     #   imageio
