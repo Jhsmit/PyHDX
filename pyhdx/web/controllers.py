@@ -229,17 +229,17 @@ class GlobalSettingsControl(ControlPanel):
         doc="Select the number of N-terminal residues to ignore.",
     )
 
-    weight_exponent = param.Number(
-        default=cfg.analysis.weight_exponent,
-        bounds=(0, None),
-        doc="Value of the exponent use for weighted averaging of RFU values",
-    )
+    # weight_exponent = param.Number(
+    #     default=cfg.analysis.weight_exponent,
+    #     bounds=(0, None),
+    #     doc="Value of the exponent use for weighted averaging of RFU values",
+    # )
 
     def make_dict(self):
         widgets = self.generate_widgets()
-        widgets["config_download"] = pn.widgets.FileDownload(
-            label="Download config file", callback=self.config_download_callback
-        )
+        # widgets["config_download"] = pn.widgets.FileDownload(
+        #     label="Download config file", callback=self.config_download_callback
+        # )
 
         return widgets
 
@@ -258,13 +258,13 @@ class GlobalSettingsControl(ControlPanel):
 
         return sio
 
-    @param.depends("drop_first", watch=True)
-    def _update_drop_first(self):
-        cfg.analysis.drop_first = self.drop_first
+    # @param.depends("drop_first", watch=True)
+    # def _update_drop_first(self):
+    #     cfg.analysis.drop_first = self.drop_first
 
-    @param.depends("weight_exponent", watch=True)
-    def _update_weight_exponent(self):
-        cfg.analysis.weight_exponent = self.weight_exponent
+    # @param.depends("weight_exponent", watch=True)
+    # def _update_weight_exponent(self):
+    #     cfg.analysis.weight_exponent = self.weight_exponent
 
 
 class PeptideFileInputControl(PyHDXControlPanel):
@@ -857,13 +857,14 @@ class PeptideFileInputControl(PyHDXControlPanel):
         self.widgets["load_dataset_button"].disabled = True
         try:
             config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            drop_first = config_ctrl.drop_first
             config_ctrl.widgets["drop_first"].disabled = True
-            config_ctrl.widgets["weight_exponent"].disabled = True
+            # config_ctrl.widgets["weight_exponent"].disabled = True
         except KeyError:
-            pass
+            drop_first = 2
 
         for state in dataset.states:
-            hdxm = HDXMeasurement.from_dataset(dataset, state)
+            hdxm = HDXMeasurement.from_dataset(dataset, state, drop_first=drop_first)
             self.src.add(hdxm, state)
             self.parent.logger.info(
                 f"Loaded experiment peptides state {hdxm.state} "

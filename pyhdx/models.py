@@ -286,7 +286,7 @@ class HDXMeasurement:
         )
 
     @classmethod
-    def from_dataset(cls, dataset: HDXDataSet, state: str | int, **metadata) -> HDXMeasurement:
+    def from_dataset(cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **metadata) -> HDXMeasurement:
         """Create an HDXMeasurement object from a HDXDataSet object.
 
         Args:
@@ -318,7 +318,7 @@ class HDXMeasurement:
         peptides = apply_control(peptides, fd_peptides, nd_peptides)
         peptides = correct_d_uptake(
             peptides,
-            drop_first=cfg.analysis.drop_first,
+            drop_first=drop_first,
             d_percentage=metadata.get("d_percentage", 100.0),
         )
 
