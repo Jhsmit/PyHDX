@@ -53,7 +53,7 @@ holoviews==1.17.1
     #   pyhdx (pyproject.toml)
 hvplot==0.8.4
     # via pyhdx (pyproject.toml)
-idna==3.4
+idna==3.7
     # via requests
 imageio==2.31.1
     # via scikit-image
