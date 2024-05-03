@@ -250,7 +250,7 @@ tornado==6.3.3
     # via
     #   bokeh
     #   distributed
-tqdm==4.66.1
+tqdm==4.66.3
     # via
     #   panel
     #   pyhdx (pyproject.toml)
