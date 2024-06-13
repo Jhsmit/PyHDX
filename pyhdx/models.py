@@ -248,7 +248,8 @@ class HDXMeasurement:
         self.timepoints: np.ndarray = np.sort(np.unique(data["exposure"]))
 
         # todo sort happens twice now
-        data = data.sort_values(["start", "stop", "sequence", "exposure"])
+        data = data.reset_index()
+        data = data.sort_values(["start", "stop", "sequence", "exposure","index"])
 
         # Obtain the intersection of peptides per timepoint
         df_list = [(data[data["exposure"] == exposure]) for exposure in self.timepoints]
@@ -274,14 +275,14 @@ class HDXMeasurement:
 
         self.data: pd.DataFrame = pd.concat(
             intersected_data, axis=0, ignore_index=True
-        ).sort_values(["start", "stop", "sequence", "exposure"])
+        ).sort_values(["start", "stop", "sequence", "exposure","index"])
         self.data["peptide_id"] = self.data.index % self.Np
         self.data.index.name = (
             "peptide_index"  # index is original index which continues along exposures
         )
         self.data_wide = (
-            self.data.pivot(index="peptide_id", columns=["exposure"])
-            .reorder_levels([1, 0], axis=1)
+            self.data.pivot(index="peptide_id", columns=["exposure","index"])
+            .reorder_levels([2, 1, 0], axis=1)
             .sort_index(axis=1, level=0, sort_remaining=False)
         )
 
