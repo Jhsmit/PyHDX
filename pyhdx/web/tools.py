@@ -1,6 +1,5 @@
 from bokeh.models.tools import *
 
-
 supported_tools = {
     "pan": PanTool,
     "wheel_pan": WheelPanTool,
