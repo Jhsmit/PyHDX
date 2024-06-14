@@ -1,5 +1,7 @@
 name: Testing
-on: [push]
+on:
+  push:
+  pull_request:
 
 # adapted from: https://github.com/tiangolo/poetry-version-plugin
 jobs:
