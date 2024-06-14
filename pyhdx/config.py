@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from os import PathLike
 from pathlib import Path
-from typing import Union, Dict, Any, Optional, Generator
+from typing import Union, Any, Optional, Generator
 
 import torch
 from omegaconf import OmegaConf, DictConfig, DictKeyType

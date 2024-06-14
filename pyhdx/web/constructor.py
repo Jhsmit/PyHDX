@@ -1,8 +1,10 @@
 import collections
 
+import param
 from distributed import Client
 
 from pyhdx.support import gen_subclasses
+from pyhdx.web.cache import Cache
 from pyhdx.web.controllers import *
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import OptsBase
@@ -10,7 +12,6 @@ from pyhdx.web.sources import *
 from pyhdx.web.tools import supported_tools
 from pyhdx.web.transforms import *
 from pyhdx.web.views import View
-from pyhdx.web.cache import Cache
 
 element_count = 0
 

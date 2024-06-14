@@ -4,8 +4,9 @@ from pathlib import Path
 
 import numpy as np
 
-from pyhdx import HDXMeasurement, read_dynamx
 from pyhdx.datasets import filter_peptides
+from pyhdx.fileIO import read_dynamx
+from pyhdx.models import HDXMeasurement
 from pyhdx.process import apply_control, correct_d_uptake
 
 # %%
