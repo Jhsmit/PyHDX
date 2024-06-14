@@ -108,3 +108,6 @@ dask-worker-space/
 
 # Hatch-vcs generated version file
 _version.py
+
+# local development files
+dev/
