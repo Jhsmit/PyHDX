@@ -165,10 +165,10 @@ def test_duptake_fit(hdxm_apo: HDXMeasurement):
 def test_global_fit(hdxm_apo: HDXMeasurement):
     initial_rates = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
-    t0 = time.time()  # Very crude benchmarks
+    # t0 = time.time()  # Very crude benchmarks
     gibbs_guess = hdxm_apo.guess_deltaG(initial_rates["rate"])
     fr_global = fit_gibbs_global(hdxm_apo, gibbs_guess, epochs=1000, r1=2)
-    t1 = time.time()
+    # t1 = time.time()
 
     # assert t1 - t0 < 5  # Fails sometimes
     out_deltaG = fr_global.output
