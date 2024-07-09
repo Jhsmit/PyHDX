@@ -282,7 +282,7 @@ wheel==0.41.2
     #   nvidia-nvtx-cu11
 zict==3.0.0
     # via distributed
-zipp==3.16.2
+zipp==3.19.1
     # via
     #   importlib-metadata
     #   importlib-resources
