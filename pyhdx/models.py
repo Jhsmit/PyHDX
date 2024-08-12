@@ -4,7 +4,7 @@ import os
 import textwrap
 import warnings
 from numbers import Number
-from typing import Optional, Any, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -16,10 +16,10 @@ from scipy.constants import R
 from scipy.integrate import solve_ivp
 
 from pyhdx.alignment import align_dataframes
-from pyhdx.fileIO import dataframe_to_file
-from pyhdx.process import verify_sequence, parse_temperature, correct_d_uptake, apply_control
-from pyhdx.support import reduce_inter, dataframe_intersection
 from pyhdx.config import cfg
+from pyhdx.fileIO import dataframe_to_file
+from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
+from pyhdx.support import dataframe_intersection, reduce_inter
 
 if TYPE_CHECKING:
     from hdxms_datasets import HDXDataSet
@@ -115,7 +115,6 @@ class Coverage:
 
     def apply_interval(self, array_or_series: Union[np.ndarray, pd.Series]) -> pd.Series:
         """Returns the section of `array_or_series` in the interval
-
 
         Given a Numpy array or Pandas series with a length equal to the full protein,
         returns the section of the array equal to the covered
@@ -286,7 +285,9 @@ class HDXMeasurement:
         )
 
     @classmethod
-    def from_dataset(cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **metadata) -> HDXMeasurement:
+    def from_dataset(
+        cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **metadata
+    ) -> HDXMeasurement:
         """Create an HDXMeasurement object from a HDXDataSet object.
 
         Args:
