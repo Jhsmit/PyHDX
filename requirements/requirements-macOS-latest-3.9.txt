@@ -13,7 +13,7 @@ bokeh==2.4.3
     #   hvplot
     #   panel
     #   pyhdx (pyproject.toml)
-certifi==2023.7.22
+certifi==2024.7.4
     # via requests
 charset-normalizer==3.2.0
     # via requests
@@ -231,7 +231,7 @@ typing-extensions==4.7.1
     #   typer
 tzdata==2023.3
     # via pandas
-urllib3==2.0.7
+urllib3==2.2.2
     # via
     #   distributed
     #   requests
@@ -239,7 +239,7 @@ webencodings==0.5.1
     # via bleach
 zict==3.0.0
     # via distributed
-zipp==3.16.2
+zipp==3.19.1
     # via
     #   importlib-metadata
     #   importlib-resources
