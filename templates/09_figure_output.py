@@ -1,14 +1,20 @@
+# %%
 from pathlib import Path
 
-from pyhdx.fileIO import csv_to_dataframe
+import pandas as pd
+import proplot as pplt
+from pymol import cmd
+
 from pyhdx.config import cfg
+from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.plot import (
+    CMAP_NORM_DEFAULTS,
+    ddG_scatter_figure,
     dG_scatter_figure,
     linear_bars_figure,
     rainbowclouds_figure,
-    ddG_scatter_figure,
 )
-import proplot as pplt
+from pyhdx.support import apply_cmap, color_pymol
 
 # %%
 cwd = Path(__file__).parent
@@ -54,3 +60,44 @@ pplt.show()
 # %%
 protein_states = plot_data.columns.get_level_values(0).unique()
 ddG_scatter_figure(plot_data, reference=protein_states[0])
+
+# %%
+# Creating a colored structure
+cmd.load("https://files.rcsb.org/download/1QYN.pdb")
+cmd.set("antialias", 2)
+cmd.set("fog", 0)
+
+# %%
+cmd.remove("resn HOH")  # This removes only water molecules
+cmd.ipython_image()
+# %%
+# take dG values for SecB tetramer and reindex (pad with nan)
+# such that these regions are correctly colored as no coverage
+dG_values = plot_data[("SecB_tetramer", "dG")].reindex(pd.RangeIndex(1, 160))
+
+# %%
+# create a pandas Series with hexadeicmal codes
+cmap, norm = CMAP_NORM_DEFAULTS["dG"]
+colors = apply_cmap(dG_values, cmap, norm)
+colors
+
+# %%
+# apply the colors to the pymol structure
+color_pymol(colors, cmd)
+cmd.ipython_image()
+
+# %%
+
+# save the output
+cmd.png(
+    "SecB_dG_render.png",
+    width="10cm",
+    dpi=300,
+    ray=1,
+)
+
+
+# %%
+# rotate for a different view
+cmd.rotate("y", 90)
+cmd.ipython_image()
