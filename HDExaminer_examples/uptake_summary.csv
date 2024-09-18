@@ -1,0 +1,7 @@
+Protein State,Protein,Start,End,Sequence,Peptide Mass,RT (min),Deut Time (sec),maxD,Theor Uptake #D,#D,%D,Conf Interval (#D),#Rep,Confidence,Stddev,p
+"WT"," B5",1,4,MDIA,448.1992,5.5936,0,2,0,0,0,n/a,2,High,0,
+"WT"," B5",1,4,MDIA,448.1992,5.5809,4,2,0.001,0.768,47.600,0.044,4,Medium,0.028,
+"WT"," B5",1,4,MDIA,448.1992,5.6104,60,2,0.021,1.151,71.352,0.026,4,Medium,0.016,
+"WT"," B5",1,4,MDIA,448.1992,5.6317,1800,2,0.546,1.546,95.850,0.031,4,Medium,0.020,
+"WT"," B5",1,4,MDIA,448.1992,5.5894,72000,2,2.000,1.616,100.227,0.009,4,Medium,0.006,
+"WT"," B5",1,4,MDIA,448.1992,5.6019,MAX,2,2,1.613,80.628,n/a,2,Medium,0.077,
