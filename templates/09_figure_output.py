@@ -12,7 +12,6 @@ from pyhdx.plot import (
     ddG_scatter_figure,
     dG_scatter_figure,
     linear_bars_figure,
-    rainbowclouds_figure,
 )
 from pyhdx.support import apply_cmap, color_pymol
 
@@ -48,14 +47,17 @@ fig, axes, cbars = dG_scatter_figure(plot_data)  # , **figure_kwargs)
 pplt.show()
 
 # %%
-
-linear_bars_figure(plot_data)
+# %%
+linear_bars_figure(dG_df, groupby="fit_ID")
 pplt.show()
 
 # %%
 
-rainbowclouds_figure(plot_data)
+linear_bars_figure(dG_df, groupby="fit_ID", reference="SecB_tetramer")
 pplt.show()
+
+# %%
+
 
 # %%
 protein_states = plot_data.columns.get_level_values(0).unique()
