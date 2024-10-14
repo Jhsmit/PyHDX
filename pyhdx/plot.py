@@ -1139,7 +1139,7 @@ class ColorTransforms(object):
 
         self.cmaps = {
             "dG": set_bad(pplt.Colormap(tol_cmap("rainbow_PuRd")).reversed()),
-            "ddG": set_bad(tol_cmap("PRGn").reversed(), color="#FFEE99"),
+            "ddG": set_bad(tol_cmap("PRGn").reversed(), color="#d8d8d8"),
             "rfu": set_bad(pplt.Colormap(cc.cm.gouldian)),
             "drfu": set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),  # =CET_D1A
             "d_uptake": set_bad(pplt.Colormap("Dense")),
