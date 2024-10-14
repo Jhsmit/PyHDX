@@ -3,7 +3,6 @@
 [![zenodo](https://zenodo.org/badge/206772076.svg)](https://zenodo.org/badge/latestdoi/206772076)
 [![biorxiv](https://img.shields.io/badge/bioRxiv-v2-%23be2635)](https://www.biorxiv.org/content/10.1101/2020.09.30.320887v2)
 [![license](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![test_action](https://github.com/Jhsmit/PyHDX/workflows/pytest/badge.svg)](https://github.com/Jhsmit/PyHDX/actions?query=workflow%3Apytest)
 [![docs](https://readthedocs.org/projects/pyhdx/badge/?version=latest)](https://pyhdx.readthedocs.io/en/latest/?badge=latest)
 
 
