@@ -17,11 +17,12 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3.9",
 ]
+requires-python = "==3.9"
 dependencies = [
     "torch",
     "hdxrate",
     "numpy",
-    "matplotlib",
+    "matplotlib==3.4.3",
     "pandas",
     "scikit-image",
     "scipy",
