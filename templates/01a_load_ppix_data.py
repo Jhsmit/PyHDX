@@ -16,7 +16,7 @@ fpath = root_dir / "tests" / "test_data" / "input" / "PpiA_folding.csv"
 
 # Load the full .csv file
 df = read_dynamx(fpath)
-df
+
 # %%
 
 fd_spec = {"state": "Native", "exposure": {"value": 86400, "unit": "s"}}
