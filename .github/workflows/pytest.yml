@@ -27,7 +27,6 @@ jobs:
           cache-dependency-glob: requirements/requirements--${{ matrix.os }}-${{ matrix.python-version }}.txt
       - name: Install dependencies
         run: |
-          python -m pip install uv
           uv venv -p ${{ matrix.python-version }}
           . .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
