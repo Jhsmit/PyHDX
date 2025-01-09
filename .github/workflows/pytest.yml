@@ -8,8 +8,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ "ubuntu-latest", "windows-latest"]
-        python-version: [ "3.10", "3.11", "3.12", "3.13" ]
+        os: [ "ubuntu-latest", "macos-latest", "windows-latest"]
+        python-version: [ "3.10", "3.11", "3.12" ]
 
     runs-on: ${{ matrix.os }}
     steps:
@@ -24,13 +24,13 @@ jobs:
           # Install a specific version of uv.
           version: "0.5.4"
           enable-cache: true
-          cache-dependency-glob: requirements/requirements--${{ matrix.os }}-${{ matrix.python-version }}.txt
+          cache-dependency-glob: requirements/requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt
       - name: Install dependencies
         run: |
           uv venv -p ${{ matrix.python-version }}
           . .venv/bin/activate
           echo PATH=$PATH >> $GITHUB_ENV
-          uv pip install -r requirements/requirements-ubuntu-latest-${{ matrix.python-version }}.txt
+          uv pip install -r requirements/requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt
           uv pip install -e .
       - name: Install test requirements
         run: uv pip install .[test]
