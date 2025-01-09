@@ -26,10 +26,16 @@ jobs:
           enable-cache: true
           cache-dependency-glob: requirements/requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt
       - name: Install dependencies
+        shell: bash
         run: |
           uv venv -p ${{ matrix.python-version }}
-          . .venv/bin/activate
+          if [ "${{ matrix.os }}" == "windows-latest" ]; then
+            source .venv/Scripts/activate
+          else
+            source .venv/bin/activate
+          fi
           echo PATH=$PATH >> $GITHUB_ENV
+          uv pip install distutils
           uv pip install -r requirements/requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt
           uv pip install -e .
       - name: Install test requirements
