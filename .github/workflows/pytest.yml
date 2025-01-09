@@ -8,7 +8,6 @@ env:
   UV_SYSTEM_PYTHON: 1
     
 
-# adapted from: https://github.com/tiangolo/poetry-version-plugin
 jobs:
   test:
     strategy:
@@ -25,7 +24,7 @@ jobs:
         id: setup-python
         uses: actions/setup-python@v5
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v5
       - name: Install pinned requirements
         run: uv pip install -r requirements/requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt
       - name: Install test requirements
