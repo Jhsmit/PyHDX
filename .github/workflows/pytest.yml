@@ -38,8 +38,9 @@ jobs:
           fi
           echo PATH=$PATH >> $GITHUB_ENV
           uv pip install -r requirements/requirements-${{ matrix.os }}-${{ matrix.python-version }}.txt
-      - name: Install test requirements
-        run: uv pip install -e .[test]
+          uv pip install -e .[test]
+      # - name: Install test requirements
+      #   run: 
       - name: Run tests
         run: |
           uv run pytest tests/
