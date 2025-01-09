@@ -109,5 +109,11 @@ dask-worker-space/
 # Hatch-vcs generated version file
 _version.py
 
+#vscode
+.vscode/
+
 # local development files
 dev/
+templates/guesses
+templates/output
+templates/fit
