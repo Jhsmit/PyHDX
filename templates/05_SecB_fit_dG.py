@@ -3,15 +3,33 @@
 # %%
 from pathlib import Path
 
+# %%
+import bokeh
 import numpy as np
-import proplot as pplt
+import ultraplot as uplt
 import yaml
 
-from pyhdx.datasets import HDXDataSet
+from pyhdx.datasets import DataSet as HDXDataSet
 from pyhdx.fileIO import csv_to_dataframe, save_fitresult
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
 from pyhdx.local_cluster import default_client
 from pyhdx.models import HDXMeasurement
+
+bokeh.__version__
+# %%
+import numpy
+
+numpy.__version__
+# %%
+import jinja2
+
+jinja2.__version__
+# %%
+import panel
+
+panel.__version__
+# %%
+
 
 # %%
 
@@ -70,7 +88,6 @@ end = np.log10(elem.max())
 pad = (end - start) * 0.1
 time = np.logspace(start - pad, end + pad, num=NUM_EVAL_POINTS, endpoint=True)
 
-
 # %%
 # evaluate the fitted model at timepoints
 d_calc = fr_torch(time)  # Ns x Np x Nt
@@ -84,7 +101,7 @@ d_calc_s = d_calc[sample_idx]
 
 # %%
 # make a subplot grid to plot the first 24 peptides
-fig, axes = pplt.subplots(ncols=4, nrows=6)
+fig, axes = uplt.subplots(ncols=4, nrows=6)
 for i, ax in enumerate(axes):
     ax.plot(time, d_calc_s[i], color="r")
     ax.scatter(hdxm.timepoints, hdxm.d_exp.iloc[i], color="k")
