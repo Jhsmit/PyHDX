@@ -2,9 +2,9 @@
 from pathlib import Path
 
 import pandas as pd
-import proplot as pplt
-from pymol import cmd
+import ultraplot as uplt
 
+# from pymol import cmd
 from pyhdx.config import cfg
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.plot import (
@@ -23,7 +23,6 @@ web_data_dir = root_dir / "tests" / "test_data" / "output" / "web"
 
 # %%
 dG_df = csv_to_dataframe(web_data_dir / "dG.csv")
-dG_df
 plot_data = dG_df.xs("Gibbs_fit_1", axis=1, level=0)
 
 # %%
@@ -44,26 +43,25 @@ protein_states
 # %%
 
 fig, axes, cbars = dG_scatter_figure(plot_data)  # , **figure_kwargs)
-pplt.show()
+uplt.show()
 
 # %%
 # %%
 linear_bars_figure(dG_df, groupby="fit_ID")
-pplt.show()
+uplt.show()
 
 # %%
 
 linear_bars_figure(dG_df, groupby="fit_ID", reference="SecB_tetramer")
-pplt.show()
-
-# %%
-
+uplt.show()
 
 # %%
 protein_states = plot_data.columns.get_level_values(0).unique()
 ddG_scatter_figure(plot_data, reference=protein_states[0])
 
 # %%
+from pymol import cmd
+
 # Creating a colored structure
 cmd.load("https://files.rcsb.org/download/1QYN.pdb")
 cmd.set("antialias", 2)
@@ -103,3 +101,5 @@ cmd.png(
 # rotate for a different view
 cmd.rotate("y", 90)
 cmd.ipython_image()
+
+# %%

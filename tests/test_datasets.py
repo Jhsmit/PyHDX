@@ -1,8 +1,10 @@
-from pyhdx.datasets import HDXDataSet
-from pyhdx.models import HDXMeasurement, HDXMeasurementSet
-import numpy as np
 from pathlib import Path
+
+import numpy as np
 import yaml
+
+from pyhdx.datasets import DataSet as HDXDataSet
+from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"

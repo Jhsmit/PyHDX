@@ -3,7 +3,7 @@ from functools import partial
 
 import panel as pn
 import param
-import proplot as pplt
+import ultraplot as uplt
 from matplotlib.colors import Colormap, Normalize
 
 from pyhdx.plot import CMAP_NORM_DEFAULTS
@@ -129,7 +129,7 @@ class CmapOpts(OptsBase):
     def __init__(self, rename=True, invert=False, **params):
         # todo from_spec constructor method for this kind of logic
         cmap = params.pop("cmap", None)
-        cmap = pplt.Colormap(cmap) if cmap else cmap
+        cmap = uplt.Colormap(cmap) if cmap else cmap
         params["cmap"] = cmap
         super().__init__(**params)
         self._excluded_from_opts += [
@@ -140,8 +140,8 @@ class CmapOpts(OptsBase):
         if self.cmap is None and self.norm is None and self.field is not None:
             cmap, norm = CMAP_NORM_DEFAULTS[self.field]
         elif self.field is None:
-            cmap = pplt.Colormap("viridis")
-            norm = pplt.Norm("linear", 0.0, 1.0)
+            cmap = uplt.Colormap("viridis")
+            norm = uplt.Norm("linear", 0.0, 1.0)
 
         self.norm = norm
         self._cmap = cmap  # unreversed cmap

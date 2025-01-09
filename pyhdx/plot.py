@@ -9,7 +9,7 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import proplot as pplt
+import ultraplot as uplt
 from matplotlib.axes import Axes
 from matplotlib.colorbar import Colorbar
 from matplotlib.patches import Rectangle
@@ -59,7 +59,7 @@ CBAR_KWARGS = {
 def peptide_coverage_figure(
     data: pd.DataFrame,
     wrap: Optional[int] = None,
-    cmap: Union[pplt.Colormap, mpl.colors.Colormap, str, tuple, dict] = "turbo",
+    cmap: Union[mpl.colors.Colormap, str, tuple, dict] = "turbo",
     norm: Type[mpl.colors.Normalize] = None,
     color_field: str = "rfu",
     subplot_field: str = "exposure",
@@ -78,8 +78,8 @@ def peptide_coverage_figure(
     cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     refaspect = figure_kwargs.pop("refaspect", cfg.plotting.peptide_coverage_aspect)
 
-    cmap = pplt.Colormap(cmap)
-    norm = norm or pplt.Norm("linear", vmin=0, vmax=1)
+    cmap = uplt.Colormap(cmap)
+    norm = norm or uplt.Norm("linear", vmin=0, vmax=1)
 
     start_field, end_field = rect_fields
     if wrap is None:
@@ -87,7 +87,7 @@ def peptide_coverage_figure(
             [autowrap(sub_df[start_field], sub_df[end_field]) for sub_df in sub_dfs.values()]
         )
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         ncols=ncols,
         nrows=nrows,
         width=figure_width,
@@ -147,7 +147,7 @@ def peptide_coverage(
 
     cmap_default, norm_default = CMAP_NORM_DEFAULTS.get(color_field, (None, None))
 
-    cmap = pplt.Colormap(cmap) if cmap is not None else cmap_default
+    cmap = uplt.Colormap(cmap) if cmap is not None else cmap_default
     norm = norm or norm_default
     i = -1
     for p_num, idx in enumerate(data.index):
@@ -209,10 +209,10 @@ def residue_time_scatter_figure(
     refaspect = figure_kwargs.pop("refaspect", cfg.plotting.residue_scatter_aspect)
     cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
 
-    cmap = pplt.Colormap(cmap)  # todo allow None as cmap
-    norm = norm or pplt.Norm("linear", vmin=0, vmax=1)
+    cmap = uplt.Colormap(cmap)  # todo allow None as cmap
+    norm = norm or uplt.Norm("linear", vmin=0, vmax=1)
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         ncols=ncols,
         nrows=nrows,
         width=figure_width,
@@ -248,8 +248,8 @@ def residue_time_scatter_figure(
 
 def residue_time_scatter(ax, hdx_tp, field="rfu", cmap="turbo", norm=None, cbar=True, **kwargs):
     # update cmap, norm defaults
-    cmap = pplt.Colormap(cmap)  # todo allow None as cmap
-    norm = norm or pplt.Norm("linear", vmin=0, vmax=1)
+    cmap = uplt.Colormap(cmap)  # todo allow None as cmap
+    norm = norm or uplt.Norm("linear", vmin=0, vmax=1)
     cbar_width = kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
 
     scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
@@ -278,15 +278,15 @@ def residue_scatter_figure(
     cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     refaspect = figure_kwargs.pop("refaspect", cfg.plotting.residue_scatter_aspect)
 
-    cmap = pplt.Colormap(cmap)
+    cmap = uplt.Colormap(cmap)
     if norm is None:
         tps = np.unique(np.concatenate([hdxm.timepoints for hdxm in hdxm_set]))
         tps = tps[np.nonzero(tps)]
-        norm = pplt.Norm("log", vmin=tps.min(), vmax=tps.max())
+        norm = uplt.Norm("log", vmin=tps.min(), vmax=tps.max())
     else:
         tps = np.unique(np.concatenate([hdxm.timepoints for hdxm in hdxm_set]))
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         ncols=ncols,
         nrows=nrows,
         width=figure_width,
@@ -304,9 +304,9 @@ def residue_scatter_figure(
         ax.axis("off")
 
     # todo function for this?
-    locator = pplt.Locator(norm(tps))
+    locator = uplt.Locator(norm(tps))
     cbar_ax = fig.colorbar(cmap, width=cbar_width, ticks=locator)
-    formatter = pplt.Formatter("simple", precision=1)
+    formatter = uplt.Formatter("simple", precision=1)
     cbar_ax.ax.set_yticklabels([formatter(t) for t in tps])
     cbar_ax.set_label("Exposure time (s)", labelpad=-0)
 
@@ -317,9 +317,9 @@ def residue_scatter_figure(
 
 # todo allow colorbar_scatter to take rfus
 def residue_scatter(ax, hdxm, field="rfu", cmap="viridis", norm=None, cbar=True, **kwargs):
-    cmap = pplt.Colormap(cmap)
+    cmap = uplt.Colormap(cmap)
     tps = hdxm.timepoints[np.nonzero(hdxm.timepoints)]
-    norm = norm or pplt.Norm("log", tps.min(), tps.max())
+    norm = norm or uplt.Norm("log", tps.min(), tps.max())
 
     cbar_width = kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
     scatter_kwargs = {**SCATTER_KWARGS, **kwargs}
@@ -332,9 +332,9 @@ def residue_scatter(ax, hdxm, field="rfu", cmap="viridis", norm=None, cbar=True,
         ax.scatter(values.index, values, **scatter_kwargs)
 
     if cbar:
-        locator = pplt.Locator(norm(tps))
+        locator = uplt.Locator(norm(tps))
         cbar_ax = ax.colorbar(cmap, width=cbar_width, ticks=locator)
-        formatter = pplt.Formatter("simple", precision=1)
+        formatter = uplt.Formatter("simple", precision=1)
         cbar_ax.ax.set_yticklabels([formatter(t) for t in tps])
         cbar_ax.set_label("Exposure time (s)", labelpad=-0)
 
@@ -353,10 +353,10 @@ def dG_scatter_figure(
 
     cmap_default, norm_default = CMAP_NORM_DEFAULTS["dG"]
     cmap = cmap or cmap_default
-    cmap = pplt.Colormap(cmap)
+    cmap = uplt.Colormap(cmap)
     norm = norm or norm_default
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         ncols=ncols,
         nrows=nrows,
         width=figure_width,
@@ -390,7 +390,7 @@ def dG_scatter_figure(
 
     cbar_kwargs = cbar_kwargs or {}
     cbars = []
-    cbar_norm = pplt.Norm("linear", norm.vmin * 1e-3, norm.vmax * 1e-3)
+    cbar_norm = uplt.Norm("linear", norm.vmin * 1e-3, norm.vmax * 1e-3)
     for ax in axes:
         if not ax.axison:
             continue
@@ -443,10 +443,10 @@ def ddG_scatter_figure(
 
     cmap_default, norm_default = CMAP_NORM_DEFAULTS["ddG"]
     cmap = cmap or cmap_default
-    cmap = pplt.Colormap(cmap)
+    cmap = uplt.Colormap(cmap)
     norm = norm or norm_default
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         ncols=ncols,
         nrows=nrows,
         width=figure_width,
@@ -485,7 +485,7 @@ def ddG_scatter_figure(
 
     cbar_kwargs = cbar_kwargs or {}
     cbars = []
-    cbar_norm = pplt.Norm("linear", norm.vmin * 1e-3, norm.vmax * 1e-3)
+    cbar_norm = uplt.Norm("linear", norm.vmin * 1e-3, norm.vmax * 1e-3)
     for ax in axes:
         if not ax.axison:
             continue
@@ -505,7 +505,7 @@ def peptide_mse_figure(peptide_mse, cmap=None, norm=None, rect_kwargs=None, **fi
 
     cmap = cmap or CMAP_NORM_DEFAULTS["mse"][0]
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         ncols=ncols,
         nrows=nrows,
         width=figure_width,
@@ -523,7 +523,7 @@ def peptide_mse_figure(peptide_mse, cmap=None, norm=None, rect_kwargs=None, **fi
         vmax = sub_df["peptide_mse"].max()
 
         # todo allow global norm by kwargs
-        norm = norm or pplt.Norm("linear", vmin=0, vmax=vmax)
+        norm = norm or uplt.Norm("linear", vmin=0, vmax=vmax)
         # color bar per subplot as norm differs
         # todo perhaps unify color scale? -> when global norm, global cbar
         cbar_ax = peptide_coverage(
@@ -544,7 +544,7 @@ def loss_figure(fit_result, **figure_kwargs):
         "refaspect", cfg.plotting.loss_aspect
     )  # todo loss aspect also in config?
 
-    fig, ax = pplt.subplots(
+    fig, ax = uplt.subplots(
         ncols=ncols,
         nrows=nrows,
         width=figure_width,
@@ -689,7 +689,7 @@ def linear_bars(
     refaspect = figure_kwargs.pop("refaspect", cfg.plotting.linear_bars_aspect)
     cbar_width = figure_kwargs.pop("cbar_width", cfg.plotting.cbar_width) / 25.4
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         nrows=nrows, ncols=ncols, refaspect=refaspect, width=figure_width, hspace=hspace
     )
     axes_iter = iter(axes)
@@ -698,7 +698,7 @@ def linear_bars(
         for i, (label, values) in enumerate(subdict.items()):
             ax = next(axes_iter)
             rmin, rmax = values.index.min(), values.index.max()
-            r_edges = pplt.arange(rmin - 0.5, rmax + 0.5, 1)
+            r_edges = uplt.arange(rmin - 0.5, rmax + 0.5, 1)
             ax.pcolormesh(
                 r_edges,
                 y_edges,
@@ -792,7 +792,7 @@ def rainbowclouds_figure(
     figure_width = figure_kwargs.pop("width", cfg.plotting.page_width) / 25.4
     refaspect = figure_kwargs.pop("refaspect", cfg.plotting.rainbowclouds_aspect)
 
-    fig, axes = pplt.subplots(
+    fig, axes = uplt.subplots(
         nrows=nrows, ncols=ncols, width=figure_width, refaspect=refaspect, hspace=0
     )
     ax = axes[0]
@@ -904,7 +904,7 @@ def colorbar_scatter(
         cmap_default, norm_default = None, None
 
     cmap = cmap or cmap_default
-    cmap = pplt.Colormap(cmap) if isinstance(cmap, str) else cmap
+    cmap = uplt.Colormap(cmap) if isinstance(cmap, str) else cmap
     norm = norm or norm_default
 
     if cmap is None or norm is None:
@@ -967,7 +967,7 @@ def redundancy(ax, hdxm, cmap=None, norm=None):
     img = np.expand_dims(redundancy, 0)
 
     collection = ax.pcolormesh(
-        pplt.edges(x),
+        uplt.edges(x),
         np.array([0, 1]),
         img,
         extend="max",
@@ -992,7 +992,7 @@ def resolution(ax, hdxm, cmap=None, norm=None):
     img = np.expand_dims(resolution, 0)
 
     collection = ax.pcolormesh(
-        pplt.edges(x),
+        uplt.edges(x),
         np.array([0, 1]),
         img,
         extend="max",
@@ -1017,7 +1017,7 @@ def single_linear_bar(ax, x, z, cmap, norm, **kwargs):
     img = np.expand_dims(z, 0)
 
     collection = ax.pcolormesh(
-        pplt.edges(x),
+        uplt.edges(x),
         np.array([0, 1]),
         img,
         cmap=cmap,
@@ -1047,7 +1047,7 @@ def add_mse_panels(
     vmax = residue_mse.to_numpy().max()
 
     cmap = cmap or CMAP_NORM_DEFAULTS.cmaps["mse"]
-    norm = norm or pplt.Norm("linear", vmin=0, vmax=vmax)
+    norm = norm or uplt.Norm("linear", vmin=0, vmax=vmax)
 
     collections = []
     for hdxm, ax in zip(fit_result.hdxm_set, axes):
@@ -1090,9 +1090,9 @@ def cmap_norm_from_nodes(colors, nodes, bad=None, under=None, over=None):
     if not np.all(np.diff(nodes) > 0):
         raise ValueError("Node values must be monotonically increasing")
 
-    norm = pplt.Norm("linear", vmin=nodes.min(), vmax=nodes.max(), clip=True)
+    norm = uplt.Norm("linear", vmin=nodes.min(), vmax=nodes.max(), clip=True)
     color_spec = list(zip(norm(nodes), colors))
-    cmap = pplt.Colormap(color_spec)
+    cmap = uplt.Colormap(color_spec)
 
     if bad is not None:
         cmap.set_bad(bad)
@@ -1119,43 +1119,43 @@ class ColorTransforms(object):
         )
 
         self.norms = {
-            "dG": pplt.Norm("linear", 1e4, 4e4, clip=True),
-            "ddG": pplt.Norm("linear", -1e4, 1e4, clip=True),
-            "rfu": pplt.Norm("linear", 0, 1.0, clip=True),
-            "drfu": pplt.Norm("linear", -0.5, 0.5, clip=True),
-            "d_uptake": pplt.Norm("linear", 0.0, 1.0, clip=True),
-            "dd_uptake": pplt.Norm("linear", -0.5, 0.5, clip=True),
+            "dG": uplt.Norm("linear", 1e4, 4e4, clip=True),
+            "ddG": uplt.Norm("linear", -1e4, 1e4, clip=True),
+            "rfu": uplt.Norm("linear", 0, 1.0, clip=True),
+            "drfu": uplt.Norm("linear", -0.5, 0.5, clip=True),
+            "d_uptake": uplt.Norm("linear", 0.0, 1.0, clip=True),
+            "dd_uptake": uplt.Norm("linear", -0.5, 0.5, clip=True),
             "mse": None,
             "foldedness": foldedness_cmap,
         }
 
         levels = [0.0, 1.0, 2.0, 3.0, 4.0, 5.0]
-        norm = pplt.Norm("segmented", levels=levels)
-        self.norms["redundancy"] = pplt.DiscreteNorm(levels=levels, norm=norm)
+        norm = uplt.Norm("segmented", levels=levels)
+        self.norms["redundancy"] = uplt.DiscreteNorm(levels=levels, norm=norm)
 
         levels = [0.0, 1.0, 2.0, 5.0, 10.0, 20.0]
-        norm = pplt.Norm("segmented", levels=levels)
-        self.norms["resolution"] = pplt.DiscreteNorm(levels=levels, norm=norm)
+        norm = uplt.Norm("segmented", levels=levels)
+        self.norms["resolution"] = uplt.DiscreteNorm(levels=levels, norm=norm)
 
         self.cmaps = {
-            "dG": set_bad(pplt.Colormap(tol_cmap("rainbow_PuRd")).reversed()),
+            "dG": set_bad(uplt.Colormap(tol_cmap("rainbow_PuRd")).reversed()),
             "ddG": set_bad(tol_cmap("PRGn").reversed(), color="#d8d8d8"),
-            "rfu": set_bad(pplt.Colormap(cc.cm.gouldian)),
-            "drfu": set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),  # =CET_D1A
-            "d_uptake": set_bad(pplt.Colormap("Dense")),
-            "dd_uptake": set_bad(pplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
-            "mse": set_bad(pplt.Colormap("cividis"), color="#e3e3e3"),
+            "rfu": set_bad(uplt.Colormap(cc.cm.gouldian)),
+            "drfu": set_bad(uplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),  # =CET_D1A
+            "d_uptake": set_bad(uplt.Colormap("Dense")),
+            "dd_uptake": set_bad(uplt.Colormap(cc.cm.diverging_bwr_20_95_c54)),
+            "mse": set_bad(uplt.Colormap("cividis"), color="#e3e3e3"),
             "foldedness": foldedness_cmap,
         }
 
         colors = ["#6EA72A", "#DAD853", "#FFA842", "#A22D46", "#5D0496"][::-1]
-        cmap_redundancy = pplt.Colormap(colors, discrete=True, N=len(colors), listmode="discrete")
+        cmap_redundancy = uplt.Colormap(colors, discrete=True, N=len(colors), listmode="discrete")
         cmap_redundancy.set_over("#0E4A21")
         cmap_redundancy.set_bad(NO_COVERAGE)
         self.cmaps["redundancy"] = cmap_redundancy
 
         colors = ["#008832", "#72D100", "#FFFF04", "#FFB917", "#FF8923"]
-        cmap_redundancy = pplt.Colormap(colors, discrete=True, N=len(colors), listmode="discrete")
+        cmap_redundancy = uplt.Colormap(colors, discrete=True, N=len(colors), listmode="discrete")
         cmap_redundancy.set_over("#FE2B2E")
         cmap_redundancy.set_bad(NO_COVERAGE)
         self.cmaps["resolution"] = cmap_redundancy
@@ -1313,16 +1313,16 @@ def add_cbar(ax, cmap, norm, **kwargs):
     norm_clip.clip = True
     colors = cmap(norm_clip(values))
 
-    if isinstance(cmap, pplt.DiscreteColormap):
+    if isinstance(cmap, uplt.DiscreteColormap):
         listmode = "discrete"
-    elif isinstance(cmap, pplt.ContinuousColormap):
+    elif isinstance(cmap, uplt.ContinuousColormap):
         listmode = "continuous"
     else:
         listmode = "perceptual"
 
-    cb_cmap = pplt.Colormap(colors, listmode=listmode)
+    cb_cmap = uplt.Colormap(colors, listmode=listmode)
 
-    cb_norm = pplt.Norm("linear", vmin=ymin, vmax=ymax)  # todo allow log norms?
+    cb_norm = uplt.Norm("linear", vmin=ymin, vmax=ymax)  # todo allow log norms?
     cbar_kwargs = {**CBAR_KWARGS, **kwargs}
     reverse = np.diff(ax.get_ylim()) < 0
 
@@ -1460,7 +1460,7 @@ def kdeplot(
                 ax.fill_betweenx(kde_x, len(data) - cat_var, len(data) - cat_var_zero, color=color)
 
         if fill_cmap:
-            fill_norm = fill_norm or pplt.Norm("linear")
+            fill_norm = fill_norm or uplt.Norm("linear")
 
             xmin, xmax = np.min(plot_x), np.max(plot_x)
             ymin, ymax = np.min(plot_y), np.max(plot_y)
@@ -1837,7 +1837,7 @@ def plot_fitresults(
     #         norm = mpl.colors.Normalize(vmin=1, vmax=max_epochs)
     #         colors = iter(cmap(np.linspace(0, 1, num=num)))
     #
-    #         fig, axes = pplt.subplots(nrows=1, width=width, aspect=aspect)
+    #         fig, axes = uplt.subplots(nrows=1, width=width, aspect=aspect)
     #         ax = axes[0]
     #         for key in h_df:
     #             c = next(colors)

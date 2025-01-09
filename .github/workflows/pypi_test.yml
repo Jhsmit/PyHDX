@@ -11,14 +11,35 @@ jobs:
       uses: actions/checkout@v3
       with:
         fetch-depth: 0
-    - name: Set up Python 3.9
+
+    - name: Set up Python 3.10
       uses: actions/setup-python@v4
       with:
-        python-version: 3.9
+        python-version: "3.10"
+
+    - name: Configure Git
+      run: |
+        git config --global user.email "github-actions@github.com"
+        git config --global user.name "GitHub Actions"
+
+    - name: Create test version tag
+      run: |
+        # Get number of commits in current branch
+        COMMIT_COUNT=$(git rev-list --count HEAD)
+        # Get short SHA
+        SHA=$(git rev-parse --short HEAD)
+        # Create a PEP 440 compliant version number
+        VERSION="0.2.1.dev${COMMIT_COUNT}"
+        # Create and push tag
+        git tag -a "v${VERSION}" -m "Test release ${VERSION}"
+        echo "Created tag v${VERSION}"
+
     - name: Install Hatch
       run: pip install hatch
+
     - name: Build
       run: hatch build
+
     - name: Publish distribution 📦 to Test PyPI
       uses: pypa/gh-action-pypi-publish@release/v1
       with:
