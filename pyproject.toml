@@ -34,7 +34,7 @@ dependencies = [
     "dask",
     "distributed",
     "packaging",
-    "param",
+    "param<2",
     "pyyaml",
     "omegaconf",
     "hdxms-datasets>=0.1.3",
