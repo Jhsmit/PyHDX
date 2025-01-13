@@ -3,8 +3,6 @@
 # %%
 from pathlib import Path
 
-# %%
-import bokeh
 import numpy as np
 import ultraplot as uplt
 import yaml
@@ -14,22 +12,6 @@ from pyhdx.fileIO import csv_to_dataframe, save_fitresult
 from pyhdx.fitting import fit_gibbs_global, fit_rates_weighted_average
 from pyhdx.local_cluster import default_client
 from pyhdx.models import HDXMeasurement
-
-bokeh.__version__
-# %%
-import numpy
-
-numpy.__version__
-# %%
-import jinja2
-
-jinja2.__version__
-# %%
-import panel
-
-panel.__version__
-# %%
-
 
 # %%
 

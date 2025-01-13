@@ -117,7 +117,6 @@ class AsyncControlPanel(ControlPanel):
         return widgets
 
     async def work_func(self):
-        name = self.field  # is indeed stored locally
         async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             futures = []
             for i in range(10):
@@ -142,11 +141,6 @@ class AsyncControlPanel(ControlPanel):
     def _slider_updated(self):
         self.value = str(self.slider)
 
-    def print_stuff(self):
-        print(self.parent.executor)
-        df = self.src.tables["test_data"]
-        print()
-
 
 class DevTestControl(ControlPanel):
     header = "Debug"
@@ -165,10 +159,10 @@ class DevTestControl(ControlPanel):
         return self.sources["main"]
 
     def _action_debug(self):
-        transforms = self.transforms
-        sources = self.sources
-        views = self.views
-        opts = self.opts
+        transforms = self.transforms  # noqa: F841
+        sources = self.sources  # noqa: F841
+        views = self.views  # noqa: F841
+        opts = self.opts  # noqa: F841
 
         input_ctrl: PeptideFileInputControl = self.parent.control_panels["PeptideFileInputControl"]
         print(f"{input_ctrl.measurement_name=}")
@@ -178,6 +172,7 @@ class DevTestControl(ControlPanel):
     def _action_test(self):
         src = self.sources["metadata"]
         d = src.get("user_settings")
+        print(d)
 
     @property
     def _layout(self):
@@ -1782,7 +1777,7 @@ class ColorTransformControl(PyHDXControlPanel):
             return
 
         # func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
-        func = lambda x: x
+        func = lambda x: x  # noqa F731
         thds = threshold_multiotsu(func(values), classes=self.num_colors)
         widgets = [widget for name, widget in self.widgets.items() if name.startswith("value")]
         for thd, widget in zip(thds[::-1], widgets):  # Values from high to low
@@ -2512,7 +2507,6 @@ class FigureExportControl(PyHDXControlPanel):
     def _update_reference(self):
         # update reference options
         if self.figure == "linear_bars":
-            df = self.plot_data
             groupby_index = self.plot_data.columns.names.index(self.groupby)
             barsby_index = 1 - groupby_index
             options = list(self.plot_data.columns.unique(level=barsby_index))

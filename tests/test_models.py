@@ -1,13 +1,14 @@
-from pyhdx import HDXMeasurement
-from pyhdx.datasets import read_dynamx
-from pyhdx.models import Coverage
-from pyhdx.fileIO import csv_to_hdxm, csv_to_dataframe
-import numpy as np
+import tempfile
 from pathlib import Path
+
+import numpy as np
 import pandas as pd
 from pandas.testing import assert_frame_equal
-import tempfile
 
+from pyhdx import HDXMeasurement
+from pyhdx.datasets import read_dynamx
+from pyhdx.fileIO import csv_to_dataframe, csv_to_hdxm
+from pyhdx.models import Coverage
 from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
 
 cwd = Path(__file__).parent
@@ -43,8 +44,9 @@ class TestHDXMeasurement(object):
         pass
 
     def test_tensors(self):
-        tensors = self.hdxm.get_tensors()
+        # tensors = self.hdxm.get_tensors()
         # assert ...
+        pass
 
     def test_rfu(self):
         rfu_residues = self.hdxm.rfu_residues

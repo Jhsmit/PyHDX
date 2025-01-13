@@ -3,8 +3,8 @@ from pathlib import Path
 
 import pandas as pd
 import ultraplot as uplt
+from pymol import cmd
 
-# from pymol import cmd
 from pyhdx.config import cfg
 from pyhdx.fileIO import csv_to_dataframe
 from pyhdx.plot import (
@@ -60,7 +60,6 @@ protein_states = plot_data.columns.get_level_values(0).unique()
 ddG_scatter_figure(plot_data, reference=protein_states[0])
 
 # %%
-from pymol import cmd
 
 # Creating a colored structure
 cmd.load("https://files.rcsb.org/download/1QYN.pdb")

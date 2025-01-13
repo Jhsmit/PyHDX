@@ -551,7 +551,7 @@ class TOLcmaps(object):
                 28,
             ],
         ]
-        if lut == None or lut < 1 or lut > 23:
+        if lut == None or lut < 1 or lut > 23:  # noqa: E711
             lut = 22
         self.cmap = discretemap(self.cname, [clrs[i] for i in indexes[lut - 1]])
         if lut == 23:
@@ -585,7 +585,7 @@ def tol_cmap(colormap=None, lut=None):
     Parameter lut is ignored for all colormaps except 'rainbow_discrete'.
     """
     obj = TOLcmaps()
-    if colormap == None:
+    if colormap == None:  # noqa: E711
         return obj.namelist
     if colormap not in obj.namelist:
         colormap = "rainbow_PuRd"
@@ -617,7 +617,7 @@ def tol_cset(colorset=None):
         "medium-contrast",
         "light",
     )
-    if colorset == None:
+    if colorset == None:  # noqa: E711
         return namelist
     if colorset not in namelist:
         colorset = "bright"
