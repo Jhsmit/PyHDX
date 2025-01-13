@@ -1,14 +1,16 @@
-"""Load two HDX-MS datasets and guesses and perform fitting in batch with a second regualizer and mock alignment"""
+"""Load two HDX-MS datasets and guesses and perform fitting in batch with a second regualizer and mock alignment
 
-raise DeprecationWarning("Outdated example")
+OUTDATED EXAMPLE
+"""
+
 
 from pathlib import Path
 
-from pyhdx.batch_processing import StateParser
-from pyhdx.fitting import fit_gibbs_global_batch_aligned
-from pyhdx.fileIO import csv_to_protein
 import yaml
 
+from pyhdx.batch_processing import StateParser
+from pyhdx.fileIO import csv_to_protein
+from pyhdx.fitting import fit_gibbs_global_batch_aligned
 
 mock_alignment = {
     "dimer": "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVY--------------EVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGA----YCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA-----------------",

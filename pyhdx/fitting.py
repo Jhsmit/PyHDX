@@ -3,17 +3,18 @@ from __future__ import annotations
 from collections import namedtuple
 from dataclasses import dataclass
 from functools import partial
-from typing import Union, Optional, Any, Literal
+from typing import Any, Literal, Optional, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from dask.distributed import Client, worker_client
-from scipy.optimize import Bounds, minimize, OptimizeResult
+from scipy.optimize import Bounds, OptimizeResult, minimize
 from symfit import Fit
 from symfit.core.minimizers import DifferentialEvolution, Powell
 from tqdm.auto import tqdm, trange
 
+from pyhdx.config import cfg
 from pyhdx.fit_models import (
     SingleKineticModel,
     TwoComponentAssociationModel,
@@ -21,9 +22,8 @@ from pyhdx.fit_models import (
 )
 from pyhdx.fitting_torch import DeltaGFit, TorchFitResult
 from pyhdx.local_cluster import DummyClient
-from pyhdx.support import temporary_seed, pbar_decorator, multiindex_astype
-from pyhdx.models import HDXMeasurementSet, HDXTimepoint, HDXMeasurement
-from pyhdx.config import cfg
+from pyhdx.models import HDXMeasurement, HDXMeasurementSet, HDXTimepoint
+from pyhdx.support import multiindex_astype, pbar_decorator, temporary_seed
 
 EmptyResult = namedtuple("EmptyResult", ["chi_squared", "params"])
 er = EmptyResult(np.nan, {k: np.nan for k in ["tau1", "tau2", "r"]})
@@ -187,7 +187,7 @@ def fit_rates_weighted_average(
     if pbar:
         raise NotImplementedError()
     else:
-        inc = lambda: None
+        pass
 
     results = []
 
@@ -385,9 +385,9 @@ def _fit_single_d_update(
     # d_uptake = hdx_t.data["uptake_corrected"].values
     Nr = X.shape[1]  # number of residues / parameters
 
-    if bounds == True:
+    if bounds is True:
         bounds = Bounds(lb=np.zeros(Nr), ub=np.ones(Nr))
-    elif bounds == False:
+    elif bounds is False:
         bounds = None
 
     args = (X, d_uptake, r1)
@@ -561,7 +561,7 @@ def run_optimizer(
     iter = trange(epochs) if verbose else range(epochs)
     for epoch in iter:
         optimizer_obj.zero_grad()
-        loss = optimizer_obj.step(closure)
+        loss = optimizer_obj.step(closure)  # noqa
 
         for cb in callbacks:
             cb(epoch, model, optimizer_obj)

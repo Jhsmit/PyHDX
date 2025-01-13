@@ -5,16 +5,17 @@ import json
 import os
 import re
 import shutil
-from datetime import datetime
-from io import StringIO, BytesIO
-from pathlib import Path
-from typing import Union, Literal, Tuple, List, TextIO, Optional, TYPE_CHECKING, Any, BinaryIO
-from importlib import import_module
-import torch.nn as nn
-import torch as t
-import pandas as pd
-import yaml
 import warnings
+from datetime import datetime
+from importlib import import_module
+from io import BytesIO, StringIO
+from pathlib import Path
+from typing import TYPE_CHECKING, Any, BinaryIO, List, Literal, Optional, TextIO, Tuple, Union
+
+import pandas as pd
+import torch as t
+import torch.nn as nn
+import yaml
 
 import pyhdx
 
@@ -217,7 +218,7 @@ def dataframe_to_stringio(
         sio.write(prefix + f'{now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
 
     json_header = {}
-    if include_metadata == True and "metadata" in df.attrs:
+    if include_metadata is True and "metadata" in df.attrs:
         json_header["metadata"] = df.attrs["metadata"]
     elif include_metadata and isinstance(include_metadata, dict):
         json_header["metadata"] = include_metadata
@@ -366,10 +367,6 @@ def load_fitresult(fit_dir: os.PathLike) -> Union[TorchFitResult, TorchFitResult
         result_klass = pyhdx.fitting_torch.TorchFitResult
     elif pth.is_file():
         raise DeprecationWarning("`load_fitresult` only loads from fit result directories")
-        fit_result = csv_to_dataframe(fit_dir)
-        assert isinstance(
-            hdxm, pyhdx.HDXMeasurement
-        ), "No valid HDXMeasurement data object supplied"
     else:
         raise ValueError("Specified fit result path is not a directory")
 

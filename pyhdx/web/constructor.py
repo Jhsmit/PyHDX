@@ -5,12 +5,12 @@ from distributed import Client
 
 from pyhdx.support import gen_subclasses
 from pyhdx.web.cache import Cache
-from pyhdx.web.controllers import *
+from pyhdx.web.controllers import *  # noqa: F403
 from pyhdx.web.main_controllers import MainController
 from pyhdx.web.opts import OptsBase
-from pyhdx.web.sources import *
+from pyhdx.web.sources import *  # noqa: F403
 from pyhdx.web.tools import supported_tools
-from pyhdx.web.transforms import *
+from pyhdx.web.transforms import *  # noqa: F403
 from pyhdx.web.views import View
 
 element_count = 0
@@ -69,11 +69,11 @@ class AppConstructor(param.Parameterized):
     def find_classes():
         base_classes = {
             "main": MainController,
-            "transform": Transform,
-            "source": Source,
+            "transform": Transform,  # noqa: F405
+            "source": Source,  # noqa: F405
             "view": View,
             "opt": OptsBase,
-            "controller": ControlPanel,
+            "controller": ControlPanel,  # noqa: F405
         }
         classes = {}
         for key, cls in base_classes.items():

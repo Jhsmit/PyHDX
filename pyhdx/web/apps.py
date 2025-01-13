@@ -1,15 +1,15 @@
+import re
 from pathlib import Path
 
 import panel as pn
 import param
 import yaml
-import re
 
 from pyhdx import VERSION_STRING
+from pyhdx.web.cache import MemoryCache
 from pyhdx.web.constructor import AppConstructor
 from pyhdx.web.log import logger
-from pyhdx.web.cache import MemoryCache
-from pyhdx.web.template import GoldenElvis, ExtendedGoldenTemplate
+from pyhdx.web.template import ExtendedGoldenTemplate, GoldenElvis
 from pyhdx.web.theme import ExtendedGoldenDefaultTheme
 
 cache = MemoryCache(max_items=2000)
@@ -24,7 +24,7 @@ view_kwargs = {"scrollable": False}
 
 fmt_kwargs = {**fmt}
 
-yaml.SafeLoader.add_constructor("!regexp", lambda l, n: re.compile(l.construct_scalar(n)))
+yaml.SafeLoader.add_constructor("!regexp", lambda c, n: re.compile(c.construct_scalar(n)))
 
 
 @logger("pyhdx")
@@ -70,7 +70,7 @@ def main_app():
                 ),
             ),
         ),
-        **fmt_kwargs
+        **fmt_kwargs,
     )
 
     return ctrl, tmpl
@@ -110,7 +110,7 @@ def rfu_app():
                 ),
             ),
         ),
-        **fmt_kwargs
+        **fmt_kwargs,
     )
 
     return ctrl, tmpl
@@ -198,7 +198,7 @@ def peptide_app():
                 )
             ),
         ),
-        **fmt_kwargs
+        **fmt_kwargs,
     )
 
     return ctrl, tmpl

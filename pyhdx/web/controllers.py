@@ -4,10 +4,11 @@ import asyncio
 import sys
 import uuid
 import zipfile
-from io import StringIO, BytesIO
+from io import BytesIO, StringIO
 from typing import Any
 
 import colorcet
+import matplotlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
@@ -17,61 +18,60 @@ import panel as pn
 import param
 import yaml
 from distributed import Client
-from matplotlib.colors import Normalize, Colormap
+from matplotlib.colors import Colormap, Normalize
 from omegaconf import OmegaConf
 from panel.io.server import async_execute
-from proplot import to_hex
 from scipy.constants import R
 from skimage.filters import threshold_multiotsu
+from ultraplot import to_hex
 
+from pyhdx.__version__ import __version__
 from pyhdx.config import cfg
+from pyhdx.datasets import DataFile, DataVault
+from pyhdx.datasets import DataSet as HDXDataSet
 from pyhdx.fileIO import csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import (
-    fit_rates_weighted_average,
-    fit_rates_half_time_interpolate,
-    get_bounds,
-    fit_gibbs_global,
-    fit_gibbs_global_batch,
-    PATIENCE,
-    STOP_LOSS,
     EPOCHS,
+    PATIENCE,
     R1,
     R2,
-    optimizer_defaults,
+    STOP_LOSS,
+    DUptakeFitResultSet,
     RatesFitResult,
     fit_d_uptake,
-    DUptakeFitResultSet,
+    fit_gibbs_global,
+    fit_gibbs_global_batch,
+    fit_rates_half_time_interpolate,
+    fit_rates_weighted_average,
+    get_bounds,
+    optimizer_defaults,
 )
-from pyhdx.datasets import HDXDataSet, DataVault, DataFile
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
-    PeptideUptakeModel,
     HDXMeasurement,
+    PeptideUptakeModel,
 )
 from pyhdx.plot import (
-    dG_scatter_figure,
+    CMAP_NORM_DEFAULTS,
     ddG_scatter_figure,
+    dG_scatter_figure,
     linear_bars_figure,
     rainbowclouds_figure,
-    CMAP_NORM_DEFAULTS,
 )
-from pyhdx.process import verify_sequence, correct_d_uptake, filter_peptides
+from pyhdx.process import correct_d_uptake, filter_peptides, verify_sequence
 from pyhdx.support import (
-    series_to_pymol,
     apply_cmap,
+    dataframe_intersection,
     multiindex_astype,
     multiindex_set_categories,
-    dataframe_intersection,
+    series_to_pymol,
 )
-from pyhdx.web.base import ControlPanel, DEFAULT_CLASS_COLORS
+from pyhdx.web.base import DEFAULT_CLASS_COLORS, ControlPanel
 from pyhdx.web.opts import CmapOpts
 from pyhdx.web.sources import TABLE_INFO
 from pyhdx.web.transforms import CrossSectionTransform
 from pyhdx.web.utils import fix_multiindex_dtypes
 from pyhdx.web.widgets import ASyncProgressBar, CompositeFloatSliders
-
-from pyhdx.__version__ import __version__
-import matplotlib
 
 matplotlib.use("agg")
 
@@ -117,7 +117,6 @@ class AsyncControlPanel(ControlPanel):
         return widgets
 
     async def work_func(self):
-        name = self.field  # is indeed stored locally
         async with Client(cfg.cluster.scheduler_address, asynchronous=True) as client:
             futures = []
             for i in range(10):
@@ -142,11 +141,6 @@ class AsyncControlPanel(ControlPanel):
     def _slider_updated(self):
         self.value = str(self.slider)
 
-    def print_stuff(self):
-        print(self.parent.executor)
-        df = self.src.tables["test_data"]
-        print()
-
 
 class DevTestControl(ControlPanel):
     header = "Debug"
@@ -165,10 +159,10 @@ class DevTestControl(ControlPanel):
         return self.sources["main"]
 
     def _action_debug(self):
-        transforms = self.transforms
-        sources = self.sources
-        views = self.views
-        opts = self.opts
+        transforms = self.transforms  # noqa: F841
+        sources = self.sources  # noqa: F841
+        views = self.views  # noqa: F841
+        opts = self.opts  # noqa: F841
 
         input_ctrl: PeptideFileInputControl = self.parent.control_panels["PeptideFileInputControl"]
         print(f"{input_ctrl.measurement_name=}")
@@ -178,6 +172,7 @@ class DevTestControl(ControlPanel):
     def _action_test(self):
         src = self.sources["metadata"]
         d = src.get("user_settings")
+        print(d)
 
     @property
     def _layout(self):
@@ -1782,7 +1777,7 @@ class ColorTransformControl(PyHDXControlPanel):
             return
 
         # func = np.log if self.log_space else lambda x: x  # this can have NaN when in log space
-        func = lambda x: x
+        func = lambda x: x  # noqa F731
         thds = threshold_multiotsu(func(values), classes=self.num_colors)
         widgets = [widget for name, widget in self.widgets.items() if name.startswith("value")]
         for thd, widget in zip(thds[::-1], widgets):  # Values from high to low
@@ -2512,7 +2507,6 @@ class FigureExportControl(PyHDXControlPanel):
     def _update_reference(self):
         # update reference options
         if self.figure == "linear_bars":
-            df = self.plot_data
             groupby_index = self.plot_data.columns.names.index(self.groupby)
             barsby_index = 1 - groupby_index
             options = list(self.plot_data.columns.unique(level=barsby_index))

@@ -7,10 +7,10 @@ import pandas as pd
 import param
 
 from pyhdx import TorchFitResult, TorchFitResultSet
-from pyhdx.fitting import RatesFitResult, DUptakeFitResultSet
-from pyhdx.models import HDXMeasurement, HDXMeasurementSet
-from pyhdx.support import multiindex_astype, multiindex_set_categories, hash_dataframe
 from pyhdx.config import cfg
+from pyhdx.fitting import DUptakeFitResultSet, RatesFitResult
+from pyhdx.models import HDXMeasurement, HDXMeasurementSet
+from pyhdx.support import hash_dataframe, multiindex_astype, multiindex_set_categories
 
 # <table_name>: {'cmap_field': <table_column_name>, cmap_opt: <cmap_opt_name>
 from pyhdx.web.utils import fix_multiindex_dtypes
@@ -293,7 +293,7 @@ class PDBSource(Source):
             key = next(iter(self.pdb_files))
             del self.pdb_files[key]
             del self.hashes[key]
-            pdb_pth = cfg.assets_dir / f"{key}.pdb"
+            # pdb_pth = cfg.assets_dir / f"{key}.pdb"
             # if pdb_pth.exists():
             #     os.remove(pdb_pth)
 

@@ -17,12 +17,14 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3.9",
 ]
-requires-python = "==3.9"
+requires-python = ">3.9"
 dependencies = [
     "torch",
     "hdxrate",
-    "numpy",
-    "matplotlib==3.4.3",
+    "numpy==1.25.2",
+    "ultraplot",
+    "matplotlib",
+    "colorcet",
     "pandas",
     "scikit-image",
     "scipy",
@@ -40,8 +42,8 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-web = ["panel<1.0.0", "bokeh", "holoviews", "colorcet", "hvplot", "proplot", "param<2"]
-pdf = ["pylatex", "proplot"]
+web = ["panel==0.14.4", "bokeh==2.4.3", "holoviews==1.17.1", "colorcet", "hvplot==0.8.4", "param<2"]
+pdf = ["pylatex", "ultraplot"]
 docs = ["mkdocs", "mkdocstrings[python]", "mkdocs-material", "pygments", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-jupyter"]
 dev = ["black[jupyter]"]
 test = [
@@ -77,4 +79,5 @@ line-length = 100
 
 [tool.ruff]
 line-length = 100
-target-version = "py39"
+target-version = "py310"
+exclude = ["docs/examples/04_plot_output.ipynb"]
