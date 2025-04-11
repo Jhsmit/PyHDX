@@ -1,3 +1,14 @@
+tuttlelm fork includes modifications for downstream compatibility with pyHXExpress
+
+Additions include conversion of HDExaminer and pyHXEXpress outputs to a format that
+can be read in by pyHDX to create HDXMeasurement objects. This then allows computing
+the RFU_residue values and creating coverage plots.
+
+**some original features may not be compatible
+
+
+
+
 # PyHDX
 
 [![zenodo](https://zenodo.org/badge/206772076.svg)](https://zenodo.org/badge/latestdoi/206772076)
