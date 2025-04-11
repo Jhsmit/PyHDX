@@ -4,7 +4,6 @@ Run local_cluster.py in anothor thread
 
 """
 
-
 import sys
 from pathlib import Path
 
@@ -20,10 +19,10 @@ from pyhdx.web.utils import fix_multiindex_dtypes, load_state
 from pyhdx.config import cfg, reset_config
 
 
-CONFIG_NAME = "config_beta.yaml"
-cfg_pth = Path().home() / ".pyhdx" / CONFIG_NAME
+# CONFIG_NAME = "config_beta.yaml"
+# cfg_pth = Path().home() / ".pyhdx" / CONFIG_NAME
 
-cfg.load_config(cfg_pth)
+# cfg.load_config(cfg_pth)
 
 # def printfunc(args):
 # 1/0
@@ -77,7 +76,7 @@ batch_fname = "data_states.yaml"  #
 
 hdx_spec = yaml.safe_load(Path(input_data_dir / batch_fname).read_text())
 # pdb_string = (web_data_dir / '1qyn.pdb').read_text()
-pdb_string = (web_data_dir / "5JTR_mod.pdb").read_text()
+# pdb_string = (web_data_dir / "5JTR_mod.pdb").read_text()
 
 
 def reload_tables():
@@ -135,7 +134,6 @@ def init_batch():
 
 
 def init_dashboard():
-    n = 2  # change this to control the number of HDX measurements added
     input_control = ctrl.control_panels["PeptideFileInputControl"]
     # states = ["SecB_tetramer"]
     states = ["SecB_tetramer", "SecB_dimer"]
@@ -146,7 +144,7 @@ def init_dashboard():
     d_uptake_control = ctrl.control_panels["DUptakeFitControl"]
     d_uptake_control.repeats = 2
 
-    ctrl.sources["pdb"].add_from_string(pdb_string, "1qyn")
+    # ctrl.sources["pdb"].add_from_string(pdb_string, "1qyn")
 
     src = ctrl.sources["main"]
     # df = csv_to_dataframe(web_data_dir / 'd_uptake.csv')
@@ -220,4 +218,4 @@ elif __name__.startswith("bokeh_app"):
     Path(cfg.assets_dir).mkdir(exist_ok=True, parents=True)
     tmpl.servable()
 
-    # panel serve dev_gui_secB.py --show --autoreload --port 5076 --static-dirs pyhdx=C:/Users/jhsmi/pp/PyHDX/pyhdx/web/static assets=C:/Users/jhsmi/.pyhdx/assets
+    # panel serve dev/gui/dev_gui_secB.py --show --autoreload --port 5076 --static-dirs pyhdx=C:/Users/jhsmi/pp/PyHDX/pyhdx/web/static assets=C:/Users/jhsmi/.pyhdx/assets
