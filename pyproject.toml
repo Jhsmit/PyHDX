@@ -6,9 +6,7 @@ build-backend = "hatchling.build"
 [project]
 name = "pyhdx"
 description = "Derive ΔG for single residues from HDX-MS data"
-authors = [
-  { name = "Jochem Smit", email = "jhsmit@gmail.com" },
-]
+authors = [{ name = "Jochem Smit", email = "jhsmit@gmail.com" }]
 license = "MIT"
 readme = "README.md"
 classifiers = [
@@ -17,7 +15,7 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3.9",
 ]
-requires-python = ">3.9"
+requires-python = ">3.9,<=3.11"
 dependencies = [
     "torch",
     "hdxrate",
@@ -42,13 +40,26 @@ dependencies = [
 dynamic = ["version"]
 
 [project.optional-dependencies]
-web = ["panel==0.14.4", "bokeh==2.4.3", "holoviews==1.17.1", "colorcet", "hvplot==0.8.4", "param<2"]
-pdf = ["pylatex", "ultraplot"]
-docs = ["mkdocs", "mkdocstrings[python]", "mkdocs-material", "pygments", "mkdocs-gen-files", "mkdocs-literate-nav", "mkdocs-jupyter"]
-dev = ["black[jupyter]"]
-test = [
-    "pytest>=7.2.0",
+web = [
+    "panel==0.14.4",
+    "bokeh==2.4.3",
+    "holoviews==1.17.1",
+    "colorcet",
+    "hvplot==0.8.4",
+    "param<2",
 ]
+pdf = ["pylatex", "ultraplot"]
+docs = [
+    "mkdocs",
+    "mkdocstrings[python]",
+    "mkdocs-material",
+    "pygments",
+    "mkdocs-gen-files",
+    "mkdocs-literate-nav",
+    "mkdocs-jupyter",
+]
+dev = ["black[jupyter]"]
+test = ["pytest>=7.2.0"]
 
 [project.scripts]
 pyhdx = 'pyhdx.cli:app'
@@ -58,9 +69,7 @@ Source = "https://github.com/Jhsmit/PyHDX/"
 Documentation = "https://pyhdx.readthedocs.io/en/stable/"
 
 [tool.hatch.build]
-exclude = [
-    "_versioneer.py"
-]
+exclude = ["_versioneer.py"]
 
 [tool.hatch.version]
 source = "vcs"
