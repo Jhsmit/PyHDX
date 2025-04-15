@@ -474,7 +474,7 @@ toolz==1.0.0
     #   partd
 toposort==1.10
     # via symfit
-torch==2.5.1
+torch==2.6.0
     # via pyhdx (pyproject.toml)
 tornado==6.4.2
     # via
