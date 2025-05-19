@@ -405,7 +405,7 @@ scipy==1.15.0
     #   pyhdx (pyproject.toml)
     #   scikit-image
     #   symfit
-setuptools==75.8.0
+setuptools==78.1.1
     # via
     #   panel
     #   symfit
