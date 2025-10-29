@@ -19,16 +19,34 @@ PyHDX is python project which can be used to derive Gibbs free energy from HDX-M
 
 ## Installation
 
-Installation of the latest stable beta with `pip`:
+Installation of PyHDX with [uv](https://docs.astral.sh/uv/getting-started/installation/):
+
+Create a uv virtual environment, specifying python version 3.11:
 
 ```bash
-$ pip install pyhdx
+$ uv venv -p "3.11"
 ```
 
-Installation with web interface extra:
+Then activate environment as instructed by uv, e.g.:
 
+Windows:
 ```bash
-$ pip install pyhdx[web]
+$ .venv/Script/activate
+```
+
+Linux/Mac:
+```bash
+$ source .venv/bin/activate
+```
+
+To install PyHDX:
+```bash
+$ uv pip install pyhdx
+```
+
+With web interface extra:
+```bash
+$ uv pip install pyhdx[web]
 ```
 
 Conda install (includes web interface extra):
@@ -46,8 +64,12 @@ To run the web server:
 ```bash
 $ pyhdx serve
 ```
-    
+
+To add datasets to directly load into PyHDX, configure the `database_dir` parameter in the config file (default: `~/.hdxms_datasets/datasets`), and place `hdxms-datasets` v0.1.5 (legacy) compatible datasets there. 
+
 Please refer to the [docs](https://pyhdx.readthedocs.io/en/stable/) for more details on how to run PyHDX.
+
+
 
 ## Web Application
 
