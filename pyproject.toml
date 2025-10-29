@@ -15,7 +15,7 @@ classifiers = [
     "Natural Language :: English",
     "Programming Language :: Python :: 3.9",
 ]
-requires-python = ">3.9,<=3.11"
+requires-python = ">3.9,<3.12"
 dependencies = [
     "torch",
     "hdxrate",
@@ -35,7 +35,7 @@ dependencies = [
     "param<2",
     "pyyaml",
     "omegaconf",
-    "hdxms-datasets>=0.1.3",
+    "hdxms-datasets==0.1.5",
 ]
 dynamic = ["version"]
 
