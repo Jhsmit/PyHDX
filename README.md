@@ -97,3 +97,16 @@ https://github.com/Jhsmit/HDX-MS-datasets
 
 HDXMS datasets python bindings:
 https://github.com/Jhsmit/hdxms-datasets
+
+## Development
+
+Building PyHDX from source:
+
+```bash
+$ hatch build
+```
+
+Create a new release and distribute to PyPI:
+
+ - Create new release on GitHub
+ - GitHub workflow builds and publishes to PyPI
