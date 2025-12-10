@@ -181,6 +181,20 @@ def read_hdexaminer_peptide_pool(source: Path | StringIO) -> nw.DataFrame:
     return final_output
 
 
+def aggregate_hdexaminer(
+    df: nw.DataFrame,
+) -> nw.DataFrame:
+    """
+    Aggregate hd examiner peptide pool replicates (mean uptake).
+
+    Args:
+        df: Narwhals DataFrame representing the HDX-Examiner peptide pool data.
+
+    Returns:
+        Aggregated Narwhals DataFrame.
+    """
+
+
 @dataclass(frozen=True)
 class DataFile(object):
     name: str
