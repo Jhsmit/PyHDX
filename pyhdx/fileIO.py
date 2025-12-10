@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from functools import cached_property
 import io
 import json
 import os
@@ -17,6 +19,7 @@ import torch as t
 import torch.nn as nn
 import yaml
 
+import narwhals as nw
 import pyhdx
 
 if TYPE_CHECKING:
@@ -66,6 +69,143 @@ def read_dynamx(
     df.columns = df.columns.str.replace(" ", "_")
 
     return df
+
+
+# schema for hdx examiner peptide pool initial 8 columns
+HDEXAMINER_PEPTIDE_POOL_INITIAL_SCHEMA = nw.Schema(
+    {
+        "State": nw.String(),
+        "Protein": nw.String(),
+        "Start": nw.Int64(),
+        "End": nw.Int64(),
+        "Sequence": nw.String(),
+        "Search RT": nw.Float64(),
+        "Charge": nw.Int64(),
+        "Max D": nw.Int64(),
+    }
+)
+
+# schema for hdx examiner peptide pool repeated columns
+HDEXAMINER_PEPTIDE_POOL_REPEATED_SCHEMA = nw.Schema(
+    {
+        "Start RT": nw.Float64(),
+        "End RT": nw.Float64(),
+        "#D": nw.Float64(),
+        "%D": nw.Float64(),
+        "#D right": nw.String(),
+        "%D right": nw.String(),
+        "Score": nw.Float64(),
+        "Conf": nw.String(),
+    }
+)
+
+
+def read_hdexaminer_peptide_pool(source: Path | StringIO) -> nw.DataFrame:
+    """
+    Read an HDX-Examiner peptide pool file and return a Narwhals DataFrame.
+
+    Args:
+        source: Source object representing the HDX-Examiner peptide pool data.
+
+    """
+
+    # read the data
+    if isinstance(source, StringIO):
+        try:
+            import polars as pl
+
+            df = nw.from_native(pl.read_csv(source, skip_rows=1, has_header=True))
+        except ImportError:
+            import pandas as pd
+
+            df = nw.from_native(pd.read_csv(source, skiprows=[0]))
+
+    else:
+        df = nw.read_csv(source.as_posix(), backend="pandas", skip_rows=1, has_header=True)
+
+    # read the header
+    if isinstance(source, StringIO):
+        source.seek(0)
+        exposure_line = source.readline()
+        header_line = source.readline()
+    else:
+        with open(source, "r") as fh:
+            exposure_line = fh.readline()
+            header_line = fh.readline()
+
+    exposure_columns = exposure_line.strip().split(",")
+    header_columns = header_line.strip().split(",")
+
+    found_schema = df[:, 0:8].schema
+    if found_schema != HDEXAMINER_PEPTIDE_POOL_INITIAL_SCHEMA:
+        raise ValueError("HDX-Examiner peptide pool file has an unexpected columns schema.")
+
+    # find indices of exposure markers in header
+    has_entry_with_end = [i for i, col in enumerate(exposure_columns) if col] + [
+        len(exposure_columns)
+    ]
+
+    output_dfs = []
+    dtype_lut = dict(HDEXAMINER_PEPTIDE_POOL_REPEATED_SCHEMA.items())
+
+    # to be repeated row-wise initial 8 columns
+    initial_df = df[:, :8]
+
+    for i, j in zip(has_entry_with_end[1:-1], has_entry_with_end[2:]):
+        exposure = exposure_columns[i]
+
+        sub_frame = df[:, i:j]
+
+        expected_columns = header_columns[i:j]
+
+        drop_cols = set(expected_columns) - set(HDEXAMINER_PEPTIDE_POOL_REPEATED_SCHEMA.names())
+        # rename duplicated columns, drop non-accepted columns, cast to correct dtype, add exposure column
+        sub_frame = (
+            sub_frame.rename({col: name for col, name in zip(sub_frame.columns, expected_columns)})
+            .drop(drop_cols)
+            .with_columns(
+                [
+                    nw.col(name).cast(dtype_lut[name])
+                    for name in expected_columns
+                    if name not in drop_cols
+                ]
+                + [nw.lit(str(exposure)).alias("Exposure")]
+            )
+        )
+
+        combined_i = nw.concat([initial_df, sub_frame], how="horizontal")
+        output_dfs.append(combined_i)
+
+    final_output = nw.concat(output_dfs, how="diagonal")
+
+    return final_output
+
+
+@dataclass(frozen=True)
+class DataFile(object):
+    name: str
+
+    format: Literal["DynamX", "HDExaminer"]
+
+    filepath_or_buffer: Union[Path, StringIO]
+
+    time_conversion: tuple[Literal["h", "min", "s"], Literal["h", "min", "s"]] = ("min", "s")
+    # from, to time conversion
+
+    @cached_property
+    def data(self) -> pd.DataFrame:
+        # TODO convert time after reading
+        if self.format == "DynamX":
+            data = read_dynamx(self.filepath_or_buffer, time_conversion=self.time_conversion)
+        elif self.format == "HDExaminer":
+            data = read_hdexaminer_peptide_pool(self.filepath_or_buffer)
+        else:
+            raise ValueError(f"Invalid format {self.format!r}")
+
+        if isinstance(self.filepath_or_buffer, StringIO):
+            self.filepath_or_buffer.seek(0)
+
+        return data
 
 
 def read_header(file_obj: Union[TextIO, BinaryIO], comment: str = "#") -> List[str]:
@@ -215,7 +355,7 @@ def dataframe_to_stringio(
         prefix = "# " if fmt == "csv" else ""
         sio.write(prefix + pyhdx.VERSION_STRING + " \n")
         now = datetime.now()
-        sio.write(prefix + f'{now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
+        sio.write(prefix + f"{now.strftime('%Y/%m/%d %H:%M:%S')} ({int(now.timestamp())}) \n")
 
     json_header = {}
     if include_metadata is True and "metadata" in df.attrs:
@@ -238,7 +378,7 @@ def dataframe_to_stringio(
             sio.write("\n")
         for k, v in json_header.items():
             if v:
-                sio.write(f'{k.capitalize().replace("_", " ")}\n')
+                sio.write(f"{k.capitalize().replace('_', ' ')}\n")
                 sep = len(k) * "-"
                 sio.write(f"{sep}\n")
                 sio.write(yaml.dump(v, sort_keys=False))
@@ -336,7 +476,7 @@ def save_fitresult(
     epochs = f"Number of epochs: {len(fit_result.losses)}"
     version = pyhdx.VERSION_STRING
     now = datetime.now()
-    date = f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())})'
+    date = f"# {now.strftime('%Y/%m/%d %H:%M:%S')} ({int(now.timestamp())})"
 
     lines = [date, version, loss, epochs]
     if log_lines is not None:
