@@ -27,9 +27,9 @@ from ultraplot import to_hex
 
 from pyhdx.__version__ import __version__
 from pyhdx.config import cfg
-from pyhdx.datasets import DataFile, DataVault
+from pyhdx.datasets import DataVault
 from pyhdx.datasets import DataSet as HDXDataSet
-from pyhdx.fileIO import csv_to_dataframe, dataframe_to_stringio
+from pyhdx.fileIO import csv_to_dataframe, dataframe_to_stringio, DataFile
 from pyhdx.fitting import (
     EPOCHS,
     PATIENCE,
@@ -276,6 +276,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     input_mode = param.Selector(default="Manual", objects=["Manual", "Batch", "Database"])
 
+    input_type = param.Selector(default="DynamX", objects=["DynamX", "HDExaminer"])
+
     input_files_label = param.String("Input files:")
 
     input_files = param.List(doc="HDX input files. Currently only supports DynamX format")
@@ -429,6 +431,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
         widget_order = [
             "input_mode",
+            "input_type",
             "input_files_label",
             "input_files",
             "batch_file_label",
@@ -478,6 +481,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             "Manual": {
                 "input_files_label",
                 "input_files",
+                "input_type",
                 "fd_file",
                 "fd_state",
                 "fd_exposure",
@@ -508,8 +512,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             set.union(*(v for k, v in widget_dict.items() if k != self.input_mode))
             - widget_dict[self.input_mode]
         )
-        #
-        #
+
         # if self.input_mode == "Manual":
         #     excluded |= {"batch_file", "batch_file_label"}
         # elif self.input_mode == "Batch":
@@ -577,7 +580,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 name: DataFile(
                     name=name,
                     filepath_or_buffer=StringIO(byte_content.decode("UTF-8")),
-                    format="DynamX",
+                    format=self.input_type,
                 )
                 for name, byte_content in zip(
                     self.widgets["input_files"].filename, self.input_files
@@ -587,7 +590,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             lens = [len(data_file.data) for data_file in self.data_files.values()]
 
             self.parent.logger.info(
-                f'Loaded {len(self.input_files)} file{"s" if len(self.input_files) > 1 else ""} with a total '
+                f"Loaded {len(self.input_files)} file{'s' if len(self.input_files) > 1 else ''} with a total "
                 f"of {sum(lens)} peptides"
             )
         else:
@@ -839,9 +842,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
                     try:
                         pub_str = pub["title"]
                         if "DOI" in pub:
-                            pub_str += f' ([{pub["DOI"]}](https://doi.org/{pub["DOI"]}))'
+                            pub_str += f" ([{pub['DOI']}](https://doi.org/{pub['DOI']}))"
                         elif "URL" in pub:
-                            pub_str += f' ([URL]({pub["URL"]}))'
+                            pub_str += f" ([URL]({pub['URL']}))"
                         self.parent.logger.info("Publication: " + pub_str)
                     except (KeyError, TypeError):
                         pass
@@ -2044,14 +2047,14 @@ class ColorTransformControl(PyHDXControlPanel):
         for i in range(len(self.values)):
             widget = self.widgets[f"value_{i}"]
             if i > 0:
-                key = f"value_{i-1}"
+                key = f"value_{i - 1}"
                 prev_value = float(self.widgets[key].value)
                 widget.end = np.nextafter(prev_value, prev_value - 1)
             else:
                 widget.end = None
 
             if i < len(self.values) - 1:
-                key = f"value_{i+1}"
+                key = f"value_{i + 1}"
                 next_value = float(self.widgets[key].value)
                 widget.start = np.nextafter(next_value, next_value + 1)
             else:
