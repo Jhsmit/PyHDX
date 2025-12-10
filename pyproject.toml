@@ -36,6 +36,7 @@ dependencies = [
     "pyyaml",
     "omegaconf",
     "hdxms-datasets==0.1.5",
+    "narwhals",
 ]
 dynamic = ["version"]
 
