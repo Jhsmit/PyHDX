@@ -226,6 +226,55 @@ def verify_sequence(
     return seq_full, seq_reconstruct
 
 
+def filter_peptides_unitless(
+    df: pd.DataFrame,
+    state: Optional[str] = None,
+    exposure: Union[float, list[float], None] = None,
+    query: Optional[list[str]] = None,
+    dropna: bool = True,
+) -> pd.DataFrame:
+    """
+    Convenience function to filter a peptides DataFrame.
+
+    Args:
+        df: Input :class:`pandas.DataFrame`
+        state: Name of protein state to select.
+        exposure: Exposure value(s) to select. Exposure is given as a :obj:`dict`, with keys "value" or "values" for
+            exposure value, and "unit" for the time unit.
+        query: Additional queries to pass to :meth:`pandas.DataFrame.query`.
+        dropna: Drop rows with NaN uptake entries.
+
+    Example:
+        ::
+
+        d = {"state", "SecB WT apo", "exposure": 0.167 }
+        filtered_df = filter_peptides(df, **d)
+
+    Returns:
+
+    """
+
+    warnings.warn(
+        "`filter_peptides` will be moved to the `hdxms-datasets` package", DeprecationWarning
+    )
+    if state:
+        df = df[df["state"] == state]
+
+    if isinstance(exposure, float):
+        df = df[df["exposure"] == exposure]
+    elif isinstance(exposure, list):
+        df = df[df["exposure"].isin(exposure)]
+
+    if query:
+        for q in query:
+            df = df.query(q)
+
+    if dropna:
+        df = df.dropna(subset=["uptake"])
+
+    return df
+
+
 def filter_peptides(
     df: pd.DataFrame,
     state: Optional[str] = None,

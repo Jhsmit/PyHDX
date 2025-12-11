@@ -14,6 +14,8 @@ from io import BytesIO, StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, List, Literal, Optional, TextIO, Tuple, Union
 
+from hdxms_datasets.formats import FMT_REGISTRY
+
 import pandas as pd
 import torch as t
 import torch.nn as nn
@@ -27,6 +29,7 @@ if TYPE_CHECKING:
 
 # Dtype of fields in peptide table data
 PEPTIDE_DTYPES = {"start": int, "end": int, "stop": int, "_start": int, "_stop": int}
+SUPPORTED_FORMATS = ["DynamX_v3_state", "HDExaminer_peptide_pool"]
 
 
 def read_dynamx(
@@ -71,114 +74,10 @@ def read_dynamx(
     return df
 
 
-# schema for hdx examiner peptide pool initial 8 columns
-HDEXAMINER_PEPTIDE_POOL_INITIAL_SCHEMA = nw.Schema(
-    {
-        "State": nw.String(),
-        "Protein": nw.String(),
-        "Start": nw.Int64(),
-        "End": nw.Int64(),
-        "Sequence": nw.String(),
-        "Search RT": nw.Float64(),
-        "Charge": nw.Int64(),
-        "Max D": nw.Int64(),
-    }
-)
-
-# schema for hdx examiner peptide pool repeated columns
-HDEXAMINER_PEPTIDE_POOL_REPEATED_SCHEMA = nw.Schema(
-    {
-        "Start RT": nw.Float64(),
-        "End RT": nw.Float64(),
-        "#D": nw.Float64(),
-        "%D": nw.Float64(),
-        "#D right": nw.String(),
-        "%D right": nw.String(),
-        "Score": nw.Float64(),
-        "Conf": nw.String(),
-    }
-)
-
-
-def read_hdexaminer_peptide_pool(source: Path | StringIO) -> nw.DataFrame:
-    """
-    Read an HDX-Examiner peptide pool file and return a Narwhals DataFrame.
-
-    Args:
-        source: Source object representing the HDX-Examiner peptide pool data.
-
-    """
-
-    # read the data
-    if isinstance(source, StringIO):
-        try:
-            import polars as pl
-
-            df = nw.from_native(pl.read_csv(source, skip_rows=1, has_header=True))
-        except ImportError:
-            import pandas as pd
-
-            df = nw.from_native(pd.read_csv(source, skiprows=[0]))
-
-    else:
-        df = nw.read_csv(source.as_posix(), backend="pandas", skip_rows=1, has_header=True)
-
-    # read the header
-    if isinstance(source, StringIO):
-        source.seek(0)
-        exposure_line = source.readline()
-        header_line = source.readline()
-    else:
-        with open(source, "r") as fh:
-            exposure_line = fh.readline()
-            header_line = fh.readline()
-
-    exposure_columns = exposure_line.strip().split(",")
-    header_columns = header_line.strip().split(",")
-
-    found_schema = df[:, 0:8].schema
-    if found_schema != HDEXAMINER_PEPTIDE_POOL_INITIAL_SCHEMA:
-        raise ValueError("HDX-Examiner peptide pool file has an unexpected columns schema.")
-
-    # find indices of exposure markers in header
-    has_entry_with_end = [i for i, col in enumerate(exposure_columns) if col] + [
-        len(exposure_columns)
-    ]
-
-    output_dfs = []
-    dtype_lut = dict(HDEXAMINER_PEPTIDE_POOL_REPEATED_SCHEMA.items())
-
-    # to be repeated row-wise initial 8 columns
-    initial_df = df[:, :8]
-
-    for i, j in zip(has_entry_with_end[1:-1], has_entry_with_end[2:]):
-        exposure = exposure_columns[i]
-
-        sub_frame = df[:, i:j]
-
-        expected_columns = header_columns[i:j]
-
-        drop_cols = set(expected_columns) - set(HDEXAMINER_PEPTIDE_POOL_REPEATED_SCHEMA.names())
-        # rename duplicated columns, drop non-accepted columns, cast to correct dtype, add exposure column
-        sub_frame = (
-            sub_frame.rename({col: name for col, name in zip(sub_frame.columns, expected_columns)})
-            .drop(drop_cols)
-            .with_columns(
-                [
-                    nw.col(name).cast(dtype_lut[name])
-                    for name in expected_columns
-                    if name not in drop_cols
-                ]
-                + [nw.lit(str(exposure)).alias("Exposure")]
-            )
-        )
-
-        combined_i = nw.concat([initial_df, sub_frame], how="horizontal")
-        output_dfs.append(combined_i)
-
-    final_output = nw.concat(output_dfs, how="diagonal")
-
-    return final_output
+def adapt_for_pyhdx(df: nw.DataFrame) -> nw.DataFrame:
+    """adapt open hdx dataframes to match pyhdx expectations"""
+    df = df.with_columns((nw.col("end") + 1).alias("stop"))
+    return df
 
 
 def aggregate_hdexaminer(
@@ -199,7 +98,7 @@ def aggregate_hdexaminer(
 class DataFile(object):
     name: str
 
-    format: Literal["DynamX", "HDExaminer"]
+    format: str
 
     filepath_or_buffer: Union[Path, StringIO]
 
@@ -208,18 +107,17 @@ class DataFile(object):
 
     @cached_property
     def data(self) -> pd.DataFrame:
+        fmt_spec = FMT_REGISTRY[self.format]
         # TODO convert time after reading
-        if self.format == "DynamX":
-            data = read_dynamx(self.filepath_or_buffer, time_conversion=self.time_conversion)
-        elif self.format == "HDExaminer":
-            data = read_hdexaminer_peptide_pool(self.filepath_or_buffer)
-        else:
-            raise ValueError(f"Invalid format {self.format!r}")
+
+        # thi should be fine for the currently supported formats (they accept StringIO)
+        data_raw = fmt_spec.read(self.filepath_or_buffer)  # type: ignore
+        data = adapt_for_pyhdx(fmt_spec.convert(data_raw))
 
         if isinstance(self.filepath_or_buffer, StringIO):
             self.filepath_or_buffer.seek(0)
 
-        return data
+        return data.to_pandas()
 
 
 def read_header(file_obj: Union[TextIO, BinaryIO], comment: str = "#") -> List[str]:
@@ -530,7 +428,13 @@ def load_fitresult(fit_dir: os.PathLike) -> Union[TorchFitResult, TorchFitResult
     if isinstance(fit_result.columns, pd.MultiIndex):
         g_arr = fit_result.xs("_dG", level=-1, axis=1).to_numpy().T
     else:
-        g_arr = fit_result["_dG"].to_numpy().T
+        g_arr = fit_resul
+
+
+def adapt_for_pyhdx(df: nw.DataFrame) -> nw.DataFrame:
+    """adapt open hdx dataframes to match pyhdx expectations"""
+    df = df.with_columns((nw.col("end") + 1).alias("stop"))
+    return dft["_dG"].to_numpy().T
     g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(-1)  # todo record/generalize shapes
     model = model_klass(g_parameter)
 

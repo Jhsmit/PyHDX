@@ -27,9 +27,10 @@ from ultraplot import to_hex
 
 from pyhdx.__version__ import __version__
 from pyhdx.config import cfg
-from pyhdx.datasets import DataVault
-from pyhdx.datasets import DataSet as HDXDataSet
-from pyhdx.fileIO import csv_to_dataframe, dataframe_to_stringio, DataFile
+
+from pyhdx.datasets import HDXDataSet as HDXDataSet
+from hdxms_datasets.database import DataBase
+from pyhdx.fileIO import SUPPORTED_FORMATS, csv_to_dataframe, dataframe_to_stringio, DataFile
 from pyhdx.fitting import (
     EPOCHS,
     PATIENCE,
@@ -58,7 +59,12 @@ from pyhdx.plot import (
     linear_bars_figure,
     rainbowclouds_figure,
 )
-from pyhdx.process import correct_d_uptake, filter_peptides, verify_sequence
+from pyhdx.process import (
+    correct_d_uptake,
+    filter_peptides,
+    filter_peptides_unitless,
+    verify_sequence,
+)
 from pyhdx.support import (
     apply_cmap,
     dataframe_intersection,
@@ -264,7 +270,7 @@ class GlobalSettingsControl(ControlPanel):
 
 class PeptideFileInputControl(PyHDXControlPanel):
     """
-    This controller allows users to input .csv file (Currently only DynamX format) of 'state' peptide uptake data.
+    This controller allows users to input .csv file of 'state' peptide uptake data.
     Users can then choose how to correct for back-exchange and which 'state' and exposure times should be used for
     analysis.
 
@@ -276,7 +282,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     input_mode = param.Selector(default="Manual", objects=["Manual", "Batch", "Database"])
 
-    input_type = param.Selector(default="DynamX", objects=["DynamX", "HDExaminer"])
+    input_type = param.Selector(default="DynamX_v3_state", objects=SUPPORTED_FORMATS)
 
     input_files_label = param.String("Input files:")
 
@@ -395,7 +401,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
         # create database dir if it does not exist
         cfg.database_dir.mkdir(parents=True, exist_ok=True)
-        self.data_vault = DataVault(cache_dir=cfg.database_dir)
+        self.data_vault = DataBase(database_dir=cfg.database_dir)
 
         self.param["dataset_id"].objects = self.data_vault.datasets
         if self.data_vault.datasets:
@@ -512,51 +518,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
             set.union(*(v for k, v in widget_dict.items() if k != self.input_mode))
             - widget_dict[self.input_mode]
         )
-
-        # if self.input_mode == "Manual":
-        #     excluded |= {"batch_file", "batch_file_label"}
-        # elif self.input_mode == "Batch":
-        #     excluded |= {
-        #         "fd_file",
-        #         "fd_state",
-        #         "fd_exposure",
-        #         "nd_state",
-        #         "nd_exposure",
-        #         "exp_file",
-        #         "exp_state",
-        #         "exp_exposures",
-        #         "drop_first",
-        #         "d_percentage",
-        #         "pH",
-        #         "temperature",
-        #         "n_term",
-        #         "c_term",
-        #         "sequence",
-        #         "add_dataset_button",
-        #         "measurement_name",
-        #         "download_spec_button",
-        #     }
-        # elif self.input_mode == "Database":
-        #     excluded |= {
-        #         "fd_file",
-        #         "fd_state",
-        #         "fd_exposure",
-        #         "nd_state",
-        #         "nd_exposure",
-        #         "exp_file",
-        #         "exp_state",
-        #         "exp_exposures",
-        #         "drop_first",
-        #         "d_percentage",
-        #         "pH",
-        #         "temperature",
-        #         "n_term",
-        #         "c_term",
-        #         "sequence",
-        #         "add_dataset_button",
-        #         "measurement_name",
-        #         "download_spec_button",
-        #     }
 
         # RFU mode input takes additional ND control
         if not self.nd_control:
@@ -679,13 +640,13 @@ class PeptideFileInputControl(PyHDXControlPanel):
             return
 
         # IF self.has_nd... etc
-        fd_spec = {"state": self.fd_state, "exposure": {"value": self.fd_exposure, "unit": "s"}}
-        nd_spec = {"state": self.nd_state, "exposure": {"value": self.nd_exposure, "unit": "s"}}
+        fd_spec = {"state": self.fd_state, "exposure": self.fd_exposure}
+        nd_spec = {"state": self.nd_state, "exposure": self.nd_exposure}
 
         # Get the peptides which are in both the FD and ND states
         dataframes = [self.data_files[self.exp_file].data]
-        dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **fd_spec))
-        dataframes.append(filter_peptides(self.data_files[self.fd_file].data, **nd_spec))
+        dataframes.append(filter_peptides_unitless(self.data_files[self.fd_file].data, **fd_spec))
+        dataframes.append(filter_peptides_unitless(self.data_files[self.nd_file].data, **nd_spec))
 
         intersected = dataframe_intersection(dataframes, by=["start", "stop"])
         states = list(np.unique(intersected[0]["state"]))
@@ -757,7 +718,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
         if self.exp_file not in self.data_spec:
             self.data_spec[self.exp_file] = {
                 "filename": self.exp_file,
-                "format": "DynamX",
+                "format": self.input_type,
             }
 
         # Add the controls

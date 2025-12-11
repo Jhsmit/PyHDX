@@ -14,25 +14,18 @@ from hdxrate import k_int_from_sequence
 from scipy import constants
 from scipy.constants import R
 from scipy.integrate import solve_ivp
-import narwhals as nw
 
 from hdxms_datasets.utils import get_peptides_by_type
 from hdxms_datasets.models import DeuterationType, State, Peptides
 
 from pyhdx.alignment import align_dataframes
 from pyhdx.config import cfg
-from pyhdx.fileIO import dataframe_to_file
+from pyhdx.fileIO import adapt_for_pyhdx, dataframe_to_file
 from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
 from pyhdx.support import dataframe_intersection, reduce_inter
 
 if TYPE_CHECKING:
     from hdxms_datasets import HDXDataSet
-
-
-def adapt_for_pyhdx(df: nw.DataFrame) -> nw.DataFrame:
-    """adapt open hdx dataframes to match pyhdx expectations"""
-    df = df.with_columns((nw.col("end") + 1).alias("stop"))
-    return df
 
 
 def state_kwargs(state: State):
