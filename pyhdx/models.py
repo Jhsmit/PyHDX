@@ -14,6 +14,10 @@ from hdxrate import k_int_from_sequence
 from scipy import constants
 from scipy.constants import R
 from scipy.integrate import solve_ivp
+import narwhals as nw
+
+from hdxms_datasets.utils import get_peptides_by_type
+from hdxms_datasets.models import DeuterationType, State, Peptides
 
 from pyhdx.alignment import align_dataframes
 from pyhdx.config import cfg
@@ -23,6 +27,28 @@ from pyhdx.support import dataframe_intersection, reduce_inter
 
 if TYPE_CHECKING:
     from hdxms_datasets import HDXDataSet
+
+
+def adapt_for_pyhdx(df: nw.DataFrame) -> nw.DataFrame:
+    """adapt open hdx dataframes to match pyhdx expectations"""
+    df = df.with_columns((nw.col("end") + 1).alias("stop"))
+    return df
+
+
+def state_kwargs(state: State):
+    return {
+        "name": state.name,
+        "sequence": state.protein_state.sequence,
+        "n_term": state.protein_state.n_term,
+        "c_term": state.protein_state.c_term,
+    }
+
+
+def peptides_kwargs(peptides: Peptides):
+    return {
+        "temperature": peptides.temperature,
+        "pH": peptides.pH,
+    }
 
 
 class Coverage:
@@ -299,6 +325,63 @@ class HDXMeasurement:
 
         """
 
+        if isinstance(state, str):
+            state_names = [s.name for s in dataset.states]
+            state_idx = state_names.index(state)
+        else:
+            state_idx = state
+
+        selected_state = dataset.states[state_idx]
+
+        pd_peptides = get_peptides_by_type(
+            selected_state.peptides, DeuterationType.partially_deuterated
+        )
+        if pd_peptides is None:
+            raise ValueError("Dataset does not contain an experiment state")
+
+        pd_peptide_df = adapt_for_pyhdx(pd_peptides.load()).to_pandas()
+
+        fd_peptides = get_peptides_by_type(
+            selected_state.peptides, DeuterationType.fully_deuterated
+        )
+        if fd_peptides is None:
+            raise ValueError("Dataset does not contain a FD_control state")
+        fd_peptide_df = adapt_for_pyhdx(fd_peptides.load()).to_pandas()
+
+        nd_peptides = get_peptides_by_type(selected_state.peptides, DeuterationType.non_deuterated)
+        if nd_peptides is None:
+            nd_peptide_df = None
+        else:
+            nd_peptide_df = adapt_for_pyhdx(nd_peptides.load()).to_pandas()
+
+        # take globally defined metadata and update with state specific metadata
+
+        peptides = apply_control(pd_peptide_df, fd_peptide_df, nd_peptide_df)
+        peptides = correct_d_uptake(
+            peptides,
+            drop_first=drop_first,
+            d_percentage=pd_peptides.d_percentage or 100.0,
+        )
+
+        metadata = {**state_kwargs(selected_state), **peptides_kwargs(pd_peptides)}
+
+        return HDXMeasurement(peptides, **metadata)
+
+    @classmethod
+    def from_dataset_v015(
+        cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **metadata
+    ) -> HDXMeasurement:
+        """Create an HDXMeasurement object from a HDXDataSet object.
+
+        Args:
+            dataset: HDXDataSet object
+            state: State label or index for measurement in the dataset
+
+        Returns:
+            HDXMeasurement object.
+
+        """
+
         state = dataset.states[state] if isinstance(state, int) else state
         peptide_spec = dataset.hdx_spec["states"][state]["peptides"]
 
@@ -345,7 +428,7 @@ class HDXMeasurement:
         Coverage Percentage:        {self.coverage.percent_coverage:.2f}
         Average redundancy:         {self.coverage.redundancy:.2f}   
         Average peptide length:     {self.coverage.avg_peptide_length:.2f}
-        Repeatability (mean std):   {self.data['uptake_sd'].mean():.2f} Da
+        Repeatability (mean std):   {self.data["uptake_sd"].mean():.2f} Da
         Temperature:                {self.temperature} K
         pH:                         {self.pH}             
         """
@@ -809,7 +892,7 @@ class HDXMeasurementSet:
     @classmethod
     def from_dataset(self, dataset: HDXDataSet, **metadata) -> HDXMeasurementSet:
         hdxm_list = [
-            HDXMeasurement.from_dataset(dataset, state, **metadata) for state in dataset.states
+            HDXMeasurement.from_dataset(dataset, state.name, **metadata) for state in dataset.states
         ]
 
         return HDXMeasurementSet(hdxm_list)
