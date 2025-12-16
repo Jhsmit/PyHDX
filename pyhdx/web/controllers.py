@@ -746,11 +746,13 @@ class PeptideFileInputControl(PyHDXControlPanel):
     def _action_load_datasets(self) -> None:
         """Load all specified HDX measurements"""
         if self.input_mode == "Manual":
+            # -> bypass hdxms-datasets ?
             data_src = self.data_file_history
             dataset = HDXDataSet(
                 data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec
             )
         elif self.input_mode == "Batch":
+            # > zip file input
             if self.hdxm_list:
                 self.parent.logger.info("Cannot add data in batch after manually inputting data")
                 return
@@ -774,27 +776,21 @@ class PeptideFileInputControl(PyHDXControlPanel):
             if self.dataset_id is None:
                 return
             dataset = self.data_vault.load_dataset(self.dataset_id)
-            self.param["hdxm_list"].objects = dataset.states
-            self.parent.logger.info(f"Loaded dataset {dataset.data_id} from hdxms database")
+            self.param["hdxm_list"].objects = [state.name for state in dataset.states]
+            self.parent.logger.info(f"Loaded dataset {dataset.hdx_id} from local database")
 
-            try:
-                authors = ", ".join([author["name"] for author in dataset.metadata["authors"]])
+            authors = ", ".join([author.name for author in dataset.metadata.authors])
+            if authors:
                 self.parent.logger.info(f"Author(s): {authors}")
-            except KeyError:
-                pass
 
-            publications = dataset.metadata.get("publications", [])
-            if publications:
-                for pub in publications:
-                    try:
-                        pub_str = pub["title"]
-                        if "DOI" in pub:
-                            pub_str += f" ([{pub['DOI']}](https://doi.org/{pub['DOI']}))"
-                        elif "URL" in pub:
-                            pub_str += f" ([URL]({pub['URL']}))"
-                        self.parent.logger.info("Publication: " + pub_str)
-                    except (KeyError, TypeError):
-                        pass
+            publication = dataset.metadata.publication
+            if publication is not None:
+                pub_str = publication.title or ""
+                if publication.doi:
+                    pub_str += f" ([{publication.doi}](https://doi.org/{publication.doi}))"
+
+                self.parent.logger.info("Publication: " + pub_str)
+
         else:
             raise ValueError("Invalid input mode")
 
@@ -809,7 +805,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             drop_first = 2
 
         for state in dataset.states:
-            hdxm = HDXMeasurement.from_dataset(dataset, state, drop_first=drop_first)
+            hdxm = HDXMeasurement.from_dataset(state, drop_first=drop_first)
             self.src.add(hdxm, state)
             self.parent.logger.info(
                 f"Loaded experiment peptides state {hdxm.state} "
