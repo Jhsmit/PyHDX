@@ -428,13 +428,7 @@ def load_fitresult(fit_dir: os.PathLike) -> Union[TorchFitResult, TorchFitResult
     if isinstance(fit_result.columns, pd.MultiIndex):
         g_arr = fit_result.xs("_dG", level=-1, axis=1).to_numpy().T
     else:
-        g_arr = fit_resul
-
-
-def adapt_for_pyhdx(df: nw.DataFrame) -> nw.DataFrame:
-    """adapt open hdx dataframes to match pyhdx expectations"""
-    df = df.with_columns((nw.col("end") + 1).alias("stop"))
-    return dft["_dG"].to_numpy().T
+        g_arr = fit_result["_dG"].to_numpy().T
     g_parameter = nn.Parameter(t.tensor(g_arr)).unsqueeze(-1)  # todo record/generalize shapes
     model = model_klass(g_parameter)
 

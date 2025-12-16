@@ -23,6 +23,7 @@ from pyhdx.config import cfg
 from pyhdx.fileIO import adapt_for_pyhdx, dataframe_to_file
 from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
 from pyhdx.support import dataframe_intersection, reduce_inter
+from pyhdx.datasets import load_pyhdx_peptides
 
 if TYPE_CHECKING:
     from hdxms_datasets import HDXDataSet
@@ -325,36 +326,26 @@ class HDXMeasurement:
             state_idx = state
 
         selected_state = dataset.states[state_idx]
+        loaded_peptides = load_pyhdx_peptides(selected_state)
+
+        assert "experiment" in loaded_peptides, "Dataset must contain partially deuterated peptides"
 
         pd_peptides = get_peptides_by_type(
             selected_state.peptides, DeuterationType.partially_deuterated
         )
-        if pd_peptides is None:
-            raise ValueError("Dataset does not contain an experiment state")
+        assert pd_peptides is not None  # this never happens due to previous check
 
-        pd_peptide_df = adapt_for_pyhdx(pd_peptides.load()).to_pandas()
-
-        fd_peptides = get_peptides_by_type(
-            selected_state.peptides, DeuterationType.fully_deuterated
-        )
-        if fd_peptides is None:
-            raise ValueError("Dataset does not contain a FD_control state")
-        fd_peptide_df = adapt_for_pyhdx(fd_peptides.load()).to_pandas()
-
-        nd_peptides = get_peptides_by_type(selected_state.peptides, DeuterationType.non_deuterated)
-        if nd_peptides is None:
-            nd_peptide_df = None
-        else:
-            nd_peptide_df = adapt_for_pyhdx(nd_peptides.load()).to_pandas()
-
-        peptides = apply_control(pd_peptide_df, fd_peptide_df, nd_peptide_df)
+        peptides = apply_control(**loaded_peptides)
         peptides = correct_d_uptake(
             peptides,
             drop_first=drop_first,
             d_percentage=pd_peptides.d_percentage or 100.0,
         )
 
-        metadata = {**state_kwargs(selected_state), **peptides_kwargs(pd_peptides)}
+        metadata = {
+            **state_kwargs(selected_state),
+            **peptides_kwargs(pd_peptides),
+        }
 
         return HDXMeasurement(peptides, **metadata)
 
