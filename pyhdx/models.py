@@ -23,7 +23,15 @@ from pyhdx.config import cfg
 from pyhdx.fileIO import dataframe_to_file
 from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
 from pyhdx.support import dataframe_intersection, reduce_inter
-from pyhdx.datasets import load_pyhdx_peptides, parse_dataset_states, state_kwargs, peptides_kwargs
+from pyhdx.datasets import (
+    adapt_for_pyhdx,
+    load_peptides,
+    parse_dataset_states,
+    state_kwargs,
+    peptides_kwargs,
+)
+from hdxms_datasets.process import merge_peptide_tables, compute_uptake_metrics
+from hdxms_datasets.utils import get_peptides_by_type
 
 
 class Coverage:
@@ -301,16 +309,20 @@ class HDXMeasurement:
 
         """
 
-        loaded_peptides = load_pyhdx_peptides(state.peptides)
+        loaded_peptides = load_peptides(state.peptides)
 
-        assert "experiment" in loaded_peptides, "Dataset must contain partially deuterated peptides"
+        assert "partially_deuterated" in loaded_peptides, (
+            "Dataset must contain partially deuterated peptides"
+        )
 
         pd_peptides = get_peptides_by_type(state.peptides, DeuterationType.partially_deuterated)
         assert pd_peptides is not None  # this never happens due to previous check
 
-        peptides = apply_control(**loaded_peptides)  # type: ignore
-        peptides = correct_d_uptake(
-            peptides,
+        merged = merge_peptide_tables(**loaded_peptides)  # type: ignore
+        computed = compute_uptake_metrics(merged)
+        adapted = adapt_for_pyhdx(computed).to_pandas()
+        peptides_corrected = correct_d_uptake(
+            adapted,
             drop_first=drop_first,
             d_percentage=pd_peptides.d_percentage or 100.0,
         )
@@ -320,7 +332,7 @@ class HDXMeasurement:
             **peptides_kwargs(pd_peptides),
         }
 
-        return HDXMeasurement(peptides, **metadata, **kwargs)
+        return HDXMeasurement(peptides_corrected, **metadata, **kwargs)
 
     def __str__(self) -> str:
         """String representation of this HDX measurement object.

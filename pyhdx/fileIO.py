@@ -74,12 +74,6 @@ def read_dynamx(
     return df
 
 
-def adapt_for_pyhdx(df: nw.DataFrame) -> nw.DataFrame:
-    """adapt open hdx dataframes to match pyhdx expectations"""
-    df = df.with_columns((nw.col("end") + 1).alias("stop"))
-    return df
-
-
 def aggregate_hdexaminer(
     df: nw.DataFrame,
 ) -> nw.DataFrame:
