@@ -8,7 +8,7 @@ from omegaconf import OmegaConf
 from tqdm.auto import tqdm
 
 from pyhdx.config import cfg
-from pyhdx.datasets import DataVault
+from hdxms_datasets import RemoteDataBase
 
 app = typer.Typer()
 
@@ -68,8 +68,8 @@ datasets_app = typer.Typer(help="Manage HDX datasets")
 @datasets_app.command()
 def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to download")):
     """Update the datasets from the PyHDX repository"""
-    vault = DataVault(cache_dir=cfg.database_dir)
-    missing_datasets = list(set(vault.remote_index) - set(vault.datasets))
+    vault = RemoteDataBase(database_dir=cfg.database_dir)
+    missing_datasets = list(set(vault.remote_datasets) - set(vault.datasets))
     missing_datasets = [data_id for data_id in missing_datasets if data_id]
 
     failed = []
@@ -94,8 +94,8 @@ def fetch(num: int = typer.Option(10, min=1, help="Maximum number of datasets to
 @datasets_app.command()
 def clear():
     """Clear the local dataset cache"""
-    vault = DataVault(cache_dir=cfg.database_dir)
-    vault.clear_cache()
+    vault = RemoteDataBase(database_dir=cfg.database_dir)
+    vault.clear()
 
 
 app.add_typer(datasets_app, name="datasets")
