@@ -308,7 +308,7 @@ class HDXMeasurement:
         pd_peptides = get_peptides_by_type(state.peptides, DeuterationType.partially_deuterated)
         assert pd_peptides is not None  # this never happens due to previous check
 
-        peptides = apply_control(**loaded_peptides)
+        peptides = apply_control(**loaded_peptides)  # type: ignore
         peptides = correct_d_uptake(
             peptides,
             drop_first=drop_first,
@@ -316,7 +316,7 @@ class HDXMeasurement:
         )
 
         metadata = {
-            **state_kwargs(selected_state),
+            **state_kwargs(state),
             **peptides_kwargs(pd_peptides),
         }
 
