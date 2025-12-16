@@ -43,7 +43,7 @@ dask==2023.8.1
     #   pyhdx (pyproject.toml)
 distributed==2023.8.1
     # via pyhdx (pyproject.toml)
-filelock==3.12.2
+filelock==3.20.1
     # via torch
 fsspec==2023.6.0
     # via dask
