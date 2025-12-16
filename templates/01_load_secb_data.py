@@ -1,10 +1,11 @@
 """Load a HDX-MS dataset (peptide list with D-uptake per peptide, csv format)"""
+
 # %%
 from pathlib import Path
 
 import numpy as np
 
-from pyhdx.datasets import filter_peptides
+from pyhdx.legacy import filter_peptides
 from pyhdx.fileIO import read_dynamx
 from pyhdx.models import HDXMeasurement
 from pyhdx.process import apply_control, correct_d_uptake
@@ -44,3 +45,9 @@ temperature, pH = 273.15 + 30, 8.0
 
 # Create HDX Measurement object with addtional experimental metadata (sequence, pH, temperature)
 hdxm = HDXMeasurement(peptides_corrected, sequence=sequence, pH=pH, temperature=temperature)
+
+# %%
+hdxm.data
+# %%
+peptides_corrected
+# %%
