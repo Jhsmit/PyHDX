@@ -33,9 +33,6 @@ from pyhdx.config import cfg, reset_config
 sys._excepthook = sys.excepthook
 
 
-sys._excepthook = sys.excepthook
-
-
 import traceback as tb
 
 
