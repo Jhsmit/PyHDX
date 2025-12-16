@@ -1,11 +1,16 @@
 # %%
+# %load_ext autoreload
+# %autoreload 2
 
+# %%
 from pyhdx.web.apps import main_app
 from pyhdx.web.controllers import PeptideFileInputControl
 from pyhdx.web.main_controllers import MainController, PyHDXController
 import panel as pn
 import logging
 import sys
+
+from pyhdx.web.sources import PyHDXSource
 
 
 sys._excepthook = sys.excepthook
@@ -35,14 +40,21 @@ sys.excepthook = my_exception_hook
 logger = logging.getLogger("debug_logger")
 logger.setLevel(logging.DEBUG)
 
-main = PyHDXController(control_panels=[(PeptideFileInputControl, {})], loggers={"pyhdx": logger})
+main = PyHDXController(
+    control_panels=[(PeptideFileInputControl, {})],
+    loggers={"pyhdx": logger},
+    sources={"main": PyHDXSource()},
+)
 # %%
 
+input_ctrl: PeptideFileInputControl = main.control_panels["PeptideFileInputControl"]
 
-input_ctrl = main.control_panels["PeptideFileInputControl"]
+
+# headless testing
+# input_ctrl.dataset_id
 
 
-# %%
-
+# input_ctrl.input_mode = "Database"
+# input_ctrl._action_load_datasets()
 
 input_ctrl.panel.servable()
