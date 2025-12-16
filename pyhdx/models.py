@@ -4,7 +4,7 @@ import os
 import textwrap
 import warnings
 from numbers import Number
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -16,17 +16,14 @@ from scipy.constants import R
 from scipy.integrate import solve_ivp
 
 from hdxms_datasets.utils import get_peptides_by_type
-from hdxms_datasets.models import DeuterationType, State, Peptides
+from hdxms_datasets.models import DeuterationType, State
 
 from pyhdx.alignment import align_dataframes
 from pyhdx.config import cfg
-from pyhdx.fileIO import adapt_for_pyhdx, dataframe_to_file
+from pyhdx.fileIO import dataframe_to_file
 from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
 from pyhdx.support import dataframe_intersection, reduce_inter
-from pyhdx.datasets import load_pyhdx_peptides, parse_dataset, state_kwargs, peptides_kwargs
-
-if TYPE_CHECKING:
-    from hdxms_datasets import HDXDataSet
+from pyhdx.datasets import load_pyhdx_peptides, parse_dataset_states, state_kwargs, peptides_kwargs
 
 
 class Coverage:
@@ -292,11 +289,10 @@ class HDXMeasurement:
     def from_dataset(
         cls, state: State, drop_first=cfg.analysis.drop_first, **kwargs
     ) -> HDXMeasurement:
-        """Create an HDXMeasurement object from a HDXDataSet object.
+        """Create an HDXMeasurement object from a hdxms-datasets 'State' object.
 
         Args:
-            dataset: HDXDataSet object
-            state: State label or index for measurement in the dataset
+            state: State object from hdxms-datasets
             drop_first: Number of N-terminal residues to drop from each peptide
             **kwargs: additional kwargs passed to HDXMeasurement
 
@@ -809,9 +805,9 @@ class HDXMeasurementSet:
 
     @classmethod
     def from_dataset(
-        cls, dataset: HDXDataSet, drop_first=cfg.analysis.drop_first, **kwargs
+        cls, states: list[State], drop_first=cfg.analysis.drop_first, **kwargs
     ) -> HDXMeasurementSet:
-        parsed = parse_dataset(dataset, drop_first=drop_first, **kwargs)
+        parsed = parse_dataset_states(states, drop_first=drop_first, **kwargs)
 
         hdxm_list = [HDXMeasurement(peptides, **metadata) for peptides, metadata in parsed]
 
