@@ -23,26 +23,10 @@ from pyhdx.config import cfg
 from pyhdx.fileIO import adapt_for_pyhdx, dataframe_to_file
 from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
 from pyhdx.support import dataframe_intersection, reduce_inter
-from pyhdx.datasets import load_pyhdx_peptides
+from pyhdx.datasets import load_pyhdx_peptides, parse_dataset, state_kwargs, peptides_kwargs
 
 if TYPE_CHECKING:
     from hdxms_datasets import HDXDataSet
-
-
-def state_kwargs(state: State):
-    return {
-        "name": state.name,
-        "sequence": state.protein_state.sequence,
-        "n_term": state.protein_state.n_term,
-        "c_term": state.protein_state.c_term,
-    }
-
-
-def peptides_kwargs(peptides: Peptides):
-    return {
-        "temperature": peptides.temperature,
-        "pH": peptides.pH,
-    }
 
 
 class Coverage:
@@ -306,13 +290,15 @@ class HDXMeasurement:
 
     @classmethod
     def from_dataset(
-        cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **metadata
+        cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **kwargs
     ) -> HDXMeasurement:
         """Create an HDXMeasurement object from a HDXDataSet object.
 
         Args:
             dataset: HDXDataSet object
             state: State label or index for measurement in the dataset
+            drop_first: Number of N-terminal residues to drop from each peptide
+            **kwargs: additional kwargs passed to HDXMeasurement
 
         Returns:
             HDXMeasurement object.
@@ -326,7 +312,7 @@ class HDXMeasurement:
             state_idx = state
 
         selected_state = dataset.states[state_idx]
-        loaded_peptides = load_pyhdx_peptides(selected_state)
+        loaded_peptides = load_pyhdx_peptides(selected_state.peptides)
 
         assert "experiment" in loaded_peptides, "Dataset must contain partially deuterated peptides"
 
@@ -347,7 +333,7 @@ class HDXMeasurement:
             **peptides_kwargs(pd_peptides),
         }
 
-        return HDXMeasurement(peptides, **metadata)
+        return HDXMeasurement(peptides, **metadata, **kwargs)
 
     def __str__(self) -> str:
         """String representation of this HDX measurement object.
@@ -831,10 +817,12 @@ class HDXMeasurementSet:
         return self.hdxm_list.__getitem__(item)
 
     @classmethod
-    def from_dataset(cls, dataset: HDXDataSet, **metadata) -> HDXMeasurementSet:
-        hdxm_list = [
-            HDXMeasurement.from_dataset(dataset, state.name, **metadata) for state in dataset.states
-        ]
+    def from_dataset(
+        cls, dataset: HDXDataSet, drop_first=cfg.analysis.drop_first, **kwargs
+    ) -> HDXMeasurementSet:
+        parsed = parse_dataset(dataset, drop_first=drop_first, **kwargs)
+
+        hdxm_list = [HDXMeasurement(peptides, **metadata) for peptides, metadata in parsed]
 
         return HDXMeasurementSet(hdxm_list)
 
