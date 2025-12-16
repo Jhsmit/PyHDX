@@ -1,13 +1,16 @@
 from __future__ import annotations
 
 import asyncio
+from pathlib import Path
 import sys
+import tempfile
 import uuid
 import zipfile
 from io import BytesIO, StringIO
 from typing import Any
 
 import colorcet
+from hdxms_datasets import load_dataset
 import matplotlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -281,7 +284,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     header = "Peptide Input"
 
-    input_mode = param.Selector(default="Manual", objects=["Manual", "Batch", "Database"])
+    input_mode = param.Selector(default="Manual", objects=["Manual", "openHDX zip", "Database"])
 
     input_type = param.Selector(default="DynamX_v3_state", objects=SUPPORTED_FORMATS)
 
@@ -289,9 +292,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     input_files = param.List(doc="HDX input files. Currently only supports DynamX format")
 
-    batch_file_label = param.String("Batch file (yaml)")
+    zip_file_label = param.String("open HDX dataset (.zip file):")
 
-    batch_file = param.Parameter(doc="Batch file input:")
+    zip_file = param.Parameter(doc="Input openHDX zip file as bytes")
 
     dataset_id = param.Selector(
         label="Dataset ID", doc="Dataset ID to load from hdxms-datasets database"
@@ -385,7 +388,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
     )
 
     def __init__(self, parent, **params):
-        excluded = ["batch_file", "batch_file_label"]
+        excluded = ["zip_file", "zip_file_label"]
         super(PeptideFileInputControl, self).__init__(parent, _excluded=excluded, **params)
         self._update_mode()
         self.update_box()
@@ -421,8 +424,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
         widgets = self.generate_widgets(
             input_files_label=pn.widgets.StaticText(value=self.input_files_label),
             input_files=pn.widgets.FileInput(multiple=True, name="Input files"),
-            batch_file_label=pn.widgets.StaticText(value=self.batch_file_label),
-            batch_file=pn.widgets.FileInput(name="Batch yaml file", accept=".yaml"),
+            zip_file_label=pn.widgets.StaticText(value=self.zip_file_label),
+            zip_file=pn.widgets.FileInput(name="openHDX zip file", accept=".zip"),
             be_percent=pn.widgets.FloatInput,
             pH=pn.widgets.FloatInput,
             temperature=pn.widgets.FloatInput,
@@ -435,8 +438,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
             "input_type",
             "input_files_label",
             "input_files",
-            "batch_file_label",
-            "batch_file",
+            "zip_file_label",
+            "zip_file",
             "dataset_id",
             "fd_file",
             "fd_state",
@@ -494,7 +497,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 "measurement_name",
                 "download_spec_button",
             },
-            "Batch": {"input_files_label", "input_files", "batch_file", "batch_file_label"},
+            "openHDX zip": {"zip_file", "zip_file_label"},
             "Database": {
                 "dataset_id",
             },
@@ -746,38 +749,59 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     def _action_load_datasets(self) -> None:
         """Load all specified HDX measurements"""
+        # read out drop first setting
+        try:
+            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            drop_first = config_ctrl.drop_first
+        except KeyError:
+            drop_first = 2
+            config_ctrl = None
+
         if self.input_mode == "Manual":
             # -> bypass hdxms-datasets ?
             data_src = self.data_file_history
             dataset = HDXDataSet(
                 data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec
             )
-        elif self.input_mode == "Batch":
+        elif self.input_mode == "openHDX zip":
             # > zip file input
             if self.hdxm_list:
                 self.parent.logger.info("Cannot add data in batch after manually inputting data")
                 return
+            if self.zip_file is None:
+                self.parent.logger.info("No zip file provided")
+                return
 
-            hdx_spec = yaml.safe_load(self.batch_file.decode("UTF-8"))
+            bio = BytesIO(self.zip_file)
+            with tempfile.TemporaryDirectory() as tmpdir:
+                with zipfile.ZipFile(bio, "r") as zip_ref:
+                    zip_ref.extractall(tmpdir)
 
-            # Convert loaded data_files to data src with correct keys
-            data_src = {}
-            for data_file, data_file_spec in hdx_spec["data_files"].items():
-                data_src[data_file] = self.data_files[data_file_spec["filename"]]
+                dataset = load_dataset(Path(tmpdir))
+                hdxm_set = HDXMeasurementSet.from_dataset(dataset.states, drop_first=drop_first)
 
-            # store state spec for export
-            self.state_spec = hdx_spec["states"]
-            self.data_spec = hdx_spec["data_files"]
+            self.parent.logger.info(f"Loaded dataset {dataset.hdx_id} from zip file")
+            self.param["hdxm_list"].objects = [state.name for state in dataset.states]
 
-            dataset = HDXDataSet(
-                data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec
-            )
-            self.param["hdxm_list"].objects = dataset.states
+            # TODO repeated code with below
+            authors = ", ".join([author.name for author in dataset.metadata.authors])
+            if authors:
+                self.parent.logger.info(f"Author(s): {authors}")
+
+            publication = dataset.metadata.publication
+            if publication is not None:
+                pub_str = publication.title or ""
+                if publication.doi:
+                    pub_str += f" ([{publication.doi}](https://doi.org/{publication.doi}))"
+
+                self.parent.logger.info("Publication: " + pub_str)
+
         elif self.input_mode == "Database":
             if self.dataset_id is None:
                 return
 
             dataset = self.data_vault.load_dataset(self.dataset_id)
+            hdxm_set = HDXMeasurementSet.from_dataset(dataset.states, drop_first=drop_first)
 
             self.param["hdxm_list"].objects = [state.name for state in dataset.states]
             self.parent.logger.info(f"Loaded dataset {dataset.hdx_id} from local database")
@@ -799,15 +823,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
         # Disable input and changing config settings after loading data
         self.widgets["load_dataset_button"].disabled = True
-        try:
-            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
-            drop_first = config_ctrl.drop_first
-            config_ctrl.widgets["drop_first"].disabled = True
-            # config_ctrl.widgets["weight_exponent"].disabled = True
-        except KeyError:
-            drop_first = 2
-
-        hdxm_set = HDXMeasurementSet.from_dataset(dataset.states, drop_first=drop_first)
+        if config_ctrl is not None:
+            self.widgets["input_mode"].disabled = True
 
         for hdxm in hdxm_set:
             self.src.add(hdxm, hdxm.name)
