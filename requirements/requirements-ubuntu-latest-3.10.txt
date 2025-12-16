@@ -380,7 +380,7 @@ pygments==2.19.1
     #   rich
 pylatex==1.4.2
     # via pyhdx (pyproject.toml)
-pymdown-extensions==10.14
+pymdown-extensions==10.16.1
     # via
     #   mkdocs-material
     #   mkdocstrings
