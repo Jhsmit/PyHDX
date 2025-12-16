@@ -290,7 +290,7 @@ class HDXMeasurement:
 
     @classmethod
     def from_dataset(
-        cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **kwargs
+        cls, state: State, drop_first=cfg.analysis.drop_first, **kwargs
     ) -> HDXMeasurement:
         """Create an HDXMeasurement object from a HDXDataSet object.
 
@@ -305,20 +305,11 @@ class HDXMeasurement:
 
         """
 
-        if isinstance(state, str):
-            state_names = [s.name for s in dataset.states]
-            state_idx = state_names.index(state)
-        else:
-            state_idx = state
-
-        selected_state = dataset.states[state_idx]
-        loaded_peptides = load_pyhdx_peptides(selected_state.peptides)
+        loaded_peptides = load_pyhdx_peptides(state.peptides)
 
         assert "experiment" in loaded_peptides, "Dataset must contain partially deuterated peptides"
 
-        pd_peptides = get_peptides_by_type(
-            selected_state.peptides, DeuterationType.partially_deuterated
-        )
+        pd_peptides = get_peptides_by_type(state.peptides, DeuterationType.partially_deuterated)
         assert pd_peptides is not None  # this never happens due to previous check
 
         peptides = apply_control(**loaded_peptides)

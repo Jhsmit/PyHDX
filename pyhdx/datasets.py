@@ -54,11 +54,11 @@ def load_pyhdx_peptides(peptides: list[Peptides]) -> dict[str, pd.DataFrame]:
     return output
 
 
-def parse_dataset(dataset: HDXDataSet, drop_first: int) -> list[tuple[pd.DataFrame, dict]]:
+def parse_dataset_states(states: list[State], drop_first: int) -> list[tuple[pd.DataFrame, dict]]:
     """Parse an HDXDataSet into a list of tuples of (peptides, metadata) for pyhdx"""
 
     output = []
-    loaded_peptides = [load_pyhdx_peptides(state.peptides) for state in dataset.states]
+    loaded_peptides = [load_pyhdx_peptides(state.peptides) for state in states]
 
     if all("fd_control" in lp for lp in loaded_peptides):
         print("pass")
@@ -74,7 +74,7 @@ def parse_dataset(dataset: HDXDataSet, drop_first: int) -> list[tuple[pd.DataFra
     import warnings
 
     warnings.warn(
-        f"Not all states have FD control, using FD control from state index {idx}: {dataset.states[idx].name}"
+        f"Not all states have FD control, using FD control from state index {idx}: {states[idx].name}"
     )
 
     # add the fd_control to all loaded peptides that lack it
@@ -82,7 +82,7 @@ def parse_dataset(dataset: HDXDataSet, drop_first: int) -> list[tuple[pd.DataFra
         if "fd_control" not in lp:
             lp["fd_control"] = fd_control
 
-    for state, peptides in zip(dataset.states, loaded_peptides):
+    for state, peptides in zip(states, loaded_peptides):
         pd_peptides = get_peptides_by_type(state.peptides, DeuterationType.partially_deuterated)
         assert pd_peptides is not None  # this never happens due to previous checks
 
