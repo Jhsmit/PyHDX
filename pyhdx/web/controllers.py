@@ -429,12 +429,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
             sequence=text_area,
         )
 
-        # Add hdx spec download button
-        download = pn.widgets.FileDownload(
-            label="Download HDX spec", callback=self.spec_download_callback
-        )
-        widgets["download_spec_button"] = download
-
         widget_order = [
             "input_mode",
             "input_type",
@@ -460,7 +454,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
             "sequence",
             "measurement_name",
             "add_dataset_button",
-            "download_spec_button",
             "hdxm_list",
             "load_dataset_button",
         ]
@@ -468,13 +461,6 @@ class PeptideFileInputControl(PyHDXControlPanel):
         sorted_widgets = {k: widgets[k] for k in widget_order}
 
         return sorted_widgets
-
-    def spec_download_callback(self) -> StringIO:
-        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets["download_spec_button"].filename = f"PyHDX_hdx_spec_{timestamp}.yaml"
-
-        sio = self.parent.hdx_spec_callback()
-        return sio
 
     @param.depends("input_mode", watch=True)
     def _update_mode(self):
