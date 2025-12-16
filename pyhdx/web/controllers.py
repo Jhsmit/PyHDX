@@ -50,6 +50,7 @@ from pyhdx.fitting import (
 from pyhdx.fitting_torch import TorchFitResultSet
 from pyhdx.models import (
     HDXMeasurement,
+    HDXMeasurementSet,
     PeptideUptakeModel,
 )
 from pyhdx.plot import (
@@ -775,7 +776,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
         elif self.input_mode == "Database":
             if self.dataset_id is None:
                 return
+
             dataset = self.data_vault.load_dataset(self.dataset_id)
+
             self.param["hdxm_list"].objects = [state.name for state in dataset.states]
             self.parent.logger.info(f"Loaded dataset {dataset.hdx_id} from local database")
 
@@ -804,9 +807,10 @@ class PeptideFileInputControl(PyHDXControlPanel):
         except KeyError:
             drop_first = 2
 
-        for state in dataset.states:
-            hdxm = HDXMeasurement.from_dataset(state, drop_first=drop_first)
-            self.src.add(hdxm, state)
+        hdxm_set = HDXMeasurementSet.from_dataset(dataset.states, drop_first=drop_first)
+
+        for hdxm in hdxm_set:
+            self.src.add(hdxm, hdxm.name)
             self.parent.logger.info(
                 f"Loaded experiment peptides state {hdxm.state} "
                 f"({hdxm.Nt} timepoints, {len(hdxm.coverage)} peptides each)"
