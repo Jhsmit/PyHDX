@@ -347,8 +347,6 @@ class HDXMeasurement:
         else:
             nd_peptide_df = adapt_for_pyhdx(nd_peptides.load()).to_pandas()
 
-        # take globally defined metadata and update with state specific metadata
-
         peptides = apply_control(pd_peptide_df, fd_peptide_df, nd_peptide_df)
         peptides = correct_d_uptake(
             peptides,
@@ -359,47 +357,6 @@ class HDXMeasurement:
         metadata = {**state_kwargs(selected_state), **peptides_kwargs(pd_peptides)}
 
         return HDXMeasurement(peptides, **metadata)
-
-    @classmethod
-    def from_dataset_v015(
-        cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **metadata
-    ) -> HDXMeasurement:
-        """Create an HDXMeasurement object from a HDXDataSet object.
-
-        Args:
-            dataset: HDXDataSet object
-            state: State label or index for measurement in the dataset
-
-        Returns:
-            HDXMeasurement object.
-
-        """
-
-        state = dataset.states[state] if isinstance(state, int) else state
-        peptide_spec = dataset.hdx_spec["states"][state]["peptides"]
-
-        peptides = dataset.load_peptides(state, "experiment")
-        if "FD_control" not in peptide_spec:
-            raise ValueError("Dataset does not contain a FD_control state")
-        fd_peptides = dataset.load_peptides(state, "FD_control")
-        nd_peptides = (
-            dataset.load_peptides(state, "ND_control") if "ND_control" in peptide_spec else None
-        )
-
-        # take globally defined metadata and update with state specific metadata
-        spec_metadata = dataset.hdx_spec.get("metadata", {})
-        spec_metadata.update(dataset.hdx_spec["states"][state]["metadata"])
-
-        metadata = {**spec_metadata, **metadata}
-
-        peptides = apply_control(peptides, fd_peptides, nd_peptides)
-        peptides = correct_d_uptake(
-            peptides,
-            drop_first=drop_first,
-            d_percentage=metadata.get("d_percentage", 100.0),
-        )
-
-        return HDXMeasurement(peptides, name=state, **metadata)
 
     def __str__(self) -> str:
         """String representation of this HDX measurement object.
