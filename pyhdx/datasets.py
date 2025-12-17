@@ -1,11 +1,11 @@
 from hdxms_datasets.process import merge_peptide_tables, compute_uptake_metrics
 from hdxms_datasets.utils import get_peptides_by_type
-from hdxms_datasets.models import HDXDataSet, State, DeuterationType, Peptides
+from hdxms_datasets.models import State, DeuterationType, Peptides
 import narwhals as nw
 import pandas as pd
 import warnings
 
-from pyhdx.process import correct_d_uptake, apply_control
+from pyhdx.process import correct_d_uptake
 
 
 def state_kwargs(state: State):
