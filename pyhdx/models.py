@@ -318,13 +318,18 @@ class HDXMeasurement:
         pd_peptides = get_peptides_by_type(state.peptides, DeuterationType.partially_deuterated)
         assert pd_peptides is not None  # this never happens due to previous check
 
+        d_percentage = kwargs.get("d_percentage", pd_peptides.d_percentage)
+        assert d_percentage is not None, (
+            "Deuterium percentage must be specified either in the dataset or as a kwarg"
+        )
+
         merged = merge_peptide_tables(**loaded_peptides)  # type: ignore
         computed = compute_uptake_metrics(merged)
         adapted = adapt_for_pyhdx(computed).to_pandas()
         peptides_corrected = correct_d_uptake(
             adapted,
             drop_first=drop_first,
-            d_percentage=pd_peptides.d_percentage or 100.0,
+            d_percentage=d_percentage,
         )
 
         metadata = {
