@@ -66,7 +66,6 @@ from pyhdx.plot import (
 )
 from pyhdx.process import (
     correct_d_uptake,
-    filter_peptides,
     filter_peptides_unitless,
     verify_sequence,
 )
