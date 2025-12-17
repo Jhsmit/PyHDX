@@ -1,17 +1,16 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
-from pathlib import Path
 import sys
 import tempfile
 import uuid
 import zipfile
+from dataclasses import dataclass
 from io import BytesIO, StringIO
+from pathlib import Path
 from typing import Any
 
 import colorcet
-from hdxms_datasets import load_dataset
 import matplotlib
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -20,8 +19,10 @@ import numpy.typing as npt
 import pandas as pd
 import panel as pn
 import param
-import yaml
 from distributed import Client
+from hdxms_datasets import HDXDataSet, apply_filters, compute_uptake_metrics, load_dataset
+from hdxms_datasets.database import DataBase
+from hdxms_datasets.process import merge_peptide_tables
 from matplotlib.colors import Colormap, Normalize
 from omegaconf import OmegaConf
 from panel.io.server import async_execute
@@ -31,10 +32,8 @@ from ultraplot import to_hex
 
 from pyhdx.__version__ import __version__
 from pyhdx.config import cfg
-
-from hdxms_datasets import HDXDataSet
-from hdxms_datasets.database import DataBase
-from pyhdx.fileIO import SUPPORTED_FORMATS, csv_to_dataframe, dataframe_to_stringio, DataFile
+from pyhdx.datasets import adapt_for_pyhdx
+from pyhdx.fileIO import SUPPORTED_FORMATS, DataFile, csv_to_dataframe, dataframe_to_stringio
 from pyhdx.fitting import (
     EPOCHS,
     PATIENCE,
@@ -392,7 +391,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
     measurement_name = param.String(doc="Label for the current HDX measurement")
 
     add_measurement_button = param.Action(
-        lambda self: self._add_single_dataset_spec(),
+        lambda self: self._add_measurement(),
         label="Add measurement",
         doc="Add single HDX measurement specification for loading",
     )
@@ -418,10 +417,10 @@ class PeptideFileInputControl(PyHDXControlPanel):
         # Dict with all files, keeps files after clearing input
         self.data_file_history: dict[str, DataFile] = {}
 
-        # Dictionary of accumulated HDX state specifications:
-        self.state_spec = {}
-        # Dictionary of accumulated HDX data file specifications
-        self.data_spec = {}
+        # # Dictionary of accumulated HDX state specifications:
+        # self.state_spec = {}
+        # # Dictionary of accumulated HDX data file specifications
+        # self.data_spec = {}
 
         # create database dir if it does not exist
         cfg.database_dir.mkdir(parents=True, exist_ok=True)
@@ -689,13 +688,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
         if not self.c_term and exposures:
             self.c_term = int(np.max(exp_entries["end"]))
 
-    @property
-    def hdx_spec(self) -> dict[str, Any]:
-        return {"data_files": self.data_spec, "states": self.state_spec}
-
     # triggered from 'add measurement' button
-    def _add_single_dataset_spec(self):
-        """Adds the specifications of a single HDX Measurement to the `state_spec` / `data_spec` dictionaries"""
+    def _add_measurement(self):
+        """Adds a single hdxm object from manual input"""
         if not self.data_files:
             self.parent.logger.info("No data loaded")
             return
@@ -703,19 +698,31 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
-        metadata = {}
-        peptide_spec = {}
+        # metadata = {}
+        # peptide_spec = {}
 
         exp_spec = {
             "state": self.exp_state,
-            "exposure": {"values": self.exp_exposures, "unit": "s"},
+            "exposure": self.exp_exposures,
         }
 
-        peptide_spec["experiment"] = exp_spec
+        # peptide_spec["experiment"] = exp_spec
 
-        df = self.data_files[self.exp_file].data
-        peptides = filter_peptides(df, **exp_spec)
-        corrected = correct_d_uptake(peptides)  # remove this step when _sequence field is removed
+        df = self.data_files[self.exp_file].read_narwhals()
+        df_patially_deuterated = apply_filters(
+            df, state=self.exp_state, exposure=self.exp_exposures
+        )
+
+        df = self.data_files[self.fd_file].read_narwhals()
+        df_fully_deuterated = apply_filters(df, state=self.fd_state, exposure=self.fd_exposure)
+
+        merged = merge_peptide_tables(
+            partially_deuterated=df_patially_deuterated, fully_deuterated=df_fully_deuterated
+        )
+        computed = compute_uptake_metrics(merged)
+        adapted = adapt_for_pyhdx(computed).to_pandas()
+
+        corrected = correct_d_uptake(adapted, drop_first=)  # remove this step when _sequence field is removed
         exp_spec["data_file"] = self.exp_file
 
         try:
@@ -2206,11 +2213,6 @@ class FileExportControl(PyHDXControlPanel):
 
         widgets["divider"] = pn.layout.Divider()
 
-        widgets["download_state_spec"] = pn.widgets.FileDownload(
-            label="Download HDX spec",
-            callback=self.hdx_spec_callback,
-        )
-
         widgets["download_config"] = pn.widgets.FileDownload(
             label="Download config",
             callback=self.config_callback,
@@ -2233,7 +2235,6 @@ class FileExportControl(PyHDXControlPanel):
             "export_pml",
             "export_colors",
             "divider",
-            "download_state_spec",
             "download_config",
             "download_user_settings",
             "download_log",
@@ -2318,13 +2319,6 @@ class FileExportControl(PyHDXControlPanel):
             return io
         else:
             return None
-
-    def hdx_spec_callback(self) -> StringIO:
-        timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
-        self.widgets["download_state_spec"].filename = f"PyHDX_hdx_spec_{timestamp}.yaml"
-
-        sio = self.parent.hdx_spec_callback()
-        return sio
 
     def config_callback(self) -> StringIO:
         timestamp = self.parent.session_time.strftime("%Y%m%d%H%M")
@@ -2635,10 +2629,6 @@ class SessionManagerControl(PyHDXControlPanel):
             for name, table in self.sources["main"].tables.items():
                 sio = dataframe_to_stringio(table)
                 session_zip.writestr(name + ".csv", sio.getvalue())
-
-            # Write HDX measurement state specifications
-            if sio := self.parent.hdx_spec_callback():
-                session_zip.writestr("PyHDX_state_spec.yaml", sio.read())
 
             # Write config file
             sio = self.parent.config_callback()
