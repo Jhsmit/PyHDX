@@ -1,4 +1,3 @@
-import copy
 import time
 from pathlib import Path
 
@@ -7,12 +6,12 @@ import pandas as pd
 import pytest
 import torch
 import yaml
-from hdxms_datasets import DataSet as HDXDataSet
+from hdxms_datasets import HDXDataSet, load_dataset
 from pandas.testing import assert_frame_equal, assert_series_equal
 
 from pyhdx import HDXMeasurement
 from pyhdx.config import cfg
-from pyhdx.fileIO import csv_to_dataframe
+from pyhdx.fileIO import csv_to_dataframe, read_dynamx
 from pyhdx.fitting import (
     GenericFitResult,
     fit_d_uptake,
@@ -23,6 +22,9 @@ from pyhdx.fitting import (
     fit_rates_weighted_average,
 )
 from pyhdx.models import HDXMeasurementSet
+from pyhdx.process import apply_control, correct_d_uptake
+from pyhdx.legacy import filter_peptides
+
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
@@ -34,57 +36,84 @@ torch.manual_seed(43)
 sequence = "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA"
 sequence_dimer = "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA"
 
+TEMPERATURE, PH = 273.15 + 30, 8.0
+
 
 @pytest.fixture()
-def dataset() -> HDXDataSet:
-    yaml_pth = Path(input_dir / "data_states.yaml")
-    hdx_spec = yaml.safe_load(yaml_pth.read_text())
+def dataframes() -> tuple[pd.DataFrame, pd.DataFrame]:
+    df_apo = read_dynamx(input_dir / "ecSecB_apo.csv")
+    df_dimer = read_dynamx(input_dir / "ecSecB_dimer.csv")
 
-    # add truncated tetramer state
-    hdx_spec["states"]["SecB_tetramer_red"] = copy.deepcopy(hdx_spec["states"]["SecB_tetramer"])
-    hdx_spec["states"]["SecB_tetramer_red"]["peptides"]["experiment"]["query"] = ["stop < 40"]
+    fd = {"state": "Full deuteration control", "exposure": {"value": 0.167, "unit": "min"}}
+    fd_df = filter_peptides(df_apo, **fd)
 
-    dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
+    apo_peptides = filter_peptides(df_apo, state="SecB WT apo")
+    dimer_peptides = filter_peptides(df_dimer, state="SecB his dimer apo")
+
+    apo_control = apply_control(apo_peptides, fd_df)
+    dimer_control = apply_control(dimer_peptides, fd_df)
+
+    apo_corrected = correct_d_uptake(apo_control)
+    dimer_corrected = correct_d_uptake(dimer_control)
+
+    return apo_corrected, dimer_corrected
+
+
+@pytest.fixture()
+def base_dataset() -> HDXDataSet:
+    dataset_dir = input_dir / "HDX_D9096080"
+    dataset = load_dataset(dataset_dir)
 
     return dataset
 
 
 @pytest.fixture()
-def hdxm_apo(dataset: HDXDataSet) -> HDXMeasurement:
-    hdxm = HDXMeasurement.from_dataset(
-        dataset, state="SecB_tetramer", d_percentage=100.0, drop_first=1
-    )
+def hdxm_apo(dataframes: tuple[pd.DataFrame, pd.DataFrame]) -> HDXMeasurement:
+    apo_corrected, _ = dataframes
+    hdxm_apo = HDXMeasurement(apo_corrected, sequence=sequence, temperature=TEMPERATURE, pH=PH)
 
-    return hdxm
-
-
-@pytest.fixture()
-def hdxm_dimer(dataset: HDXDataSet) -> HDXMeasurement:
-    hdxm = HDXMeasurement.from_dataset(
-        dataset, state="SecB_dimer", d_percentage=100.0, drop_first=1
-    )
-
-    return hdxm
+    return hdxm_apo
 
 
 @pytest.fixture()
-def hdxm_apo_red(dataset: HDXDataSet) -> HDXMeasurement:
-    hdxm = HDXMeasurement.from_dataset(
-        dataset, state="SecB_tetramer_red", d_percentage=100.0, drop_first=1
-    )
+def hdxm_apo_red(dataframes: tuple[pd.DataFrame, pd.DataFrame]) -> HDXMeasurement:
+    apo_corrected, _ = dataframes
 
-    return hdxm
+    reduced_data = apo_corrected.copy()[apo_corrected["end"] < 40]
+
+    hdxm_apo_red = HDXMeasurement(reduced_data, temperature=TEMPERATURE, pH=PH, c_term=155)
+
+    return hdxm_apo_red
 
 
 @pytest.fixture()
-def hdxm_set() -> HDXMeasurementSet:
-    yaml_file = input_dir / "data_states_deltas.yaml"
-    hdx_spec = yaml.safe_load(yaml_file.read_text())
+def hdxm_dimer(dataframes: tuple[pd.DataFrame, pd.DataFrame]) -> HDXMeasurement:
+    _, dimer_corrected = dataframes
+    hdxm_dimer = HDXMeasurement(
+        dimer_corrected, sequence=sequence_dimer, temperature=TEMPERATURE, pH=PH
+    )
 
-    dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
-    hdxm_set = HDXMeasurementSet.from_dataset(dataset)
+    return hdxm_dimer
 
-    return hdxm_set
+
+# @pytest.fixture()
+# def hdxm_apo_red(dataset: HDXDataSet) -> HDXMeasurement:
+#     hdxm = HDXMeasurement.from_dataset(
+#         dataset, state="SecB_tetramer_red", d_percentage=100.0, drop_first=1
+#     )
+
+#     return hdxm
+
+
+# @pytest.fixture()
+# def hdxm_set() -> HDXMeasurementSet:
+#     yaml_file = input_dir / "data_states_deltas.yaml"
+#     hdx_spec = yaml.safe_load(yaml_file.read_text())
+
+#     dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
+#     hdxm_set = HDXMeasurementSet.from_dataset(dataset)
+
+#     return hdxm_set
 
 
 @pytest.mark.skip(reason="Different result on py>3.9")
@@ -253,7 +282,7 @@ def test_batch_fit(hdxm_apo: HDXMeasurement, hdxm_dimer: HDXMeasurement, tmp_pat
     for s_state, p_state in states:
         from pandas.testing import assert_series_equal
 
-        result = output[s_state]["dG"]
+        result = output[p_state]["dG"]
         test = check_df[p_state]["dG"]
 
         assert_series_equal(result, test, rtol=0.1)
@@ -262,28 +291,15 @@ def test_batch_fit(hdxm_apo: HDXMeasurement, hdxm_dimer: HDXMeasurement, tmp_pat
     assert errors.shape == (hdx_set.Ns, hdx_set.Np, hdx_set.Nt)
 
     test = fr_global.get_peptide_mse().fillna(-1)
-    name_mapping = {"SecB his dimer apo": "SecB_dimer", "SecB WT apo": "SecB_tetramer"}
-    ref = (
-        csv_to_dataframe(output_dir / "ecSecB_batch_peptide_mse.csv")
-        .fillna(-1)
-        .rename(columns=name_mapping)
-    )
+    ref = csv_to_dataframe(output_dir / "ecSecB_batch_peptide_mse.csv").fillna(-1)
     assert_frame_equal(test, ref, atol=1e-1, rtol=5e-1)
 
     test = fr_global.get_residue_mse().fillna(-1)
-    ref = (
-        csv_to_dataframe(output_dir / "ecSecB_batch_residue_mse.csv")
-        .fillna(-1)
-        .rename(columns=name_mapping)
-    )
+    ref = csv_to_dataframe(output_dir / "ecSecB_batch_residue_mse.csv").fillna(-1)
     assert_frame_equal(test, ref, atol=1e-1, rtol=5e-1)
 
     test = fr_global.losses.fillna(-1)
-    ref = (
-        csv_to_dataframe(output_dir / "ecSecB_batch_loss.csv")
-        .fillna(-1)
-        .rename(columns=name_mapping)
-    )
+    ref = csv_to_dataframe(output_dir / "ecSecB_batch_loss.csv").fillna(-1)
     assert_frame_equal(test, ref, atol=1e-3, rtol=1e-2)
 
     # test alignment fit
@@ -297,10 +313,8 @@ def test_batch_fit(hdxm_apo: HDXMeasurement, hdxm_dimer: HDXMeasurement, tmp_pat
     gibbs_guess = hdx_set[0].guess_deltaG(guess["rate"])  # Guesses from first measurement
     aligned_result = fit_gibbs_global_batch_aligned(hdx_set, gibbs_guess, r1=2, r2=5, epochs=1000)
     output = aligned_result.output
-    check_df = csv_to_dataframe(output_dir / "ecSecB_batch_aligned.csv").rename(
-        columns=name_mapping
-    )
-    states = ["SecB_tetramer", "SecB_dimer"]
+    check_df = csv_to_dataframe(output_dir / "ecSecB_batch_aligned.csv")
+    states = ["SecB his dimer apo", "SecB WT apo"]
 
     for state in states:
         from pandas.testing import assert_series_equal
