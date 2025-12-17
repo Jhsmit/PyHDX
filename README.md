@@ -49,6 +49,7 @@ With web interface extra:
 $ uv pip install pyhdx[web]
 ```
 
+(Not recommended - outdated version)
 Conda install (includes web interface extra):
 
 ```bash
