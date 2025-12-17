@@ -391,7 +391,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
 
     measurement_name = param.String(doc="Label for the current HDX measurement")
 
-    add_dataset_button = param.Action(  # -> refactor measurement
+    add_measurement_button = param.Action(
         lambda self: self._add_single_dataset_spec(),
         label="Add measurement",
         doc="Add single HDX measurement specification for loading",
@@ -477,7 +477,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
             "c_term",
             "sequence",
             "measurement_name",
-            "add_dataset_button",
+            "add_measurement_button",
             "hdxm_list",
             "load_dataset_button",
         ]
@@ -513,7 +513,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
                 "n_term",
                 "c_term",
                 "sequence",
-                "add_dataset_button",
+                "add_measurement_button",
                 "measurement_name",
                 "download_spec_button",
             },
