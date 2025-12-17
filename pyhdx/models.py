@@ -21,7 +21,7 @@ from hdxms_datasets.models import DeuterationType, State
 from pyhdx.alignment import align_dataframes
 from pyhdx.config import cfg
 from pyhdx.fileIO import dataframe_to_file
-from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
+from pyhdx.process import correct_d_uptake, parse_temperature, verify_sequence
 from pyhdx.support import dataframe_intersection, reduce_inter
 from pyhdx.datasets import (
     adapt_for_pyhdx,
@@ -31,7 +31,6 @@ from pyhdx.datasets import (
     peptides_kwargs,
 )
 from hdxms_datasets.process import merge_peptide_tables, compute_uptake_metrics
-from hdxms_datasets.utils import get_peptides_by_type
 
 
 class Coverage:

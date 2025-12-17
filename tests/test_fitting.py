@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import pytest
 import torch
-import yaml
 from hdxms_datasets import HDXDataSet, load_dataset
 from pandas.testing import assert_frame_equal, assert_series_equal
 

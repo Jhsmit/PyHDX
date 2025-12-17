@@ -3,10 +3,8 @@
 # %autoreload 2
 
 # %%
-from pyhdx.web.apps import main_app
 from pyhdx.web.controllers import PeptideFileInputControl
-from pyhdx.web.main_controllers import MainController, PyHDXController
-import panel as pn
+from pyhdx.web.main_controllers import PyHDXController
 import logging
 import sys
 

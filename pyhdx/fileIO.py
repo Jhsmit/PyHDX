@@ -24,7 +24,6 @@ import yaml
 
 import narwhals as nw
 import pyhdx
-from pyhdx.datasets import adapt_for_pyhdx
 
 if TYPE_CHECKING:
     from pyhdx.fitting_torch import TorchFitResult, TorchFitResultSet

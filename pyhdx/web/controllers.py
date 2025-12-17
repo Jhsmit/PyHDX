@@ -8,7 +8,6 @@ import zipfile
 from dataclasses import dataclass
 from io import BytesIO, StringIO
 from pathlib import Path
-from typing import Any
 
 import colorcet
 import matplotlib
@@ -20,7 +19,7 @@ import pandas as pd
 import panel as pn
 import param
 from distributed import Client
-from hdxms_datasets import HDXDataSet, apply_filters, compute_uptake_metrics, load_dataset
+from hdxms_datasets import apply_filters, compute_uptake_metrics, load_dataset
 from hdxms_datasets.database import DataBase
 from hdxms_datasets.process import merge_peptide_tables
 from hdxms_datasets.convert import cast_exposure
