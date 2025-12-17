@@ -6,10 +6,10 @@ import pandas as pd
 from pandas.testing import assert_frame_equal
 
 from pyhdx import HDXMeasurement
-from pyhdx.datasets import read_dynamx
-from pyhdx.fileIO import csv_to_dataframe, csv_to_hdxm
+from pyhdx.fileIO import csv_to_dataframe, csv_to_hdxm, read_dynamx
 from pyhdx.models import Coverage
-from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
+from pyhdx.process import apply_control, correct_d_uptake
+from pyhdx.legacy import filter_peptides
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
