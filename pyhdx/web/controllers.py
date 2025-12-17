@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from pathlib import Path
 import sys
 import tempfile
@@ -31,7 +32,7 @@ from ultraplot import to_hex
 from pyhdx.__version__ import __version__
 from pyhdx.config import cfg
 
-from pyhdx.datasets import HDXDataSet as HDXDataSet
+from hdxms_datasets import HDXDataSet
 from hdxms_datasets.database import DataBase
 from pyhdx.fileIO import SUPPORTED_FORMATS, csv_to_dataframe, dataframe_to_stringio, DataFile
 from pyhdx.fitting import (
@@ -270,6 +271,25 @@ class GlobalSettingsControl(ControlPanel):
     # @param.depends("weight_exponent", watch=True)
     # def _update_weight_exponent(self):
     #     cfg.analysis.weight_exponent = self.weight_exponent
+
+
+@dataclass
+class ManualEntry:
+    format: str  # should be one of supported formats
+    fd_file: str
+    fd_state: str
+    fd_exposure: str | float
+    exp_file: str
+    exp_state: str
+    exp_exposures: list[str | float]
+
+    d_percentage: float
+    temperature: float
+    pH: float
+    n_term: int
+    c_term: int
+    sequence: str
+    measurement_name: str
 
 
 class PeptideFileInputControl(PyHDXControlPanel):
