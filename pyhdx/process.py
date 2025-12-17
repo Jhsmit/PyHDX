@@ -6,7 +6,7 @@ from typing import Optional, Literal, Union
 import pandas as pd
 import numpy as np
 
-from pyhdx.support import convert_time, dataframe_intersection
+from pyhdx.support import dataframe_intersection
 
 
 def parse_temperature(value: float, unit: Literal["Celsius", "C", "Kelvin", "K"]):
