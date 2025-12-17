@@ -23,6 +23,7 @@ from distributed import Client
 from hdxms_datasets import HDXDataSet, apply_filters, compute_uptake_metrics, load_dataset
 from hdxms_datasets.database import DataBase
 from hdxms_datasets.process import merge_peptide_tables
+from hdxms_datasets.convert import cast_exposure
 from matplotlib.colors import Colormap, Normalize
 from omegaconf import OmegaConf
 from panel.io.server import async_execute
@@ -417,6 +418,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
         # Dict with all files, keeps files after clearing input
         self.data_file_history: dict[str, DataFile] = {}
 
+        self.manual_hdxm_obj: list[HDXMeasurement] = []
+
         # # Dictionary of accumulated HDX state specifications:
         # self.state_spec = {}
         # # Dictionary of accumulated HDX data file specifications
@@ -691,6 +694,9 @@ class PeptideFileInputControl(PyHDXControlPanel):
     # triggered from 'add measurement' button
     def _add_measurement(self):
         """Adds a single hdxm object from manual input"""
+
+        self.widgets["add_measurement_button"].loading = True
+
         if not self.data_files:
             self.parent.logger.info("No data loaded")
             return
@@ -698,23 +704,24 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self.parent.logger.info(f"Dataset name {self.measurement_name} already in use")
             return
 
-        # metadata = {}
-        # peptide_spec = {}
-
-        exp_spec = {
-            "state": self.exp_state,
-            "exposure": self.exp_exposures,
-        }
-
-        # peptide_spec["experiment"] = exp_spec
+        try:
+            config_ctrl = self.parent.control_panels["GlobalSettingsControl"]
+            drop_first = config_ctrl.drop_first
+        except KeyError:
+            drop_first = 2
 
         df = self.data_files[self.exp_file].read_narwhals()
-        df_patially_deuterated = apply_filters(
-            df, state=self.exp_state, exposure=self.exp_exposures
+        # filter down to the selected peptides, then cast exposure to float
+        # in case of HD examiner data
+        df_patially_deuterated = cast_exposure(
+            apply_filters(df, state=self.exp_state, exposure=self.exp_exposures)
         )
 
         df = self.data_files[self.fd_file].read_narwhals()
-        df_fully_deuterated = apply_filters(df, state=self.fd_state, exposure=self.fd_exposure)
+        # technically no need to cast exposure here since the values are not used
+        df_fully_deuterated = cast_exposure(
+            apply_filters(df, state=self.fd_state, exposure=self.fd_exposure)
+        )
 
         merged = merge_peptide_tables(
             partially_deuterated=df_patially_deuterated, fully_deuterated=df_fully_deuterated
@@ -722,8 +729,7 @@ class PeptideFileInputControl(PyHDXControlPanel):
         computed = compute_uptake_metrics(merged)
         adapted = adapt_for_pyhdx(computed).to_pandas()
 
-        corrected = correct_d_uptake(adapted, drop_first=)  # remove this step when _sequence field is removed
-        exp_spec["data_file"] = self.exp_file
+        corrected = correct_d_uptake(adapted, drop_first=drop_first, d_percentage=self.d_percentage)
 
         try:
             verify_sequence(corrected, self.sequence, self.n_term, self.c_term)
@@ -731,48 +737,22 @@ class PeptideFileInputControl(PyHDXControlPanel):
             self.parent.logger.info(f"Cannot add dataset: {e}")
             return
 
-        # Add the data file to the data spec
-        if self.exp_file not in self.data_spec:
-            self.data_spec[self.exp_file] = {
-                "filename": self.exp_file,
-                "format": self.input_type,
-            }
-
-        # Add the controls
-        fd_spec = {
-            "data_file": self.fd_file,
-            "state": self.fd_state,
-            "exposure": {"value": self.fd_exposure, "unit": "s"},
-        }
-        peptide_spec["FD_control"] = fd_spec
-        if self.nd_control:
-            nd_spec = {
-                "data_file": self.nd_file,
-                "state": self.nd_state,
-                "exposure": {"value": self.nd_exposure, "unit": "s"},
-            }
-            peptide_spec["ND_control"] = nd_spec
-
-        # Optionally add ph/temperature/d_percentage if this was input by the user
-        if self.show_pH:
-            metadata["pH"] = self.pH
-        if self.show_temperature:
-            metadata["temperature"] = {"value": self.temperature, "unit": "K"}
-        if self.show_d_percentage:
-            metadata["d_percentage"] = self.d_percentage
-
-        metadata["n_term"] = self.n_term
-        metadata["c_term"] = self.c_term
-        if self.sequence:
-            metadata["sequence"] = self.sequence
-
-        self.state_spec[self.measurement_name] = {
-            "peptides": peptide_spec,
-            "metadata": metadata,
+        metadata = {
+            "name": self.measurement_name,
+            "sequence": self.sequence,
+            "n_term": self.n_term,
+            "c_term": self.c_term,
+            "temperature": self.temperature,
+            "pH": self.pH,
         }
 
-        obj = self.param["hdxm_list"].objects or []
-        self.param["hdxm_list"].objects = obj + [self.measurement_name]
+        hdxm = HDXMeasurement(corrected, **metadata)
+        self.manual_hdxm_obj.append(hdxm)
+        self.param["hdxm_list"].objects = self.param["hdxm_list"].objects + [self.measurement_name]
+
+        self.widgets["add_measurement_button"].loading = False
+
+        self.parent.logger.info(f"Added measurement {self.measurement_name}")
 
     def _action_load_datasets(self) -> None:
         """Load all specified HDX measurements"""
@@ -785,11 +765,8 @@ class PeptideFileInputControl(PyHDXControlPanel):
             config_ctrl = None
 
         if self.input_mode == "Manual":
-            # -> bypass hdxms-datasets ?
-            data_src = self.data_file_history
-            dataset = HDXDataSet(
-                data_id=uuid.uuid4().hex, data_files=data_src, hdx_spec=self.hdx_spec
-            )
+            hdxm_set = HDXMeasurementSet(self.manual_hdxm_obj)
+
         elif self.input_mode == "openHDX zip":
             # > zip file input
             if self.hdxm_list:
