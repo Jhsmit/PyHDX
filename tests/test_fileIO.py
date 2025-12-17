@@ -16,8 +16,9 @@ import pytest
 
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
 from pyhdx.fitting import fit_gibbs_global
-from pyhdx.datasets import read_dynamx, filter_peptides
 from pyhdx.process import apply_control, correct_d_uptake
+from pyhdx.legacy import filter_peptides
+from pyhdx.fileIO import read_dynamx
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"

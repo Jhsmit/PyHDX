@@ -4,7 +4,7 @@ import os
 import textwrap
 import warnings
 from numbers import Number
-from typing import TYPE_CHECKING, Any, Optional, Union
+from typing import Any, Optional, Union
 
 import numpy as np
 import numpy.typing as npt
@@ -15,14 +15,22 @@ from scipy import constants
 from scipy.constants import R
 from scipy.integrate import solve_ivp
 
+from hdxms_datasets.utils import get_peptides_by_type
+from hdxms_datasets.models import DeuterationType, State
+
 from pyhdx.alignment import align_dataframes
 from pyhdx.config import cfg
 from pyhdx.fileIO import dataframe_to_file
-from pyhdx.process import apply_control, correct_d_uptake, parse_temperature, verify_sequence
+from pyhdx.process import correct_d_uptake, parse_temperature, verify_sequence
 from pyhdx.support import dataframe_intersection, reduce_inter
-
-if TYPE_CHECKING:
-    from hdxms_datasets import HDXDataSet
+from pyhdx.datasets import (
+    adapt_for_pyhdx,
+    load_peptides,
+    parse_dataset_states,
+    state_kwargs,
+    peptides_kwargs,
+)
+from hdxms_datasets.process import merge_peptide_tables, compute_uptake_metrics
 
 
 class Coverage:
@@ -286,44 +294,49 @@ class HDXMeasurement:
 
     @classmethod
     def from_dataset(
-        cls, dataset: HDXDataSet, state: str | int, drop_first=cfg.analysis.drop_first, **metadata
+        cls, state: State, drop_first=cfg.analysis.drop_first, **kwargs
     ) -> HDXMeasurement:
-        """Create an HDXMeasurement object from a HDXDataSet object.
+        """Create an HDXMeasurement object from a hdxms-datasets 'State' object.
 
         Args:
-            dataset: HDXDataSet object
-            state: State label or index for measurement in the dataset
+            state: State object from hdxms-datasets
+            drop_first: Number of N-terminal residues to drop from each peptide
+            **kwargs: additional kwargs passed to HDXMeasurement
 
         Returns:
             HDXMeasurement object.
 
         """
 
-        state = dataset.states[state] if isinstance(state, int) else state
-        peptide_spec = dataset.hdx_spec["states"][state]["peptides"]
+        loaded_peptides = load_peptides(state.peptides)
 
-        peptides = dataset.load_peptides(state, "experiment")
-        if "FD_control" not in peptide_spec:
-            raise ValueError("Dataset does not contain a FD_control state")
-        fd_peptides = dataset.load_peptides(state, "FD_control")
-        nd_peptides = (
-            dataset.load_peptides(state, "ND_control") if "ND_control" in peptide_spec else None
+        assert "partially_deuterated" in loaded_peptides, (
+            "Dataset must contain partially deuterated peptides"
         )
 
-        # take globally defined metadata and update with state specific metadata
-        spec_metadata = dataset.hdx_spec.get("metadata", {})
-        spec_metadata.update(dataset.hdx_spec["states"][state]["metadata"])
+        pd_peptides = get_peptides_by_type(state.peptides, DeuterationType.partially_deuterated)
+        assert pd_peptides is not None  # this never happens due to previous check
 
-        metadata = {**spec_metadata, **metadata}
+        d_percentage = kwargs.get("d_percentage", pd_peptides.d_percentage)
+        assert d_percentage is not None, (
+            "Deuterium percentage must be specified either in the dataset or as a kwarg"
+        )
 
-        peptides = apply_control(peptides, fd_peptides, nd_peptides)
-        peptides = correct_d_uptake(
-            peptides,
+        merged = merge_peptide_tables(**loaded_peptides)  # type: ignore
+        computed = compute_uptake_metrics(merged)
+        adapted = adapt_for_pyhdx(computed).to_pandas()
+        peptides_corrected = correct_d_uptake(
+            adapted,
             drop_first=drop_first,
-            d_percentage=metadata.get("d_percentage", 100.0),
+            d_percentage=d_percentage,
         )
 
-        return HDXMeasurement(peptides, name=state, **metadata)
+        metadata = {
+            **state_kwargs(state),
+            **peptides_kwargs(pd_peptides),
+        }
+
+        return HDXMeasurement(peptides_corrected, **metadata, **kwargs)
 
     def __str__(self) -> str:
         """String representation of this HDX measurement object.
@@ -345,7 +358,7 @@ class HDXMeasurement:
         Coverage Percentage:        {self.coverage.percent_coverage:.2f}
         Average redundancy:         {self.coverage.redundancy:.2f}   
         Average peptide length:     {self.coverage.avg_peptide_length:.2f}
-        Repeatability (mean std):   {self.data['uptake_sd'].mean():.2f} Da
+        Repeatability (mean std):   {self.data["uptake_sd"].mean():.2f} Da
         Temperature:                {self.temperature} K
         pH:                         {self.pH}             
         """
@@ -807,10 +820,12 @@ class HDXMeasurementSet:
         return self.hdxm_list.__getitem__(item)
 
     @classmethod
-    def from_dataset(self, dataset: HDXDataSet, **metadata) -> HDXMeasurementSet:
-        hdxm_list = [
-            HDXMeasurement.from_dataset(dataset, state, **metadata) for state in dataset.states
-        ]
+    def from_dataset(
+        cls, states: list[State], drop_first=cfg.analysis.drop_first, **kwargs
+    ) -> HDXMeasurementSet:
+        parsed = parse_dataset_states(states, drop_first=drop_first, **kwargs)
+
+        hdxm_list = [HDXMeasurement(peptides, **metadata) for peptides, metadata in parsed]
 
         return HDXMeasurementSet(hdxm_list)
 

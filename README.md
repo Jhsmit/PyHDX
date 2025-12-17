@@ -49,6 +49,7 @@ With web interface extra:
 $ uv pip install pyhdx[web]
 ```
 
+(Not recommended - outdated version)
 Conda install (includes web interface extra):
 
 ```bash
@@ -110,3 +111,28 @@ Create a new release and distribute to PyPI:
 
  - Create new release on GitHub
  - GitHub workflow builds and publishes to PyPI
+
+
+### Panel web interface development
+
+Working on a controller only:
+```bash
+panel serve pyhdx\web\controller_only.py --dev
+```
+
+Working on the main app:
+```bash
+panel serve pyhdx\web\apps\_main.py --dev
+```
+
+Make sure to also run a dask cluster if needed:
+```bash
+python pyhdx\local_cluster.py
+```
+
+
+
+#### Other
+
+Installing a specific commit of the HDX-MS-datasets package:
+# uv pip install "git+https://github.com/jhsmit/hdxms-datasets@5fa2458e6115329ae921a319e3e87b6cb21814ff"

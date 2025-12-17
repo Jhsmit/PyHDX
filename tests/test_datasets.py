@@ -1,10 +1,9 @@
 from pathlib import Path
 
 import numpy as np
-import yaml
 
-from pyhdx.datasets import DataSet as HDXDataSet
 from pyhdx.models import HDXMeasurement, HDXMeasurementSet
+from hdxms_datasets import load_dataset
 
 cwd = Path(__file__).parent
 input_dir = cwd / "test_data" / "input"
@@ -12,24 +11,22 @@ output_dir = cwd / "test_data" / "output"
 
 np.random.seed(43)
 
+DATASET_ID = "HDX_D9096080"
 
-def test_load_from_yaml():
-    yaml_pth = Path(input_dir / "data_states.yaml")
-    hdx_spec = yaml.safe_load(yaml_pth.read_text())
 
-    dataset = HDXDataSet.from_spec(hdx_spec, data_dir=input_dir)
+def test_load_from_openHDX():
+    dataset = load_dataset(input_dir / DATASET_ID)
 
-    hdxm = HDXMeasurement.from_dataset(dataset, state="SecB_tetramer")
+    state = dataset.get_state("Tetramer")
+    hdxm = HDXMeasurement.from_dataset(state)
+
     assert isinstance(hdxm, HDXMeasurement)
 
-    assert (
-        hdxm.temperature
-        == hdx_spec["states"]["SecB_tetramer"]["metadata"]["temperature"]["value"] + 273.15
-    )
+    assert hdxm.temperature == state.peptides[0].temperature
 
-    assert hdxm.name == "SecB_tetramer"
+    assert hdxm.name == "Tetramer"
     assert hdxm.state == "SecB WT apo"
 
-    hdxm_set = HDXMeasurementSet.from_dataset(dataset)
+    hdxm_set = HDXMeasurementSet.from_dataset(dataset.states)
     assert isinstance(hdxm_set, HDXMeasurementSet)
-    assert hdxm_set.names == list(hdx_spec["states"].keys())
+    assert hdxm_set.names == [state.name for state in dataset.states]

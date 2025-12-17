@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+from functools import cached_property
 import io
 import json
 import os
@@ -12,11 +14,15 @@ from io import BytesIO, StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, List, Literal, Optional, TextIO, Tuple, Union
 
+from hdxms_datasets import aggregate
+from hdxms_datasets.formats import FMT_REGISTRY, is_aggregated
+
 import pandas as pd
 import torch as t
 import torch.nn as nn
 import yaml
 
+import narwhals as nw
 import pyhdx
 
 if TYPE_CHECKING:
@@ -24,6 +30,7 @@ if TYPE_CHECKING:
 
 # Dtype of fields in peptide table data
 PEPTIDE_DTYPES = {"start": int, "end": int, "stop": int, "_start": int, "_stop": int}
+SUPPORTED_FORMATS = ["DynamX_v3_state", "HDExaminer_peptide_pool"]
 
 
 def read_dynamx(
@@ -66,6 +73,40 @@ def read_dynamx(
     df.columns = df.columns.str.replace(" ", "_")
 
     return df
+
+
+@dataclass(frozen=True)
+class DataFile(object):
+    name: str
+
+    format: str
+
+    filepath_or_buffer: Union[Path, StringIO]
+
+    @cached_property
+    def data(self) -> pd.DataFrame:
+        fmt_spec = FMT_REGISTRY[self.format]
+        # thi should be fine for the currently supported formats (they accept StringIO)
+        data_raw = fmt_spec.read(self.filepath_or_buffer)  # type: ignore
+        data = fmt_spec.convert(data_raw).with_columns((nw.col("end") + 1).alias("stop"))
+
+        if isinstance(self.filepath_or_buffer, StringIO):
+            self.filepath_or_buffer.seek(0)
+
+        return data.to_pandas()
+
+    def read_narwhals(self) -> nw.DataFrame:
+        fmt_spec = FMT_REGISTRY[self.format]
+        data_raw = fmt_spec.read(self.filepath_or_buffer)  # type: ignore
+        data = fmt_spec.convert(data_raw)
+
+        if not is_aggregated(data):
+            data = aggregate(data)
+
+        if isinstance(self.filepath_or_buffer, StringIO):
+            self.filepath_or_buffer.seek(0)
+
+        return data
 
 
 def read_header(file_obj: Union[TextIO, BinaryIO], comment: str = "#") -> List[str]:
@@ -215,7 +256,7 @@ def dataframe_to_stringio(
         prefix = "# " if fmt == "csv" else ""
         sio.write(prefix + pyhdx.VERSION_STRING + " \n")
         now = datetime.now()
-        sio.write(prefix + f'{now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())}) \n')
+        sio.write(prefix + f"{now.strftime('%Y/%m/%d %H:%M:%S')} ({int(now.timestamp())}) \n")
 
     json_header = {}
     if include_metadata is True and "metadata" in df.attrs:
@@ -238,7 +279,7 @@ def dataframe_to_stringio(
             sio.write("\n")
         for k, v in json_header.items():
             if v:
-                sio.write(f'{k.capitalize().replace("_", " ")}\n')
+                sio.write(f"{k.capitalize().replace('_', ' ')}\n")
                 sep = len(k) * "-"
                 sio.write(f"{sep}\n")
                 sio.write(yaml.dump(v, sort_keys=False))
@@ -336,7 +377,7 @@ def save_fitresult(
     epochs = f"Number of epochs: {len(fit_result.losses)}"
     version = pyhdx.VERSION_STRING
     now = datetime.now()
-    date = f'# {now.strftime("%Y/%m/%d %H:%M:%S")} ({int(now.timestamp())})'
+    date = f"# {now.strftime('%Y/%m/%d %H:%M:%S')} ({int(now.timestamp())})"
 
     lines = [date, version, loss, epochs]
     if log_lines is not None:

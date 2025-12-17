@@ -6,7 +6,7 @@ from typing import Optional, Literal, Union
 import pandas as pd
 import numpy as np
 
-from pyhdx.support import convert_time, dataframe_intersection
+from pyhdx.support import dataframe_intersection
 
 
 def parse_temperature(value: float, unit: Literal["Celsius", "C", "Kelvin", "K"]):
@@ -226,10 +226,10 @@ def verify_sequence(
     return seq_full, seq_reconstruct
 
 
-def filter_peptides(
+def filter_peptides_unitless(
     df: pd.DataFrame,
     state: Optional[str] = None,
-    exposure: Union[dict, float, None] = None,
+    exposure: Union[float, list[float], None] = None,
     query: Optional[list[str]] = None,
     dropna: bool = True,
 ) -> pd.DataFrame:
@@ -247,7 +247,7 @@ def filter_peptides(
     Example:
         ::
 
-        d = {"state", "SecB WT apo", "exposure": {"value": 0.167, "unit": "min"}
+        d = {"state", "SecB WT apo", "exposure": 0.167 }
         filtered_df = filter_peptides(df, **d)
 
     Returns:
@@ -260,15 +260,10 @@ def filter_peptides(
     if state:
         df = df[df["state"] == state]
 
-    if isinstance(exposure, dict):
-        if values := exposure.get("values"):
-            values = convert_time(values, exposure.get("unit", "s"), "s")
-            df = df[df["exposure"].isin(values)]
-        elif value := exposure.get("value"):
-            value = convert_time(value, exposure.get("unit", "s"), "s")
-            df = df[df["exposure"] == value]
-    elif isinstance(exposure, float):
+    if isinstance(exposure, float):
         df = df[df["exposure"] == exposure]
+    elif isinstance(exposure, list):
+        df = df[df["exposure"].isin(exposure)]
 
     if query:
         for q in query:

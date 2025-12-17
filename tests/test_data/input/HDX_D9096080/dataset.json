@@ -1,0 +1,128 @@
+{
+  "hdx_id": "HDX_0A55672B",
+  "description": "HDX-MS dataset for SecB protein in tetramer/dimer states",
+  "states": [
+    {
+      "name": "Tetramer",
+      "peptides": [
+        {
+          "data_file": "data/ecSecB_apo.csv",
+          "data_format": "DynamX_v3_state",
+          "deuteration_type": "partially_deuterated",
+          "filters": {
+            "State": "SecB WT apo",
+            "Exposure": [
+              0.167,
+              0.5,
+              1.0,
+              10.0,
+              100.000008
+            ]
+          },
+          "pH": 8.0,
+          "temperature": 303.15,
+          "d_percentage": 90.0,
+          "structure_mapping": {
+            "residue_offset": 0,
+            "auth_residue_numbers": false,
+            "auth_chain_labels": false
+          }
+        },
+        {
+          "data_file": "data/ecSecB_apo.csv",
+          "data_format": "DynamX_v3_state",
+          "deuteration_type": "fully_deuterated",
+          "filters": {
+            "State": "Full deuteration control",
+            "Exposure": 0.167
+          },
+          "structure_mapping": {
+            "residue_offset": 0,
+            "auth_residue_numbers": false,
+            "auth_chain_labels": false
+          }
+        }
+      ],
+      "description": "WT SecB",
+      "protein_state": {
+        "sequence": "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPYARECITSMVSRGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA",
+        "n_term": 1,
+        "c_term": 155,
+        "oligomeric_state": 4
+      }
+    },
+    {
+      "name": "Dimer",
+      "peptides": [
+        {
+          "data_file": "data/ecSecB_dimer.csv",
+          "data_format": "DynamX_v3_state",
+          "deuteration_type": "partially_deuterated",
+          "filters": {
+            "State": "SecB his dimer apo",
+            "Exposure": [
+              0.167,
+              0.5,
+              1.0,
+              10.0,
+              100.000008
+            ]
+          },
+          "pH": 8.0,
+          "temperature": 303.15,
+          "d_percentage": 90.0,
+          "structure_mapping": {
+            "chain": [
+              "A",
+              "B"
+            ],
+            "residue_offset": 0,
+            "auth_residue_numbers": false,
+            "auth_chain_labels": false
+          }
+        }
+      ],
+      "description": "Mutated SecB to be in a dimeric state",
+      "protein_state": {
+        "sequence": "MSEQNNTEMTFQIQRIYTKDISFEAPNAPHVFQKDWQPEVKLDLDTASSQLADDVYEVVLRVTVTASLGEETAFLCEVQQGGIFSIAGIEGTQMAHCLGAYCPNILFPAARECIASMVARGTFPQLNLAPVNFDALFMNYLQQQAGEGTEEHQDA",
+        "n_term": 1,
+        "c_term": 155,
+        "mutations": [
+          "Y109A",
+          "T115A",
+          "S119A"
+        ],
+        "oligomeric_state": 2
+      }
+    }
+  ],
+  "structure": {
+    "data_file": "data/1QYN.cif",
+    "format": "cif",
+    "description": "Crystal structure of E. coli SecB protein",
+    "pdb_id": "1QYN"
+  },
+  "protein_identifiers": {
+    "uniprot_accession_number": "P0AG86",
+    "uniprot_entry_name": "SECB_ECOLI"
+  },
+  "metadata": {
+    "authors": [
+      {
+        "name": "Srinath Krishnamurthy",
+        "orcid": "0000-0001-5492-4450",
+        "affiliation": "KU Leuven"
+      }
+    ],
+    "license": "CC BY 4.0",
+    "publication": {
+      "title": "Probing Universal Protein Dynamics Using Hydrogen-Deuterium Exchange Mass Spectrometry-Derived Residue-Level Gibbs Free Energy",
+      "doi": "10.1021/acs.analchem.1c02155"
+    },
+    "created_date": "2025-10-28T16:08:18.894498",
+    "modified_date": "2025-10-28T16:08:18.894500",
+    "package_version": "0.2.0+153.g3ad1557.dirty",
+    "dataset_version": 1
+  },
+  "file_hash": "ab0170794bf054b5"
+}

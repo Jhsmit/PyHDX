@@ -21,7 +21,8 @@ from pyhdx.fitting import (
     fit_d_uptake,
 )
 from pyhdx.models import HDXMeasurementSet
-from pyhdx.process import apply_control, correct_d_uptake, filter_peptides
+from pyhdx.process import apply_control, correct_d_uptake
+from pyhdx.legacy import filter_peptides
 
 """Run this file to renew the fit results which is used to test against"""
 
@@ -81,8 +82,8 @@ else:
     guess_output = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
 # Export protein sequence and intrinsic rate of exchange
-hdxm_apo.coverage.protein.to_file(output_dir / "ecSecB_info.csv")
-hdxm_apo.coverage.protein.to_file(output_dir / "ecSecB_info.txt", fmt="pprint")
+dataframe_to_file(output_dir / "ecSecB_info.csv", hdxm_apo.coverage.protein)
+dataframe_to_file(output_dir / "ecSecB_info.txt", hdxm_apo.coverage.protein, fmt="pprint")
 
 # Save RFU values
 rfu_df = hdxm_apo.rfu_residues
