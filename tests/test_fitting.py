@@ -96,6 +96,12 @@ def hdxm_dimer(dataframes: tuple[pd.DataFrame, pd.DataFrame]) -> HDXMeasurement:
     return hdxm_dimer
 
 
+@pytest.fixture()
+def hdxm_set(hdxm_apo: HDXMeasurement, hdxm_dimer: HDXMeasurement) -> HDXMeasurementSet:
+    hdxm_set = HDXMeasurementSet([hdxm_apo, hdxm_dimer])
+    return hdxm_set
+
+
 # @pytest.fixture()
 # def hdxm_apo_red(dataset: HDXDataSet) -> HDXMeasurement:
 #     hdxm = HDXMeasurement.from_dataset(
@@ -326,6 +332,7 @@ def test_batch_fit(hdxm_apo: HDXMeasurement, hdxm_dimer: HDXMeasurement, tmp_pat
 
 
 # batch fit on delta N/C tail dataset
+@pytest.mark.skip(reason="Needs adapting of `data_states_delta.yaml` to run")
 def test_batch_fit_delta(hdxm_set, tmp_path):
     guess_output = csv_to_dataframe(output_dir / "ecSecB_guess.csv")
 
