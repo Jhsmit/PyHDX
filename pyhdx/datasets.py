@@ -32,7 +32,9 @@ def adapt_for_pyhdx(df: nw.DataFrame) -> nw.DataFrame:
         "frac_fd_control_sd": "rfu_sd",
     }
 
-    df = df.rename(rename).with_columns((nw.col("end") + 1).alias("stop"))
+    df = (
+        df.rename(rename).with_columns((nw.col("end") + 1).alias("stop")).drop_nulls(subset=["rfu"])
+    )
     return df
 
 
