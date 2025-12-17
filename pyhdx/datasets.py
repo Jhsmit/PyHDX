@@ -55,7 +55,9 @@ def load_peptides(peptides):
     return output
 
 
-def parse_dataset_states(states: list[State], drop_first: int) -> list[tuple[pd.DataFrame, dict]]:
+def parse_dataset_states(
+    states: list[State], drop_first: int, d_percentage: float | None = None
+) -> list[tuple[pd.DataFrame, dict]]:
     """Parse an HDXDataSet into a list of tuples of (peptides, metadata) for pyhdx"""
 
     output = []
@@ -83,13 +85,17 @@ def parse_dataset_states(states: list[State], drop_first: int) -> list[tuple[pd.
         pd_peptides = get_peptides_by_type(state.peptides, DeuterationType.partially_deuterated)
         assert pd_peptides is not None  # this never happens due to previous checks
 
+        d_percentage = d_percentage or pd_peptides.d_percentage
+        assert d_percentage is not None, (
+            "Deuterium percentage must be specified either in the dataset or as a kwarg"
+        )
         merged = merge_peptide_tables(**peptides)  # type: ignore
         computed = compute_uptake_metrics(merged)
         adapted = adapt_for_pyhdx(computed).to_pandas()
         peptides_corrected = correct_d_uptake(
             adapted,
             drop_first=drop_first,
-            d_percentage=pd_peptides.d_percentage or 100.0,
+            d_percentage=d_percentage,
         )
 
         metadata = {
