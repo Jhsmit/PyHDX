@@ -14,7 +14,8 @@ from io import BytesIO, StringIO
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, BinaryIO, List, Literal, Optional, TextIO, Tuple, Union
 
-from hdxms_datasets.formats import FMT_REGISTRY
+from hdxms_datasets import aggregate
+from hdxms_datasets.formats import FMT_REGISTRY, is_aggregated
 
 import pandas as pd
 import torch as t
@@ -94,6 +95,19 @@ class DataFile(object):
             self.filepath_or_buffer.seek(0)
 
         return data.to_pandas()
+
+    def read_narwhals(self) -> nw.DataFrame:
+        fmt_spec = FMT_REGISTRY[self.format]
+        data_raw = fmt_spec.read(self.filepath_or_buffer)  # type: ignore
+        data = fmt_spec.convert(data_raw)
+
+        if not is_aggregated(data):
+            data = aggregate(data)
+
+        if isinstance(self.filepath_or_buffer, StringIO):
+            self.filepath_or_buffer.seek(0)
+
+        return data
 
 
 def read_header(file_obj: Union[TextIO, BinaryIO], comment: str = "#") -> List[str]:
