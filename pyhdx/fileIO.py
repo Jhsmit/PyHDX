@@ -23,6 +23,7 @@ import yaml
 
 import narwhals as nw
 import pyhdx
+from pyhdx.datasets import adapt_for_pyhdx
 
 if TYPE_CHECKING:
     from pyhdx.fitting_torch import TorchFitResult, TorchFitResultSet
@@ -74,20 +75,6 @@ def read_dynamx(
     return df
 
 
-def aggregate_hdexaminer(
-    df: nw.DataFrame,
-) -> nw.DataFrame:
-    """
-    Aggregate hd examiner peptide pool replicates (mean uptake).
-
-    Args:
-        df: Narwhals DataFrame representing the HDX-Examiner peptide pool data.
-
-    Returns:
-        Aggregated Narwhals DataFrame.
-    """
-
-
 @dataclass(frozen=True)
 class DataFile(object):
     name: str
@@ -96,17 +83,12 @@ class DataFile(object):
 
     filepath_or_buffer: Union[Path, StringIO]
 
-    time_conversion: tuple[Literal["h", "min", "s"], Literal["h", "min", "s"]] = ("min", "s")
-    # from, to time conversion
-
     @cached_property
     def data(self) -> pd.DataFrame:
         fmt_spec = FMT_REGISTRY[self.format]
-        # TODO convert time after reading
-
         # thi should be fine for the currently supported formats (they accept StringIO)
         data_raw = fmt_spec.read(self.filepath_or_buffer)  # type: ignore
-        data = adapt_for_pyhdx(fmt_spec.convert(data_raw))
+        data = fmt_spec.convert(data_raw).with_columns((nw.col("end") + 1).alias("stop"))
 
         if isinstance(self.filepath_or_buffer, StringIO):
             self.filepath_or_buffer.seek(0)
