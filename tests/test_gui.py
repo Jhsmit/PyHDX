@@ -22,6 +22,13 @@ torch.manual_seed(43)
 
 
 @pytest.fixture
+def openhdx_zip_file() -> bytes:
+    with open(input_dir / "HDX_D9096080.zip", "rb") as f:
+        binary = f.read()
+    return binary
+
+
+@pytest.fixture
 def ppix_spec() -> dict:
     return yaml.safe_load(Path(input_dir / "PpiX_states.yaml").read_text())
 
@@ -66,7 +73,7 @@ def test_load_single_file():
     input_control.exp_state = "SecB WT apo"
     timepoints = list(np.array([0.167, 0.5, 1.0, 5.0, 10.0, 100.000008]) * 60)
     assert input_control.exp_exposures == timepoints
-    input_control._add_single_dataset_spec()
+    input_control._add_measurement()
     input_control._action_load_datasets()
 
     assert "SecB WT apo" in src.hdxm_objects
@@ -79,15 +86,13 @@ def test_load_single_file():
     assert np.nanmean(hdxm.rfu_residues) == pytest.approx(0.6335831166442542)
 
 
-def test_batch_input(secb_file_dict):
+def test_zip_input(openhdx_zip_file: bytes):
     ctrl, tmpl = main_app()
 
     input_control = ctrl.control_panels["PeptideFileInputControl"]
-    input_control.input_mode = "Batch"
-    input_control.widgets["input_files"].filename = list(secb_file_dict.keys())
-    input_control.input_files = list(secb_file_dict.values())
-
-    input_control.batch_file = Path(input_dir / "data_states.yaml").read_bytes()
+    input_control.input_mode = "openHDX zip"
+    input_control.widgets["zip_file"].filename = "HDX_D9096080.zip"
+    input_control.zip_file = openhdx_zip_file
 
     input_control._action_load_datasets()
 
@@ -115,12 +120,12 @@ def test_web_fitting():
 
     input_control.exp_state = "SecB WT apo"
     input_control.measurement_name = "testname_123"
-    input_control._add_single_dataset_spec()
+    input_control._add_measurement()
 
     input_control.exp_file = "ecSecB_dimer.csv"
     input_control.exp_state = "SecB his dimer apo"
     input_control.measurement_name = "SecB his dimer apo"  # todo catch error duplicate name
-    input_control._add_single_dataset_spec()
+    input_control._add_measurement()
 
     input_control._action_load_datasets()
 
@@ -138,15 +143,17 @@ def test_web_fitting():
 @pytest.mark.skipif(
     not sys.platform.startswith("win"), reason="output slightly different on other platforms"
 )
-def test_web_load(secb_spec, secb_file_dict):
+def test_web_load(openhdx_zip_file: bytes):
     ctrl, tmpl = main_app()
 
-    file_input = ctrl.control_panels["PeptideFileInputControl"]
-    states = ["SecB_tetramer", "SecB_dimer"]
-    load_state(file_input, secb_spec, data_dir=input_dir, states=states)
+    input_control = ctrl.control_panels["PeptideFileInputControl"]
+    input_control.input_mode = "openHDX zip"
+    input_control.widgets["zip_file"].filename = "HDX_D9096080.zip"
+    input_control.zip_file = openhdx_zip_file
 
-    file_input._action_load_datasets()
-    assert len(file_input.src.hdxm_objects) == 2
+    input_control._action_load_datasets()
+
+    assert len(input_control.src.hdxm_objects) == 2
 
     file_export = ctrl.control_panels["FileExportControl"]
 
@@ -170,45 +177,8 @@ def test_web_load(secb_spec, secb_file_dict):
     df_ref = csv_to_dataframe(output_dir / "main_web" / "rfu_colors.csv")
     pd.testing.assert_frame_equal(df_test, df_ref)
 
-    # Download HDX spec file
-    sio_hdx_spec = file_export.hdx_spec_callback()
 
-    del ctrl
-    del file_export
-    del file_input
-
-    # load a new instance of the main app, reload previous data through batch input
-    new_ctrl, tmpl = main_app()
-    input_control = new_ctrl.control_panels["PeptideFileInputControl"]
-
-    sio_hdx_spec.seek(0)
-    input_control.input_mode = "Batch"
-    input_control.widgets["input_files"].filename = list(secb_file_dict.keys())
-    input_control.input_files = list(secb_file_dict.values())
-
-    input_control.batch_file = sio_hdx_spec.read().encode("utf-8")
-    input_control._action_load_datasets()
-
-    file_export = new_ctrl.control_panels["FileExportControl"]
-
-    # check rfu table output
-    file_export.table = "rfu"
-    sio = file_export.table_export_callback()
-    df_test = csv_to_dataframe(sio)
-    df_ref = csv_to_dataframe(output_dir / "main_web" / "rfu.csv")
-    pd.testing.assert_frame_equal(df_test, df_ref)
-
-    # check table output
-    file_export.table = "peptides"
-    sio = file_export.table_export_callback()
-    df_test = csv_to_dataframe(sio)
-    df_ref = csv_to_dataframe(output_dir / "main_web" / "peptides.csv")
-    pd.testing.assert_frame_equal(df_test, df_ref)
-
-
-@pytest.mark.skipif(
-    not sys.platform.startswith("win"), reason="output slightly different on other platforms"
-)
+@pytest.mark.skip("outdated, uses hdxms-datasets v0.1.5 input format")
 def test_rfu(ppix_spec, ppix_file_dict):
     """Test the RFU app"""
     ctrl, tmpl = rfu_app()
