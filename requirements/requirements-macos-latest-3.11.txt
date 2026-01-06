@@ -24,7 +24,7 @@ bleach==6.3.0
     # via
     #   nbconvert
     #   panel
-bokeh==2.4.3
+bokeh==3.8.2
     # via
     #   pyhdx (pyproject.toml)
     #   hvplot
