@@ -509,7 +509,7 @@ ultraplot==1.0
     # via pyhdx (pyproject.toml)
 uncertainties==3.2.3
     # via hdxms-datasets
-urllib3==2.6.2
+urllib3==2.6.3
     # via
     #   distributed
     #   requests
