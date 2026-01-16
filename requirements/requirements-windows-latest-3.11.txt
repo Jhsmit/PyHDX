@@ -72,7 +72,7 @@ decorator==5.2.1
     # via ipython
 defusedxml==0.7.1
     # via nbconvert
-distributed==2025.12.0
+distributed==2026.1.1
     # via pyhdx (pyproject.toml)
 executing==2.2.1
     # via stack-data
