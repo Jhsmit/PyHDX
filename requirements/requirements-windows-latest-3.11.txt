@@ -323,7 +323,7 @@ pathspec==0.12.1
     #   mkdocs
 patsy==1.0.2
     # via statsmodels
-pillow==12.0.0
+pillow==12.1.1
     # via
     #   bokeh
     #   imageio
