@@ -466,7 +466,7 @@ toposort==1.10
     # via symfit
 torch==2.9.1
     # via pyhdx (pyproject.toml)
-tornado==6.5.4
+tornado==6.5.5
     # via
     #   bokeh
     #   distributed
